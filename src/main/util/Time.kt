@@ -1,0 +1,100 @@
+package main.util
+
+/*
+    Copyright 2016  Chris Mustola
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see http://www.gnu.org/licenses/.
+ */
+
+import java.util.Calendar
+import java.util.Collections
+import java.util.Date
+
+class Time : Comparable<Time> {
+    lateinit var year: String
+    lateinit var month: String
+    lateinit var date: String
+    lateinit var hour: String
+    lateinit var minute: String
+    lateinit var second: String
+
+    val timeInMillis: Long
+        get() {
+            val calendar = Calendar.getInstance()
+            calendar.set(Integer.parseInt(year), Integer.parseInt(month), Integer.parseInt(date), Integer.parseInt(hour), Integer.parseInt(minute), Integer.parseInt(second))
+            return calendar.timeInMillis
+        }
+
+    constructor(date: Calendar) {
+        year = checkValue(date.get(Calendar.YEAR))
+        month = checkValue(date.get(Calendar.MONTH) + 1)
+        this.date = checkValue(date.get(Calendar.DATE))
+        hour = checkValue(date.get(Calendar.HOUR_OF_DAY))
+        minute = checkValue(date.get(Calendar.MINUTE))
+        second = checkValue(date.get(Calendar.SECOND))
+    }
+
+    constructor(year: Int, month: Int, date: Int, hour: Int, minute: Int, second: Int) {
+        this.year = checkValue(year)
+        this.month = checkValue(month)
+        this.date = checkValue(date)
+        this.hour = checkValue(hour)
+        this.minute = checkValue(minute)
+        this.second = checkValue(second)
+    }
+
+    constructor(date: Date) {
+        val calendar = Calendar.getInstance()
+        calendar.time = date
+        year = checkValue(calendar.get(Calendar.YEAR))
+        month = checkValue(calendar.get(Calendar.MONTH) + 1)
+        this.date = checkValue(calendar.get(Calendar.DATE))
+        hour = checkValue(calendar.get(Calendar.HOUR_OF_DAY))
+        minute = checkValue(calendar.get(Calendar.MINUTE))
+        second = checkValue(calendar.get(Calendar.SECOND))
+    }
+
+    constructor(milliseconds: Long) {
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = milliseconds
+    }
+
+    private fun checkValue(date: Int): String {
+        return if (date < 10) {
+            "0$date"
+        } else {
+            date.toString()
+        }
+    }
+
+    override fun compareTo(time: Time): Int {
+        //check if null
+        if (time == null) {
+            throw NullPointerException("anotherCalendar == null")
+        }
+
+        //create Calendar object
+        val calendar = Calendar.getInstance()
+        calendar.set(Integer.parseInt(time.year), Integer.parseInt(time.month), Integer.parseInt(time.date), Integer.parseInt(time.hour), Integer.parseInt(time.minute), Integer.parseInt(time.second))
+
+        //get the time in milliseconds
+        val timeInMillis = timeInMillis
+
+        //get the comparable time in milliseconds
+        val anotherTimeInMillis = time.timeInMillis
+        if (timeInMillis > anotherTimeInMillis) {
+            return 1
+        }
+        return if (timeInMillis == anotherTimeInMillis) {
+            0
+        } else -1
+    }
+}
