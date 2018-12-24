@@ -1,5 +1,5 @@
 <component name="ArtifactManager">
-  <artifact type="jar" name="ts3-musicbot">
+  <artifact type="jar" build-on-make="true" name="ts3-musicbot">
     <output-path>$PROJECT_DIR$/out/artifacts/ts3_musicbot</output-path>
     <root id="archive" name="ts3-musicbot.jar">
       <element id="module-output" name="TS3 Music Bot" />

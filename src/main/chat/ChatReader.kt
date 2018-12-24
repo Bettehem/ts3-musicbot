@@ -76,7 +76,7 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
                     Runtime.getRuntime().exec(arrayOf("sh", "-c", "sleep 1 && xdotool key ctrl+Return && sp current > /tmp/sp-current && sleep 1")).waitFor()
                     val lines = Files.readAllLines(File("/tmp/sp-current").toPath().toAbsolutePath(), StandardCharsets.UTF_8)
                     for (line in lines){
-                        Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool type \"$line\" && xdotool key ctrl+Return")).waitFor()
+                        Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool sleep 1 type \"$line\" && xdotool key ctrl+Return")).waitFor()
                     }
                     Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool key Return"))
                 }

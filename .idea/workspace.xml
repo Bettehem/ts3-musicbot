@@ -10,7 +10,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="a73ea01e-8642-4912-a25a-1aa2e7ae8306" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/artifacts/ts3_musicbot.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/artifacts/ts3_musicbot.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/chat/ChatReader.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/chat/ChatReader.kt" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/out/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -60,18 +62,18 @@
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
           <entry key="java" value="10" />
-          <entry key="kt" value="8892" />
+          <entry key="kt" value="8980" />
           <entry key="md" value="731" />
           <entry key="sp" value="1" />
-          <entry key="txt" value="347" />
+          <entry key="txt" value="401" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
           <entry key="JAVA" value="10" />
-          <entry key="Kotlin" value="8892" />
+          <entry key="Kotlin" value="8980" />
           <entry key="Markdown" value="731" />
-          <entry key="PLAIN_TEXT" value="348" />
+          <entry key="PLAIN_TEXT" value="402" />
         </counts>
       </usages-collector>
     </session>
@@ -90,8 +92,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/main/chat/ChatReader.kt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1207">
-              <caret line="74" column="255" selection-start-line="74" selection-start-column="255" selection-end-line="74" selection-end-column="255" />
+            <state relative-caret-position="539">
+              <caret line="78" column="91" selection-start-line="78" selection-start-column="91" selection-end-line="78" selection-end-column="91" />
               <folding>
                 <element signature="e#19#184#0" expanded="true" />
               </folding>
@@ -146,8 +148,8 @@
         <option value="$PROJECT_DIR$/src/main/util/Time.kt" />
         <option value="$PROJECT_DIR$/.idea/ant.xml" />
         <option value="$PROJECT_DIR$/src/main/Main.kt" />
-        <option value="$PROJECT_DIR$/src/main/chat/ChatReader.kt" />
         <option value="$PROJECT_DIR$/README.md" />
+        <option value="$PROJECT_DIR$/src/main/chat/ChatReader.kt" />
       </list>
     </option>
   </component>
@@ -189,7 +191,7 @@
     <property name="GenerateAntBuildDialog.enableUiFormCompile" value="true" />
     <property name="GenerateAntBuildDialog.forceTargetJdk" value="true" />
     <property name="GenerateAntBuildDialog.outputFileNameProperty" value="ts3-musicbot" />
-    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1545641163881" />
+    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1545642260330" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/out/artifacts/ts3_musicbot/ts3-musicbot.jar" />
     <property name="project.structure.last.edited" value="Artifacts" />
     <property name="project.structure.proportion" value="0.15" />
@@ -411,7 +413,14 @@
       <option name="project" value="LOCAL" />
       <updated>1545640693685</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="Added delay to spotify play pause and resume commands">
+      <created>1545641232960</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1545641232960</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="TodoView">
@@ -436,7 +445,7 @@
       <window_info id="Favorites" order="6" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.4994401" weight="0.46254072" />
+      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.4994401" weight="0.47704366" />
       <window_info anchor="bottom" id="Cvs" order="3" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="4" weight="0.4" />
       <window_info anchor="bottom" id="Debug" order="5" weight="0.43322477" />
@@ -466,7 +475,8 @@
     <MESSAGE value="Improved readme" />
     <MESSAGE value="Added %sp-nowplaying command.&#10;Increased chat scanning time to 1 second." />
     <MESSAGE value="Updated Readme" />
-    <option name="LAST_COMMIT_MESSAGE" value="Updated Readme" />
+    <MESSAGE value="Added delay to spotify play pause and resume commands" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added delay to spotify play pause and resume commands" />
   </component>
   <component name="antWorkspaceConfiguration">
     <option name="IS_AUTOSCROLL_TO_SOURCE" value="false" />
@@ -572,8 +582,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/main/chat/ChatReader.kt">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1207">
-          <caret line="74" column="255" selection-start-line="74" selection-start-column="255" selection-end-line="74" selection-end-column="255" />
+        <state relative-caret-position="539">
+          <caret line="78" column="91" selection-start-line="78" selection-start-column="91" selection-end-line="78" selection-end-column="91" />
           <folding>
             <element signature="e#19#184#0" expanded="true" />
           </folding>
