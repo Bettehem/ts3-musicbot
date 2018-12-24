@@ -11,7 +11,6 @@
   <component name="ChangeListManager">
     <list default="true" id="a73ea01e-8642-4912-a25a-1aa2e7ae8306" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/out/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -64,7 +63,7 @@
           <entry key="kt" value="8892" />
           <entry key="md" value="731" />
           <entry key="sp" value="1" />
-          <entry key="txt" value="331" />
+          <entry key="txt" value="347" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
@@ -72,7 +71,7 @@
           <entry key="JAVA" value="10" />
           <entry key="Kotlin" value="8892" />
           <entry key="Markdown" value="731" />
-          <entry key="PLAIN_TEXT" value="332" />
+          <entry key="PLAIN_TEXT" value="348" />
         </counts>
       </usages-collector>
     </session>
@@ -88,10 +87,10 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/main/chat/ChatReader.kt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="148">
+            <state relative-caret-position="1207">
               <caret line="74" column="255" selection-start-line="74" selection-start-column="255" selection-end-line="74" selection-end-column="255" />
               <folding>
                 <element signature="e#19#184#0" expanded="true" />
@@ -100,7 +99,7 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/README.md">
           <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
             <state split_layout="SPLIT">
@@ -190,7 +189,7 @@
     <property name="GenerateAntBuildDialog.enableUiFormCompile" value="true" />
     <property name="GenerateAntBuildDialog.forceTargetJdk" value="true" />
     <property name="GenerateAntBuildDialog.outputFileNameProperty" value="ts3-musicbot" />
-    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1545640672701" />
+    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1545641163881" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/out/artifacts/ts3_musicbot/ts3-musicbot.jar" />
     <property name="project.structure.last.edited" value="Artifacts" />
     <property name="project.structure.proportion" value="0.15" />
@@ -405,7 +404,14 @@
       <option name="project" value="LOCAL" />
       <updated>1545640062428</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="Updated Readme">
+      <created>1545640693685</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1545640693685</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TodoView">
@@ -459,7 +465,8 @@
     <MESSAGE value="Fixed readme formatting" />
     <MESSAGE value="Improved readme" />
     <MESSAGE value="Added %sp-nowplaying command.&#10;Increased chat scanning time to 1 second." />
-    <option name="LAST_COMMIT_MESSAGE" value="Added %sp-nowplaying command.&#10;Increased chat scanning time to 1 second." />
+    <MESSAGE value="Updated Readme" />
+    <option name="LAST_COMMIT_MESSAGE" value="Updated Readme" />
   </component>
   <component name="antWorkspaceConfiguration">
     <option name="IS_AUTOSCROLL_TO_SOURCE" value="false" />
@@ -553,16 +560,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/chat/ChatReader.kt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="148">
-          <caret line="74" column="255" selection-start-line="74" selection-start-column="255" selection-end-line="74" selection-end-column="255" />
-          <folding>
-            <element signature="e#19#184#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/README.md">
       <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
         <state split_layout="SPLIT">
@@ -570,6 +567,16 @@
             <caret line="12" column="182" selection-start-line="12" selection-start-column="182" selection-end-line="12" selection-end-column="182" />
           </first_editor>
           <second_editor />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/chat/ChatReader.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1207">
+          <caret line="74" column="255" selection-start-line="74" selection-start-column="255" selection-end-line="74" selection-end-column="255" />
+          <folding>
+            <element signature="e#19#184#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

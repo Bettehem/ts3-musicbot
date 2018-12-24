@@ -48,13 +48,13 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
         //check if message is a command
         if (message.startsWith("%") && message.length > 1) {
             when (message.split(" ".toRegex())[0]) {
-                "%sp-pause" -> Runtime.getRuntime().exec("sp pause")
-                "%sp-resume" -> Runtime.getRuntime().exec("sp play")
-                "%sp-play" -> Runtime.getRuntime().exec("sp play")
+                "%sp-pause" -> Runtime.getRuntime().exec("sleep 1 && sp pause")
+                "%sp-resume" -> Runtime.getRuntime().exec("sleep 1 && sp play")
+                "%sp-play" -> Runtime.getRuntime().exec("sleep 1 && sp play")
 
-                "%sp-skip" -> Runtime.getRuntime().exec("sp next")
-                "%sp-next" -> Runtime.getRuntime().exec("sp next")
-                "%sp-prev" -> Runtime.getRuntime().exec("sp prev")
+                "%sp-skip" -> Runtime.getRuntime().exec("sleep 1 && sp next")
+                "%sp-next" -> Runtime.getRuntime().exec("sleep 1 && sp next")
+                "%sp-prev" -> Runtime.getRuntime().exec("sleep 1 && sp prev")
 
                 //Play Spotify song based on link or URI
                 "%sp-playsong" -> {
