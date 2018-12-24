@@ -5,6 +5,7 @@ import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
 
@@ -25,7 +26,7 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
                         chatUpdated(currentLine)
                     }
 
-                    Thread.sleep(500)
+                    Thread.sleep(1000)
                 }
 
             }.run()
@@ -68,6 +69,16 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
                 "%sp-playlist" -> {
                     if (message.split(" ".toRegex())[1].startsWith("spotify:user:") && message.split(" ".toRegex())[1].contains(":playlist:"))
                         Runtime.getRuntime().exec("sp open spotify:user:${message.split(" ".toRegex())[1].split(":".toRegex())[2]}:playlist:${message.split(":".toRegex()).last()}")
+                }
+
+                "%sp-nowplaying" -> {
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool windowraise \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1) && xdotool windowactivate --sync \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1)"))
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "sleep 1 && xdotool key ctrl+Return && sp current > /tmp/sp-current && sleep 1")).waitFor()
+                    val lines = Files.readAllLines(File("/tmp/sp-current").toPath().toAbsolutePath(), StandardCharsets.UTF_8)
+                    for (line in lines){
+                        Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool type \"$line\" && xdotool key ctrl+Return")).waitFor()
+                    }
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool key Return"))
                 }
 
 
