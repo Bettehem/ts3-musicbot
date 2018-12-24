@@ -16,13 +16,13 @@ Installation:
 
 
 
-Use:
-1.
-   a) Install IntelliJ idea to build the bot from source
-   b) Download latest build from https://gitlab.com/Bettehem/ts3-musicbot/tags
-2. Open the app with java -jar ts3-musicbot.jar
-3. Enter or Browse the path of your teamspeak channel's channel.html file
-4. Press Ready.
+Use:   
+1.   
+   a) Install IntelliJ idea to build the bot from source   
+   b) Download latest build from https://gitlab.com/Bettehem/ts3-musicbot/tags   
+2. Open the app with java -jar ts3-musicbot.jar   
+3. Enter or Browse the path of your teamspeak channel's channel.html file   
+4. Press Ready.   
 
 
 Commands:
