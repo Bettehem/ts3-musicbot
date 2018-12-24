@@ -24,7 +24,7 @@ TS3 MusicBot let's you control your music from a TeamSpeak servers channel via c
 3. Enter or Browse the path of your teamspeak channel's channel.html file<br>
 4. Press Ready.<br>
 5. In PulseAudio Volume Control, go to Recording tab and select TeamSpeak's audio source to be your default speakers.<br>
-6. Make sure you click the chat text box and you should be good to go<br> 
+6. Make sure you click the chat text box in your desired TeamSpeak channel and you should be good to go<br> 
 
 <h4>Commands:</h4>
 - All commands start with the "%" character. You have to enter these in the chat of the channel your bot is connected to.<br>
