@@ -10,7 +10,7 @@ TS3 MusicBot let's you control your music from a TeamSpeak servers channel via c
 - Download sp from https://gist.github.com/wandernauta/6800547 and copy it to /bin/sh and make it executable<br>    
 - Install youtube-dl and mpv for youtube support<br>
 - Install spotify and log in<br>
-- Install TeamSpeak client and log in to desired server and enter channel where you want the bot to be<br>
+- Install TeamSpeak client and log in to desired server and enter channel where you want the bot to be, and then click the text box at the bottom where it says "Enter Chat Message..."<br>
 - Install PulseAudio Volume Control (pavucontrol) so you can route audio from your music app to TeamSpeak<br> 
 - Install jre8-openjdk and java-openjfx<br>
 - Install xdotool so the bot can interact with TeamSpeak's chat
