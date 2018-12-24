@@ -48,13 +48,16 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
         //check if message is a command
         if (message.startsWith("%") && message.length > 1) {
             when (message.split(" ".toRegex())[0]) {
-                "%sp-pause" -> Runtime.getRuntime().exec("sleep 1 && sp pause")
-                "%sp-resume" -> Runtime.getRuntime().exec("sleep 1 && sp play")
-                "%sp-play" -> Runtime.getRuntime().exec("sleep 1 && sp play")
+                "%sp-pause" -> Runtime.getRuntime().exec("sp pause && sleep 1")
+                "%sp-resume" -> Runtime.getRuntime().exec("sp play && sleep 1")
+                "%sp-play" -> Runtime.getRuntime().exec("sp play && sleep 1")
 
-                "%sp-skip" -> Runtime.getRuntime().exec("sleep 1 && sp next")
-                "%sp-next" -> Runtime.getRuntime().exec("sleep 1 && sp next")
-                "%sp-prev" -> Runtime.getRuntime().exec("sleep 1 && sp prev")
+                "%sp-skip" -> Runtime.getRuntime().exec("sp next && sleep 1")
+                "%sp-next" -> Runtime.getRuntime().exec("sp next && sleep 1")
+                "%sp-prev" -> {
+                    Runtime.getRuntime().exec("sp prev").waitFor(100, TimeUnit.MILLISECONDS)
+                    Runtime.getRuntime().exec("sp prev").waitFor(100, TimeUnit.MILLISECONDS)
+                }
 
                 //Play Spotify song based on link or URI
                 "%sp-playsong" -> {
@@ -76,9 +79,9 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
                     Runtime.getRuntime().exec(arrayOf("sh", "-c", "sleep 1 && xdotool key ctrl+Return && sp current > /tmp/sp-current && sleep 1")).waitFor()
                     val lines = Files.readAllLines(File("/tmp/sp-current").toPath().toAbsolutePath(), StandardCharsets.UTF_8)
                     for (line in lines){
-                        Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool sleep 1 type \"$line\" && xdotool key ctrl+Return")).waitFor()
+                        Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool type --delay 25 \"$line\" && xdotool key ctrl+Return")).waitFor()
                     }
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool key Return"))
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool sleep 1 key Return"))
                 }
 
 
