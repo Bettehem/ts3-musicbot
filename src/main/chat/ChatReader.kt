@@ -53,6 +53,7 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
 
                 "%sp-skip" -> Runtime.getRuntime().exec("sp next")
                 "%sp-next" -> Runtime.getRuntime().exec("sp next")
+                "%sp-prev" -> Runtime.getRuntime().exec("sp prev")
 
                 //Play Spotify song based on link or URI
                 "%sp-playsong" -> {

@@ -26,11 +26,13 @@ Use:
 Commands:
 - All commands start with "%" character. You have to enter these in the chat of the channel your bot is connected to.
 
-%sp-pause               -Pauses the Spotify playback
-%sp-resume              -Resumes the Spotify playback
-%sp-play                -Resumes the Spotify playback
-%sp-skip                -Skips the currently playing track
-%sp-playsong <track>    -Plays a Spotify song. <track> should be your song link or Spotify URI
-%sp-playlist <playlist>    -Plays a Spotify playlist. <playlist> should be your playlist's Spotify URI. Links aren't currently supported
+%sp-pause                   -Pauses the Spotify playback
+%sp-resume                  -Resumes the Spotify playback
+%sp-play                    -Resumes the Spotify playback
+%sp-skip                    -Skips the currently playing track
+%sp-next                    -Skips the currently playing track
+%sp-prev                    -Plays the previous track
+%sp-playsong <track>        -Plays a Spotify song. <track> should be your song link or Spotify URI
+%sp-playlist <playlist>     -Plays a Spotify playlist. <playlist> should be your playlist's Spotify URI. Links aren't currently supported
 
 
