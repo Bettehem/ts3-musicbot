@@ -121,6 +121,6 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
     }
 
     override fun onChatUpdated(update: ChatUpdate) {
-        statusTextView.text = statusTextView.text.split(" ".toRegex())[0] + "\n\n\n\nStatus:\n\nTime: ${update.time}\nUser: ${update.userName}\nMessage: ${update.message}"
+        //statusTextView.text = statusTextView.text.split(" ".toRegex())[0] + "\n\n\n\nStatus:\n\nTime: ${update.time}\nUser: ${update.userName}\nMessage: ${update.message}"
     }
 }

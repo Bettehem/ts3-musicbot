@@ -73,12 +73,20 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
 
 
 
-                "%yt-pause" -> Runtime.getRuntime().exec("vlc --key-play-pause Pause")
-                "%yt-resume" -> Runtime.getRuntime().exec("vlc --key-play-pause Play")
-                "%yt-play" -> Runtime.getRuntime().exec("vlc --key-play-pause Play")
+                "%yt-pause" -> Runtime.getRuntime().exec(arrayOf("sh", "-c", "echo \"cycle pause\" | socat - /tmp/mpvsocket"))
+                "%yt-resume" -> Runtime.getRuntime().exec(arrayOf("sh", "-c", "echo \"cycle pause\" | socat - /tmp/mpvsocket"))
+                "%yt-play" -> Runtime.getRuntime().exec(arrayOf("sh", "-c", "echo \"cycle pause\" | socat - /tmp/mpvsocket"))
+                "%yt-stop" -> Runtime.getRuntime().exec(arrayOf("sh", "-c", "echo \"stop\" | socat - /tmp/mpvsocket"))
 
 
-                "%yt-playsong" -> Runtime.getRuntime().exec("youtube-dl -o - \"${message.split(" ".toRegex())[2].split("href=\"".toRegex())[1].split("\">".toRegex())[0]}\" | mplayer -")
+                "%yt-playsong" -> {
+                    val link = message.split(" ".toRegex())[2].split("href=\"".toRegex())[1].split("\">".toRegex())[0]
+                    //Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -o - \"$link\" | mpv --no-video --input-ipc-server=/tmp/mpvsocket - &"))
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "mpv --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $link &"))
+                }
+
+
+
 
             }
         }

@@ -2,12 +2,15 @@
 <project version="4">
   <component name="ArtifactsWorkspaceSettings">
     <artifacts-to-build>
-      <artifact name="TS3 Music Bot:jar" />
+      <artifact name="ts3-musicbot" />
     </artifacts-to-build>
   </component>
   <component name="ChangeListManager">
     <list default="true" id="a73ea01e-8642-4912-a25a-1aa2e7ae8306" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/Main.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/Main.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/chat/ChatReader.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/chat/ChatReader.kt" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/out/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -29,7 +32,7 @@
       <usages-collector id="statistics.file.extensions.open">
         <counts>
           <entry key="MF" value="5" />
-          <entry key="class" value="4" />
+          <entry key="class" value="5" />
           <entry key="html" value="1" />
           <entry key="iml" value="2" />
           <entry key="java" value="1" />
@@ -42,7 +45,7 @@
       </usages-collector>
       <usages-collector id="statistics.file.types.open">
         <counts>
-          <entry key="CLASS" value="4" />
+          <entry key="CLASS" value="5" />
           <entry key="HTML" value="1" />
           <entry key="IDEA_MODULE" value="2" />
           <entry key="JAVA" value="1" />
@@ -57,37 +60,29 @@
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
           <entry key="java" value="10" />
-          <entry key="kt" value="7967" />
-          <entry key="md" value="107" />
+          <entry key="kt" value="8364" />
+          <entry key="md" value="271" />
           <entry key="sp" value="1" />
-          <entry key="txt" value="128" />
+          <entry key="txt" value="158" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
           <entry key="JAVA" value="10" />
-          <entry key="Kotlin" value="7967" />
-          <entry key="Markdown" value="107" />
-          <entry key="PLAIN_TEXT" value="129" />
+          <entry key="Kotlin" value="8364" />
+          <entry key="Markdown" value="271" />
+          <entry key="PLAIN_TEXT" value="159" />
         </counts>
       </usages-collector>
     </session>
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/Main.kt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="306">
-              <caret line="32" selection-start-line="32" selection-end-line="32" />
-              <folding>
-                <element signature="e#751#957#0" />
-                <element signature="n#!!block;n#Companion#0;n#!!block;n#Main#0" />
-                <element signature="n#!!block;n#start#0;n#!!block;n#Main#0" />
-                <element signature="n#!!block;n#variables#0;n#!!block;n#Main#0" />
-                <element signature="n#!!block;n#ui#0;n#!!block;n#Main#0" />
-                <element signature="n#!!block;n#handle#0;n#!!block;n#Main#0" />
-              </folding>
+            <state relative-caret-position="1279">
+              <caret line="123" selection-start-line="123" selection-end-line="123" />
             </state>
           </provider>
         </entry>
@@ -95,8 +90,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/chat/ChatReader.kt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="425">
-              <caret line="103" column="49" selection-start-line="103" selection-start-column="49" selection-end-line="103" selection-end-column="49" />
+            <state relative-caret-position="191">
+              <caret line="78" column="89" selection-start-line="78" selection-start-column="89" selection-end-line="78" selection-end-column="89" />
               <folding>
                 <element signature="e#19#147#0" expanded="true" />
               </folding>
@@ -104,12 +99,12 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/README.md">
           <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
             <state split_layout="SPLIT">
-              <first_editor relative-caret-position="544">
-                <caret line="32" column="27" selection-start-line="32" selection-start-column="27" selection-end-line="32" selection-end-column="27" />
+              <first_editor relative-caret-position="307">
+                <caret line="29" column="112" selection-start-line="29" selection-start-column="112" selection-end-line="29" selection-end-column="112" />
               </first_editor>
               <second_editor />
             </state>
@@ -149,8 +144,8 @@
         <option value="$PROJECT_DIR$/src/main/spotify/sp" />
         <option value="$PROJECT_DIR$/src/main/util/Time.java" />
         <option value="$PROJECT_DIR$/src/main/util/Time.kt" />
-        <option value="$PROJECT_DIR$/src/main/Main.kt" />
         <option value="$PROJECT_DIR$/.idea/ant.xml" />
+        <option value="$PROJECT_DIR$/src/main/Main.kt" />
         <option value="$PROJECT_DIR$/src/main/chat/ChatReader.kt" />
         <option value="$PROJECT_DIR$/README.md" />
       </list>
@@ -181,17 +176,6 @@
               <item name="TS3 Music Bot" type="b2602c69:ProjectViewProjectNode" />
               <item name="TS3 Music Bot" type="462c0819:PsiDirectoryNode" />
             </path>
-            <path>
-              <item name="TS3 Music Bot" type="b2602c69:ProjectViewProjectNode" />
-              <item name="TS3 Music Bot" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="TS3 Music Bot" type="b2602c69:ProjectViewProjectNode" />
-              <item name="TS3 Music Bot" type="462c0819:PsiDirectoryNode" />
-              <item name="src" type="462c0819:PsiDirectoryNode" />
-              <item name="main" type="462c0819:PsiDirectoryNode" />
-            </path>
           </expand>
           <select />
         </subPane>
@@ -205,7 +189,7 @@
     <property name="GenerateAntBuildDialog.enableUiFormCompile" value="true" />
     <property name="GenerateAntBuildDialog.forceTargetJdk" value="true" />
     <property name="GenerateAntBuildDialog.outputFileNameProperty" value="ts3-musicbot" />
-    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1545616611549" />
+    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1545625820384" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/out/artifacts/ts3_musicbot/ts3-musicbot.jar" />
     <property name="project.structure.last.edited" value="Artifacts" />
     <property name="project.structure.proportion" value="0.15" />
@@ -334,7 +318,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="JAR Application.TS3 MusicBot JAR">
+  <component name="RunManager" selected="Kotlin.TS3bot">
     <configuration name="TS3 MusicBot JAR" type="JarApplication" factoryName="JAR Application">
       <option name="JAR_PATH" value="$PROJECT_DIR$/out/artifacts/ts3_musicbot/ts3-musicbot.jar" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
@@ -378,7 +362,14 @@
       <option name="project" value="LOCAL" />
       <updated>1545616258099</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="Changed artifact name.">
+      <created>1545616757666</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1545616757666</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TodoView">
@@ -394,7 +385,7 @@
     <frame x="0" y="0" width="1920" height="1061" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.4989154" visible="true" weight="0.32318377" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.4989154" weight="0.21527778" />
       <window_info id="Structure" order="1" sideWeight="0.5010846" side_tool="true" weight="0.15438034" />
       <window_info id="Image Layers" order="2" />
       <window_info id="Designer" order="3" />
@@ -403,15 +394,15 @@
       <window_info id="Favorites" order="6" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" weight="0.3661814" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.4219089" />
-      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
-      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
+      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.41150922" />
+      <window_info anchor="bottom" id="Cvs" order="3" weight="0.25" />
+      <window_info anchor="bottom" id="Inspection" order="4" weight="0.4" />
+      <window_info anchor="bottom" id="Debug" order="5" weight="0.42019543" />
       <window_info anchor="bottom" id="TODO" order="6" weight="0.32997763" />
       <window_info anchor="bottom" id="Terminal" order="7" weight="0.32997763" />
       <window_info anchor="bottom" id="Event Log" order="8" side_tool="true" />
       <window_info anchor="bottom" id="Version Control" order="9" show_stripe_button="false" />
-      <window_info anchor="bottom" id="Messages" order="10" visible="true" weight="0.3355049" />
+      <window_info anchor="bottom" id="Messages" order="10" weight="0.3344191" />
       <window_info anchor="right" id="Commander" order="0" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -427,49 +418,8 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Added missing command descriptions to readme.&#10;Added %sp-prev command which let's you go back to previous track" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added missing command descriptions to readme.&#10;Added %sp-prev command which let's you go back to previous track" />
-  </component>
-  <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" type="kotlin-line">
-          <url>file://$PROJECT_DIR$/src/main/chat/ChatReader.kt</url>
-          <line>49</line>
-          <properties />
-          <option name="timeStamp" value="27" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="kotlin-line">
-          <url>file://$PROJECT_DIR$/src/main/chat/ChatReader.kt</url>
-          <line>48</line>
-          <properties />
-          <option name="timeStamp" value="28" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="kotlin-line">
-          <url>file://$PROJECT_DIR$/src/main/chat/ChatReader.kt</url>
-          <line>59</line>
-          <properties />
-          <option name="timeStamp" value="32" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="kotlin-line">
-          <url>file://$PROJECT_DIR$/src/main/chat/ChatReader.kt</url>
-          <line>62</line>
-          <properties />
-          <option name="timeStamp" value="33" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="kotlin-line">
-          <url>file://$PROJECT_DIR$/src/main/chat/ChatReader.kt</url>
-          <line>60</line>
-          <properties />
-          <option name="timeStamp" value="34" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="kotlin-line">
-          <url>file://$PROJECT_DIR$/src/main/chat/ChatReader.kt</url>
-          <line>47</line>
-          <properties />
-          <option name="timeStamp" value="39" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
+    <MESSAGE value="Changed artifact name." />
+    <option name="LAST_COMMIT_MESSAGE" value="Changed artifact name." />
   </component>
   <component name="antWorkspaceConfiguration">
     <option name="IS_AUTOSCROLL_TO_SOURCE" value="false" />
@@ -546,41 +496,40 @@
     <entry file="file://$PROJECT_DIR$/src/META-INF/MANIFEST.MF">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
-    <entry file="file://$PROJECT_DIR$/README.md">
-      <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
-        <state split_layout="SPLIT">
-          <first_editor relative-caret-position="544">
-            <caret line="32" column="27" selection-start-line="32" selection-start-column="27" selection-end-line="32" selection-end-column="27" />
-          </first_editor>
-          <second_editor />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/TS3 Music Bot.iml">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/Main.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1279">
+          <caret line="123" selection-start-line="123" selection-end-line="123" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="jar:///usr/lib/jvm/java-8-openjdk/jre/lib/rt.jar!/java/lang/Process.class">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="121">
+          <caret line="21" column="24" selection-start-line="21" selection-start-column="24" selection-end-line="21" selection-end-column="24" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/src/main/chat/ChatReader.kt">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="425">
-          <caret line="103" column="49" selection-start-line="103" selection-start-column="49" selection-end-line="103" selection-end-column="49" />
+        <state relative-caret-position="191">
+          <caret line="78" column="89" selection-start-line="78" selection-start-column="89" selection-end-line="78" selection-end-column="89" />
           <folding>
             <element signature="e#19#147#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/Main.kt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="306">
-          <caret line="32" selection-start-line="32" selection-end-line="32" />
-          <folding>
-            <element signature="e#751#957#0" />
-            <element signature="n#!!block;n#Companion#0;n#!!block;n#Main#0" />
-            <element signature="n#!!block;n#start#0;n#!!block;n#Main#0" />
-            <element signature="n#!!block;n#variables#0;n#!!block;n#Main#0" />
-            <element signature="n#!!block;n#ui#0;n#!!block;n#Main#0" />
-            <element signature="n#!!block;n#handle#0;n#!!block;n#Main#0" />
-          </folding>
+    <entry file="file://$PROJECT_DIR$/README.md">
+      <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
+        <state split_layout="SPLIT">
+          <first_editor relative-caret-position="307">
+            <caret line="29" column="112" selection-start-line="29" selection-start-column="112" selection-end-line="29" selection-end-column="112" />
+          </first_editor>
+          <second_editor />
         </state>
       </provider>
     </entry>
@@ -590,7 +539,7 @@
       <state key="ArtifactsStructureConfigurable.UI">
         <settings>
           <artifact-editor />
-          <last-edited>TS3 Music Bot:jar</last-edited>
+          <last-edited>ts3-musicbot</last-edited>
           <splitter-proportions>
             <option name="proportions">
               <list>
