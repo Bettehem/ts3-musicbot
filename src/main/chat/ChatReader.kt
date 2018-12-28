@@ -11,6 +11,7 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
 
     private var chatListenerThread: Thread
     private var shouldRead = false
+    private var ytLink = ""
 
     init {
         //start listening to new messages in chat
@@ -45,6 +46,7 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
     }
 
     fun parseLine(userName: String, message: String) {
+
         //check if message is a command
         if (message.startsWith("%") && message.length > 1) {
             when (message.split(" ".toRegex())[0]) {
@@ -95,11 +97,21 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
 
                 "%yt-playsong" -> {
                     val link = message.split(" ".toRegex())[2].split("href=\"".toRegex())[1].split("\">".toRegex())[0]
+                    ytLink = link
                     //Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -o - \"$link\" | mpv --no-video --input-ipc-server=/tmp/mpvsocket - &"))
                     Runtime.getRuntime().exec(arrayOf("sh", "-c", "mpv --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $link &"))
                 }
 
 
+                "%yt-nowplaying" -> {
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool windowraise \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1) && xdotool windowactivate --sync \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1)"))
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "sleep 1 && xdotool key ctrl+Return && youtube-dl --skip-download -e $ytLink > /tmp/yt-current && sleep 1")).waitFor()
+                    val lines = Files.readAllLines(File("/tmp/yt-current").toPath().toAbsolutePath(), StandardCharsets.UTF_8)
+                    for (line in lines){
+                        Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool type --delay 25 \"$line\" && xdotool key ctrl+Return")).waitFor()
+                    }
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool sleep 1 key Return"))
+                }
 
 
             }
