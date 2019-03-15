@@ -113,7 +113,9 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
 
                 "%yt-nowplaying" -> {
                     Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -s -e \"$ytLink\" > /tmp/yt-current && sleep 0.5")).waitFor()
-                    val lines = Files.readAllLines(File("/tmp/yt-current").toPath().toAbsolutePath(), StandardCharsets.UTF_8)
+                    val lines = ArrayList<String>()
+                    lines.add("Now playing on YouTube:")
+                    for (np in Files.readAllLines(File("/tmp/yt-current").toPath().toAbsolutePath(), StandardCharsets.UTF_8)) lines.add(np)
                     printToChat(lines, true)
                 }
 
@@ -149,7 +151,7 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
     private fun printToChat(message: List<String>, focusWindow: Boolean){
         if (focusWindow){
             //Runtime.getRuntime().exec(arrayOf("sh", "-c", "sleep 1 && xdotool windowraise \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1)"))
-            Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool windowactivate --sync \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1) && sleep 0.5 && xdotool key ctrl+Return && sleep 0.25"))
+            Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool windowactivate --sync \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1) && sleep 0.5 && xdotool key ctrl+Return && sleep 0.5"))
         }
         for (line in message){
             Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool type --delay 25 \"${line.replace("\"", "\\\"")}\" && sleep 0.25 && xdotool key ctrl+Return")).waitFor()
