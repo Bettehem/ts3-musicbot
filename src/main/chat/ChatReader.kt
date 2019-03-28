@@ -2,13 +2,14 @@ package main.chat
 
 import main.util.Time
 import java.io.File
+import java.lang.Exception
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 
-class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
+class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener, val apikey: String = "") {
 
     private var chatListenerThread: Thread
     private var shouldRead = false
@@ -91,7 +92,15 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
                     val lines = ArrayList<String>()
                     lines.add("Now playing on Spotify:")
                     for (line in Files.readAllLines(File("/tmp/sp-current").toPath().toAbsolutePath(), StandardCharsets.UTF_8)) lines.add(line)
-                    printToChat(lines, true)
+
+                    if (apikey.isNotEmpty()){
+                        val stringBuffer = StringBuffer()
+                        lines.forEach { stringBuffer.append(it+"\n") }
+                        printToChat(stringBuffer.toString(), apikey)
+                    }else{
+                        printToChat(lines, true)
+                    }
+
                 }
 
 
@@ -112,18 +121,34 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
 
 
                 "%yt-nowplaying" -> {
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -s -e \"$ytLink\" > /tmp/yt-current && sleep 0.5")).waitFor()
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -s -e \"$ytLink\" > /tmp/yt-current")).waitFor()
+                    Thread.sleep(500)
                     val lines = ArrayList<String>()
                     lines.add("Now playing on YouTube:")
                     for (np in Files.readAllLines(File("/tmp/yt-current").toPath().toAbsolutePath(), StandardCharsets.UTF_8)) lines.add(np)
-                    printToChat(lines, true)
+                    if (apikey.isNotEmpty()){
+                        val stringBuffer = StringBuffer()
+                        lines.forEach { stringBuffer.append(it+"\n") }
+                        printToChat(stringBuffer.toString(), apikey)
+                    }else{
+                        printToChat(lines, true)
+                    }
                 }
 
                 "%yt-search" -> {
-                    printToChat(listOf("Searching, please wait..."), true)
+                    var lines = ArrayList<String>()
+                    lines.add("Searching, please wait...")
+                    if (apikey.isNotEmpty()){
+                        val stringBuffer = StringBuffer()
+                        lines.forEach { stringBuffer.append(it+"\n") }
+                        printToChat(stringBuffer.toString(), apikey)
+                    }else{
+                        printToChat(lines, true)
+                    }
 
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -s -e \"ytsearch10:$message\" > /tmp/yt-search && sleep 0.5")).waitFor()
-                    val lines = ArrayList<String>()
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -s -e \"ytsearch10:$message\" > /tmp/yt-search")).waitFor()
+                    Thread.sleep(500)
+                    lines = ArrayList<String>()
                     lines.add("YouTube Search Results:")
 
                     ytResults = Files.readAllLines(File("/tmp/yt-search").toPath().toAbsolutePath(), StandardCharsets.UTF_8)
@@ -133,13 +158,25 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
                     lines.add("Use command \"%yt-sel\" followed by the search result number to play the result, for example:")
                     lines.add("%yt-sel 4")
 
-                    printToChat(lines, false)
+                    if (apikey.isNotEmpty()){
+                        val stringBuffer = StringBuffer()
+                        lines.forEach { stringBuffer.append(it+"\n") }
+                        printToChat(stringBuffer.toString(), apikey)
+                    }else{
+                        printToChat(lines, true)
+                    }
                 }
 
                 "%yt-sel" -> {
                     val selection = ytResults[message.split(" ".toRegex())[1].toInt()-1]
-
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -s --get-id \"ytsearch1:$selection\" > /tmp/yt-sel && sleep 0.5")).waitFor()
+                    File("/tmp/yt-sel_cmd").printWriter().use { out ->
+                        out.println("#!/bin/sh")
+                        out.println("youtube-dl -s --get-id \"ytsearch1:${selection.replace("'", "\'").replace("\"", "\\\"")}\" > /tmp/yt-sel")
+                    }
+                    Thread.sleep(1000)
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "chmod +x /tmp/yt-sel_cmd"))
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "bash /tmp/yt-sel_cmd")).waitFor()
+                    Thread.sleep(250)
                     val link = "https://youtu.be/${Files.readAllLines(File("/tmp/yt-sel").toPath().toAbsolutePath()).last()}"
                     parseLine("", "%yt-playsong $link")
                 }
@@ -148,6 +185,7 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
         }
     }
 
+    //focus window and use xdotool to type message
     private fun printToChat(message: List<String>, focusWindow: Boolean){
         if (focusWindow){
             //Runtime.getRuntime().exec(arrayOf("sh", "-c", "sleep 1 && xdotool windowraise \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1)"))
@@ -159,20 +197,37 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
         Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool sleep 0.5 key \"Return\""))
     }
 
+    //use ClientQuery to send message (requires apikey)
+    private fun printToChat(message: String, apikey: String){
+        if (apikey.isNotEmpty()){
+            File("/tmp/print_to_chat_cmd").printWriter().use { out ->
+                out.println("#!/bin/sh")
+                out.println("(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${message.replace(" ", "\\s").replace("\n", "\\n").replace("/", "\\/").replace("|", "\\p").replace("'", "\\'").replace("\"", "\\\"")}\"; echo quit) | nc localhost 25639")
+            }
+            Runtime.getRuntime().exec(arrayOf("sh", "-c", "chmod +x /tmp/print_to_chat_cmd"))
+            Runtime.getRuntime().exec(arrayOf("sh", "-c", "bash /tmp/print_to_chat_cmd"))
+        }
+    }
+
     private fun chatUpdated(line: String) {
         //extract message
-        val userName = line.split("client://".toRegex())[1].split("&quot;".toRegex())[1]
-        val time = Time(Calendar.getInstance())
-        val rawTime = line.split("TextMessage_Time\">&lt;".toRegex())[1]
-                .split("&gt;</span>".toRegex())[0]
-                .split(":".toRegex())
-        time.hour = rawTime[0]
-        time.minute = rawTime[1]
-        time.second = rawTime[2]
+        try {
+            //val userName = line.split("client://".toRegex())[1].split("&quot;".toRegex())[1]
+            val userName = ""
+            val time = Time(Calendar.getInstance())
+            val rawTime = line.split("TextMessage_Time\">&lt;".toRegex())[1]
+                    .split("&gt;</span>".toRegex())[0]
+                    .split(":".toRegex())
+            time.hour = rawTime[0]
+            time.minute = rawTime[1]
+            time.second = rawTime[2]
 
-        val userMessage = line.split("TextMessage_Text\">".toRegex())[1].split("</span>".toRegex())[0]
-        parseLine(userName, userMessage)
-        onChatUpdateListener.onChatUpdated(ChatUpdate(userName, time, userMessage))
+            val userMessage = line.split("TextMessage_Text\">".toRegex())[1].split("</span>".toRegex())[0]
+            parseLine(userName, userMessage)
+            onChatUpdateListener.onChatUpdated(ChatUpdate(userName, time, userMessage))
+        }catch (e: Exception){
+            e.printStackTrace()
+        }
     }
 }
 
