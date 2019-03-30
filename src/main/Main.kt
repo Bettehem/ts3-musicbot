@@ -176,7 +176,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
     }
 
     private fun variables() {
-        enterChatPathTextView.text = "Enter path to chat file (channel.html)"
+        enterChatPathTextView.text = "Enter path to chat file (channel.html or channel.txt)"
         statusTextView.text = "Not Connected."
 
         browseButton.text = "Browse File"
@@ -203,9 +203,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
         when (p0?.source) {
             browseButton -> {
                 val fileChooser = FileChooser()
-                fileChooser.title = "Select TeamSpeak chat file. (channel.html)"
+                fileChooser.title = "Select TeamSpeak chat file. (channel.html or channel.txt)"
                 fileChooser.initialDirectory = File("${System.getProperty("user.home")}/.ts3client/chats")
-                fileChooser.selectedExtensionFilter = FileChooser.ExtensionFilter("Chat File", listOf("*.html"))
+                fileChooser.selectedExtensionFilter = FileChooser.ExtensionFilter("Chat File", listOf("*.html", "*.txt"))
 
                 val file = fileChooser.showOpenDialog(window)
                 inputFilePath = file.absolutePath
