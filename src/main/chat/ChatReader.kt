@@ -199,7 +199,12 @@ class ChatReader(var chatFile: File, var onChatUpdateListener: ChatUpdateListene
                     time.second = rawTime[2]
 
                     val userMessage = line.substringAfter("$userName: ")
+                    onChatUpdateListener.onChatUpdated(ChatUpdate(userName, time, userMessage))
                 }
+            }
+
+            else -> {
+                println("Error! file format \"${chatFile.extension}\" not supported!")
             }
         }
 
