@@ -121,7 +121,12 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener, v
 
 
                 "%yt-nowplaying" -> {
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -s -e \"$ytLink\" > /tmp/yt-current")).waitFor()
+                    File("/tmp/yt-nowplaying_cmd").printWriter().use { out ->
+                        out.println("#!/bin/sh")
+                        out.println("youtube-dl --geo-bypass -s -e \"$ytLink\" > /tmp/yt-current")
+                    }
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "chmod +x /tmp/yt-nowplaying_cmd"))
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "bash /tmp/yt-nowplaying_cmd")).waitFor()
                     Thread.sleep(500)
                     val lines = ArrayList<String>()
                     lines.add("Now playing on YouTube:")
@@ -146,7 +151,7 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener, v
                         printToChat(lines, true)
                     }
 
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -s -e \"ytsearch10:$message\" > /tmp/yt-search")).waitFor()
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl --geo-bypass -s -e \"ytsearch10:${message.replace("\"", "\\\"").replace("'", "\'")}\" > /tmp/yt-search")).waitFor()
                     Thread.sleep(500)
                     lines = ArrayList<String>()
                     lines.add("YouTube Search Results:")
@@ -178,6 +183,7 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener, v
                     Runtime.getRuntime().exec(arrayOf("sh", "-c", "bash /tmp/yt-sel_cmd")).waitFor()
                     Thread.sleep(250)
                     val link = "https://youtu.be/${Files.readAllLines(File("/tmp/yt-sel").toPath().toAbsolutePath()).last()}"
+                    ytLink = link
                     parseLine("", "%yt-playsong $link")
                 }
 
