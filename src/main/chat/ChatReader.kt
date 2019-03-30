@@ -8,7 +8,7 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 
-class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
+class ChatReader(var chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
 
     private var chatListenerThread: Thread
     private var shouldRead = false
@@ -37,12 +37,23 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
 
     }
 
-    private fun parseLink(link: String): String{
-        return if (link.contains("href=\"")){
-            link.split(" ".toRegex())[2].split("href=\"".toRegex())[1].split("\">".toRegex())[0]
-        }else{
-            link
+    private fun parseLink(link: String): String {
+        when (chatFile.extension) {
+            "html" -> {
+                return if (link.contains("href=\"")) {
+                    link.split(" ".toRegex())[2].split("href=\"".toRegex())[1].split("\">".toRegex())[0]
+                } else {
+                    link
+                }
+            }
+
+            "txt" -> {
+                return link.substringAfter("[URL]").substringBefore("[/URL]")
+            }
         }
+
+        return ""
+
     }
 
     fun startReading() {
@@ -95,8 +106,6 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
                 }
 
 
-
-
                 "%yt-pause" -> Runtime.getRuntime().exec(arrayOf("sh", "-c", "echo \"cycle pause\" | socat - /tmp/mpvsocket"))
                 "%yt-resume" -> Runtime.getRuntime().exec(arrayOf("sh", "-c", "echo \"cycle pause\" | socat - /tmp/mpvsocket"))
                 "%yt-play" -> Runtime.getRuntime().exec(arrayOf("sh", "-c", "echo \"cycle pause\" | socat - /tmp/mpvsocket"))
@@ -107,7 +116,8 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
                     //val link = message.split(" ".toRegex())[2].split("href=\"".toRegex())[1].split("\">".toRegex())[0]
                     ytLink = parseLink(message)
                     //Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -o - \"$link\" | mpv --no-video --input-ipc-server=/tmp/mpvsocket - &"))
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "mpv --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $ytLink &"))
+                    if (ytLink.isNotEmpty())
+                        Runtime.getRuntime().exec(arrayOf("sh", "-c", "mpv --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $ytLink &"))
                 }
 
 
@@ -127,8 +137,8 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
                     lines.add("YouTube Search Results:")
 
                     ytResults = Files.readAllLines(File("/tmp/yt-search").toPath().toAbsolutePath(), StandardCharsets.UTF_8)
-                    for (i in ytResults.indices){
-                        lines.add("${i+1}: ${ytResults[i]}")
+                    for (i in ytResults.indices) {
+                        lines.add("${i + 1}: ${ytResults[i]}")
                     }
                     lines.add("Use command \"%yt-sel\" followed by the search result number to play the result, for example:")
                     lines.add("%yt-sel 4")
@@ -137,7 +147,7 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
                 }
 
                 "%yt-sel" -> {
-                    val selection = ytResults[message.split(" ".toRegex())[1].toInt()-1]
+                    val selection = ytResults[message.split(" ".toRegex())[1].toInt() - 1]
 
                     Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -s --get-id \"ytsearch1:$selection\" > /tmp/yt-sel && sleep 0.5")).waitFor()
                     val link = "https://youtu.be/${Files.readAllLines(File("/tmp/yt-sel").toPath().toAbsolutePath()).last()}"
@@ -148,36 +158,57 @@ class ChatReader(chatFile: File, var onChatUpdateListener: ChatUpdateListener) {
         }
     }
 
-    private fun printToChat(message: List<String>, focusWindow: Boolean){
-        if (focusWindow){
+    private fun printToChat(message: List<String>, focusWindow: Boolean) {
+        if (focusWindow) {
             //Runtime.getRuntime().exec(arrayOf("sh", "-c", "sleep 1 && xdotool windowraise \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1)"))
             Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool windowactivate --sync \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1) && sleep 0.5 && xdotool key ctrl+Return && sleep 0.5"))
         }
-        for (line in message){
+        for (line in message) {
             Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool type --delay 25 \"${line.replace("\"", "\\\"")}\" && sleep 0.25 && xdotool key ctrl+Return")).waitFor()
         }
         Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool sleep 0.5 key \"Return\""))
     }
 
     private fun chatUpdated(line: String) {
-        //extract message
-        val userName = line.split("client://".toRegex())[1].split("&quot;".toRegex())[1]
-        val time = Time(Calendar.getInstance())
-        val rawTime = line.split("TextMessage_Time\">&lt;".toRegex())[1]
-                .split("&gt;</span>".toRegex())[0]
-                .split(":".toRegex())
-        time.hour = rawTime[0]
-        time.minute = rawTime[1]
-        time.second = rawTime[2]
 
-        val userMessage = line.split("TextMessage_Text\">".toRegex())[1].split("</span>".toRegex())[0]
-        parseLine(userName, userMessage)
-        onChatUpdateListener.onChatUpdated(ChatUpdate(userName, time, userMessage))
+        when (chatFile.extension) {
+            "html" -> {
+                //extract message
+                val userName = line.split("client://".toRegex())[1].split("&quot;".toRegex())[1]
+                val time = Time(Calendar.getInstance())
+                val rawTime = line.split("TextMessage_Time\">&lt;".toRegex())[1]
+                        .split("&gt;</span>".toRegex())[0]
+                        .split(":".toRegex())
+                time.hour = rawTime[0]
+                time.minute = rawTime[1]
+                time.second = rawTime[2]
+
+                val userMessage = line.split("TextMessage_Text\">".toRegex())[1].split("</span>".toRegex())[0]
+                parseLine(userName, userMessage)
+                onChatUpdateListener.onChatUpdated(ChatUpdate(userName, time, userMessage))
+            }
+
+            "txt" -> {
+                //extract message
+                if (line.startsWith("<")) {
+                    val userName = line.split(" ".toRegex())[1].substringBeforeLast(":")
+                    val time = Time(Calendar.getInstance())
+                    val rawTime = line.split(" ".toRegex())[0].substringAfter("<").substringBefore(">").split(":".toRegex())
+                    time.hour = rawTime[0]
+                    time.minute = rawTime[1]
+                    time.second = rawTime[2]
+
+                    val userMessage = line.substringAfter("$userName: ")
+                }
+            }
+        }
+
+
     }
 }
 
 class ChatUpdate(val userName: String, val time: Time, val message: String)
 
 interface ChatUpdateListener {
-        fun onChatUpdated(update: ChatUpdate)
-    }
+    fun onChatUpdated(update: ChatUpdate)
+}
