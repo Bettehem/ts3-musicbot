@@ -48,7 +48,7 @@ class ChatReader(var chatFile: File, var onChatUpdateListener: ChatUpdateListene
             }
 
             "txt" -> {
-                return link.substringAfter("[URL]").substringBefore("[/URL]")
+                return link.split(" ".toRegex())[1].substringAfter("[URL]").substringBefore("[/URL]")
             }
         }
 
