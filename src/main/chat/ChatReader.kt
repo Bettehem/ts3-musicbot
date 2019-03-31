@@ -66,7 +66,7 @@ class ChatReader(var chatFile: File, var onChatUpdateListener: ChatUpdateListene
         chatListenerThread.interrupt()
     }
 
-    fun parseLine(userName: String, message: String) {
+    private fun parseLine(userName: String, message: String) {
 
         //check if message is a command
         if (message.startsWith("%") && message.length > 1) {

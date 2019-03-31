@@ -165,7 +165,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 if (channelFile.exists()) {
                     val chatReader = ChatReader(channelFile, object : ChatUpdateListener {
                         override fun onChatUpdated(update: ChatUpdate) {
-                            //TODO do something when chat is updated
+                            if (update.message.startsWith("%"))
+                            println("User ${update.userName} issued command \"${update.message}\"")
                         }
                     }, apiKey)
                     chatReader.startReading()
