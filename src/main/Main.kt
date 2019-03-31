@@ -54,6 +54,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 var nickname = ""
                 var serverPassword = ""
                 var channelName = ""
+                var channelFilename = ""
 
                 val helpMessage = "\n" +
                         "TS3 Music Bot help message\n" +
@@ -63,7 +64,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         "-s, --serveraddress    Server address to connect to\n" +
                         "-p, --serverport       Server's port. Usually 9987\n" +
                         "-P, --serverpassword   Server's password\n" +
-                        "-c, --channelname      The channel's name the bot should connect to after connecting to the server\n" +
+                        "-c, --channelname      The channel's name the bot should connect to after connecting to the server.\n" +
+                        "-C, --channelfile      Provide a path to a channel.html or channel.txt file. You also need to provide the channel name with -c option\n" +
                         "-n, --nickname         The nickname of the bot\n"
 
                 //go through given arguments and save them
@@ -94,6 +96,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                             if (args.size >= argPos + 1)
                                 channelName = args[argPos + 1]
                         }
+                        "-C", "--channelfile" -> {
+                            if (args.size >= argPos + 1)
+                                channelFilename = args[argPos + 1]
+                        }
                         "-n", "--nickname" -> {
                             if (args.size >= argPos + 1)
                                 nickname = args[argPos + 1]
@@ -104,6 +110,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
 
                 //connect to desired server and channel, after which find the server's channel file and start listening for commands
                 if (apiKey.isNotEmpty() && serverAddress.isNotEmpty() && serverPort.isNotEmpty() && nickname.isNotEmpty()) {
+                    println("Starting teamspeak3...")
+                    println("Connecting to server at: $serverAddress, port $serverPort.")
+                    println("Using $nickname as the bot\'s nickname.")
                     Runtime.getRuntime().exec(arrayOf("sh", "-c", "teamspeak3 \"ts3server://$serverAddress?port=$serverPort&nickname=${nickname.replace(" ", "%20")}&${if ((serverPassword.isNotEmpty())) {
                         "password=$serverPassword"
                     } else {
@@ -112,15 +121,18 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         "channel=${channelName.replace(" ", "%20")}"
                     } else {
                         ""
-                    }}\""))
+                    }} &\""))
                 } else {
                     println("Error!\nOptions -a, -s, -P and -n are required. See -h or --help for more information")
+                    exitProcess(0)
                 }
+
                 Thread.sleep(5000)
                 File("/tmp/virtualserver_name_cmd").printWriter().use { out ->
                     out.println("#!/bin/sh")
                     out.println("(echo auth apikey=$apiKey; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639 > /tmp/virtualserver_name")
                 }
+                Thread.sleep(500)
                 //get the server's name
                 Runtime.getRuntime().exec(arrayOf("sh", "-c", "chmod +x /tmp/virtualserver_name_cmd"))
                 Runtime.getRuntime().exec(arrayOf("sh", "-c", "bash /tmp/virtualserver_name_cmd"))
@@ -130,7 +142,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         serverName = line.split("=".toRegex())[1]
                 }
 
-                //get a path to the channel.html file
+                //get a path to the channel.txt file
                 val chatDir = File("${System.getProperty("user.home")}/.ts3client/chats")
                 var channelFile = File("")
                 for (dir in chatDir.list()) {
@@ -138,8 +150,12 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     for (line in serverFile.readLines()) {
                         if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
                             //compare serverName to the one in server.html
-                            if (line.split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0] == serverName){
-                                channelFile = File("${System.getProperty("user.home")}/.ts3client/chats/$dir/channel.html")
+                            if (line.split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0] == serverName) {
+                                channelFile = if (channelFilename.isNotEmpty()){
+                                    File(channelFilename)
+                                }else{
+                                    File("${System.getProperty("user.home")}/.ts3client/chats/$dir/channel.txt")
+                                }
                                 break
                             }
                         }

@@ -254,6 +254,7 @@ class ChatReader(var chatFile: File, var onChatUpdateListener: ChatUpdateListene
                     time.second = rawTime[2]
 
                     val userMessage = line.substringAfter("$userName: ")
+                    parseLine(userName, userMessage)
                     onChatUpdateListener.onChatUpdated(ChatUpdate(userName, time, userMessage))
                 }
             }
