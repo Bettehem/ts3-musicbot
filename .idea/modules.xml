@@ -2,7 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/TS3 Music Bot.iml" filepath="$PROJECT_DIR$/TS3 Music Bot.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/TS3_Music_Bot.iml" filepath="$PROJECT_DIR$/.idea/modules/TS3_Music_Bot.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/TS3_Music_Bot.main.iml" filepath="$PROJECT_DIR$/.idea/modules/TS3_Music_Bot.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/TS3_Music_Bot.test.iml" filepath="$PROJECT_DIR$/.idea/modules/TS3_Music_Bot.test.iml" />
     </modules>
   </component>
 </project>

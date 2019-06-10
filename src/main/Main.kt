@@ -113,7 +113,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     println("Starting teamspeak3...")
                     println("Connecting to server at: $serverAddress, port $serverPort.")
                     println("Using $nickname as the bot\'s nickname.")
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "teamspeak3 \"ts3server://$serverAddress?port=$serverPort&nickname=${nickname.replace(" ", "%20")}&${if ((serverPassword.isNotEmpty())) {
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "teamspeak3 -nosingleinstance \"ts3server://$serverAddress?port=$serverPort&nickname=${nickname.replace(" ", "%20")}&${if ((serverPassword.isNotEmpty())) {
                         "password=$serverPassword"
                     } else {
                         ""
@@ -137,9 +137,11 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 Runtime.getRuntime().exec(arrayOf("sh", "-c", "chmod +x /tmp/virtualserver_name_cmd"))
                 Runtime.getRuntime().exec(arrayOf("sh", "-c", "bash /tmp/virtualserver_name_cmd"))
                 var serverName = ""
-                for (line in File("/tmp/virtualserver_name").readLines()) {
-                    if (line.startsWith("virtualserver_name"))
-                        serverName = line.split("=".toRegex())[1]
+                if (File("/tmp/virtualserver_name").exists()){
+                    for (line in File("/tmp/virtualserver_name").readLines()) {
+                        if (line.startsWith("virtualserver_name"))
+                            serverName = line.split("=".toRegex())[1]
+                    }
                 }
 
                 //get a path to the channel.txt file
