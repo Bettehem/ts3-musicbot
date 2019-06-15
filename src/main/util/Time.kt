@@ -1,4 +1,4 @@
-package main.util
+package src.main.util
 
 /*
     Copyright 2016  Chris Mustola
@@ -15,7 +15,6 @@ package main.util
  */
 
 import java.util.Calendar
-import java.util.Collections
 import java.util.Date
 
 class Time : Comparable<Time> {

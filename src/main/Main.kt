@@ -1,4 +1,4 @@
-package main
+package src.main
 
 import javafx.application.Application
 import javafx.event.ActionEvent
@@ -10,9 +10,9 @@ import javafx.scene.control.TextField
 import javafx.scene.layout.VBox
 import javafx.stage.FileChooser
 import javafx.stage.Stage
-import main.chat.ChatReader
-import main.chat.ChatUpdate
-import main.chat.ChatUpdateListener
+import src.main.chat.ChatReader
+import src.main.chat.ChatUpdate
+import src.main.chat.ChatUpdateListener
 import java.io.File
 import java.lang.Exception
 import kotlin.system.exitProcess

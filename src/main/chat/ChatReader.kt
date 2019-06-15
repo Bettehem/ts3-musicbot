@@ -1,6 +1,6 @@
-package main.chat
+package src.main.chat
 
-import main.util.Time
+import src.main.util.Time
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
