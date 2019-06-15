@@ -2,6 +2,9 @@
   <artifact type="jar" build-on-make="true" name="ts3-musicbot">
     <output-path>$PROJECT_DIR$/out/artifacts/ts3_musicbot</output-path>
     <root id="archive" name="ts3-musicbot.jar">
+      <element id="directory" name="META-INF">
+        <element id="file-copy" path="$PROJECT_DIR$/src/META-INF/MANIFEST.MF" />
+      </element>
       <element id="module-output" name="TS3_Music_Bot" />
       <element id="extracted-dir" path="$KOTLIN_BUNDLED$/lib/kotlin-stdlib.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$KOTLIN_BUNDLED$/lib/kotlin-reflect.jar" path-in-jar="/" />
