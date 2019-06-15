@@ -84,8 +84,8 @@ class ChatReader(var chatFile: File, var onChatUpdateListener: ChatUpdateListene
 
                 //Play Spotify song based on link or URI
                 "%sp-playsong" -> {
-                    if (message.split(" ".toRegex())[2].startsWith("href=\"https://open.spotify.com/track")) {
-                        Runtime.getRuntime().exec("sp open spotify:track:${message.split(" ".toRegex())[2].split("track/".toRegex())[1].split("\\?si=".toRegex())[0]}")
+                    if (parseLink(message).startsWith("https://open.spotify.com/track")) {
+                        Runtime.getRuntime().exec("sp open spotify:track:${parseLink(message).split("track/".toRegex())[1].split("\\?si=".toRegex())[0]}")
                     } else {
                         Runtime.getRuntime().exec("sp open spotify:track:${message.split(" ".toRegex())[1].split("track:".toRegex())[1]}")
                     }
