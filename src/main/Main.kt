@@ -109,11 +109,15 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 }
 
                 //connect to desired server and channel, after which find the server's channel file and start listening for commands
-                if (apiKey.isNotEmpty() && serverAddress.isNotEmpty() && serverPort.isNotEmpty() && nickname.isNotEmpty()) {
+                if (apiKey.isNotEmpty() && serverAddress.isNotEmpty() && nickname.isNotEmpty()) {
                     println("Starting teamspeak3...")
                     println("Connecting to server at: $serverAddress, port $serverPort.")
                     println("Using $nickname as the bot\'s nickname.")
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "teamspeak3 -nosingleinstance \"ts3server://$serverAddress?port=$serverPort&nickname=${nickname.replace(" ", "%20")}&${if ((serverPassword.isNotEmpty())) {
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "teamspeak3 -nosingleinstance \"ts3server://$serverAddress?port=${if (serverPort.isNotEmpty()){
+                        serverPort
+                    } else {
+                        "9987"
+                    }}&nickname=${nickname.replace(" ", "%20")}&${if ((serverPassword.isNotEmpty())) {
                         "password=$serverPassword"
                     } else {
                         ""
@@ -123,7 +127,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         ""
                     }} &\""))
                 } else {
-                    println("Error!\nOptions -a, -s, -P and -n are required. See -h or --help for more information")
+                    println("Error!\nOptions -a, -s and -n are required. See -h or --help for more information")
                     exitProcess(0)
                 }
 
@@ -145,6 +149,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 }
 
                 //get a path to the channel.txt file
+                println("Getting path to channel.txt file")
                 val chatDir = File("${System.getProperty("user.home")}/.ts3client/chats")
                 var channelFile = File("")
                 for (dir in chatDir.list()) {
@@ -153,6 +158,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
                             //compare serverName to the one in server.html
                             if (line.split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0] == serverName) {
+                                println("found server \"$serverName\".")
                                 channelFile = if (channelFilename.isNotEmpty()) {
                                     File(channelFilename)
                                 } else {
