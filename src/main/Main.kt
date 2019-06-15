@@ -111,7 +111,11 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 //connect to desired server and channel, after which find the server's channel file and start listening for commands
                 if (apiKey.isNotEmpty() && serverAddress.isNotEmpty() && nickname.isNotEmpty()) {
                     println("Starting teamspeak3...")
-                    println("Connecting to server at: $serverAddress, port $serverPort.")
+                    println("Connecting to server at: $serverAddress, port ${if (serverPort.isNotEmpty()){
+                        serverPort
+                    } else {
+                        "9987"
+                    }}.")
                     println("Using $nickname as the bot\'s nickname.")
                     Runtime.getRuntime().exec(arrayOf("sh", "-c", "teamspeak3 -nosingleinstance \"ts3server://$serverAddress?port=${if (serverPort.isNotEmpty()){
                         serverPort
@@ -131,39 +135,45 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     exitProcess(0)
                 }
 
-                Thread.sleep(5000)
+                Thread.sleep(3000)
+                //get the server's name
                 File("/tmp/virtualserver_name_cmd").printWriter().use { out ->
                     out.println("#!/bin/sh")
                     out.println("(echo auth apikey=$apiKey; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639 > /tmp/virtualserver_name")
                 }
                 Thread.sleep(500)
-                //get the server's name
+                println("\n\nGetting server name...")
                 Runtime.getRuntime().exec(arrayOf("sh", "-c", "chmod +x /tmp/virtualserver_name_cmd"))
-                Runtime.getRuntime().exec(arrayOf("sh", "-c", "bash /tmp/virtualserver_name_cmd"))
+                Runtime.getRuntime().exec(arrayOf("sh", "-c", "bash /tmp/virtualserver_name_cmd")).waitFor()
+                Thread.sleep(500)
                 var serverName = ""
                 if (File("/tmp/virtualserver_name").exists()) {
                     for (line in File("/tmp/virtualserver_name").readLines()) {
-                        if (line.startsWith("virtualserver_name"))
+                        if (line.contains("virtualserver_name")){
                             serverName = line.split("=".toRegex())[1]
+                            println("Server name: $serverName")
+                        }
                     }
                 }
 
                 //get a path to the channel.txt file
-                println("Getting path to channel.txt file")
+                println("\nGetting path to channel.txt file...")
                 val chatDir = File("${System.getProperty("user.home")}/.ts3client/chats")
+                println("Looking in \"$chatDir\" for chat files.")
                 var channelFile = File("")
                 for (dir in chatDir.list()) {
+                    println("Checking in $dir")
                     val serverFile = File("${System.getProperty("user.home")}/.ts3client/chats/$dir/server.html")
                     for (line in serverFile.readLines()) {
                         if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
                             //compare serverName to the one in server.html
                             if (line.split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0] == serverName) {
-                                println("found server \"$serverName\".")
                                 channelFile = if (channelFilename.isNotEmpty()) {
                                     File(channelFilename)
                                 } else {
                                     File("${System.getProperty("user.home")}/.ts3client/chats/$dir/channel.txt")
                                 }
+                                println("Using channel file at \"$channelFile\"\n")
                                 break
                             }
                         }
@@ -178,6 +188,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         }
                     }, apiKey)
                     chatReader.startReading()
+                    println("Bot $nickname started listening to the chat in channel $channelName.")
                 }
             } else {
                 //launch graphical window
