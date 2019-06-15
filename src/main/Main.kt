@@ -137,7 +137,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 Runtime.getRuntime().exec(arrayOf("sh", "-c", "chmod +x /tmp/virtualserver_name_cmd"))
                 Runtime.getRuntime().exec(arrayOf("sh", "-c", "bash /tmp/virtualserver_name_cmd"))
                 var serverName = ""
-                if (File("/tmp/virtualserver_name").exists()){
+                if (File("/tmp/virtualserver_name").exists()) {
                     for (line in File("/tmp/virtualserver_name").readLines()) {
                         if (line.startsWith("virtualserver_name"))
                             serverName = line.split("=".toRegex())[1]
@@ -153,9 +153,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
                             //compare serverName to the one in server.html
                             if (line.split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0] == serverName) {
-                                channelFile = if (channelFilename.isNotEmpty()){
+                                channelFile = if (channelFilename.isNotEmpty()) {
                                     File(channelFilename)
-                                }else{
+                                } else {
                                     File("${System.getProperty("user.home")}/.ts3client/chats/$dir/channel.txt")
                                 }
                                 break
@@ -168,7 +168,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     val chatReader = ChatReader(channelFile, object : ChatUpdateListener {
                         override fun onChatUpdated(update: ChatUpdate) {
                             if (update.message.startsWith("%"))
-                            println("User ${update.userName} issued command \"${update.message}\"")
+                                println("User ${update.userName} issued command \"${update.message}\"")
                         }
                     }, apiKey)
                     chatReader.startReading()
