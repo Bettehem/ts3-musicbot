@@ -29,8 +29,8 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener){
                     exitProcess(0)
                 }
                 else -> {
-                    if (command.startsWith("%"))
-                        consoleUpdateListener.onCommandIssued(command)
+                    if (command.startsWith("%") && !command.startsWith("%say"))
+                        consoleUpdateListener.onCommandIssued(userCommand)
                     else
                         println("Command $command not found! Type \"help\" to see available commands.")
                 }
