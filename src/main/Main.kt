@@ -13,6 +13,8 @@ import javafx.stage.Stage
 import src.main.chat.ChatReader
 import src.main.chat.ChatUpdate
 import src.main.chat.ChatUpdateListener
+import src.main.util.Console
+import src.main.util.ConsoleUpdateListener
 import java.io.File
 import java.lang.Exception
 import kotlin.system.exitProcess
@@ -189,6 +191,14 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     }, apiKey)
                     chatReader.startReading()
                     println("Bot $nickname started listening to the chat in channel $channelName.")
+
+                    val console = Console(object : ConsoleUpdateListener {
+                        override fun onCommandIssued(command: String) {
+                            if (command.startsWith("%"))
+                                chatReader.parseLine("__console__", command)
+                        }
+                    })
+                    console.startConsole()
                 }
             } else {
                 //launch graphical window
