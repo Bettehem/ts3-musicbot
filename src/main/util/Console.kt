@@ -14,7 +14,7 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener){
                 "help" -> {
                     println("\n\nTS3 MusicBot help:\n\n" +
                             "<command>\t<explanation>\n" +
-                            "say\t\tSend a message to the chat." +
+                            "say\t\tSend a message to the chat.\n" +
                             "clear\t\tClears the screen.\n" +
                             "exit\t\tExits the program.\n" +
                             "")
