@@ -75,6 +75,9 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
 
                 "%help" -> {
                     val lines = ArrayList<String>()
+                    lines.add("")
+                    lines.add("%help                       -Shows this help message")
+                    lines.add("")
                     lines.add("Spotify commands:")
                     lines.add("%sp-pause                   -Pauses the Spotify playback")
                     lines.add("%sp-resume                  -Resumes the Spotify playback")

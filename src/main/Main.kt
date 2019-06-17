@@ -184,7 +184,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     val chatReader = ChatReader(channelFile, object : ChatUpdateListener {
                         override fun onChatUpdated(update: ChatUpdate) {
                             if (update.message.startsWith("%"))
-                                println("\nUser ${update.userName} issued command \"${update.message}\"")
+                                print("\nUser ${update.userName} issued command \"${update.message}\"\nCommand: ")
                         }
                     }, apiKey)
                     chatReader.startReading()
