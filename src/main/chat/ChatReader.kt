@@ -8,7 +8,7 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 
-class ChatReader(var chatFile: File, var onChatUpdateListener: ChatUpdateListener, val apikey: String = "") {
+class ChatReader(private var chatFile: File, private var onChatUpdateListener: ChatUpdateListener, private val apikey: String = "") {
 
     private var chatListenerThread: Thread
     private var shouldRead = false
@@ -61,10 +61,11 @@ class ChatReader(var chatFile: File, var onChatUpdateListener: ChatUpdateListene
         chatListenerThread.start()
     }
 
+    /*
     fun stopReading() {
         shouldRead = false
         chatListenerThread.interrupt()
-    }
+    }*/
 
     fun parseLine(userName: String, message: String) {
 
@@ -223,7 +224,7 @@ class ChatReader(var chatFile: File, var onChatUpdateListener: ChatUpdateListene
 
                     Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl --geo-bypass -s -e \"ytsearch10:${message.replace("\"", "\\\"").replace("'", "\'")}\" > /tmp/yt-search")).waitFor()
                     Thread.sleep(500)
-                    lines = ArrayList<String>()
+                    lines = ArrayList()
                     lines.add("YouTube Search Results:")
 
                     ytResults = Files.readAllLines(File("/tmp/yt-search").toPath().toAbsolutePath(), StandardCharsets.UTF_8)

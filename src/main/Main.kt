@@ -24,20 +24,18 @@ var statusTextView = Label()
 
 class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
 
-    lateinit var window: Stage
-    lateinit var scene: Scene
-    var layout: VBox
+    private lateinit var window: Stage
+    private lateinit var scene: Scene
+    private var layout: VBox = VBox()
 
 
-    var enterChatPathTextView: Label
-    var chatPathEditText: TextField
+    private var enterChatPathTextView: Label = Label()
+    private var chatPathEditText: TextField
 
-    var browseButton: Button
-    var readyButton: Button
+    private var browseButton: Button
+    private var readyButton: Button
 
     init {
-        layout = VBox()
-        enterChatPathTextView = Label()
         statusTextView = Label()
         chatPathEditText = TextField()
         browseButton = Button()

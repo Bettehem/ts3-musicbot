@@ -74,21 +74,16 @@ class Time : Comparable<Time> {
         }
     }
 
-    override fun compareTo(time: Time): Int {
-        //check if null
-        if (time == null) {
-            throw NullPointerException("anotherCalendar == null")
-        }
-
+    override fun compareTo(other: Time): Int {
         //create Calendar object
         val calendar = Calendar.getInstance()
-        calendar.set(Integer.parseInt(time.year), Integer.parseInt(time.month), Integer.parseInt(time.date), Integer.parseInt(time.hour), Integer.parseInt(time.minute), Integer.parseInt(time.second))
+        calendar.set(Integer.parseInt(other.year), Integer.parseInt(other.month), Integer.parseInt(other.date), Integer.parseInt(other.hour), Integer.parseInt(other.minute), Integer.parseInt(other.second))
 
         //get the time in milliseconds
         val timeInMillis = timeInMillis
 
         //get the comparable time in milliseconds
-        val anotherTimeInMillis = time.timeInMillis
+        val anotherTimeInMillis = other.timeInMillis
         if (timeInMillis > anotherTimeInMillis) {
             return 1
         }
