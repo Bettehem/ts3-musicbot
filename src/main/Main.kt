@@ -173,7 +173,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                                 } else {
                                     File("${System.getProperty("user.home")}/.ts3client/chats/$dir/channel.txt")
                                 }
-                                println("Using channel file at \"$channelFile\"\n")
+                                println("Using channel file at \"$channelFile\"\n\n")
                                 break
                             }
                         }
@@ -184,7 +184,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     val chatReader = ChatReader(channelFile, object : ChatUpdateListener {
                         override fun onChatUpdated(update: ChatUpdate) {
                             if (update.message.startsWith("%"))
-                                println("User ${update.userName} issued command \"${update.message}\"")
+                                println("\nUser ${update.userName} issued command \"${update.message}\"")
                         }
                     }, apiKey)
                     chatReader.startReading()
