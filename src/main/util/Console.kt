@@ -22,9 +22,17 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener){
                 "say" -> consoleUpdateListener.onCommandIssued("%$userCommand")
                 "clear" -> print("\u001b[H\u001b[2J")
                 "exit" -> {
-                    val exitTeamSpeak = console.readLine("Close teamspeak? [Y/n]: ").toLowerCase() == "y"
-                    if (exitTeamSpeak)
-                        Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool search \"ts3client_linux\" windowactivate --sync key --window 0 --clearmodifiers alt+F4"))
+                    var confirmed = false
+                    while (!confirmed){
+                        val exitTeamSpeak = console.readLine("Close TeamSpeak? [Y/n]: ").toLowerCase()
+                        if (exitTeamSpeak.contentEquals("y") || exitTeamSpeak.contentEquals("yes") || exitTeamSpeak.contentEquals("")){
+                            confirmed = true
+                            Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool search \"ts3client_linux\" windowactivate --sync key --window 0 --clearmodifiers alt+F4"))
+                        }else if (exitTeamSpeak.contentEquals("n") || exitTeamSpeak.contentEquals("no")){
+                            break
+                        }
+                    }
+
                     consoleUpdateListener.onCommandIssued(command)
                     exitProcess(0)
                 }
