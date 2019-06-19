@@ -110,7 +110,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
 
                 //connect to desired server and channel, after which find the server's channel file and start listening for commands
                 if (apiKey.isNotEmpty() && serverAddress.isNotEmpty() && nickname.isNotEmpty()) {
-                    println("Starting teamspeak3...")
+                    println("Starting TeamSpeak 3...")
                     println("Connecting to server at: $serverAddress, port ${if (serverPort.isNotEmpty()){
                         serverPort
                     } else {
@@ -239,7 +239,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
         scene = Scene(layout, 640.0, 360.0)
 
         //setup window
-        window.title = "TeamSpeak3 Music bot"
+        window.title = "TeamSpeak 3 Music Bot"
         window.scene = scene
     }
 
