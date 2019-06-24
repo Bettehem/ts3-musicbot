@@ -43,7 +43,7 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener){
             val exitTeamSpeak = console.readLine("Close TeamSpeak? [Y/n]: ").toLowerCase()
             if (exitTeamSpeak.contentEquals("y") || exitTeamSpeak.contentEquals("yes") || exitTeamSpeak.contentEquals("")){
                 confirmed = true
-                Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool search \"ts3client_linux\" windowactivate --sync key --window 0 --clearmodifiers alt+F4"))
+                runCommand("xdotool search \"ts3client_linux\" windowactivate --sync key --window 0 --clearmodifiers alt+F4", ignoreOutput = true)
             }else if (exitTeamSpeak.contentEquals("n") || exitTeamSpeak.contentEquals("no")){
                 break
             }
