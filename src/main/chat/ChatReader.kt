@@ -1,11 +1,11 @@
 package src.main.chat
 
 import src.main.util.Time
+import src.main.util.runCommand
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.*
-import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 
 class ChatReader(private var chatFile: File, private var onChatUpdateListener: ChatUpdateListener, private val apikey: String = "") {
@@ -29,7 +29,7 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                         chatUpdated(currentLine)
                     }
 
-                    Thread.sleep(1000)
+                    Thread.sleep(100)
                 }
 
             }.run()
@@ -122,37 +122,34 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                     }
                 }
 
-                "%sp-pause" -> Runtime.getRuntime().exec("sp pause && sleep 1")
-                "%sp-resume" -> Runtime.getRuntime().exec("sp play && sleep 1")
-                "%sp-play" -> Runtime.getRuntime().exec("sp play && sleep 1")
+                "%sp-pause" -> runCommand("sp pause && sleep 1")
+                "%sp-resume" -> runCommand("sp play && sleep 1")
+                "%sp-play" -> runCommand("sp play && sleep 1")
 
-                "%sp-skip" -> Runtime.getRuntime().exec("sp next && sleep 1")
-                "%sp-next" -> Runtime.getRuntime().exec("sp next && sleep 1")
-                "%sp-prev" -> {
-                    Runtime.getRuntime().exec("sp prev").waitFor(100, TimeUnit.MILLISECONDS)
-                    Runtime.getRuntime().exec("sp prev").waitFor(100, TimeUnit.MILLISECONDS)
-                }
+                "%sp-skip" -> runCommand("sp next && sleep 1")
+                "%sp-next" -> runCommand("sp next && sleep 1")
+                "%sp-prev" -> runCommand("sp prev && sleep 0.1 & sp prev")
 
                 //Play Spotify song based on link or URI
                 "%sp-playsong" -> {
                     if (parseLink(message).startsWith("https://open.spotify.com/track")) {
-                        Runtime.getRuntime().exec("sp open spotify:track:${parseLink(message).split("track/".toRegex())[1].split("\\?si=".toRegex())[0]}")
+                        runCommand("sp open spotify:track:${parseLink(message).split("track/".toRegex())[1].split("\\?si=".toRegex())[0]}")
                     } else {
-                        Runtime.getRuntime().exec("sp open spotify:track:${message.split(" ".toRegex())[1].split("track:".toRegex())[1]}")
+                        runCommand("sp open spotify:track:${message.split(" ".toRegex())[1].split("track:".toRegex())[1]}")
                     }
                 }
 
                 //Play Spotify playlist based on URI
                 "%sp-playlist" -> {
                     if (message.split(" ".toRegex())[1].startsWith("spotify:user:") && message.split(" ".toRegex())[1].contains(":playlist:"))
-                        Runtime.getRuntime().exec("sp open spotify:user:${message.split(" ".toRegex())[1].split(":".toRegex())[2]}:playlist:${message.split(":".toRegex()).last()}")
+                        runCommand("sp open spotify:user:${message.split(" ".toRegex())[1].split(":".toRegex())[2]}:playlist:${message.split(":".toRegex()).last()}")
                 }
 
                 "%sp-nowplaying" -> {
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "sp current > /tmp/sp-current && sleep 0.5")).waitFor()
                     val lines = ArrayList<String>()
                     lines.add("Now playing on Spotify:")
-                    for (line in Files.readAllLines(File("/tmp/sp-current").toPath().toAbsolutePath(), StandardCharsets.UTF_8)) lines.add(line)
+                    lines.addAll(runCommand("sp current").split("\n".toRegex()))
+
                     if (userName == "__console__"){
                         lines.forEach { println(it) }
                     }else{
@@ -168,10 +165,10 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                 }
 
 
-                "%yt-pause" -> Runtime.getRuntime().exec(arrayOf("sh", "-c", "echo \"cycle pause\" | socat - /tmp/mpvsocket"))
-                "%yt-resume" -> Runtime.getRuntime().exec(arrayOf("sh", "-c", "echo \"cycle pause\" | socat - /tmp/mpvsocket"))
-                "%yt-play" -> Runtime.getRuntime().exec(arrayOf("sh", "-c", "echo \"cycle pause\" | socat - /tmp/mpvsocket"))
-                "%yt-stop" -> Runtime.getRuntime().exec(arrayOf("sh", "-c", "echo \"stop\" | socat - /tmp/mpvsocket"))
+                "%yt-pause" -> runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                "%yt-resume" -> runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                "%yt-play" -> runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                "%yt-stop" -> runCommand("echo \"stop\" | socat - /tmp/mpvsocket")
 
 
                 "%yt-playsong" -> {
@@ -179,21 +176,15 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                     ytLink = parseLink(message)
                     //Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -o - \"$link\" | mpv --no-video --input-ipc-server=/tmp/mpvsocket - &"))
                     if (ytLink.isNotEmpty())
-                        Runtime.getRuntime().exec(arrayOf("sh", "-c", "mpv --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $ytLink &"))
+                        runCommand("mpv --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $ytLink &", ignoreOutput = true)
                 }
 
 
                 "%yt-nowplaying" -> {
-                    File("/tmp/yt-nowplaying_cmd").printWriter().use { out ->
-                        out.println("#!/bin/sh")
-                        out.println("youtube-dl --geo-bypass -s -e \"$ytLink\" > /tmp/yt-current")
-                    }
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "chmod +x /tmp/yt-nowplaying_cmd"))
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "bash /tmp/yt-nowplaying_cmd")).waitFor()
-                    Thread.sleep(500)
                     val lines = ArrayList<String>()
                     lines.add("Now playing on YouTube:")
-                    for (np in Files.readAllLines(File("/tmp/yt-current").toPath().toAbsolutePath(), StandardCharsets.UTF_8)) lines.add(np)
+                    lines.addAll(runCommand("youtube-dl --geo-bypass -s -e \"$ytLink\"").split("\n".toRegex()))
+
                     if (userName == "__console__"){
                         lines.forEach { println(it) }
                     }else{
@@ -222,12 +213,9 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                         }
                     }
 
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl --geo-bypass -s -e \"ytsearch10:${message.replace("\"", "\\\"").replace("'", "\'")}\" > /tmp/yt-search")).waitFor()
-                    Thread.sleep(500)
                     lines = ArrayList()
                     lines.add("YouTube Search Results:")
-
-                    ytResults = Files.readAllLines(File("/tmp/yt-search").toPath().toAbsolutePath(), StandardCharsets.UTF_8)
+                    ytResults = runCommand("youtube-dl --geo-bypass -s -e \"ytsearch10:${message.replace("\"", "\\\"").replace("'", "\'")}\"", printErrors = true).split("\n".toRegex())
                     for (i in ytResults.indices) {
                         lines.add("${i + 1}: ${ytResults[i]}")
                     }
@@ -249,15 +237,8 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
 
                 "%yt-sel" -> {
                     val selection = ytResults[message.split(" ".toRegex())[1].toInt() - 1]
-                    File("/tmp/yt-sel_cmd").printWriter().use { out ->
-                        out.println("#!/bin/sh")
-                        out.println("youtube-dl -s --get-id \"ytsearch1:${selection.replace("'", "\'").replace("\"", "\\\"")}\" > /tmp/yt-sel")
-                    }
-                    Thread.sleep(1000)
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "chmod +x /tmp/yt-sel_cmd"))
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "bash /tmp/yt-sel_cmd")).waitFor()
-                    Thread.sleep(250)
-                    val link = "https://youtu.be/${Files.readAllLines(File("/tmp/yt-sel").toPath().toAbsolutePath()).last()}"
+                    val videoID = runCommand("youtube-dl -s --get-id \"ytsearch1:${selection.replace("'", "\'").replace("\"", "\\\"")}\"")
+                    val link = "https://youtu.be/$videoID"
                     ytLink = link
                     parseLine("", "%yt-playsong $link")
                 }
@@ -302,23 +283,21 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
     private fun printToChat(message: List<String>, focusWindow: Boolean) {
         if (focusWindow) {
             //Runtime.getRuntime().exec(arrayOf("sh", "-c", "sleep 1 && xdotool windowraise \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1)"))
-            Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool windowactivate --sync \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1) && sleep 0.5 && xdotool key ctrl+Return && sleep 0.5"))
+            //Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool windowactivate --sync \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1) && sleep 0.5 && xdotool key ctrl+Return && sleep 0.5"))
+            runCommand("xdotool windowactivate --sync \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1) && sleep 0.5 && xdotool key ctrl+Return && sleep 0.5")
         }
         for (line in message) {
-            Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool type --delay 25 \"${line.replace("\"", "\\\"")}\" && sleep 0.25 && xdotool key ctrl+Return")).waitFor()
+            //Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool type --delay 25 \"${line.replace("\"", "\\\"")}\" && sleep 0.25 && xdotool key ctrl+Return")).waitFor()
+            runCommand("xdotool type --delay 25 \"${line.replace("\"", "\\\"")}\" && sleep 0.25 && xdotool key ctrl+Return")
         }
-        Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool sleep 0.5 key \"Return\""))
+        //Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool sleep 0.5 key \"Return\""))
+        runCommand("xdotool sleep 0.5 key \"Return\"")
     }
 
     //use ClientQuery to send message (requires apikey)
     private fun printToChat(message: String, apikey: String){
         if (apikey.isNotEmpty()){
-            File("/tmp/print_to_chat_cmd").printWriter().use { out ->
-                out.println("#!/bin/sh")
-                out.println("(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${message.replace(" ", "\\s").replace("\n", "\\n").replace("/", "\\/").replace("|", "\\p").replace("'", "\\'").replace("\"", "\\\"")}\"; echo quit) | nc localhost 25639")
-            }
-            Runtime.getRuntime().exec(arrayOf("sh", "-c", "chmod +x /tmp/print_to_chat_cmd"))
-            Runtime.getRuntime().exec(arrayOf("sh", "-c", "bash /tmp/print_to_chat_cmd"))
+            runCommand("(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${message.replace(" ","\\s").replace("\n", "\\n").replace("/", "\\/").replace("|", "\\p").replace("'", "\\'").replace("\"","\\\"")}\"; echo quit) | nc localhost 25639")
         }
     }
 

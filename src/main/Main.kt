@@ -15,6 +15,7 @@ import src.main.chat.ChatUpdate
 import src.main.chat.ChatUpdateListener
 import src.main.util.Console
 import src.main.util.ConsoleUpdateListener
+import src.main.util.runCommand
 import java.io.File
 import java.lang.Exception
 import kotlin.system.exitProcess
@@ -117,7 +118,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         "9987"
                     }}.")
                     println("Using $nickname as the bot\'s nickname.")
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "teamspeak3 -nosingleinstance \"ts3server://$serverAddress?port=${if (serverPort.isNotEmpty()){
+
+                    runCommand(ignoreOutput = true, command = "teamspeak3 -nosingleinstance \"ts3server://$serverAddress?port=${if (serverPort.isNotEmpty()) {
                         serverPort
                     } else {
                         "9987"
@@ -129,30 +131,19 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         "channel=${channelName.replace(" ", "%20")}"
                     } else {
                         ""
-                    }} &\""))
+                    }} &\"")
                 } else {
                     println("Error!\nOptions -a, -s and -n are required. See -h or --help for more information")
                     exitProcess(0)
                 }
-
                 Thread.sleep(3000)
                 //get the server's name
-                File("/tmp/virtualserver_name_cmd").printWriter().use { out ->
-                    out.println("#!/bin/sh")
-                    out.println("(echo auth apikey=$apiKey; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639 > /tmp/virtualserver_name")
-                }
-                Thread.sleep(500)
-                println("\n\nGetting server name...")
-                Runtime.getRuntime().exec(arrayOf("sh", "-c", "chmod +x /tmp/virtualserver_name_cmd"))
-                Runtime.getRuntime().exec(arrayOf("sh", "-c", "bash /tmp/virtualserver_name_cmd")).waitFor()
-                Thread.sleep(500)
+                val virtualserver_name = runCommand("(echo auth apikey=$apiKey; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639").split("\n".toRegex())
                 var serverName = ""
-                if (File("/tmp/virtualserver_name").exists()) {
-                    for (line in File("/tmp/virtualserver_name").readLines()) {
-                        if (line.contains("virtualserver_name")){
-                            serverName = line.split("=".toRegex())[1]
-                            println("Server name: $serverName")
-                        }
+                for (line in virtualserver_name){
+                    if (line.contains("virtualserver_name")){
+                        serverName = line.split("=".toRegex())[1]
+                        println("Server name: $serverName")
                     }
                 }
 
@@ -161,20 +152,22 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 val chatDir = File("${System.getProperty("user.home")}/.ts3client/chats")
                 println("Looking in \"$chatDir\" for chat files.")
                 var channelFile = File("")
-                for (dir in chatDir.list()) {
-                    println("Checking in $dir")
-                    val serverFile = File("${System.getProperty("user.home")}/.ts3client/chats/$dir/server.html")
-                    for (line in serverFile.readLines()) {
-                        if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
-                            //compare serverName to the one in server.html
-                            if (line.split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0] == serverName) {
-                                channelFile = if (channelFilename.isNotEmpty()) {
-                                    File(channelFilename)
-                                } else {
-                                    File("${System.getProperty("user.home")}/.ts3client/chats/$dir/channel.txt")
+                if (chatDir.exists()){
+                    for (dir in chatDir.list()) {
+                        println("Checking in $dir")
+                        val serverFile = File("${System.getProperty("user.home")}/.ts3client/chats/$dir/server.html")
+                        for (line in serverFile.readLines()) {
+                            if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
+                                //compare serverName to the one in server.html
+                                if (line.split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0] == serverName) {
+                                    channelFile = if (channelFilename.isNotEmpty()) {
+                                        File(channelFilename)
+                                    } else {
+                                        File("${System.getProperty("user.home")}/.ts3client/chats/$dir/channel.txt")
+                                    }
+                                    println("Using channel file at \"$channelFile\"\n\n")
+                                    break
                                 }
-                                println("Using channel file at \"$channelFile\"\n\n")
-                                break
                             }
                         }
                     }
