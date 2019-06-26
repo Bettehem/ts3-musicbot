@@ -3,12 +3,19 @@ package src.main.util
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
-fun runCommand(command: String, ignoreOutput: Boolean = false, printOutput: Boolean = false, printErrors: Boolean = false): String{
+fun runCommand(command: String, ignoreOutput: Boolean = false, printOutput: Boolean = true, printErrors: Boolean = true, inheritIO: Boolean = false): String{
     val commandOutput = StringBuilder()
 
-    val runtime = Runtime.getRuntime()
-    val commands = arrayOf("sh", "-c", command)
-    val process = runtime.exec(commands)
+    val commands = listOf("sh", "-c", command)
+    val processBuilder = ProcessBuilder(commands)
+    val process: Process
+    if (inheritIO) {
+        process = processBuilder.inheritIO().start()
+        process.waitFor()
+    }else{
+        process = processBuilder.start()
+    }
+
 
     if (!ignoreOutput){
         val stdOut = BufferedReader(InputStreamReader(process.inputStream))
@@ -16,20 +23,21 @@ fun runCommand(command: String, ignoreOutput: Boolean = false, printOutput: Bool
 
         var output = stdOut.readLine()
         while (output != null){
-            if (printOutput)
+            if (printOutput){
                 println(output)
-            commandOutput.append("$output\n")
+                commandOutput.append("$output\n")
+            }
             output = stdOut.readLine()
         }
 
         output = stdErr.readLine()
         while (output != null){
-            if (printErrors)
+            if (printErrors){
                 println(output)
-            commandOutput.append("$output\n")
+                commandOutput.append("$output\n")
+            }
             output = stdErr.readLine()
         }
     }
-
-    return commandOutput.toString()
+    return commandOutput.toString().substringBeforeLast("\n")
 }
