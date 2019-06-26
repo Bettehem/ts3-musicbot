@@ -15,11 +15,13 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener){
                     println("\n\nTS3 MusicBot help:\n\n" +
                             "<command>\t<explanation>\n" +
                             "say\t\tSend a message to the chat.\n" +
+                            "save-settings\t\tSaves current settings in to a config file.\n" +
                             "clear\t\tClears the screen.\n" +
                             "exit\t\tExits the program.\n" +
                             "")
                 }
                 "say" -> consoleUpdateListener.onCommandIssued("%$userCommand")
+                "save-settings" -> consoleUpdateListener.onCommandIssued(command)
                 "clear" -> print("\u001b[H\u001b[2J")
                 "exit" -> {
                     var confirmed = false
@@ -27,7 +29,7 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener){
                         val exitTeamSpeak = console.readLine("Close TeamSpeak? [Y/n]: ").toLowerCase()
                         if (exitTeamSpeak.contentEquals("y") || exitTeamSpeak.contentEquals("yes") || exitTeamSpeak.contentEquals("")){
                             confirmed = true
-                            runCommand("xdotool search \"ts3client_linux\" windowactivate --sync key --window 0 --clearmodifiers alt+F4", ignoreOutput = true)
+                            runCommand("xdotool search \"Teamspeak 3\" windowactivate --sync key --window 0 --clearmodifiers alt+F4", ignoreOutput = true)
                         }else if (exitTeamSpeak.contentEquals("n") || exitTeamSpeak.contentEquals("no")){
                             break
                         }
