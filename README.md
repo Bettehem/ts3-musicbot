@@ -5,7 +5,7 @@ TS3 MusicBot doesn't require you to be an admin on the server you are using the 
 
 
 <h4>Requirements:</h4>
-- Linux based os in a virtual machine or spare computer  
+- Linux based os in a virtual machine or spare computer  (MacOS could possibly work too if you install dependencies via homebrew, but I haven't tested it.)
 
 
 
