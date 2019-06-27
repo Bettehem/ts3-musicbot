@@ -56,16 +56,19 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
 
     }
 
-    fun startReading() {
+    fun startReading(): Boolean {
         shouldRead = true
-        chatListenerThread.start()
+        return if (chatFile.isFile){
+            chatListenerThread.start()
+            true
+        }else{
+            false
+        }
     }
 
-    /*
     fun stopReading() {
         shouldRead = false
-        chatListenerThread.interrupt()
-    }*/
+    }
 
     fun parseLine(userName: String, message: String) {
 
@@ -144,8 +147,11 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
 
                 //Play Spotify playlist based on URI
                 "%sp-playlist" -> {
-                    if (message.split(" ".toRegex())[1].startsWith("spotify:user:") && message.split(" ".toRegex())[1].contains(":playlist:"))
+                    if (message.split(" ".toRegex())[1].startsWith("spotify:user:") && message.split(" ".toRegex())[1].contains(":playlist:")){
                         runCommand("sp open spotify:user:${message.split(" ".toRegex())[1].split(":".toRegex())[2]}:playlist:${message.split(":".toRegex()).last()}")
+                    }else if (message.split(" ".toRegex())[1].startsWith("spotify:playlist")){
+                        runCommand("sp open spotify:playlist:${message.substringAfter("playlist:")}")
+                    }
                 }
 
                 "%sp-nowplaying" -> {
@@ -178,15 +184,22 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                     //val link = message.split(" ".toRegex())[2].split("href=\"".toRegex())[1].split("\">".toRegex())[0]
                     ytLink = parseLink(message)
                     //Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -o - \"$link\" | mpv --no-video --input-ipc-server=/tmp/mpvsocket - &"))
-                    if (ytLink.isNotEmpty())
-                        runCommand("mpv --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $ytLink &", ignoreOutput = true)
+                    if (ytLink.isNotEmpty()){
+                        Thread{
+                            Runnable {
+                                run {
+                                    runCommand("mpv --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $ytLink", inheritIO = true, ignoreOutput = true)
+                                }
+                            }.run()
+                        }.start()
+                    }
                 }
 
 
                 "%yt-nowplaying" -> {
                     val lines = ArrayList<String>()
                     lines.add("Now playing on YouTube:")
-                    lines.addAll(runCommand("youtube-dl --geo-bypass -s -e \"$ytLink\"").split("\n".toRegex()))
+                    lines.addAll(runCommand("youtube-dl --geo-bypass -s -e \"$ytLink\"", printErrors = false).split("\n".toRegex()))
 
                     if (userName == "__console__"){
                         lines.forEach { println(it) }
@@ -239,11 +252,13 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                 }
 
                 "%yt-sel" -> {
-                    val selection = ytResults[message.split(" ".toRegex())[1].toInt() - 1]
-                    val videoID = runCommand("youtube-dl -s --get-id \"ytsearch1:${selection.replace("'", "\'").replace("\"", "\\\"")}\"")
-                    val link = "https://youtu.be/$videoID"
-                    ytLink = link
-                    parseLine("", "%yt-playsong $link")
+                    if (ytResults.isNotEmpty()){
+                        val selection = ytResults[message.split(" ".toRegex())[1].toInt() - 1]
+                        val videoID = runCommand("youtube-dl -s --get-id \"ytsearch1:${selection.replace("'", "\'").replace("\"", "\\\"")}\"")
+                        val link = "https://youtu.be/$videoID"
+                        ytLink = link
+                        parseLine("", "%yt-playsong $link")
+                    }
                 }
 
                 else -> {
