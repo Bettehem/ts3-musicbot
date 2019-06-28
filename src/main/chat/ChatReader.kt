@@ -274,7 +274,7 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                             "%say" -> {
                                 val lines = ArrayList<String>()
                                 lines.addAll(message.substringAfterLast("%say ").split("\n"))
-                                printToChat(userName, lines, apikey)
+                                printToChat("", lines, apikey)
                             }
                         }
                     }else{

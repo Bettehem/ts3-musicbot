@@ -25,7 +25,7 @@ class Spotify {
         urlBuilder.append("https://api.spotify.com/v1/search?")
         urlBuilder.append("q=${searchQuery.replace(" ", "%20").replace("\"", "%22")}")
         urlBuilder.append("&type=$searchType")
-        urlBuilder.append("&limit=10")
+        //urlBuilder.append("&limit=10")
         val url = URL(urlBuilder.toString())
         val requestMethod = "GET"
         val properties = arrayOf(
