@@ -50,7 +50,11 @@ class Spotify {
                         artists.append("${artist.getString("name")}, ")
                     }
 
-                    val albumName = trackData.getJSONObject("album").getString("name")
+                    val albumName = if (trackData.getJSONObject("album").getString("album_type") == "single"){
+                        "${trackData.getJSONObject("album").getString("name")} (Single)"
+                    }else{
+                        trackData.getJSONObject("album").getString("name")
+                    }
 
                     val songName = trackData.getString("name")
 
@@ -70,7 +74,11 @@ class Spotify {
                     listData as JSONObject
 
                     val listName = listData.getString("name")
-                    val listOwner = listData.getJSONObject("owner").getString("display_name")
+                    val listOwner = if (listData.getJSONObject("owner").get("display_name") != null){
+                        listData.getJSONObject("owner").get("display_name")
+                    }else{
+                        "N/A"
+                    }
                     val listLink = listData.getJSONObject("external_urls").getString("spotify")
 
                     searchResult.appendln("" +
@@ -83,4 +91,39 @@ class Spotify {
         }
         return searchResult.toString().substringBeforeLast("\n")
     }
+
+    fun getPlaylistTracks(playListLink: String): ArrayList<Track>{
+        val urlBuilder = StringBuilder()
+        urlBuilder.append("https://api.spotify.com/v1/playlists/")
+        urlBuilder.append(if (playListLink.contains("spotify:") && playListLink.contains("playlist:")){
+            playListLink.substringAfterLast(":")
+        }else{
+            playListLink.substringAfter("playlist/").substringBefore("?si=")
+        })
+        urlBuilder.append("/tracks")
+        val url = URL(urlBuilder.toString())
+        val requestMethod = "GET"
+        val properties = arrayOf(
+            "Authorization: Bearer ${getSpotifyToken()}",
+            "Content-Type: application/x-www-form-urlencoded",
+            "User-Agent: Mozilla/5.0"
+        )
+        val rawResponse = sendHttpRequest(url, requestMethod, properties)
+        val response = JSONObject(rawResponse)
+        val trackList = ArrayList<Track>()
+
+        for (item in response.getJSONArray("items")){
+            item as JSONObject
+            val album = item.getJSONObject("track").getJSONObject("album").getString("name")
+            val artist = item.getJSONObject("track").getJSONArray("artists").forEach { it as JSONObject; StringBuilder().append("${it.getString("name")},") }.toString().substringBeforeLast(",")
+            val title = item.getJSONObject("track").getString("name")
+            val link = item.getJSONObject("track").getJSONObject("external_urls").getString("spotify")
+            trackList.add(Track(album, artist, title, link))
+        }
+
+
+        return trackList
+    }
+
+    class Track(val album: String, val artist: String, val title: String, val link: String)
 }

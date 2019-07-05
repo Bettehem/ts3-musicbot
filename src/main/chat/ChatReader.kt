@@ -1,6 +1,7 @@
 package src.main.chat
 
 import src.main.services.Spotify
+import src.main.util.SongQueue
 import src.main.util.Time
 import src.main.util.runCommand
 import java.io.File
@@ -15,6 +16,7 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
     private var shouldRead = false
     private var ytLink = ""
     private var ytResults = emptyList<String>()
+    private var songQueue = SongQueue()
 
     init {
         //start listening to new messages in chat
@@ -80,7 +82,18 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                 "%help" -> {
                     val lines = ArrayList<String>()
                     lines.add("")
+                    lines.add("General commands:")
                     lines.add("%help                       -Shows this help message")
+                    lines.add("%queue-add <link>           -Add song to queue")
+                    lines.add("%queue-play                 -Play the song queue")
+                    lines.add("%queue-list                 -Lists current songs in queue")
+                    lines.add("%queue-clear                -Clears the song queue")
+                    lines.add("%queue-shuffle              -Shuffles the queue")
+                    lines.add("%queue-skip                 -Skips current song")
+                    lines.add("")
+                    printToChat(userName, lines, apikey)
+                    lines.clear()
+                    lines.add("Player specific commands:")
                     lines.add("")
                     lines.add("Spotify commands:")
                     lines.add("%sp-pause                   -Pauses the Spotify playback")
@@ -110,39 +123,107 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                     printToChat(userName, lines, apikey)
                 }
 
-                "%sp-pause" -> runCommand("sp pause && sleep 1")
-                "%sp-resume" -> runCommand("sp play && sleep 1")
-                "%sp-play" -> runCommand("sp play && sleep 1")
+                "%queue-add" ->  {
 
-                "%sp-skip" -> runCommand("sp next && sleep 1")
-                "%sp-next" -> runCommand("sp next && sleep 1")
-                "%sp-prev" -> runCommand("sp prev && sleep 0.1 & sp prev")
+                    if (message.substringAfter("%queue-add ").contains("spotify:") || message.substringAfter("%queue-add ").contains("https://open.spotify.com")){
+                        when {
+                            message.substringAfter("%queue-add ").contains("spotify:track:") -> songQueue.addToQueue("https://open.spotify.com/track/${message.substringAfter("spotify:track:")}")
+                            message.substringAfter("%queue-add ").contains("https://open.spotify.com/") && message.substringAfter("https://open.spotify.com/").contains("playlist") -> {
+                                val trackList = Spotify().getPlaylistTracks(parseLink(message))
+                                for (track in trackList){
+                                    songQueue.addToQueue(track.link)
+                                }
+                            }
+                            message.substringAfter("%queue-add ").contains("spotify:") && message.substringAfter("spotify:").contains(":playlist:") -> {
+                                val trackList = Spotify().getPlaylistTracks("https://open.spotify.com/playlist/${message.substringAfter(":playlist:")}")
+                                for (track in trackList){
+                                    songQueue.addToQueue(track.link)
+                                }
+                            }
+                            else -> {
+                                songQueue.addToQueue(parseLink(message))
+                            }
+                        }
+                    }else{
+                        songQueue.addToQueue(parseLink(message))
+                    }
+                }
+                "%queue-play" -> songQueue.playQueue()
+                "%queue-list" -> {
+                    printToChat(userName, listOf("Song Queue:"), apikey)
+                    val queueList = ArrayList<String>()
+                    queueList.clear()
+                    queueList.addAll(songQueue.getQueue())
+                    when {
+                        queueList.size in 1..15 -> {
+                            queueList.add(0, "")
+                            printToChat(userName, queueList, apikey)
+                        }
+                        queueList.isEmpty() -> printToChat(userName, listOf("Queue is empty!"), apikey)
+                        else -> for (item in songQueue.getQueue()){
+                            if (queueList.size < 15)
+                                queueList.add(item)
+                            else{
+                                queueList.add(0, "")
+                                printToChat(userName, queueList, apikey)
+                                queueList.clear()
+                            }
+                        }
+                    }
+
+                }
+                "%queue-clear" -> songQueue.clearQueue()
+                "%queue-shuffle" -> songQueue.shuffleQueue()
+                "%queue-skip" -> songQueue.skipSong()
+
+
+
+
+
+                "%sp-pause" -> runCommand("playerctl -p spotify pause && sleep 1")
+                "%sp-resume" -> runCommand("playerctl -p spotify play && sleep 1")
+                "%sp-play" -> runCommand("playerctl -p spotify play && sleep 1")
+
+                "%sp-skip" -> runCommand("playerctl -p spotify next && sleep 1")
+                "%sp-next" -> runCommand("playerctl -p spotify next && sleep 1")
+                "%sp-prev" -> runCommand("playerctl -p spotify previous && sleep 0.1 & playerctl -p spotify previous")
 
                 //Play Spotify song based on link or URI
                 "%sp-playsong" -> {
-                    if (parseLink(message).startsWith("https://open.spotify.com/track")) {
-                        runCommand("sp open spotify:track:${parseLink(message).split("track/".toRegex())[1].split("\\?si=".toRegex())[0]}")
-                    } else {
-                        runCommand("sp open spotify:track:${message.split(" ".toRegex())[1].split("track:".toRegex())[1]}")
+                    if (message.substringAfter("%sp-playsong").isNotEmpty()){
+                        if (parseLink(message).startsWith("https://open.spotify.com/track")) {
+                            runCommand("playerctl -p spotify open spotify:track:${parseLink(message).split("track/".toRegex())[1].split("\\?si=".toRegex())[0]}")
+                        } else {
+                            runCommand("playerctl -p spotify open spotify:track:${message.split(" ".toRegex())[1].split("track:".toRegex())[1]}")
+                        }
+                    }else{
+                        printToChat(userName, listOf("Error! Please provide a song to play!"), apikey)
                     }
                 }
 
                 //Play Spotify playlist based on link or URI
                 "%sp-playlist" -> {
                     if (message.split(" ".toRegex())[1].startsWith("spotify:user:") && message.split(" ".toRegex())[1].contains(":playlist:")){
-                        runCommand("sp open spotify:user:${message.split(" ".toRegex())[1].split(":".toRegex())[2]}:playlist:${message.split(":".toRegex()).last()}")
+                        runCommand("playerctl -p spotify open spotify:user:${message.split(" ".toRegex())[1].split(":".toRegex())[2]}:playlist:${message.split(":".toRegex()).last()}")
                     }else if (message.split(" ".toRegex())[1].startsWith("spotify:playlist")){
-                        runCommand("sp open spotify:playlist:${message.substringAfter("playlist:")}")
+                        runCommand("playerctl -p spotify open spotify:playlist:${message.substringAfter("playlist:")}")
                     }else if (parseLink(message).startsWith("https://open.spotify.com/")){
-                        runCommand("sp open spotify:playlist:${parseLink(message).substringAfter("playlist/").substringBefore("?")}")
+                        runCommand("playerctl -p spotify open spotify:playlist:${parseLink(message).substringAfter("playlist/").substringBefore("?")}")
                     }
                 }
 
                 "%sp-nowplaying" -> {
                     val lines = ArrayList<String>()
                     lines.add("Now playing on Spotify:")
-                    lines.addAll(runCommand("sp current").split("\n".toRegex()))
-
+                    val nowPlaying = runCommand("playerctl -p spotify metadata").split("\n".toRegex())
+                    for (line in nowPlaying){
+                        when (line.substringAfter("xesam:").split("\\s+".toRegex())[0]){
+                            "album"     -> lines.add("Album:\t${line.substringAfter(line.substringAfter("xesam:").split("\\s+".toRegex())[0])}")
+                            "artist"    -> lines.add("Artist:   \t${line.substringAfter(line.substringAfter("xesam:").split("\\s+".toRegex())[0])}")
+                            "title"     -> lines.add("Title:    \t${line.substringAfter(line.substringAfter("xesam:").split("\\s+".toRegex())[0])}")
+                            "url"       -> lines.add("Link:  \t${line.substringAfter(line.substringAfter("xesam:").split("\\s+".toRegex())[0])}")
+                        }
+                    }
                     printToChat(userName, lines, apikey)
 
                 }
@@ -154,7 +235,19 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                         lines.add("Searching, please wait...")
                         printToChat(userName, lines, apikey)
                         lines.clear()
-                        lines.addAll(Spotify().searchSpotify(message.split(" ".toRegex())[1].toLowerCase(), message.substringAfter(message.split(" ".toRegex())[1])).split("\n".toRegex()))
+                        val searchedLines = ArrayList<String>()
+                        searchedLines.addAll(Spotify().searchSpotify(message.split(" ".toRegex())[1].toLowerCase(), message.substringAfter(message.split(" ".toRegex())[1]).replace("&owner=\\w+", "")).split("\n".toRegex()))
+                        for (line in searchedLines.indices){
+                            if (message.substringAfter(message.split(" ".toRegex())[1]).contains("&owner=") && searchedLines[line].replace(" ", "").toLowerCase().contains("Owner:${message.substringAfter(message.split(" ".toRegex())[1]).substringAfter("&owner=").substringBefore("&")}".toLowerCase())){
+                                lines.addAll(listOf(searchedLines[line-1], searchedLines[line], searchedLines[line+1], searchedLines[line+2]))
+                            }else if (!message.substringAfter(message.split(" ".toRegex())[1]).contains("&owner=")){
+                                lines.add(searchedLines[line])
+                            }
+                        }
+
+                        if(lines.size == 0){
+                            lines.add("No search results with \"${message.substringAfter(message.split(" ".toRegex())[1])}\"!")
+                        }
 
                         when (message.split(" ".toRegex())[1]){
                             "track" -> {
@@ -311,7 +404,7 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
             if (apikey.isNotEmpty()){
                 val stringBuffer = StringBuffer()
                 messageLines.forEach { stringBuffer.append(it+"\n") }
-                runCommand("(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${stringBuffer.toString().replace(" ","\\s").replace("\n", "\\n").replace("/", "\\/").replace("|", "\\p").replace("'", "\\'").replace("\"","\\\"")}\"; echo quit) | nc localhost 25639")
+                runCommand("(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${stringBuffer.toString().replace(" ","\\s").replace("\n", "\\n").replace("/", "\\/").replace("|", "\\p").replace("'", "\\'").replace("\"","\\\"").replace("$", "\\$")}\"; echo quit) | nc localhost 25639")
             }else{
                 printToChat(messageLines, true)
             }
