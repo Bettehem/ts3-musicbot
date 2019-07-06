@@ -97,6 +97,7 @@ class SongQueue : PlayStateListener {
         else{
             shouldMonitorSp = false
             shouldMonitorYt = false
+            isPlaying = false
         }
     }
 
