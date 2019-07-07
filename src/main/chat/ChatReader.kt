@@ -2,6 +2,7 @@ package src.main.chat
 
 import src.main.services.Spotify
 import src.main.util.SongQueue
+import src.main.util.PlayStateListener
 import src.main.util.Time
 import src.main.util.runCommand
 import java.io.File
@@ -10,7 +11,7 @@ import java.nio.file.Files
 import java.util.*
 import kotlin.collections.ArrayList
 
-class ChatReader(private var chatFile: File, private var onChatUpdateListener: ChatUpdateListener, private val apikey: String = "") {
+class ChatReader(private var chatFile: File, private var onChatUpdateListener: ChatUpdateListener, private val apikey: String = ""): PlayStateListener {
 
     private var chatListenerThread: Thread
     private var shouldRead = false
@@ -148,7 +149,7 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                         songQueue.addToQueue(parseLink(message))
                     }
                 }
-                "%queue-play" -> songQueue.playQueue()
+                "%queue-play" -> songQueue.playQueue(this)
                 "%queue-list" -> {
                     printToChat(userName, listOf("Song Queue:"), apikey)
                     val queueList = ArrayList<String>()
@@ -453,6 +454,16 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
 
 
     }
+    override fun onPlayStateChanged(player: String, track: String){}
+
+    override fun onNewSongPlaying(player: String, track: String){
+        if (player == "mpv"){
+            if (track.startsWith("https://youtube.com") || track.startsWith("https://youtu.be") || track.startsWith("https://www.youtube.com")){
+                ytLink = track
+            }
+        }
+    }
+
 }
 
 class ChatUpdate(val userName: String, val time: Time, val message: String)

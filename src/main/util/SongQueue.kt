@@ -4,6 +4,7 @@ class SongQueue : PlayStateListener {
     private val songQueue = ArrayList<String>()
 
     private val playStateListener: PlayStateListener = this
+    private lateinit var playStateListener2: PlayStateListener
 
     private var currentSong = ""
     private var shouldMonitorSp = false
@@ -49,10 +50,11 @@ class SongQueue : PlayStateListener {
 
 
     //starts playing song queue
-    fun playQueue(){
+    fun playQueue(queueListener: PlayStateListener){
         if (songQueue.size >= 1){
             //queue is not empty, so start playing the list.
 
+            playStateListener2 = queueListener
             if (!isPlaying){
                 //play first song in queue
                 isPlaying = true
@@ -76,8 +78,15 @@ class SongQueue : PlayStateListener {
             }
 
         }else if (songLink.startsWith("https://youtu.be") || songLink.startsWith("https://youtube.com") || songLink.startsWith("https://www.youtube.com")){
+            if (runCommand("playerctl -p spotify status") == "Playing")
+                runCommand("playerctl -p spotify pause")
             currentSong = songLink
-            runCommand("mpv --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $songLink", inheritIO = true, ignoreOutput = true)
+            val ytThread = Thread {
+                Runnable {
+                     runCommand("mpv --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $songLink", inheritIO = true, ignoreOutput = true)
+                }.run()
+            }
+            ytThread.start()
             Thread.sleep(5000)
             if (youTubeListenerThread.isAlive){
                 shouldMonitorSp = false
@@ -113,17 +122,29 @@ class SongQueue : PlayStateListener {
                 Thread.sleep(100)
                 playNext()
             }
+        }else{
+            //stop queue.
+            shouldMonitorSp = false
+            shouldMonitorYt = false
+            isPlaying = false
+            clearQueue() 
         }
     }
 
+    override fun onNewSongPlaying(player: String, track: String){
+        playStateListener2.onNewSongPlaying(player, track)
+    }
 
     private val spotifyListenerThread = Thread {
         Runnable{
             while (shouldMonitorSp){
-                while (runCommand("playerctl -p spotify status") == "Playing"){
+                if (runCommand("playerctl -p spotify status") == "Playing"){
                     val current = runCommand("playerctl -p spotify metadata --format '{{ xesam:url }}'", ignoreOutput = false)
-                    if (current != currentSong){
-                        playStateListener.onPlayStateChanged("spotify", current)
+                    if (current != currentSong && !current.startsWith("https://open.spotify.com/ad/")){
+                        if (playStateListener != null){
+                            Thread.sleep(500)
+                            playStateListener.onPlayStateChanged("spotify", current)
+                        }
                     }
                     Thread.sleep(1000)
                 }
@@ -135,14 +156,13 @@ class SongQueue : PlayStateListener {
         Runnable{
             while (shouldMonitorYt){
                 if (runCommand("playerctl -p mpv status") == "Playing"){
+                        playStateListener.onNewSongPlaying("mpv", runCommand("playerctl -p mpv metadata --format '{{ title }}'"))
+                }else if (runCommand("playerctl -p mpv status") == "No players found"){
                     val current = runCommand("playerctl -p mpv metadata --format '{{ title }}'")
-                    if (current != runCommand("youtube-dl --geo-bypass -s -e \"$currentSong\"", ignoreOutput = false, printErrors = false)){
+                    if (current != runCommand("youtube-dl --geo-bypass -s -e \"$currentSong\"", ignoreOutput = false, printErrors = false) && !current.contains("v=$currentSong")){
                         Thread.sleep(500)
                         playStateListener.onPlayStateChanged("mpv", currentSong)
                     }
-                    Thread.sleep(1000)
-                }else if (runCommand("playerctl -p mpv status") == "No players found"){
-                    playStateListener.onPlayStateChanged("mpv", runCommand("youtube-dl --geo-bypass -s -e \"$currentSong\"", ignoreOutput = false, printErrors = false))
                 }
             }
         }.run()
@@ -160,6 +180,7 @@ class SongQueue : PlayStateListener {
 
 }
 
-private interface PlayStateListener{
+public interface PlayStateListener{
     fun onPlayStateChanged(player: String, track: String)
+    fun onNewSongPlaying(player: String, track: String)
 }

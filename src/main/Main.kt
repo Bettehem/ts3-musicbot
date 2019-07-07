@@ -151,7 +151,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     println("Error!\nOptions -a, -s and -n are required. See -h or --help for more information")
                     exitProcess(0)
                 }
-                Thread.sleep(3000)
+                Thread.sleep(5000)
                 //get the server's name
                 val virtualserver_name = runCommand("(echo auth apikey=$apiKey; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639").split("\n".toRegex())
                 var serverName = ""
