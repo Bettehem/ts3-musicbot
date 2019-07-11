@@ -68,6 +68,35 @@ class Spotify {
                     )
                 }
             }
+            "album" -> {
+                val albums = response.getJSONObject("albums").getJSONArray("items")
+                for (album in albums){
+                    album as JSONObject
+                    
+                    val artists = StringBuilder()
+                    artists.append("Artist: ")
+                    for (artistData in album.getJSONArray("artists")){
+                        val artist = artistData as JSONObject
+                        artists.append("${artist.getString("name")}, ")
+                    }
+
+
+                    val albumName = if (album.getString("album_type") == "single"){
+                        "${album.getString("name")} (Single)"
+                    }else{
+                        album.getString("name")
+                    }
+
+                    val albumLink = album.getJSONObject("external_urls").getString("spotify") 
+                        
+                    searchResult.appendln("" +
+                            "${artists.toString().substringBeforeLast(",")}\n" +
+                            "Album:  $albumName\n" +
+                            "Link:   $albumLink\n"
+                    )
+                }
+
+            }
             "playlist" -> {
                 val playlists = response.getJSONObject("playlists").getJSONArray("items")
                 for (listData in playlists){
@@ -93,6 +122,7 @@ class Spotify {
     }
 
     fun getPlaylistTracks(playListLink: String): ArrayList<Track>{
+        //First get the playlist length 
         val urlBuilder = StringBuilder()
         urlBuilder.append("https://api.spotify.com/v1/playlists/")
         urlBuilder.append(if (playListLink.contains("spotify:") && playListLink.contains("playlist:")){
@@ -100,7 +130,6 @@ class Spotify {
         }else{
             playListLink.substringAfter("playlist/").substringBefore("?si=")
         })
-        urlBuilder.append("/tracks")
         val url = URL(urlBuilder.toString())
         val requestMethod = "GET"
         val properties = arrayOf(
@@ -110,20 +139,125 @@ class Spotify {
         )
         val rawResponse = sendHttpRequest(url, requestMethod, properties)
         val response = JSONObject(rawResponse)
-        val trackList = ArrayList<Track>()
 
-        for (item in response.getJSONArray("items")){
-            item as JSONObject
-            val album = item.getJSONObject("track").getJSONObject("album").getString("name")
-            val artist = item.getJSONObject("track").getJSONArray("artists").forEach { it as JSONObject; StringBuilder().append("${it.getString("name")},") }.toString().substringBeforeLast(",")
-            val title = item.getJSONObject("track").getString("name")
-            val link = item.getJSONObject("track").getJSONObject("external_urls").getString("spotify")
-            trackList.add(Track(album, artist, title, link))
+        //playlist length
+        val playlistLength = response.getJSONObject("tracks").getInt("total")
+
+
+        //Now get all tracks
+        val trackItems = ArrayList<Track>()
+        //spotify only shows 100 items per search, so with each 100 items, listOffset will be increased
+        var listOffset = 0
+        while (trackItems.size < playlistLength){
+             
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("https://api.spotify.com/v1/playlists/")
+            urlBuilder.append(if (playListLink.contains("spotify:") && playListLink.contains("playlist:")){
+                playListLink.substringAfterLast(":")
+            }else{
+                playListLink.substringAfter("playlist/").substringBefore("?si=")
+            })
+            urlBuilder.append("/tracks?limit=100")
+            urlBuilder.append("&offset=$listOffset")
+            val url = URL(urlBuilder.toString())
+            val requestMethod = "GET"
+            val properties = arrayOf(
+                "Authorization: Bearer ${getSpotifyToken()}",
+                "Content-Type: application/x-www-form-urlencoded",
+                "User-Agent: Mozilla/5.0"
+            )
+            val rawResponse = sendHttpRequest(url, requestMethod, properties)
+            val response = JSONObject(rawResponse)
+
+            for (item in response.getJSONArray("items")){
+                item as JSONObject
+                val albumName = if (item.getJSONObject("track").getJSONObject("album").getString("album_type") == "single"){
+                        "${item.getJSONObject("track").getJSONObject("album").getString("name")} (Single)"        
+                    }else{
+                        item.getJSONObject("track").getJSONObject("album").getString("name")
+                    }
+
+                val album = albumName
+                val artist = item.getJSONObject("track").getJSONArray("artists").forEach { it as JSONObject; StringBuilder().append("${it.getString("name")},") }.toString().substringBeforeLast(",")
+                val title = item.getJSONObject("track").getString("name")
+                val link = item.getJSONObject("track").getJSONObject("external_urls").getString("spotify")
+                trackItems.add(Track(album, artist, title, link))    
+            }
+
+            listOffset += 100
+        }
+        
+        return trackItems
+    }
+
+    fun getAlbumTracks(albumLink: String): ArrayList<Track>{
+        val urlBuilder = StringBuilder()
+        urlBuilder.append("https://api.spotify.com/v1/albums/")
+        urlBuilder.append(if (albumLink.contains("spotify:") && albumLink.contains("album:")){
+            albumLink.substringAfterLast(":")
+        }else{
+            albumLink.substringAfter("album/").substringBefore("?si=")
+        })
+        val url = URL(urlBuilder.toString())
+        val requestMethod = "GET"
+        val properties = arrayOf(
+            "Authorization: Bearer ${getSpotifyToken()}",
+            "Content-Type: application/x-www-form-urlencoded",
+            "User-Agent: Mozilla/5.0"
+        )
+        val rawResponse = sendHttpRequest(url, requestMethod, properties)
+        val response = JSONObject(rawResponse)
+
+        val trackItemsLength = response.getJSONObject("tracks").getInt("total")
+        
+        val albumName = if (response.getString("album_type") == "single"){
+                "${response.getString("name")} (Single)"        
+            }else{
+                response.getString("name")
+            }
+
+        //Now get all tracks
+        val trackItems = ArrayList<Track>()
+        //spotify only shows 20 items per search, so with each 20 items, listOffset will be increased
+        var listOffset = 0
+        while (trackItems.size < trackItemsLength){
+             
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("https://api.spotify.com/v1/albums/")
+            urlBuilder.append(if (albumLink.contains("spotify:") && albumLink.contains("album:")){
+                albumLink.substringAfterLast(":")
+            }else{
+                albumLink.substringAfter("album/").substringBefore("?si=")
+            })
+            urlBuilder.append("/tracks?limit=20")
+            urlBuilder.append("&offset=$listOffset")
+            val url = URL(urlBuilder.toString())
+            val requestMethod = "GET"
+            val properties = arrayOf(
+                "Authorization: Bearer ${getSpotifyToken()}",
+                "Content-Type: application/x-www-form-urlencoded",
+                "User-Agent: Mozilla/5.0"
+            )
+            val rawResponse = sendHttpRequest(url, requestMethod, properties)
+            val response = JSONObject(rawResponse)
+
+            for (item in response.getJSONArray("items")){
+                item as JSONObject
+                val album = albumName
+                val artist = item.getJSONArray("artists").forEach { it as JSONObject; StringBuilder().append("${it.getString("name")},") }.toString().substringBeforeLast(",")
+                val title = item.getString("name")
+                val link = item.getJSONObject("external_urls").getString("spotify")
+                trackItems.add(Track(album, artist, title, link))    
+            }
+
+            listOffset += 20
         }
 
 
-        return trackList
+        return trackItems
     }
+
+ 
 
     class Track(val album: String, val artist: String, val title: String, val link: String)
 }

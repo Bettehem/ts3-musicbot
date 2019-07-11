@@ -91,9 +91,12 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                     lines.add("%queue-clear                -Clears the song queue")
                     lines.add("%queue-shuffle              -Shuffles the queue")
                     lines.add("%queue-skip                 -Skips current song")
+                    lines.add("%queue-move <link> <pos>    -Moves a track to a desired position in the queue. <link> should be your song link and <pos> should be the new position of your song.")
+                    lines.add("%queue-stop                 -Stops the queue")
                     lines.add("")
                     printToChat(userName, lines, apikey)
                     lines.clear()
+                    lines.add("")
                     lines.add("Player specific commands:")
                     lines.add("")
                     lines.add("Spotify commands:")
@@ -105,12 +108,14 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                     lines.add("%sp-prev                    -Plays the previous track")
                     lines.add("%sp-playsong <track>        -Plays a Spotify song. <track> should be your song link or Spotify URI")
                     lines.add("%sp-playlist <playlist>     -Plays a Spotify playlist. <playlist> should be your playlist's link or Spotify URI")
+                    lines.add("%sp-playalbum <album>       -Plays a Spotify album <album> should be your album's link or Spotify URI")
                     lines.add("%sp-nowplaying              -Shows information on currently playing track")
-                    lines.add("%sp-search <type> <text>    -Search on Spotify. <type> can be track or playlist")
+                    lines.add("%sp-search <type> <text>    -Search on Spotify. <type> can be track, album or playlist")
                     printToChat(userName, lines, apikey)
 
                     Thread.sleep(200)
                     lines.clear()
+                    lines.add("")
                     lines.add("YouTube commands:")
                     lines.add("%yt-pause                   -Pauses the YouTube playback")
                     lines.add("%yt-resume                  -Resumes the YouTube playback")
@@ -131,6 +136,12 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                             message.substringAfter("%queue-add ").contains("spotify:track:") -> songQueue.addToQueue("https://open.spotify.com/track/${message.substringAfter("spotify:track:")}")
                             message.substringAfter("%queue-add ").contains("https://open.spotify.com/") && message.substringAfter("https://open.spotify.com/").contains("playlist") -> {
                                 val trackList = Spotify().getPlaylistTracks(parseLink(message))
+                                for (track in trackList){
+                                    songQueue.addToQueue(track.link)
+                                }
+                            }
+                            message.substringAfter("%queue-add ").contains("https://open.spotify.com/") && message.substringAfter("https://open.spotify.com/").contains("album") -> {
+                                val trackList = Spotify().getAlbumTracks(parseLink(message))
                                 for (track in trackList){
                                     songQueue.addToQueue(track.link)
                                 }
@@ -171,11 +182,20 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                             }
                         }
                     }
+                    printToChat(userName, listOf("Queue Length: ${songQueue.getQueue().size} tracks."), apikey)
 
                 }
                 "%queue-clear" -> songQueue.clearQueue()
                 "%queue-shuffle" -> songQueue.shuffleQueue()
                 "%queue-skip" -> songQueue.skipSong()
+                "%queue-move" -> {
+                    val link = parseLink(message)
+                    if (message.substringAfter(" ").contains(" ") && message.substringAfter(" ").split(" ".toRegex()).size == 2){
+                        val position = message.substringAfter(" ").split(" ".toRegex())[1].toInt()
+                        songQueue.moveTrack(link, position)
+                    }
+                } 
+                "%queue-stop" -> songQueue.stopQueue()
 
 
 
@@ -213,6 +233,15 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                     }
                 }
 
+                "%sp-playalbum" -> {
+                    if (message.split(" ".toRegex())[1].startsWith("spotify:album")){
+                        runCommand("playerctl -p spotify open spotify:album:${message.substringAfter("album:")}")
+                    }else if (parseLink(message).startsWith("https://open.spotify.com/")){
+                        runCommand("playerctl -p spotify open spotify:album:${parseLink(message).substringAfter("album/").substringBefore("?")}")
+                    }
+                }
+
+
                 "%sp-nowplaying" -> {
                     val lines = ArrayList<String>()
                     lines.add("Now playing on Spotify:")
@@ -231,7 +260,7 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
 
                 "%sp-search" -> {
 
-                    if (message.split(" ".toRegex())[1].toLowerCase() == "track" || message.split(" ".toRegex())[1].toLowerCase() == "playlist"){
+                    if (message.split(" ".toRegex())[1].toLowerCase() == "track" || message.split(" ".toRegex())[1].toLowerCase() == "playlist" || message.split(" ".toRegex())[1].toLowerCase() ==  "album"){
                         val lines = ArrayList<String>()
                         lines.add("Searching, please wait...")
                         printToChat(userName, lines, apikey)
@@ -272,6 +301,28 @@ class ChatReader(private var chatFile: File, private var onChatUpdateListener: C
                                     }
                                 }
                             }
+                                
+                            "album" -> {
+                                if (lines.size <= 12){
+                                    lines.add(0, "Search results:")
+                                    printToChat(userName, lines, apikey)
+                                }else{
+                                    val resultLines = ArrayList<String>()
+                                    resultLines.add("Search results:")
+                                    printToChat(userName, resultLines, apikey)
+                                    resultLines.clear()
+                                    for (line in lines){
+                                        if (resultLines.size < 11){
+                                            resultLines.add(line)
+                                        }else{
+                                            resultLines.add(0, "")
+                                            printToChat(userName, resultLines, apikey)
+                                            resultLines.clear()
+                                        }
+                                    }
+                                }
+                            }
+
 
                             "playlist" -> {
                                 if (lines.size <= 12){
