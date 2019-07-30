@@ -120,7 +120,6 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                             if (args.size >= argPos + 1)
                                 nickname = args[argPos + 1]
                         }
-
                     }
                 }
 
@@ -153,7 +152,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 }
                 Thread.sleep(5000)
                 //get the server's name
-                val virtualserver_name = runCommand("(echo auth apikey=$apiKey; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639").split("\n".toRegex())
+                val virtualserver_name = runCommand("(echo auth apikey=$apiKey; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639", printOutput = false).split("\n".toRegex())
                 var serverName = ""
                 for (line in virtualserver_name){
                     if (line.contains("virtualserver_name") && line.contains("=")){
@@ -296,6 +295,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 Thread.sleep(1500)
                 return true
             }else{
+                @Suppress("SENSELESS_COMPARISON")
                 if (window != null){
                     statusTextView.text = "Error!\nYou need to provide at least the api key, server address and a nickname for the bot."
                 }else{
@@ -309,7 +309,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
             var channelFile = File("")
             if (settings.channelFilePath.isEmpty()){
                 //get the server's name
-                val virtualserverName = runCommand("(echo auth apikey=${settings.apiKey}; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639").split("\n".toRegex())
+                val virtualserverName = runCommand("(echo auth apikey=${settings.apiKey}; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639", printOutput = false).split("\n".toRegex())
                 var serverName = ""
                 println("Getting server name...")
                 for (line in virtualserverName){
@@ -510,17 +510,15 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 fileChooser.title = "Select config file which contains bot settings"
                 fileChooser.initialDirectory = File(System.getProperty("user.dir"))
                 fileChooser.selectedExtensionFilter = FileChooser.ExtensionFilter("Configuration File", listOf("*.config", "*.conf"))
-                val file = fileChooser.showOpenDialog(window)
-                if (file != null){
-                    val settings = loadSettings(file)
-                    apiKeyEditText.text = settings.apiKey
-                    serverAddressEditText.text = settings.serverAddress
-                    channelNameEditText.text = settings.channelName
-                    nicknameEditText.text = settings.nickname
-                    serverPortEditText.text = settings.serverPort
-                    serverPasswordEditText.text = settings.serverPassword
-                    channelFilePathEditText.text = settings.channelFilePath
-                }
+                val file: File = fileChooser.showOpenDialog(window)
+                val settings = loadSettings(file)
+                apiKeyEditText.text = settings.apiKey
+                serverAddressEditText.text = settings.serverAddress
+                channelNameEditText.text = settings.channelName
+                nicknameEditText.text = settings.nickname
+                serverPortEditText.text = settings.serverPort
+                serverPasswordEditText.text = settings.serverPassword
+                channelFilePathEditText.text = settings.channelFilePath
             }
 
             startBotButton -> {

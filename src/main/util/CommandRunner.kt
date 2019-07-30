@@ -23,18 +23,18 @@ fun runCommand(command: String, ignoreOutput: Boolean = false, printOutput: Bool
 
         var output = stdOut.readLine()
         while (output != null){
+            commandOutput.append("$output\n")
             if (printOutput){
                 println(output)
-                commandOutput.append("$output\n")
             }
             output = stdOut.readLine()
         }
 
         output = stdErr.readLine()
         while (output != null){
+            commandOutput.append("$output\n")
             if (printErrors){
                 println(output)
-                commandOutput.append("$output\n")
             }
             output = stdErr.readLine()
         }
