@@ -339,7 +339,11 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         }
                     }
                 }
+                // setting channelFile if you have set it in the options
+            } else {
+                channelFile = File(settings.channelFilePath)
             }
+
             return channelFile
         }
     }
