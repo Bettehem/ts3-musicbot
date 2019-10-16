@@ -156,7 +156,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 var serverName = ""
                 for (line in virtualserver_name){
                     if (line.contains("virtualserver_name") && line.contains("=")){
-                        serverName = line.split("=".toRegex())[1]
+                        serverName = line.split("=".toRegex())[1].replace("\\s", " ")
                         println("Server name: $serverName")
                     }
                 }
@@ -170,10 +170,12 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     for (dir in chatDir.list()!!) {
                         println("Checking in $dir")
                         val serverFile = File("${System.getProperty("user.home")}/.ts3client/chats/$dir/server.html")
-                        for (line in serverFile.readLines()) {
+                        val lines = runCommand("cat ${serverFile.absolutePath}").split("\n".toRegex())
+                        for (line in lines){
                             if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
                                 //compare serverName to the one in server.html
-                                if (line.split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0] == serverName) {
+                                val htmlServerName = line.replace("&apos;", "'").split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0].replace("\\s", " ")
+                                if (htmlServerName == serverName) {
                                     channelFile = if (channelFilename.isNotEmpty()) {
                                         File(channelFilename)
                                     } else {
@@ -295,12 +297,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 Thread.sleep(1500)
                 return true
             }else{
-                @Suppress("SENSELESS_COMPARISON")
-                if (window != null){
-                    statusTextView.text = "Error!\nYou need to provide at least the api key, server address and a nickname for the bot."
-                }else{
-                    println("Error!\nOptions -a, -s and -n are required. See -h or --help for more information")
-                }
+                statusTextView.text = "Error!\nYou need to provide at least the api key, server address and a nickname for the bot."
+                println("Error!\nOptions -a, -s and -n are required. See -h or --help for more information")
                 return false
             }
         }

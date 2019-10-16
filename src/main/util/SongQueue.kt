@@ -234,7 +234,7 @@ class SongQueue : PlayStateListener {
                         if (!spPosMonitorIsActive) {
                             val positionMonitor = Thread {
                                 Runnable {
-                                    Thread.sleep(5000)
+                                    Thread.sleep(7500)
                                     songPosition = 0
                                     runCommand("killall playerctl", printOutput = false)
                                     val songLengthDataLong = runCommand(
@@ -261,7 +261,7 @@ class SongQueue : PlayStateListener {
                             }
                             spPosMonitorIsActive = true
                             positionMonitor.start()
-                            Thread.sleep(4000)
+                            Thread.sleep(5000)
                             continue
                         }
                         val current =
