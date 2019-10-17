@@ -20,8 +20,6 @@ class SongQueue : PlayStateListener {
     @Volatile
     private var isPlaying = false
     @Volatile
-    private var spPosMonitorIsActive = false
-    @Volatile
     private var songPosition = 0
 
 
@@ -115,7 +113,6 @@ class SongQueue : PlayStateListener {
         isPlaying = false
         shouldMonitorSp = false
         shouldMonitorYt = false
-        spPosMonitorIsActive = false
         currentSong = ""
         runCommand("playerctl pause")
         runCommand("playerctl -p mpv stop")
@@ -151,7 +148,7 @@ class SongQueue : PlayStateListener {
         if (songLink.startsWith("https://open.spotify.com")) {
             if (runCommand("playerctl -p mpv status") == "Playing")
                 runCommand("playerctl -p mpv stop")
-            startSpotifyMonitor()
+            //startSpotifyMonitor()
             currentSong = songLink
             songQueue.remove(currentSong)
             val spThread = Thread {
@@ -165,7 +162,6 @@ class SongQueue : PlayStateListener {
             }
             spThread.start()
             onNewSongPlaying("spotify", currentSong)
-            Thread.sleep(5000)
             songPosition = 0
             shouldMonitorSp = true
             shouldMonitorYt = false
@@ -205,7 +201,6 @@ class SongQueue : PlayStateListener {
             shouldMonitorSp = false
             shouldMonitorYt = false
             isPlaying = false
-            spPosMonitorIsActive = false
             currentSong = ""
         }
     }
@@ -224,139 +219,56 @@ class SongQueue : PlayStateListener {
     private fun startSpotifyMonitor() {
         val spotifyListenerThread = Thread {
             Runnable {
-                var songLength = 0
-                var songLengthData: String
-                var currentPosition = -1
-                var wasPaused = false
-                var prevPosition = 0
+                var songLength = 0 //Song length in seconds
                 while (isPlaying) {
+                    val playerStatus = runCommand("playerctl -p spotify status", printOutput = false)
+                    val current =
+                        runCommand("playerctl -p spotify metadata --format '{{ xesam:url }}'", printOutput = false)
+
                     if (shouldMonitorSp) {
-                        if (!spPosMonitorIsActive) {
-                            val positionMonitor = Thread {
-                                Runnable {
-                                    Thread.sleep(7500)
-                                    songPosition = 0
-                                    runCommand("killall playerctl", printOutput = false)
-                                    val songLengthDataLong = runCommand(
-                                        "playerctl -p spotify metadata --format '{{ mpris:length }}'",
-                                        printOutput = false
-                                    ).toLong()
-                                    songLengthData = "${if (((songLengthDataLong / 1000000 / 60) % 60).toInt() < 10) {
-                                        "0${((songLengthDataLong / 1000000 / 60) % 60).toInt()}"
-                                    } else {
-                                        "${((songLengthDataLong / 1000000 / 60) % 60).toInt()}"
-                                    }}:${if (((songLengthDataLong / 1000000) % 60).toInt() < 10) {
-                                        "0${((songLengthDataLong / 1000000) % 60).toInt()}"
-                                    } else {
-                                        "${((songLengthDataLong / 1000000) % 60).toInt()}"
-                                    }}"
-                                    songLength =
-                                        songLengthData.split(":".toRegex())[0].toInt() * 60 + songLengthData.split(":".toRegex())[1].toInt()
-                                    println("Playing from Spotify\nSong length: ${songLength}s ($songLengthData)")
-                                    runCommand(
-                                        "playerctl -p spotify metadata --format '{{ position }}' --follow >> /tmp/sp_position",
-                                        ignoreOutput = true
-                                    )
-                                }.run()
-                            }
-                            spPosMonitorIsActive = true
-                            positionMonitor.start()
-                            Thread.sleep(5000)
-                            continue
-                        }
-                        val current =
-                            runCommand("playerctl -p spotify metadata --format '{{ xesam:url }}'", printOutput = false)
-                        val playerStatus = runCommand("playerctl -p spotify status", printOutput = false)
                         if (playerStatus == "Playing") {
-                            if (runCommand("cat /tmp/sp_position", printOutput = false).isEmpty()) {
-                                runCommand("killall playerctl", printOutput = false)
-                                spPosMonitorIsActive = false
-                                continue
-                            }
-                            if (spPosMonitorIsActive && songPosition < songLength && runCommand(
-                                    "head -n 2 /tmp/sp_position",
-                                    printOutput = false
-                                ).isNotEmpty()
-                            ) {
-                                val firstVal = runCommand(
-                                    "head -n 2 /tmp/sp_position",
-                                    printOutput = false
-                                ).substringAfterLast("\n").toLong()
-                                val currentPositionDataLong =
-                                    runCommand("tail -n 1 /tmp/sp_position", printOutput = false).toLong()
-                                //val currentMinutes = (((currentPositionDataLong - firstVal)/1001174/60)%60).toInt()
-                                //val currentSeconds = (((currentPositionDataLong - firstVal)/1001174)%60).toInt()
-                                val currentMinutes =
-                                    (((currentPositionDataLong - firstVal) / 1000000 / 60) % 60).toInt()
-                                val currentSeconds = (((currentPositionDataLong - firstVal) / 1000000) % 60).toInt()
-                                val currentPositionData = "$currentMinutes:$currentSeconds"
-                                //println("currentPositionData: $currentPositionData/$songLengthData")
-                                currentPosition =
-                                    if (runCommand("tail -n 1 /tmp/sp_position", printOutput = false).toInt() > 1 ||
-                                        (current == currentSong.substringBefore("?si=") && currentSong.startsWith("https://open.spotify.com"))
-                                    ) {
-                                        currentPositionData.split(":".toRegex())[0].toInt() * 60 + currentPositionData.split(
-                                            ":".toRegex()
-                                        )[1].toInt()
-                                    } else {
-                                        -1
-                                    }
-                                if (currentPosition >= 0) {
-                                    if (songPosition < currentPosition) {
-                                        songPosition = currentPosition
-                                    } else if (wasPaused) {
-                                        if ((currentPosition - prevPosition) > 0) {
-                                            songPosition += currentPosition - prevPosition
-                                        }
-                                    }
-                                } else if (currentPosition != 0 && (currentPosition < 10 || runCommand(
-                                        "tail -n 1 /tmp/sp_position",
-                                        printOutput = false
-                                    ).toInt() < 10)
-                                ) {
-                                    songPosition = songLength
-                                } else {
-                                    songPosition = songLength
+                            //song is playing
+
+                            if (current == currentSong) {
+                                val lengthMicroseconds =
+                                    runCommand("playerctl -p spotify metadata --format '{{ mpris:length }}'", printOutput = false).toInt()
+                                val minutes = lengthMicroseconds / 1000000 / 60
+                                val seconds = lengthMicroseconds / 1000000 % 60
+                                songLength = minutes * 60 + seconds
+
+                                //println("Position = $songPosition / $songLength")
+                                if (songPosition < songLength) {
+                                    songPosition++
+                                    Thread.sleep(1000)
                                 }
-                            }
-                        }
-
-
-
-
-
-                        if (playerStatus == "Playing") {
-                            if (current != currentSong.substringBefore("?si=") && !current.startsWith("https://open.spotify.com/ad/") && currentSong.startsWith(
-                                    "https://open.spotify.com"
-                                )
-                            ) {
-                                wasPaused = false
-                                spPosMonitorIsActive = false
+                            }else{
+                                //Song changed
+                                songPosition = 0
                                 shouldMonitorSp = false
-                                runCommand("rm -f /tmp/sp_position && touch /tmp/sp_position", ignoreOutput = true)
-                                runCommand("killall playerctl", printOutput = false)
                                 playStateListener.onSongEnded("spotify", currentSong)
-                                continue
                             }
-                        } else if (playerStatus == "Paused" && songPosition >= songLength - 34) {
-                            wasPaused = false
-                            spPosMonitorIsActive = false
-                            shouldMonitorSp = false
-                            runCommand("rm -f /tmp/sp_position && touch /tmp/sp_position", ignoreOutput = true)
-                            runCommand("killall playerctl", printOutput = false)
-                            playStateListener.onSongEnded("spotify", currentSong)
-                            continue
-                        } else if (playerStatus == "Paused" && current == currentSong.substringBefore("?si=") && songPosition < songLength) {
-                            wasPaused = true
-                            prevPosition = currentPosition
-                            runCommand("killall playerctl", printOutput = false)
-                            spPosMonitorIsActive = false
-                            continue
                         } else {
-                            println("songPosition: $songPosition")
-                            println("songLength: $songLength")
+                            //Song is paused/stopped
+
+                            if (current == currentSong) {
+
+                                if (songPosition >= songLength - 2) {
+                                    //Song has ended
+                                    songPosition = 0
+                                    shouldMonitorSp = false
+                                    playStateListener.onSongEnded("spotify", currentSong)
+                                } else {
+                                    //Song is paused
+                                }
+                            }else{
+                                //Song has changed
+
+                                //play next song
+                                songPosition = 0
+                                shouldMonitorSp = false
+                                playStateListener.onSongEnded("spotify", currentSong)
+                            }
                         }
-                        Thread.sleep(1000)
                     }
                 }
             }.run()
