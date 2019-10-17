@@ -242,10 +242,19 @@ class SongQueue : PlayStateListener {
                                     Thread.sleep(1000)
                                 }
                             }else{
-                                //Song changed
-                                songPosition = 0
-                                shouldMonitorSp = false
-                                playStateListener.onSongEnded("spotify", currentSong)
+                                //song has changed
+                                if (songPosition >= songLength-2 && songLength > 0){
+                                    //Song changed
+                                    songPosition = 0
+                                    shouldMonitorSp = false
+                                    playStateListener.onSongEnded("spotify", currentSong)
+                                }else {
+                                    songQueue.none { it == current }.run {
+                                        songPosition = 0
+                                        shouldMonitorSp = false
+                                        playStateListener.onSongEnded("spotify", currentSong)
+                                    }
+                                }
                             }
                         } else {
                             //Song is paused/stopped

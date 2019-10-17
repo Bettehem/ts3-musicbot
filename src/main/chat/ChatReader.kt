@@ -425,7 +425,7 @@ class ChatReader(
                             }
                         }
 
-                        if (lines.size == 0) {
+                        if (lines.size == 1 && lines[0] == "") {
                             lines.add("No search results with \"${message.substringAfter(message.split(" ".toRegex())[1])}\"!")
                         }
 
@@ -691,7 +691,7 @@ class ChatReader(
             "txt" -> {
                 //extract message
                 if (line.startsWith("<")) {
-                    val userName = line.split(" ".toRegex())[1].substringBeforeLast(":")
+                    val userName = line.substringAfter("> ").substringBeforeLast(": ")
                     val time = Time(Calendar.getInstance())
                     val rawTime =
                         line.split(" ".toRegex())[0].substringAfter("<").substringBefore(">").split(":".toRegex())
