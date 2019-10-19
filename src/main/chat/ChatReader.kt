@@ -219,22 +219,22 @@ class ChatReader(
                     }
                 }
                 "%queue-playnext" -> {
-                    if (message.substringAfter("%queue-add ").contains("spotify:") || message.substringAfter("%queue-add ").contains(
+                    if (message.substringAfter("%queue-playnext ").contains("spotify:") || message.substringAfter("%queue-playnext ").contains(
                             "https://open.spotify.com"
                         )
                     ) {
                         when {
-                            message.substringAfter("%queue-add ").contains("spotify:track:") -> {
+                            message.substringAfter("%queue-playnext ").contains("spotify:track:") -> {
                                 printToChat(userName, listOf("Adding track to queue..."), apikey)
                                 songQueue.addToQueue("https://open.spotify.com/track/${message.substringAfter("spotify:track:")}", 0)
                                 printToChat(userName, listOf("Added track to queue"), apikey)
                             }
-                            message.substringAfter("%queue-add ").contains("https://open.spotify.com/") && message.substringAfter(
+                            message.substringAfter("%queue-playnext ").contains("https://open.spotify.com/") && message.substringAfter(
                                 "https://open.spotify.com/"
                             ).contains("playlist") -> {
                                 printToChat(userName, listOf("Getting playlist tracks..."), apikey)
                                 val trackList = Spotify().getPlaylistTracks(parseLink(message))
-                                if (message.substringAfter("%queue-add").contains(" -s"))
+                                if (message.substringAfter("%queue-playnext").contains(" -s"))
                                     trackList.shuffle()
 
                                 trackList.reverse()
@@ -243,12 +243,12 @@ class ChatReader(
                                 }
                                 printToChat(userName, listOf("Added playlist tracks to queue."), apikey)
                             }
-                            message.substringAfter("%queue-add ").contains("https://open.spotify.com/") && message.substringAfter(
+                            message.substringAfter("%queue-playnext ").contains("https://open.spotify.com/") && message.substringAfter(
                                 "https://open.spotify.com/"
                             ).contains("album") -> {
                                 printToChat(userName, listOf("Getting album tracks..."), apikey)
                                 val trackList = Spotify().getAlbumTracks(parseLink(message))
-                                if (message.substringAfter("%queue-add").contains(" -s"))
+                                if (message.substringAfter("%queue-playnext").contains(" -s"))
                                     trackList.shuffle()
 
                                 trackList.reverse()
@@ -257,14 +257,14 @@ class ChatReader(
                                 }
                                 printToChat(userName, listOf("Added album tracks to queue."), apikey)
                             }
-                            message.substringAfter("%queue-add ").contains("spotify:") && message.substringAfter("spotify:").contains(
+                            message.substringAfter("%queue-playnext ").contains("spotify:") && message.substringAfter("spotify:").contains(
                                 ":playlist:"
                             ) -> {
                                 printToChat(userName, listOf("Getting playlist tracks..."), apikey)
                                 val trackList = Spotify().getPlaylistTracks(
                                     "https://open.spotify.com/playlist/${message.substringAfter(":playlist:")}"
                                 )
-                                if (message.substringAfter("%queue-add").contains(" -s"))
+                                if (message.substringAfter("%queue-playnext").contains(" -s"))
                                     trackList.shuffle()
 
                                 trackList.reverse()
@@ -273,13 +273,13 @@ class ChatReader(
                                 }
                                 printToChat(userName, listOf("Added playlist tracks to queue."), apikey)
                             }
-                            message.substringAfter("%queue-add ").contains("spotify:") && message.substringAfter("spotify:").contains(
+                            message.substringAfter("%queue-playnext ").contains("spotify:") && message.substringAfter("spotify:").contains(
                                 ":album:"
                             ) -> {
                                 printToChat(userName, listOf("Getting album tracks..."), apikey)
                                 val trackList =
                                     Spotify().getAlbumTracks("https://open.spotify.com/album/${message.substringAfter(":album:")}")
-                                if (message.substringAfter("%queue-add").contains(" -s"))
+                                if (message.substringAfter("%queue-playnext").contains(" -s"))
                                     trackList.shuffle()
 
                                 trackList.reverse()
@@ -294,7 +294,7 @@ class ChatReader(
                                 printToChat(userName, listOf("Added track to queue."), apikey)
                             }
                         }
-                    } else if (message.substringAfter("%queue-add").isEmpty()) {
+                    } else if (message.substringAfter("%queue-playnext").isEmpty()) {
                         printToChat(
                             userName,
                             listOf("Please provide a track, album or playlist to add to the queue!"),
