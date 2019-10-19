@@ -260,7 +260,13 @@ class ChatReader(
                     val link = parseLink(message)
                     if (message.substringAfter(" ").contains(" ") && message.substringAfter(" ").split(" ".toRegex()).size == 2) {
                         val position = message.substringAfter(" ").split(" ".toRegex())[1].toInt()
-                        songQueue.moveTrack(link, position)
+                        when {
+                            position > songQueue.getQueue().size-1 -> printToChat(userName, listOf("lol u think arrays start at 1?"), apikey)
+
+                            position < 0 -> printToChat(userName, listOf("What were you thinking?", "You can't do that."), apikey)
+
+                            else -> songQueue.moveTrack(link, position)
+                        }
                     }
                 }
                 "%queue-stop" -> {

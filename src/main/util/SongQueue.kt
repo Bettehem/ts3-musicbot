@@ -161,6 +161,9 @@ class SongQueue : PlayStateListener {
                 }.run()
             }
             spThread.start()
+            while(runCommand("playerctl -p spotify status", printOutput = false) != "Playing" && runCommand("playerctl -p spotify metadata --format '{{ xesam:url }}'") != currentSong){
+                //do nothing
+            }
             onNewSongPlaying("spotify", currentSong)
             songPosition = 0
             shouldMonitorSp = true
@@ -229,7 +232,7 @@ class SongQueue : PlayStateListener {
                         if (playerStatus == "Playing") {
                             //song is playing
 
-                            if (current == currentSong) {
+                            if (current == currentSong.substringBefore("?si=")) {
                                 val lengthMicroseconds =
                                     runCommand("playerctl -p spotify metadata --format '{{ mpris:length }}'", printOutput = false).toInt()
                                 val minutes = lengthMicroseconds / 1000000 / 60
@@ -239,7 +242,7 @@ class SongQueue : PlayStateListener {
                                 //println("Position = $songPosition / $songLength")
                                 if (songPosition < songLength) {
                                     songPosition++
-                                    Thread.sleep(1000)
+                                    Thread.sleep(955)
                                 }
                             }else{
                                 //song has changed
@@ -249,7 +252,7 @@ class SongQueue : PlayStateListener {
                                     shouldMonitorSp = false
                                     playStateListener.onSongEnded("spotify", currentSong)
                                 }else {
-                                    songQueue.none { it == current }.run {
+                                    songQueue.none { it.substringBefore("?si=") == current }.run {
                                         songPosition = 0
                                         shouldMonitorSp = false
                                         playStateListener.onSongEnded("spotify", currentSong)
@@ -259,7 +262,7 @@ class SongQueue : PlayStateListener {
                         } else {
                             //Song is paused/stopped
 
-                            if (current == currentSong) {
+                            if (current == currentSong.substringBefore("?si=")) {
 
                                 if (songPosition >= songLength - 2) {
                                     //Song has ended
