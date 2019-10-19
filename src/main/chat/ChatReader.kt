@@ -50,14 +50,14 @@ class ChatReader(
         when (chatFile.extension) {
             "html" -> {
                 return if (link.contains("href=\"")) {
-                    link.split(" ".toRegex())[2].split("href=\"".toRegex())[1].split("\">".toRegex())[0]
+                    link.substringAfter(link.split(" ".toRegex())[0]).split("href=\"".toRegex())[1].split("\">".toRegex())[0].replace(" -s", "")
                 } else {
                     link
                 }
             }
 
             "txt" -> {
-                return link.split(" ".toRegex())[1].substringAfter("[URL]").substringBefore("[/URL]")
+                return link.substringAfter(link.split(" ".toRegex())[0]).substringAfter("[URL]").substringBefore("[/URL]").replace(" -s", "")
             }
         }
 
@@ -88,9 +88,10 @@ class ChatReader(
                     lines.add("")
                     lines.add("General commands:")
                     lines.add("%help                       -Shows this help message")
-                    lines.add("%queue-add <link>           -Add song to queue")
+                    lines.add("%queue-add <-s> <link>      -Add track(s) to queue. Also add the -s if you want a list/album to be pre-shuffled before adding to the queue.")
+                    lines.add("%queue-playnext <-s> <link> -Add track/playlist/album to the top of the queue.")
                     lines.add("%queue-play                 -Play the song queue")
-                    lines.add("%queue-list                 -Lists current songs in queue")
+                    lines.add("%queue-list <-a,--all>      -Lists current songs in queue. Add the -a or --all option to show all tracks if there are more than 15")
                     lines.add("%queue-clear                -Clears the song queue")
                     lines.add("%queue-shuffle              -Shuffles the queue")
                     lines.add("%queue-skip                 -Skips current song")
@@ -152,6 +153,9 @@ class ChatReader(
                             ).contains("playlist") -> {
                                 printToChat(userName, listOf("Getting playlist tracks..."), apikey)
                                 val trackList = Spotify().getPlaylistTracks(parseLink(message))
+                                if (message.substringAfter("%queue-add").contains(" -s"))
+                                    trackList.shuffle()
+
                                 for (track in trackList) {
                                     songQueue.addToQueue(track.link)
                                 }
@@ -162,6 +166,8 @@ class ChatReader(
                             ).contains("album") -> {
                                 printToChat(userName, listOf("Getting album tracks..."), apikey)
                                 val trackList = Spotify().getAlbumTracks(parseLink(message))
+                                if (message.substringAfter("%queue-add").contains(" -s"))
+                                    trackList.shuffle()
                                 for (track in trackList) {
                                     songQueue.addToQueue(track.link)
                                 }
@@ -174,6 +180,8 @@ class ChatReader(
                                 val trackList = Spotify().getPlaylistTracks(
                                     "https://open.spotify.com/playlist/${message.substringAfter(":playlist:")}"
                                 )
+                                if (message.substringAfter("%queue-add").contains(" -s"))
+                                    trackList.shuffle()
                                 for (track in trackList) {
                                     songQueue.addToQueue(track.link)
                                 }
@@ -185,6 +193,8 @@ class ChatReader(
                                 printToChat(userName, listOf("Getting album tracks..."), apikey)
                                 val trackList =
                                     Spotify().getAlbumTracks("https://open.spotify.com/album/${message.substringAfter(":album:")}")
+                                if (message.substringAfter("%queue-add").contains(" -s"))
+                                    trackList.shuffle()
                                 for (track in trackList) {
                                     songQueue.addToQueue(track.link)
                                 }
@@ -205,6 +215,94 @@ class ChatReader(
                     } else {
                         printToChat(userName, listOf("Adding track to queue..."), apikey)
                         songQueue.addToQueue(parseLink(message))
+                        printToChat(userName, listOf("Added track to queue."), apikey)
+                    }
+                }
+                "%queue-playnext" -> {
+                    if (message.substringAfter("%queue-add ").contains("spotify:") || message.substringAfter("%queue-add ").contains(
+                            "https://open.spotify.com"
+                        )
+                    ) {
+                        when {
+                            message.substringAfter("%queue-add ").contains("spotify:track:") -> {
+                                printToChat(userName, listOf("Adding track to queue..."), apikey)
+                                songQueue.addToQueue("https://open.spotify.com/track/${message.substringAfter("spotify:track:")}", 0)
+                                printToChat(userName, listOf("Added track to queue"), apikey)
+                            }
+                            message.substringAfter("%queue-add ").contains("https://open.spotify.com/") && message.substringAfter(
+                                "https://open.spotify.com/"
+                            ).contains("playlist") -> {
+                                printToChat(userName, listOf("Getting playlist tracks..."), apikey)
+                                val trackList = Spotify().getPlaylistTracks(parseLink(message))
+                                if (message.substringAfter("%queue-add").contains(" -s"))
+                                    trackList.shuffle()
+
+                                trackList.reverse()
+                                for (track in trackList) {
+                                    songQueue.addToQueue(track.link, 0)
+                                }
+                                printToChat(userName, listOf("Added playlist tracks to queue."), apikey)
+                            }
+                            message.substringAfter("%queue-add ").contains("https://open.spotify.com/") && message.substringAfter(
+                                "https://open.spotify.com/"
+                            ).contains("album") -> {
+                                printToChat(userName, listOf("Getting album tracks..."), apikey)
+                                val trackList = Spotify().getAlbumTracks(parseLink(message))
+                                if (message.substringAfter("%queue-add").contains(" -s"))
+                                    trackList.shuffle()
+
+                                trackList.reverse()
+                                for (track in trackList) {
+                                    songQueue.addToQueue(track.link, 0)
+                                }
+                                printToChat(userName, listOf("Added album tracks to queue."), apikey)
+                            }
+                            message.substringAfter("%queue-add ").contains("spotify:") && message.substringAfter("spotify:").contains(
+                                ":playlist:"
+                            ) -> {
+                                printToChat(userName, listOf("Getting playlist tracks..."), apikey)
+                                val trackList = Spotify().getPlaylistTracks(
+                                    "https://open.spotify.com/playlist/${message.substringAfter(":playlist:")}"
+                                )
+                                if (message.substringAfter("%queue-add").contains(" -s"))
+                                    trackList.shuffle()
+
+                                trackList.reverse()
+                                for (track in trackList) {
+                                    songQueue.addToQueue(track.link, 0)
+                                }
+                                printToChat(userName, listOf("Added playlist tracks to queue."), apikey)
+                            }
+                            message.substringAfter("%queue-add ").contains("spotify:") && message.substringAfter("spotify:").contains(
+                                ":album:"
+                            ) -> {
+                                printToChat(userName, listOf("Getting album tracks..."), apikey)
+                                val trackList =
+                                    Spotify().getAlbumTracks("https://open.spotify.com/album/${message.substringAfter(":album:")}")
+                                if (message.substringAfter("%queue-add").contains(" -s"))
+                                    trackList.shuffle()
+
+                                trackList.reverse()
+                                for (track in trackList) {
+                                    songQueue.addToQueue(track.link, 0)
+                                }
+                                printToChat(userName, listOf("Added album tracks to queue."), apikey)
+                            }
+                            else -> {
+                                printToChat(userName, listOf("Adding track to queue..."), apikey)
+                                songQueue.addToQueue(parseLink(message), 0)
+                                printToChat(userName, listOf("Added track to queue."), apikey)
+                            }
+                        }
+                    } else if (message.substringAfter("%queue-add").isEmpty()) {
+                        printToChat(
+                            userName,
+                            listOf("Please provide a track, album or playlist to add to the queue!"),
+                            apikey
+                        )
+                    } else {
+                        printToChat(userName, listOf("Adding track to queue..."), apikey)
+                        songQueue.addToQueue(parseLink(message), 0)
                         printToChat(userName, listOf("Added track to queue."), apikey)
                     }
                 }
@@ -229,7 +327,15 @@ class ChatReader(
                     when {
                         songQueue.getQueue().isEmpty() -> printToChat(userName, listOf("Queue is empty!"), apikey)
                         else -> {
-                            val queue = songQueue.getQueue().toMutableList()
+                            val queue = if (songQueue.getQueue().size <= 15){
+                                songQueue.getQueue().toMutableList()
+                            }else{
+                                if (message.substringAfter("%queue-list").contains(" -a") || message.substringAfter("%queue-list").contains(" --all")){
+                                    songQueue.getQueue().toMutableList()
+                                }else{
+                                    songQueue.getQueue().subList(0, 14).toMutableList()
+                                }
+                            }
                             while (queue.isNotEmpty()) {
                                 if (queueList.size < 15) {
                                     queueList.add(queue[0])

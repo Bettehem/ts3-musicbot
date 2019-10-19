@@ -23,8 +23,8 @@ class SongQueue : PlayStateListener {
     private var songPosition = 0
 
 
-    fun addToQueue(songLink: String) {
-        songQueue.add(songLink)
+    fun addToQueue(songLink: String, position: Int = if (songQueue.isNotEmpty()){songQueue.size-1}else{0}) {
+        songQueue.add(position, songLink)
     }
 
     fun addAllToQueue(songLinks: ArrayList<String>) {
