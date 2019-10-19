@@ -538,7 +538,7 @@ class ChatReader(
                         }
 
                         if (lines.size == 1 && lines[0] == "") {
-                            lines.add("No search results with \"${message.substringAfter(message.split(" ".toRegex())[1])}\"!")
+                            lines.add("No search results with \"${message.substringAfter("${message.split(" ".toRegex())[1]} ")}\"!")
                         }
 
                         when (message.split(" ".toRegex())[1]) {
