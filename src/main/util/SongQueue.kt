@@ -161,7 +161,7 @@ class SongQueue : PlayStateListener {
                 }.run()
             }
             spThread.start()
-            while(runCommand("playerctl -p spotify status", printOutput = false) != "Playing" && runCommand("playerctl -p spotify metadata --format '{{ xesam:url }}'") != currentSong){
+            while(runCommand("playerctl -p spotify status", printOutput = false) != "Playing" && runCommand("playerctl -p spotify metadata --format '{{ xesam:url }}'", printOutput = false) != currentSong){
                 //do nothing
             }
             onNewSongPlaying("spotify", currentSong)
@@ -253,6 +253,7 @@ class SongQueue : PlayStateListener {
                                     playStateListener.onSongEnded("spotify", currentSong)
                                 }else {
                                     songQueue.none { it.substringBefore("?si=") == current }.run {
+                                        //no song in the songQueue matches current
                                         songPosition = 0
                                         shouldMonitorSp = false
                                         playStateListener.onSongEnded("spotify", currentSong)
