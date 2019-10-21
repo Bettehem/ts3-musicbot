@@ -271,7 +271,13 @@ class SongQueue : PlayStateListener {
                                     shouldMonitorSp = false
                                     playStateListener.onSongEnded("spotify", currentSong)
                                 } else {
-                                    //Song is paused
+                                    //check if song position is 0
+                                    if (songPosition == 0){
+                                        //start playback
+                                        runCommand("playerctl -p spotify play")
+                                    }else{
+                                        //Song is paused, wait for user to resume playback
+                                    }
                                 }
                             }else{
                                 //Song has changed
