@@ -312,7 +312,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 println("Getting server name...")
                 for (line in virtualserverName){
                     if (line.contains("virtualserver_name") && line.contains("=")){
-                        serverName = line.split("=".toRegex())[1]
+                        serverName = line.split("=".toRegex())[1].replace("\\s", " ")
                         println("Server name: $serverName")
                     }
                 }
@@ -328,7 +328,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         for (line in serverFile.readLines()) {
                             if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
                                 //compare serverName to the one in server.html
-                                if (line.split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0] == serverName) {
+                                val htmlServerName = line.replace("&apos;", "'").split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0].replace("\\s", " ")
+                                if (htmlServerName == serverName) {
                                     channelFile = File("${System.getProperty("user.home")}/.ts3client/chats/$dir/channel.txt")
                                     println("Using channel file at \"$channelFile\"\n\n")
                                     break

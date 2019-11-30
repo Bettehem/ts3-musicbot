@@ -57,7 +57,7 @@ class ChatReader(
             }
 
             "txt" -> {
-                return link.substringAfter(link.split(" ".toRegex())[0]).substringAfter("[URL]").substringBefore("[/URL]").replace(" -s", "")
+                return link.substringAfter("${link.split(" ".toRegex())[0]} ").substringAfter("[URL]").substringBefore("[/URL]").replace("-s", "")
             }
         }
 
@@ -697,7 +697,7 @@ class ChatReader(
                     for (i in ytResults.indices) {
                         lines.add("${i + 1}: ${ytResults[i]}")
                     }
-                    lines.add("Use command \"%yt-sel\" followed by the search result number to play the result, for example:")
+                    lines.add("Use command \"%yt-sel\" followed by the search result number to get the link, for example:")
                     lines.add("%yt-sel 4")
 
                     printToChat(userName, lines, apikey)
@@ -714,7 +714,11 @@ class ChatReader(
                         )
                         val link = "https://youtu.be/$videoID"
                         ytLink = link
-                        parseLine("", "%yt-playsong $link")
+                        printToChat(userName, listOf(
+                            "",
+                            "Title:\t$selection",
+                            "Link:\t$link"
+                        ), apikey)
                     }
                 }
 
