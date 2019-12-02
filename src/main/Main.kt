@@ -170,7 +170,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     for (dir in chatDir.list()!!) {
                         println("Checking in $dir")
                         val serverFile = File("${System.getProperty("user.home")}/.ts3client/chats/$dir/server.html")
-                        val lines = runCommand("cat ${serverFile.absolutePath}").split("\n".toRegex())
+                        val lines = runCommand("cat ${serverFile.absolutePath}", printOutput = false).split("\n".toRegex())
                         for (line in lines){
                             if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
                                 //compare serverName to the one in server.html

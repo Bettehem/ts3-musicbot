@@ -22,6 +22,94 @@ class SongQueue : PlayStateListener {
     @Volatile
     private var songPosition = 0
 
+    private val spotifyListenerThread = Thread {
+        Runnable {
+            var songLength = 0 //Song length in seconds
+            while (songQueueActive) {
+                if (shouldMonitorSp) {
+                    val lengthMicroseconds = try {
+                        runCommand(
+                            "playerctl -p spotify metadata --format '{{ mpris:length }}'",
+                            printOutput = false
+                        ).toInt()
+                    } catch (e: Exception) {
+                        //song hasn't started
+                        0
+                    }
+                    val current =
+                        runCommand("playerctl -p spotify metadata --format '{{ xesam:url }}'", printOutput = false)
+                    val playerStatus = runCommand("playerctl -p spotify status", printOutput = false)
+                    if (playerStatus == "Playing") {
+                        //song is playing
+
+                        if (current == currentSong.substringBefore("?si=")) {
+                            val minutes = lengthMicroseconds / 1000000 / 60
+                            val seconds = lengthMicroseconds / 1000000 % 60
+                            songLength = minutes * 60 + seconds
+
+                            println("Position = $songPosition / $songLength")
+                            if (songPosition < songLength) {
+                                songPosition++
+                                val delay: Long = 990
+                                val delaySub: Float = songLength.toFloat() / 10
+                                Thread.sleep(delay - delaySub.toLong())
+                            }
+                        } else {
+                            //song has changed
+                            songPosition = 0
+                            shouldMonitorSp = false
+                            //playStateListener.onSongEnded("spotify", currentSong)
+                        }
+                    } else {
+                        //Song is paused/stopped
+
+                        if (current == currentSong.substringBefore("?si=")) {
+
+                            if (songPosition >= songLength - 5) {
+                                //Song has ended
+                                Thread.sleep(380)
+                                songPosition = 0
+                                //shouldMonitorSp = false
+                                playStateListener.onSongEnded("spotify", currentSong)
+                            } else {
+                                //check if song position is 0
+                                if (songPosition == 0) {
+                                    //start playback
+
+                                    //spotify broken?
+                                    runCommand("playerctl -p spotify play")
+                                    Thread.sleep(1000)
+                                    if (runCommand(
+                                            "playerctl -p spotify status",
+                                            printOutput = false
+                                        ) != "Playing"
+                                    ) {
+                                        runCommand("killall spotify && spotify &", printOutput = false)
+                                        Thread.sleep(5000)
+
+                                        runCommand(
+                                            "playerctl -p spotify open spotify:track:${
+                                            currentSong.substringAfter("spotify.com/track/")
+                                                .substringBefore("?si=")}", ignoreOutput = false
+                                        )
+                                    }
+                                } else {
+                                    //Song is paused, wait for user to resume playback
+                                }
+                            }
+                        } else {
+                            //Song has changed
+
+                            //reset songPosition and turn monitor off
+                            songPosition = 0
+                            shouldMonitorSp = false
+                            break
+                        }
+                    }
+                }
+            }
+        }.run()
+    }
 
     fun addToQueue(
         songLink: String, position: Int = if (songQueue.isNotEmpty()) {
@@ -173,7 +261,7 @@ class SongQueue : PlayStateListener {
                 printErrors = false
             )
 
-            while (currentUrl != currentSong) {
+            while (currentUrl != currentSong.substringBefore("?si=")) {
                 //get player status
                 val playerStatus = runCommand("playerctl -p spotify status", printOutput = false, printErrors = false)
                 //get current url from spotify player
@@ -212,7 +300,7 @@ class SongQueue : PlayStateListener {
                     spThread2.start()
                 }
             }
-            if (currentUrl == currentSong) {
+            if (currentUrl == currentSong.substringBefore("?si=")) {
                 onNewSongPlaying("spotify", currentSong)
                 songPosition = 0
                 shouldMonitorSp = true
@@ -275,102 +363,8 @@ class SongQueue : PlayStateListener {
     }
 
     private fun startSpotifyMonitor() {
-        val spotifyListenerThread = Thread {
-            Runnable {
-                var songLength = 0 //Song length in seconds
-                while (songQueueActive) {
-                    if (shouldMonitorSp) {
-                        val lengthMicroseconds = try {
-                            runCommand(
-                                "playerctl -p spotify metadata --format '{{ mpris:length }}'",
-                                printOutput = false
-                            ).toInt()
-                        } catch (e: Exception) {
-                            //song hasn't started
-                            0
-                        }
-                        val current =
-                            runCommand("playerctl -p spotify metadata --format '{{ xesam:url }}'", printOutput = false)
-                        val playerStatus = runCommand("playerctl -p spotify status", printOutput = false)
-                        if (playerStatus == "Playing") {
-                            //song is playing
-
-                            if (current == currentSong.substringBefore("?si=")) {
-                                val minutes = lengthMicroseconds / 1000000 / 60
-                                val seconds = lengthMicroseconds / 1000000 % 60
-                                songLength = minutes * 60 + seconds
-
-                                //println("Position = $songPosition / $songLength")
-                                if (songPosition < songLength) {
-                                    songPosition++
-                                    val delay: Long = when {
-                                        songLength >= 300 -> 965
-                                        songLength >= 400 -> 975
-                                        songLength >= 500 -> 980
-                                        songLength >= 800 -> 990
-                                        songLength < 300 -> 950
-                                        else -> 957
-                                    }
-                                    Thread.sleep(delay)
-                                }
-                            } else {
-                                //song has changed
-                                songPosition = 0
-                                playStateListener.onSongEnded("spotify", currentSong)
-                                break
-                            }
-                        } else {
-                            //Song is paused/stopped
-
-                            if (current == currentSong.substringBefore("?si=")) {
-
-                                if (songPosition >= songLength - 5) {
-                                    //Song has ended
-                                    Thread.sleep(600)
-                                    songPosition = 0
-                                    playStateListener.onSongEnded("spotify", currentSong)
-                                    break
-                                } else {
-                                    //check if song position is 0
-                                    if (songPosition == 0) {
-                                        //start playback
-
-                                        //spotify broken?
-                                        runCommand("playerctl -p spotify play")
-                                        Thread.sleep(1000)
-                                        if (runCommand(
-                                                "playerctl -p spotify status",
-                                                printOutput = false
-                                            ) != "Playing"
-                                        ) {
-                                            runCommand("killall spotify && spotify &", printOutput = false)
-                                            Thread.sleep(5000)
-
-                                            runCommand(
-                                                "playerctl -p spotify open spotify:track:${
-                                                currentSong.substringAfter("spotify.com/track/")
-                                                    .substringBefore("?si=")}", ignoreOutput = false
-                                            )
-                                        }
-                                    } else {
-                                        //Song is paused, wait for user to resume playback
-                                    }
-                                }
-                            } else {
-                                //Song has changed
-
-                                //reset songPosition and turn monitor off
-                                songPosition = 0
-                                break
-                            }
-                        }
-                    }
-                }
-            }.run()
-        }
-        if (!spotifyListenerThread.isAlive) {
+        if (!spotifyListenerThread.isAlive)
             spotifyListenerThread.start()
-        }
     }
 
     private fun startYouTubeMonitor() {

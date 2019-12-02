@@ -627,9 +627,8 @@ class ChatReader(
                                     "Title:     ${track.title}"
                                 ), apikey
                             )
-                        } else if (message.substringAfter("%sp-info ").contains("spotify:") && message.substringAfter("%sp-info ").contains(
-                                ":track:"
-                            )
+                        } else if (message.substringAfter("%sp-info ").contains("spotify:") &&
+                                   message.substringAfter("%sp-info ").contains(":track:")
                         ) {
                             val track = Spotify().getTrack(message.substringAfter("%sp-info "))
                             printToChat(
