@@ -71,6 +71,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 var serverPassword = ""
                 var channelName = ""
                 var channelFilename = ""
+                var market = ""
 
                 val helpMessage = "\n" +
                         "TS3 Music Bot help message\n" +
@@ -82,7 +83,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         "-P, --serverpassword   Server's password\n" +
                         "-c, --channelname      The channel's name the bot should connect to after connecting to the server.\n" +
                         "-C, --channelfile      Provide a path to a channel.html or channel.txt file. You also need to provide the channel name with -c option\n" +
-                        "-n, --nickname         The nickname of the bot\n"
+                        "-n, --nickname         The nickname of the bot\n" +
+                        "-m, --market           Specify a market/country for Spotify.\n"
 
                 //go through given arguments and save them
                 for (argPos in args.indices) {
@@ -119,6 +121,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         "-n", "--nickname" -> {
                             if (args.size >= argPos + 1)
                                 nickname = args[argPos + 1]
+                        }
+                        "-m", "--market" -> {
+                            if (args.size >= argPos + 1)
+                                market = args[argPos + 1]
                         }
                     }
                 }
@@ -195,7 +201,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                             if (update.message.startsWith("%"))
                                 print("\nUser ${update.userName} issued command \"${update.message}\"\nCommand: ")
                         }
-                    }, apiKey)
+                    }, apiKey, market)
                     chatReader.startReading()
                     println("Bot $nickname started listening to the chat in channel $channelName.")
 

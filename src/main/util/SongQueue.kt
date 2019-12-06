@@ -3,8 +3,9 @@ package src.main.util
 import src.main.services.Spotify
 import src.main.services.Track
 import src.main.services.YouTube
+import java.util.concurrent.atomic.AtomicBoolean
 
-class SongQueue : PlayStateListener {
+class SongQueue(private val market: String = "") : PlayStateListener {
     @Volatile
     private var songQueue = ArrayList<String>()
 
@@ -14,19 +15,19 @@ class SongQueue : PlayStateListener {
     @Volatile
     private var currentSong = ""
     @Volatile
-    private var shouldMonitorSp = false
+    private var shouldMonitorSp: AtomicBoolean = AtomicBoolean(false)
     @Volatile
     private var shouldMonitorYt = false
     @Volatile
-    private var songQueueActive = false
+    private var songQueueActive: AtomicBoolean = AtomicBoolean(false)
     @Volatile
     private var songPosition = 0
 
     private val spotifyListenerThread = Thread {
         Runnable {
             var songLength = 0 //Song length in seconds
-            while (songQueueActive) {
-                if (shouldMonitorSp) {
+            while (songQueueActive.get()) {
+                if (shouldMonitorSp.get()) {
                     val lengthMicroseconds = try {
                         runCommand(
                             "playerctl -p spotify metadata --format '{{ mpris:length }}'",
@@ -57,7 +58,7 @@ class SongQueue : PlayStateListener {
                         } else {
                             //song has changed
                             songPosition = 0
-                            shouldMonitorSp = false
+                            //shouldMonitorSp = false
                             //playStateListener.onSongEnded("spotify", currentSong)
                         }
                     } else {
@@ -102,8 +103,8 @@ class SongQueue : PlayStateListener {
 
                             //reset songPosition and turn monitor off
                             songPosition = 0
-                            shouldMonitorSp = false
-                            break
+                            //shouldMonitorSp = false
+                            //break
                         }
                     }
                 }
@@ -134,7 +135,7 @@ class SongQueue : PlayStateListener {
     fun nowPlaying(): Track {
         return when (currentSong.linkType) {
             "spotify" -> {
-                Spotify().getTrack(currentSong)
+                Spotify(market).getTrack(currentSong)
             }
             "youtube" -> {
                 Track("", "", YouTube().getTitle(currentSong), currentSong)
@@ -149,7 +150,7 @@ class SongQueue : PlayStateListener {
         return if (any { it == songLink }) {
             return when (songLink.linkType) {
                 "spotify" -> {
-                    Spotify().getTrack(songLink)
+                    Spotify(market).getTrack(songLink)
                 }
                 "youtube" -> {
                     Track("", "", YouTube().getTitle(songLink), songLink)
@@ -204,8 +205,8 @@ class SongQueue : PlayStateListener {
 
 
     fun stopQueue() {
-        songQueueActive = false
-        shouldMonitorSp = false
+        songQueueActive.set(false)
+        shouldMonitorSp.set(false)
         shouldMonitorYt = false
         currentSong = ""
         runCommand("playerctl pause")
@@ -217,7 +218,7 @@ class SongQueue : PlayStateListener {
     @return returns true if the queue is active, false otherwise. Note that the queue can be active even though playback is paused.
      */
     fun queueActive(): Boolean {
-        return songQueueActive
+        return songQueueActive.get()
     }
 
 
@@ -234,8 +235,8 @@ class SongQueue : PlayStateListener {
     }
 
     private fun playSong(songLink: String) {
-        if (!songQueueActive) {
-            songQueueActive = true
+        if (!songQueueActive.get()) {
+            songQueueActive.set(true)
         }
         if (songLink.startsWith("https://open.spotify.com")) {
             if (runCommand("playerctl -p mpv status") == "Playing")
@@ -303,7 +304,7 @@ class SongQueue : PlayStateListener {
             if (currentUrl == currentSong.substringBefore("?si=")) {
                 onNewSongPlaying("spotify", currentSong)
                 songPosition = 0
-                shouldMonitorSp = true
+                shouldMonitorSp.set(true)
                 shouldMonitorYt = false
             }
 
@@ -330,7 +331,7 @@ class SongQueue : PlayStateListener {
                 //wait for song to start
             }
             onNewSongPlaying("mpv", currentSong)
-            shouldMonitorSp = false
+            shouldMonitorSp.set(false)
             shouldMonitorYt = true
         }
     }
@@ -339,14 +340,14 @@ class SongQueue : PlayStateListener {
         //play next song in queue if not empty
         if (songQueue.isNotEmpty()) {
             shouldMonitorYt = false
-            shouldMonitorSp = false
+            shouldMonitorSp.set(false)
             runCommand("playerctl -p spotify pause", printOutput = false)
             runCommand("playerctl -p mpv stop", printOutput = false, printErrors = false)
             playSong(songQueue[0])
         } else {
-            shouldMonitorSp = false
+            shouldMonitorSp.set(false)
             shouldMonitorYt = false
-            songQueueActive = false
+            songQueueActive.set(false)
             currentSong = ""
         }
     }
@@ -370,7 +371,7 @@ class SongQueue : PlayStateListener {
     private fun startYouTubeMonitor() {
         val youTubeListenerThread = Thread {
             Runnable {
-                while (songQueueActive) {
+                while (songQueueActive.get()) {
                     if (shouldMonitorYt) {
                         if (runCommand("playerctl -p mpv status", printOutput = false) == "Playing") {
                             //val current = runCommand("playerctl -p mpv metadata --format '{{ title }}'")

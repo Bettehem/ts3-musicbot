@@ -4,7 +4,7 @@ import org.json.JSONObject
 import src.main.util.sendHttpRequest
 import java.net.URL
 
-class Spotify {
+class Spotify(private val market: String = "") {
     private fun getSpotifyToken(): String{
         val auth = "ZGUzZGFlNGUxZTE3NGRkNGFjYjY0YWYyMjcxMWEwYmI6ODk5OGQxMmJjZDBlNDAzM2E2Mzg2ZTg4Y2ZjZTk2NDg="
         val url = URL("https://accounts.spotify.com/api/token")
@@ -26,6 +26,9 @@ class Spotify {
         urlBuilder.append("q=${searchQuery.replace(" ", "%20").replace("\"", "%22")}")
         urlBuilder.append("&type=$searchType")
         //urlBuilder.append("&limit=10")
+        if (market.isNotEmpty()){
+            urlBuilder.append("&market=$market")
+        }
         val url = URL(urlBuilder.toString())
         val requestMethod = "GET"
         val properties = arrayOf(
@@ -159,6 +162,9 @@ class Spotify {
             })
             listUrlBuilder.append("/tracks?limit=100")
             listUrlBuilder.append("&offset=$listOffset")
+            if (market.isNotEmpty()){
+                listUrlBuilder.append("&market=$market")
+            }
             val listUrl = URL(listUrlBuilder.toString())
             val listRequestMethod = "GET"
             val listProperties = arrayOf(
@@ -180,7 +186,12 @@ class Spotify {
                     val artist = item.getJSONObject("track").getJSONArray("artists").forEach { it as JSONObject; StringBuilder().append("${it.getString("name")},") }.toString().substringBeforeLast(",")
                     val title = item.getJSONObject("track").getString("name")
                     val link = item.getJSONObject("track").getJSONObject("external_urls").getString("spotify")
-                    trackItems.add(Track(albumName, artist, title, link))
+                    val isPlayable = if (market.isNotEmpty()){
+                        item.getJSONObject("track").getBoolean("is_playable")
+                    }else{
+                        true
+                    }
+                    trackItems.add(Track(albumName, artist, title, link, isPlayable))
                 }
             }
 
@@ -231,6 +242,9 @@ class Spotify {
             })
             albumUrlBuilder.append("/tracks?limit=20")
             albumUrlBuilder.append("&offset=$listOffset")
+            if (market.isNotEmpty()){
+                albumUrlBuilder.append("&market=$market")
+            }
             val albumUrl = URL(albumUrlBuilder.toString())
             val albumRequestMethod = "GET"
             val albumProperties = arrayOf(
@@ -246,7 +260,12 @@ class Spotify {
                 val artist = item.getJSONArray("artists").forEach { it as JSONObject; StringBuilder().append("${it.getString("name")},") }.toString().substringBeforeLast(",")
                 val title = item.getString("name")
                 val link = item.getJSONObject("external_urls").getString("spotify")
-                trackItems.add(Track(albumName, artist, title, link))
+                val isPlayable = if (market.isNotEmpty()){
+                    item.getBoolean("is_playable")
+                }else{
+                    true
+                }
+                trackItems.add(Track(albumName, artist, title, link, isPlayable))
             }
 
             listOffset += 20
@@ -264,6 +283,9 @@ class Spotify {
         }else{
             trackLink.substringAfter("track/").substringBefore("?si=")
         })
+        if (market.isNotEmpty()){
+            urlBuilder.append("?market=$market")
+        }
         val url = URL(urlBuilder.toString())
         val requestMethod = "GET"
         val properties = arrayOf(
@@ -285,6 +307,11 @@ class Spotify {
                 response.getJSONObject("album").getString("name")
             }
         val title = response.getString("name")
-        return Track(albumName, artist, title, trackLink)
+        val isPlayable = if (market.isNotEmpty()){
+            response.getBoolean("is_playable")
+        }else{
+            true
+        }
+        return Track(albumName, artist, title, trackLink, isPlayable)
     }
 }
