@@ -1,5 +1,6 @@
 package src.main.services
 
+import org.json.JSONException
 import org.json.JSONObject
 import src.main.util.sendHttpRequest
 import java.net.URL
@@ -144,7 +145,7 @@ class Spotify(private val market: String = "") {
         val response = JSONObject(rawResponse)
 
         //playlist length
-        val playlistLength = response.getJSONObject("tracks").getInt("total")
+        var playlistLength = response.getJSONObject("tracks").getInt("total")
 
 
         //Now get all tracks
@@ -177,22 +178,33 @@ class Spotify(private val market: String = "") {
 
             for (item in listResponse.getJSONArray("items")){
                 item as JSONObject
-                if (item.getJSONObject("track").get("id") != null){
-                    val albumName = if (item.getJSONObject("track").getJSONObject("album").getString("album_type") == "single"){
-                        "${item.getJSONObject("track").getJSONObject("album").getString("name")} (Single)"
-                    }else{
-                        item.getJSONObject("track").getJSONObject("album").getString("name")
+                try {
+                    if (item.get("track") != null){
+                        if (item.getJSONObject("track").get("id") != null){
+                            if (!item.getJSONObject("track").getBoolean("is_local")){
+                                val albumName = if (item.getJSONObject("track").getJSONObject("album").getString("album_type") == "single"){
+                                    "${item.getJSONObject("track").getJSONObject("album").getString("name")} (Single)"
+                                }else{
+                                    item.getJSONObject("track").getJSONObject("album").getString("name")
+                                }
+                                val artist = item.getJSONObject("track").getJSONArray("artists").forEach { it as JSONObject; StringBuilder().append("${it.getString("name")},") }.toString().substringBeforeLast(",")
+                                val title = item.getJSONObject("track").getString("name")
+                                val link = item.getJSONObject("track").getJSONObject("external_urls").getString("spotify")
+                                val isPlayable = if (market.isNotEmpty()){
+                                    item.getJSONObject("track").getBoolean("is_playable")
+                                }else{
+                                    true
+                                }
+                                trackItems.add(Track(albumName, artist, title, link, isPlayable))
+                            }else{
+                                playlistLength -= 1
+                            }
+                        }
                     }
-                    val artist = item.getJSONObject("track").getJSONArray("artists").forEach { it as JSONObject; StringBuilder().append("${it.getString("name")},") }.toString().substringBeforeLast(",")
-                    val title = item.getJSONObject("track").getString("name")
-                    val link = item.getJSONObject("track").getJSONObject("external_urls").getString("spotify")
-                    val isPlayable = if (market.isNotEmpty()){
-                        item.getJSONObject("track").getBoolean("is_playable")
-                    }else{
-                        true
-                    }
-                    trackItems.add(Track(albumName, artist, title, link, isPlayable))
+                }catch (e: JSONException){
+                    playlistLength -= 1
                 }
+
             }
 
             listOffset += 100

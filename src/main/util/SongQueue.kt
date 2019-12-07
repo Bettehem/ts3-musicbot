@@ -48,7 +48,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                             val seconds = lengthMicroseconds / 1000000 % 60
                             songLength = minutes * 60 + seconds
 
-                            println("Position = $songPosition / $songLength")
+                            //println("Position = $songPosition / $songLength")
                             if (songPosition < songLength) {
                                 songPosition++
                                 val delay: Long = 990

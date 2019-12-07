@@ -787,7 +787,11 @@ class ChatReader(
     }
 
     //focus window and use xdotool to type message
-    private fun printToChat(message: List<String>, focusWindow: Boolean) {
+    @Deprecated(
+        message = "Use the other printToChat function without xdotool for more reliable functionality",
+        replaceWith = ReplaceWith("printToChat(userName: String, messageLines: List<String>, apikey: String)")
+    )
+    fun printToChat(message: List<String>, focusWindow: Boolean) {
         if (focusWindow) {
             //Runtime.getRuntime().exec(arrayOf("sh", "-c", "sleep 1 && xdotool windowraise \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1)"))
             //Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool windowactivate --sync \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1) && sleep 0.5 && xdotool key ctrl+Return && sleep 0.5"))
@@ -877,6 +881,8 @@ class ChatReader(
         when (player) {
             "spotify" -> {
                 parseLine("", "%queue-nowplaying")
+                val spotifyTrack = Spotify(market).getTrack(track)
+                println("Playing ${spotifyTrack.artist} - ${spotifyTrack.title}")
             }
             "mpv" -> {
                 if (track.startsWith("https://youtube.com") || track.startsWith("https://youtu.be") || track.startsWith(
@@ -886,6 +892,7 @@ class ChatReader(
                     ytLink = track
                 }
                 parseLine("", "%queue-nowplaying")
+                println("Playing ${YouTube().getTitle(track)}")
             }
         }
     }
