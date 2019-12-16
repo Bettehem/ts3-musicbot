@@ -66,7 +66,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
 
                         if (current == currentSong.substringBefore("?si=")) {
 
-                            if (songPosition >= songLength - 5) {
+                            if (songPosition >= songLength - 10) {
                                 //Song has ended
                                 Thread.sleep(380)
                                 songPosition = 0
@@ -359,8 +359,8 @@ class SongQueue(private val market: String = "") : PlayStateListener {
     }
 
     override fun onNewSongPlaying(player: String, track: String) {
-        playStateListener2.onNewSongPlaying(player, track)
         println("New song started.")
+        playStateListener2.onNewSongPlaying(player, track)
     }
 
     private fun startSpotifyMonitor() {
