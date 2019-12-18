@@ -55,6 +55,9 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                                 val delaySub: Float = songLength.toFloat() / 10
                                 Thread.sleep(delay - delaySub.toLong())
                             }
+                        }else if (current.startsWith("https://open.spotify.com/ad/")){
+                            //ad playing, wait for it to finish.
+			    println("Ad playing.")
                         } else {
                             //song has changed
                             songPosition = 0
