@@ -897,6 +897,10 @@ class ChatReader(
         }
     }
 
+    override fun onAdPlaying(){
+	    printToChat("__song_queue__", listOf("", "Ad playing."), apikey)
+    }
+
 }
 
 class ChatUpdate(val userName: String, val time: Time, val message: String)

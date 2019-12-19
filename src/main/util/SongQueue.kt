@@ -26,6 +26,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
     private val spotifyListenerThread = Thread {
         Runnable {
             var songLength = 0 //Song length in seconds
+            var adNotified = false
             while (songQueueActive.get()) {
                 if (shouldMonitorSp.get()) {
                     val lengthMicroseconds = try {
@@ -55,9 +56,14 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                                 val delaySub: Float = songLength.toFloat() / 10
                                 Thread.sleep(delay - delaySub.toLong())
                             }
-                        }else if (current.startsWith("https://open.spotify.com/ad/")){
+                            adNotified = false
+                        } else if (current.startsWith("https://open.spotify.com/ad/")) {
                             //ad playing, wait for it to finish.
-			    println("Ad playing.")
+                            if (!adNotified) {
+                                adNotified = true
+                                println("Ad playing.")
+                                playStateListener.onAdPlaying()
+                            }
                         } else {
                             //song has changed
                             songPosition = 0
@@ -68,7 +74,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                         //Song is paused/stopped
 
                         if (current == currentSong.substringBefore("?si=")) {
-
+                            adNotified = false
                             if (songPosition >= songLength - 10) {
                                 //Song has ended
                                 Thread.sleep(380)
@@ -242,7 +248,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             songQueueActive.set(true)
         }
         if (songLink.startsWith("https://open.spotify.com")) {
-            if (runCommand("playerctl -p mpv status") == "Playing")
+            if (runCommand("playerctl -p mpv status", printOutput = false, printErrors = false) == "Playing")
                 runCommand("playerctl -p mpv stop")
             currentSong = songLink
             songQueue.remove(currentSong)
@@ -264,6 +270,8 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                 printOutput = false,
                 printErrors = false
             )
+
+            var adNotified = false
 
             while (currentUrl != currentSong.substringBefore("?si=")) {
                 //get player status
@@ -302,6 +310,12 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                         }.run()
                     }
                     spThread2.start()
+                }
+                if (currentUrl.startsWith("https://open.spotify.com/ad/")) {
+                    if (!adNotified) {
+                        adNotified = true
+                        onAdPlaying()
+                    }
                 }
             }
             if (currentUrl == currentSong.substringBefore("?si=")) {
@@ -366,6 +380,8 @@ class SongQueue(private val market: String = "") : PlayStateListener {
         playStateListener2.onNewSongPlaying(player, track)
     }
 
+    override fun onAdPlaying() {}
+
     private fun startSpotifyMonitor() {
         if (!spotifyListenerThread.isAlive)
             spotifyListenerThread.start()
@@ -393,7 +409,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                                         printErrors = false
                                     )
                                 ) && current == "No players found"
-                            ){
+                            ) {
                                 playStateListener.onSongEnded("mpv", currentSong)
                                 break
                             }
@@ -413,4 +429,5 @@ class SongQueue(private val market: String = "") : PlayStateListener {
 interface PlayStateListener {
     fun onSongEnded(player: String, track: String)
     fun onNewSongPlaying(player: String, track: String)
+    fun onAdPlaying()
 }
