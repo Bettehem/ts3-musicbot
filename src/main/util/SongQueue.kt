@@ -17,7 +17,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
     @Volatile
     private var shouldMonitorSp: AtomicBoolean = AtomicBoolean(false)
     @Volatile
-    private var shouldMonitorYt = false
+    private var shouldMonitorYt: AtomicBoolean = AtomicBoolean(false)
     @Volatile
     private var songQueueActive: AtomicBoolean = AtomicBoolean(false)
     @Volatile
@@ -216,7 +216,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
     fun stopQueue() {
         songQueueActive.set(false)
         shouldMonitorSp.set(false)
-        shouldMonitorYt = false
+        shouldMonitorYt.set(false)
         currentSong = ""
         runCommand("playerctl pause")
         runCommand("playerctl -p mpv stop")
@@ -322,7 +322,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                 onNewSongPlaying("spotify", currentSong)
                 songPosition = 0
                 shouldMonitorSp.set(true)
-                shouldMonitorYt = false
+                shouldMonitorYt.set(false)
             }
 
         } else if (songLink.startsWith("https://youtu.be") || songLink.startsWith("https://youtube.com") || songLink.startsWith(
@@ -349,21 +349,21 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             }
             onNewSongPlaying("mpv", currentSong)
             shouldMonitorSp.set(false)
-            shouldMonitorYt = true
+            shouldMonitorYt.set(true)
         }
     }
 
     private fun playNext() {
         //play next song in queue if not empty
         if (songQueue.isNotEmpty()) {
-            shouldMonitorYt = false
+            shouldMonitorYt.set(false)
             shouldMonitorSp.set(false)
             runCommand("playerctl -p spotify pause", printOutput = false)
             runCommand("playerctl -p mpv stop", printOutput = false, printErrors = false)
             playSong(songQueue[0])
         } else {
             shouldMonitorSp.set(false)
-            shouldMonitorYt = false
+            shouldMonitorYt.set(false)
             songQueueActive.set(false)
             currentSong = ""
         }
@@ -391,7 +391,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
         val youTubeListenerThread = Thread {
             Runnable {
                 while (songQueueActive.get()) {
-                    if (shouldMonitorYt) {
+                    if (shouldMonitorYt.get()) {
                         if (runCommand("playerctl -p mpv status", printOutput = false) == "Playing") {
                             //val current = runCommand("playerctl -p mpv metadata --format '{{ title }}'")
                             //playStateListener.onNewSongPlaying("mpv", runCommand("youtube-dl --geo-bypass -s -e \"$currentSong\"", printErrors = false))
