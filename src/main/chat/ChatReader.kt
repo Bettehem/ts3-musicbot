@@ -135,8 +135,8 @@ class ChatReader(
                     lines.add("%yt-stop                    -Stops the YouTube playback")
                     lines.add("%yt-playsong <link>         -Plays a YouTube song based on link")
                     lines.add("%yt-nowplaying              -Shows information on currently playing track")
-                    lines.add("%yt-search <text>           -Search on YouTube. Shows 10 first results.")
-                    lines.add("%yt-sel <result>            -Used to select one of the search results %yt-search command gives")
+                    lines.add("%yt-search <type> <text>    -Search on YouTube. Shows 10 first results. <type> can be track, video or playlist")
+                    //lines.add("%yt-sel <result>            -Used to select one of the search results %yt-search command gives")
 
                     printToChat(userName, lines, apikey)
                 }
@@ -223,6 +223,26 @@ class ChatReader(
                                 }
                             }
                         }
+                    }else if (message.substringAfter("%queue-add ").contains("youtu.be") || message.substringAfter("%queue-add ").contains("youtube.com")){
+                        when{
+                            message.substringAfter("%queue-add ").contains("?list=") -> {
+                                printToChat(userName, listOf("Getting playlist tracks..."), apikey)
+                                val trackList = YouTube().getPlaylistTracks(parseLink(message).substringBefore("&"))
+                                if (message.substringAfter("%queue-add").contains(" -s"))
+                                    trackList.shuffle()
+
+                                for (track in trackList){
+                                    if (track.isPlayable)
+                                        songQueue.addToQueue(track.link)
+                                }
+                                printToChat(userName, listOf("Added playlist tracks to queue."), apikey)
+                            }
+                            else -> {
+                                printToChat(userName, listOf("Adding track to queue..."), apikey)
+                                songQueue.addToQueue(parseLink(message))
+                                printToChat(userName, listOf("Added track to queue."), apikey)
+                            }
+                        }
                     } else if (message.substringAfter("%queue-add").isEmpty()) {
                         printToChat(
                             userName,
@@ -275,7 +295,7 @@ class ChatReader(
                                 trackList.reverse()
                                 for (track in trackList) {
                                     if (track.isPlayable)
-                                    songQueue.addToQueue(track.link, 0)
+                                        songQueue.addToQueue(track.link, 0)
                                 }
                                 printToChat(userName, listOf("Added album tracks to queue."), apikey)
                             }
@@ -292,7 +312,7 @@ class ChatReader(
                                 trackList.reverse()
                                 for (track in trackList) {
                                     if (track.isPlayable)
-                                    songQueue.addToQueue(track.link, 0)
+                                        songQueue.addToQueue(track.link, 0)
                                 }
                                 printToChat(userName, listOf("Added playlist tracks to queue."), apikey)
                             }
@@ -312,18 +332,38 @@ class ChatReader(
                                 trackList.reverse()
                                 for (track in trackList) {
                                     if (track.isPlayable)
-                                    songQueue.addToQueue(track.link, 0)
+                                        songQueue.addToQueue(track.link, 0)
                                 }
                                 printToChat(userName, listOf("Added album tracks to queue."), apikey)
                             }
                             else -> {
-                                if (Spotify(market).getTrack(parseLink(message)).isPlayable){
+                                if (Spotify(market).getTrack(parseLink(message)).isPlayable) {
                                     printToChat(userName, listOf("Adding track to queue..."), apikey)
                                     songQueue.addToQueue(parseLink(message), 0)
                                     printToChat(userName, listOf("Added track to queue."), apikey)
-                                }else{
+                                } else {
                                     printToChat(userName, listOf("This track isn't playable!"), apikey)
                                 }
+                            }
+                        }
+                    } else if (message.substringAfter("%queue-add ").contains("youtu.be") || message.substringAfter("%queue-add ").contains("youtube.com")){
+                        when{
+                            message.substringAfter("%queue-add ").contains("?list=") -> {
+                                printToChat(userName, listOf("Getting playlist tracks..."), apikey)
+                                val trackList = YouTube().getPlaylistTracks(parseLink(message).substringBefore("&"))
+                                if (message.substringAfter("%queue-add").contains(" -s"))
+                                    trackList.shuffle()
+
+                                for (track in trackList){
+                                    if (track.isPlayable)
+                                        songQueue.addToQueue(track.link)
+                                }
+                                printToChat(userName, listOf("Added playlist tracks to queue."), apikey)
+                            }
+                            else -> {
+                                printToChat(userName, listOf("Adding track to queue..."), apikey)
+                                songQueue.addToQueue(parseLink(message))
+                                printToChat(userName, listOf("Added track to queue."), apikey)
                             }
                         }
                     } else if (message.substringAfter("%queue-playnext").isEmpty()) {
@@ -449,11 +489,8 @@ class ChatReader(
 
 
                 "%sp-pause" -> runCommand("playerctl -p spotify pause && sleep 1")
-                "%sp-resume" -> runCommand("playerctl -p spotify play && sleep 1")
-                "%sp-play" -> runCommand("playerctl -p spotify play && sleep 1")
-
-                "%sp-skip" -> runCommand("playerctl -p spotify next && sleep 1")
-                "%sp-next" -> runCommand("playerctl -p spotify next && sleep 1")
+                "%sp-resume", "%sp-play" -> runCommand("playerctl -p spotify play && sleep 1")
+                "%sp-skip", "%sp-next" -> runCommand("playerctl -p spotify next && sleep 1")
                 "%sp-prev" -> runCommand("playerctl -p spotify previous && sleep 0.1 & playerctl -p spotify previous")
 
                 //Play Spotify song based on link or URI
@@ -602,8 +639,8 @@ class ChatReader(
                                             printToChat(userName, resultLines, apikey)
                                             resultLines.clear()
                                         }
-
                                     }
+                                    printToChat(userName, resultLines, apikey)
                                 }
                             }
 
@@ -625,6 +662,7 @@ class ChatReader(
                                             resultLines.clear()
                                         }
                                     }
+                                    printToChat(userName, resultLines, apikey)
                                 }
                             }
 
@@ -648,6 +686,7 @@ class ChatReader(
                                         }
 
                                     }
+                                    printToChat(userName, resultLines, apikey)
                                 }
                             }
                         }
@@ -724,12 +763,50 @@ class ChatReader(
                 }
 
                 "%yt-search" -> {
-                    var lines = ArrayList<String>()
-                    lines.add("Searching, please wait...")
-                    printToChat(userName, lines, apikey)
+                    val searchType = message.substringAfter("%yt-search ").split(" ".toRegex())[0]
+                    val searchQuery = message.substringAfter("$searchType ")
 
-                    lines = ArrayList()
-                    lines.add("YouTube Search Results:")
+                    when (searchType) {
+                        "video", "track", "playlist" -> {
+                            printToChat(userName, listOf("Searching, please wait..."), apikey)
+                            val results = YouTube().searchYoutube(searchType, searchQuery)
+                            val lines = ArrayList<String>()
+                            lines.addAll(results.split("\n".toRegex()))
+                            if (lines.size <= 12) {
+                                lines.add(0, "YouTube search results:")
+                                printToChat(userName, lines, apikey)
+                            } else {
+                                val resultLines = ArrayList<String>()
+                                resultLines.add("YouTube search results:")
+                                printToChat(userName, resultLines, apikey)
+                                resultLines.clear()
+                                for (line in lines) {
+                                    if (resultLines.size < 11) {
+                                        resultLines.add(line)
+                                    } else {
+                                        resultLines.add(0, "")
+                                        printToChat(userName, resultLines, apikey)
+                                        resultLines.clear()
+                                    }
+
+                                }
+                                printToChat(userName, resultLines, apikey)
+                            }
+                        }
+                        else -> {
+                            printToChat(
+                                userName,
+                                listOf(
+                                    "",
+                                    "$searchType is not a valid search type!",
+                                    "Accepted values are: track, video, playlist",
+                                    "See %help for more info"
+                                ), apikey
+                            )
+                        }
+                    }
+
+                    /*
                     ytResults = runCommand(
                         "youtube-dl --geo-bypass -s -e \"ytsearch10:${message.replace(
                             "\"",
@@ -741,10 +818,10 @@ class ChatReader(
                     }
                     lines.add("Use command \"%yt-sel\" followed by the search result number to get the link, for example:")
                     lines.add("%yt-sel 4")
-
-                    printToChat(userName, lines, apikey)
+                     */
                 }
 
+                /*
                 "%yt-sel" -> {
                     if (ytResults.isNotEmpty()) {
                         val selection = ytResults[message.split(" ".toRegex())[1].toInt() - 1]
@@ -764,7 +841,7 @@ class ChatReader(
                             ), apikey
                         )
                     }
-                }
+                }*/
 
                 else -> {
                     if (userName == "__console__") {
@@ -897,8 +974,8 @@ class ChatReader(
         }
     }
 
-    override fun onAdPlaying(){
-	    printToChat("__song_queue__", listOf("", "Ad playing."), apikey)
+    override fun onAdPlaying() {
+        printToChat("__song_queue__", listOf("", "Ad playing."), apikey)
     }
 
 }
