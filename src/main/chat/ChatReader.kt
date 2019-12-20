@@ -61,8 +61,9 @@ class ChatReader(
             }
 
             "txt" -> {
-                return link.substringAfter("${link.split(" ".toRegex())[0]} ").substringAfter("[URL]")
-                    .substringBefore("[/URL]").replace("-s", "")
+                /*return link.substringAfter("${link.split(" ".toRegex())[0]} ").substringAfter("[URL]")
+                    .substringBefore("[/URL]").replace("-s", "")*/
+                return link.substringAfter("[URL]").substringBefore("[/URL]")
             }
         }
 

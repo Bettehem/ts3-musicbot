@@ -344,7 +344,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                 }.run()
             }
             ytThread.start()
-            while (runCommand("playerctl -p mpv status", printOutput = false) != "Playing") {
+            while (runCommand("playerctl -p mpv status", printOutput = false, printErrors = false) != "Playing") {
                 //wait for song to start
             }
             onNewSongPlaying("mpv", currentSong)
@@ -392,11 +392,11 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             Runnable {
                 while (songQueueActive.get()) {
                     if (shouldMonitorYt.get()) {
-                        if (runCommand("playerctl -p mpv status", printOutput = false) == "Playing") {
+                        if (runCommand("playerctl -p mpv status", printOutput = false, printErrors = false) == "Playing") {
                             //val current = runCommand("playerctl -p mpv metadata --format '{{ title }}'")
                             //playStateListener.onNewSongPlaying("mpv", runCommand("youtube-dl --geo-bypass -s -e \"$currentSong\"", printErrors = false))
                         } else {
-                            val current = runCommand("playerctl -p mpv metadata --format '{{ title }}'")
+                            val current = runCommand("playerctl -p mpv metadata --format '{{ title }}'", printOutput = false, printErrors = false)
                             /*
                             if (current != runCommand("youtube-dl --geo-bypass -s -e \"$currentSong\"", printErrors = false) && !current.contains("v=${currentSong.substringAfter("v=")}") && current == "No players found"){
                                 playStateListener.onSongEnded("mpv", currentSong)
@@ -406,7 +406,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                             if (!current.contains("v=") && !current.contains(
                                     runCommand(
                                         "youtube-dl --geo-bypass -s -e \"$currentSong\"",
-                                        printErrors = false
+                                        printOutput = false, printErrors = false
                                     )
                                 ) && current == "No players found"
                             ) {
@@ -415,6 +415,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                             }
                         }
                     }
+                    Thread.sleep(990)
                 }
             }.run()
         }
