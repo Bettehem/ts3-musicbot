@@ -35,6 +35,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
     private var enterServerPortTextView = Label()
     private var enterServerPasswordTextView = Label()
     private var enterChannelFilePathTextView = Label()
+    private var enterMarketTextView = Label()
 
     private var apiKeyEditText = TextField()
     private var serverAddressEditText = TextField()
@@ -44,6 +45,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
     private var serverPasswordEditText = PasswordField()
     private var serverPasswordVisibleEditText = TextField()
     private var channelFilePathEditText = TextField()
+    private var marketEditText = TextField()
 
     private var advancedSettingsRadioGroup = ToggleGroup()
     private var hideAdvancedSettingsRadioButton = RadioButton()
@@ -373,6 +375,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
         enterNicknameTextView.text = "Enter nickname"
         enterServerPortTextView.text = "Enter server port(optional)"
         enterServerPasswordTextView.text = "Enter server password(optional)"
+        enterMarketTextView.text = "Enter ISO 3166 standard country code(RECOMMENDED!)"
         enterChannelFilePathTextView.text = "Enter Channel file path(optional)  [channel.html or channel.txt]"
 
         showAdvancedOptions(false)
@@ -428,6 +431,11 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
             }
         }
 
+        enterMarketTextView.isManaged = false
+        enterMarketTextView.isVisible = false
+        marketEditText.isManaged = false
+        marketEditText.isVisible = false
+
         browseChannelFileButton.text = "Browse channel file"
         saveSettingsButton.text = "Save settings"
         loadSettingsButton.text = "Load settings"
@@ -464,6 +472,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
         showPasswordCheckBox.isVisible = showAdvanced
         browseChannelFileButton.isManaged = showAdvanced
         browseChannelFileButton.isVisible = showAdvanced
+        enterMarketTextView.isManaged = showAdvanced
+        enterMarketTextView.isVisible = showAdvanced
+        marketEditText.isManaged = showAdvanced
+        marketEditText.isVisible = showAdvanced
     }
 
     private fun ui() {
@@ -474,6 +486,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
             hideAdvancedSettingsRadioButton, showAdvancedSettingsRadioButton,
             enterServerPortTextView, serverPortEditText,
             enterServerPasswordTextView, serverPasswordEditText, serverPasswordVisibleEditText, showPasswordCheckBox,
+            enterMarketTextView, marketEditText,
             enterChannelFilePathTextView, channelFilePathEditText, browseChannelFileButton, saveSettingsButton, loadSettingsButton, startBotButton, stopBotButton, statusTextView)
 
         //build scene
@@ -509,8 +522,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 val channelName = channelNameEditText.text
                 val channelFilePath = channelFilePathEditText.text
                 val nickname = nicknameEditText.text
+                val market = marketEditText.text
 
-                val settings = BotSettings(apiKey, serverAddress, serverPort, serverPassword, channelName, channelFilePath, nickname)
+                val settings = BotSettings(apiKey, serverAddress, serverPort, serverPassword, channelName, channelFilePath, nickname, market)
                 saveSettings(settings, true)
             }
 
@@ -528,6 +542,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 serverPortEditText.text = settings.serverPort
                 serverPasswordEditText.text = settings.serverPassword
                 channelFilePathEditText.text = settings.channelFilePath
+                marketEditText.text = settings.market
             }
 
             startBotButton -> {
@@ -559,7 +574,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
     }
 
     //gets settings from text fields in gui
-    private fun getSettings(): BotSettings = BotSettings(apiKeyEditText.text, serverAddressEditText.text, serverPortEditText.text, serverPasswordEditText.text, channelNameEditText.text, channelFilePathEditText.text, nicknameEditText.text)
+    private fun getSettings(): BotSettings = BotSettings(apiKeyEditText.text, serverAddressEditText.text, serverPortEditText.text, serverPasswordEditText.text, channelNameEditText.text, channelFilePathEditText.text, nicknameEditText.text, marketEditText.text)
 
 
     override fun onChatUpdated(update: ChatUpdate) {
