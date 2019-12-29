@@ -347,17 +347,19 @@ class ChatReader(
                                 }
                             }
                         }
-                    } else if (message.substringAfter("%queue-add ").contains("youtu.be") || message.substringAfter("%queue-add ").contains("youtube.com")){
+                    } else if (message.substringAfter("%queue-playnext ").contains("youtu.be") || message.substringAfter("%queue-playnext ").contains("youtube.com")){
                         when{
-                            message.substringAfter("%queue-add ").contains("?list=") -> {
+                            message.substringAfter("%queue-playnext ").contains("?list=") -> {
                                 printToChat(userName, listOf("Getting playlist tracks..."), apikey)
                                 val trackList = YouTube().getPlaylistTracks(parseLink(message).substringBefore("&"))
-                                if (message.substringAfter("%queue-add").contains(" -s"))
+                                trackList.reverse()
+                                if (message.substringAfter("%queue-playnext").contains(" -s"))
                                     trackList.shuffle()
+
 
                                 for (track in trackList){
                                     if (track.isPlayable)
-                                        songQueue.addToQueue(track.link)
+                                        songQueue.addToQueue(track.link, position)
                                 }
                                 printToChat(userName, listOf("Added playlist tracks to queue."), apikey)
                             }
