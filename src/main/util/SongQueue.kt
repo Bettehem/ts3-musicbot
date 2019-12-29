@@ -273,7 +273,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
 
             var adNotified = false
 
-            while (currentUrl != currentSong.substringBefore("?si=")) {
+            while (currentUrl != currentSong.substringBefore("?")) {
                 //get player status
                 val playerStatus = runCommand("playerctl -p spotify status", printOutput = false, printErrors = false)
                 //get current url from spotify player
@@ -318,7 +318,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                     }
                 }
             }
-            if (currentUrl == currentSong.substringBefore("?si=")) {
+            if (currentUrl == currentSong.substringBefore("?")) {
                 onNewSongPlaying("spotify", currentSong)
                 songPosition = 0
                 shouldMonitorSp.set(true)
