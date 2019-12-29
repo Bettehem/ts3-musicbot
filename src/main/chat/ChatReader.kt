@@ -150,13 +150,45 @@ class ChatReader(
                     ) {
                         when {
                             message.substringAfter("%queue-add ").contains("spotify:track:") -> {
+                                var uri = ""
+                                for (arg in message.split(" ")){
+                                    if (arg.contains("spotify:track:")){
+                                        uri = arg
+                                        break
+                                    }
+                                }
+                                val position = if (message.substringAfter(uri).contains(" ")){
+                                    message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
+                                }else{
+                                    if (songQueue.getQueue().isNotEmpty()){
+                                        songQueue.getQueue().size
+                                    }else{
+                                        0
+                                    }
+                                }
                                 printToChat(userName, listOf("Adding track to queue..."), apikey)
-                                songQueue.addToQueue("https://open.spotify.com/track/${message.substringAfter("spotify:track:")}")
+                                songQueue.addToQueue("https://open.spotify.com/track/${uri.substringAfter("spotify:track:")}", position)
                                 printToChat(userName, listOf("Added track to queue"), apikey)
                             }
                             message.substringAfter("%queue-add ").contains("https://open.spotify.com/") && message.substringAfter(
                                 "https://open.spotify.com/"
                             ).substringBefore("?").contains("playlist") -> {
+                                var uri = ""
+                                for (arg in message.split(" ")){
+                                    if (arg.contains("https://open.spotify.com/")){
+                                        uri = arg
+                                        break
+                                    }
+                                }
+                                val position = if (message.substringAfter(uri).contains(" ")){
+                                    message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
+                                }else{
+                                    if (songQueue.getQueue().isNotEmpty()){
+                                        songQueue.getQueue().size
+                                    }else{
+                                        0
+                                    }
+                                }
                                 printToChat(userName, listOf("Getting playlist tracks..."), apikey)
                                 val trackList = Spotify(market).getPlaylistTracks(parseLink(message).substringBefore("?"))
                                 if (message.substringAfter("%queue-add").contains(" -s"))
@@ -164,45 +196,93 @@ class ChatReader(
 
                                 for (track in trackList) {
                                     if (track.isPlayable)
-                                        songQueue.addToQueue(track.link)
+                                        songQueue.addToQueue(track.link, position)
                                 }
                                 printToChat(userName, listOf("Added playlist tracks to queue."), apikey)
                             }
                             message.substringAfter("%queue-add ").contains("https://open.spotify.com/") && message.substringAfter(
                                 "https://open.spotify.com/"
                             ).substringBefore("?").contains("album") -> {
+                                var uri = ""
+                                for (arg in message.split(" ")){
+                                    if (arg.contains("https://open.spotify.com/")){
+                                        uri = arg
+                                        break
+                                    }
+                                }
+                                val position = if (message.substringAfter(uri).contains(" ")){
+                                    message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
+                                }else{
+                                    if (songQueue.getQueue().isNotEmpty()){
+                                        songQueue.getQueue().size
+                                    }else{
+                                        0
+                                    }
+                                }
                                 printToChat(userName, listOf("Getting album tracks..."), apikey)
                                 val trackList = Spotify(market).getAlbumTracks(parseLink(message).substringBefore("?"))
                                 if (message.substringAfter("%queue-add").contains(" -s"))
                                     trackList.shuffle()
                                 for (track in trackList) {
                                     if (track.isPlayable)
-                                        songQueue.addToQueue(track.link)
+                                        songQueue.addToQueue(track.link, position)
                                 }
                                 printToChat(userName, listOf("Added album tracks to queue."), apikey)
                             }
                             message.substringAfter("%queue-add ").contains("spotify:") && message.substringAfter("spotify:").contains(
                                 ":playlist:"
                             ) -> {
+                                var uri = ""
+                                for (arg in message.split(" ")){
+                                    if (arg.contains(":playlist:")){
+                                        uri = arg
+                                        break
+                                    }
+                                }
+                                val position = if (message.substringAfter(uri).contains(" ")){
+                                    message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
+                                }else{
+                                    if (songQueue.getQueue().isNotEmpty()){
+                                        songQueue.getQueue().size
+                                    }else{
+                                        0
+                                    }
+                                }
                                 printToChat(userName, listOf("Getting playlist tracks..."), apikey)
                                 val trackList = Spotify(market).getPlaylistTracks(
-                                    "https://open.spotify.com/playlist/${message.substringAfter(":playlist:")}"
+                                    "https://open.spotify.com/playlist/${uri.substringAfter(":playlist:")}"
                                 )
                                 if (message.substringAfter("%queue-add").contains(" -s"))
                                     trackList.shuffle()
                                 for (track in trackList) {
                                     if (track.isPlayable)
-                                        songQueue.addToQueue(track.link)
+                                        songQueue.addToQueue(track.link, position)
                                 }
                                 printToChat(userName, listOf("Added playlist tracks to queue."), apikey)
                             }
                             message.substringAfter("%queue-add ").contains("spotify:") && message.substringAfter("spotify:").contains(
                                 ":album:"
                             ) -> {
+                                var uri = ""
+                                for (arg in message.split(" ")){
+                                    if (arg.contains(":album:")){
+                                        uri = arg
+                                        break
+                                    }
+                                }
+                                val position = if (message.substringAfter(uri).contains(" ")){
+                                    message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
+                                }else{
+                                    if (songQueue.getQueue().isNotEmpty()){
+                                        songQueue.getQueue().size
+                                    }else{
+                                        0
+                                    }
+                                }
                                 printToChat(userName, listOf("Getting album tracks..."), apikey)
                                 val trackList =
                                     Spotify(market).getAlbumTracks(
-                                        "https://open.spotify.com/album/${message.substringAfter(
+                                        "https://open.spotify.com/album/${uri.substringAfter(
                                             ":album:"
                                         )}"
                                     )
@@ -210,7 +290,7 @@ class ChatReader(
                                     trackList.shuffle()
                                 for (track in trackList) {
                                     if (track.isPlayable)
-                                        songQueue.addToQueue(track.link)
+                                        songQueue.addToQueue(track.link, position)
                                 }
                                 printToChat(userName, listOf("Added album tracks to queue."), apikey)
                             }
@@ -230,6 +310,22 @@ class ChatReader(
                     ) {
                         when {
                             message.substringAfter("%queue-add ").contains("?list=") -> {
+                                var uri = ""
+                                for (arg in message.split(" ")){
+                                    if (arg.contains("youtu.be") || arg.contains("youtube.com")){
+                                        uri = arg
+                                        break
+                                    }
+                                }
+                                val position = if (message.substringAfter(uri).contains(" ")){
+                                    message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
+                                }else{
+                                    if (songQueue.getQueue().isNotEmpty()){
+                                        songQueue.getQueue().size
+                                    }else{
+                                        0
+                                    }
+                                }
                                 printToChat(userName, listOf("Getting playlist tracks..."), apikey)
                                 val trackList = YouTube().getPlaylistTracks(parseLink(message).substringBefore("&"))
                                 if (message.substringAfter("%queue-add").contains(" -s"))
@@ -237,13 +333,29 @@ class ChatReader(
 
                                 for (track in trackList) {
                                     if (track.isPlayable)
-                                        songQueue.addToQueue(track.link)
+                                        songQueue.addToQueue(track.link, position)
                                 }
                                 printToChat(userName, listOf("Added playlist tracks to queue."), apikey)
                             }
                             else -> {
+                                var uri = ""
+                                for (arg in message.split(" ")){
+                                    if (arg.contains("youtu.be") || arg.contains("youtube.com")){
+                                        uri = arg
+                                        break
+                                    }
+                                }
+                                val position = if (message.substringAfter(uri).contains(" ")){
+                                    message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
+                                }else{
+                                    if (songQueue.getQueue().isNotEmpty()){
+                                        songQueue.getQueue().size
+                                    }else{
+                                        0
+                                    }
+                                }
                                 printToChat(userName, listOf("Adding track to queue..."), apikey)
-                                songQueue.addToQueue(parseLink(message))
+                                songQueue.addToQueue(parseLink(message), position)
                                 printToChat(userName, listOf("Added track to queue."), apikey)
                             }
                         }
