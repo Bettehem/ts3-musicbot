@@ -289,6 +289,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
          */
         private fun startTeamSpeak(settings: BotSettings): Boolean{
             if (settings.apiKey.isNotEmpty() && settings.serverAddress.isNotEmpty() && settings.nickname.isNotEmpty()){
+                //start teamspeak
                 runCommand(ignoreOutput = true, command = "teamspeak3 -nosingleinstance \"ts3server://${settings.serverAddress}?port=${if (settings.serverPort.isNotEmpty()) {
                     settings.serverPort
                 } else {
@@ -302,6 +303,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 } else {
                     ""
                 }} &\"")
+                //wait for teamspeak to start
+                while (runCommand("ps aux | grep --exclude=\"grep\" ts3client").isEmpty()){
+                    //do nothing
+                }
                 Thread.sleep(1500)
                 return true
             }else{

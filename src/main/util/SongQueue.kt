@@ -44,7 +44,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                     if (playerStatus == "Playing") {
                         //song is playing
 
-                        if (current == currentSong.substringBefore("?si=")) {
+                        if (current == currentSong.substringBefore("?")) {
                             val minutes = lengthMicroseconds / 1000000 / 60
                             val seconds = lengthMicroseconds / 1000000 % 60
                             songLength = minutes * 60 + seconds
@@ -73,7 +73,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                     } else {
                         //Song is paused/stopped
 
-                        if (current == currentSong.substringBefore("?si=")) {
+                        if (current == currentSong.substringBefore("?")) {
                             adNotified = false
                             if (songPosition >= songLength - 10) {
                                 //Song has ended
@@ -100,7 +100,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                                         runCommand(
                                             "playerctl -p spotify open spotify:track:${
                                             currentSong.substringAfter("spotify.com/track/")
-                                                .substringBefore("?si=")}", ignoreOutput = false
+                                                .substringBefore("?")}", ignoreOutput = false
                                         )
                                     }
                                 } else {
@@ -257,7 +257,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                 Runnable {
                     runCommand(
                         "playerctl -p spotify open spotify:track:${songLink.substringAfter("spotify.com/track/").substringBefore(
-                            "?si="
+                            "?"
                         )}", ignoreOutput = false
                     )
                 }.run()
@@ -304,7 +304,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                         Runnable {
                             runCommand(
                                 "playerctl -p spotify open spotify:track:${songLink.substringAfter("spotify.com/track/").substringBefore(
-                                    "?si="
+                                    "?"
                                 )}", ignoreOutput = false
                             )
                         }.run()
@@ -392,11 +392,20 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             Runnable {
                 while (songQueueActive.get()) {
                     if (shouldMonitorYt.get()) {
-                        if (runCommand("playerctl -p mpv status", printOutput = false, printErrors = false) == "Playing") {
+                        if (runCommand(
+                                "playerctl -p mpv status",
+                                printOutput = false,
+                                printErrors = false
+                            ) == "Playing"
+                        ) {
                             //val current = runCommand("playerctl -p mpv metadata --format '{{ title }}'")
                             //playStateListener.onNewSongPlaying("mpv", runCommand("youtube-dl --geo-bypass -s -e \"$currentSong\"", printErrors = false))
                         } else {
-                            val current = runCommand("playerctl -p mpv metadata --format '{{ title }}'", printOutput = false, printErrors = false)
+                            val current = runCommand(
+                                "playerctl -p mpv metadata --format '{{ title }}'",
+                                printOutput = false,
+                                printErrors = false
+                            )
                             /*
                             if (current != runCommand("youtube-dl --geo-bypass -s -e \"$currentSong\"", printErrors = false) && !current.contains("v=${currentSong.substringAfter("v=")}") && current == "No players found"){
                                 playStateListener.onSongEnded("mpv", currentSong)
