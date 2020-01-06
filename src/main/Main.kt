@@ -134,36 +134,47 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 //connect to desired server and channel, after which find the server's channel file and start listening for commands
                 if (apiKey.isNotEmpty() && serverAddress.isNotEmpty() && nickname.isNotEmpty()) {
                     println("Starting TeamSpeak 3...")
-                    println("Connecting to server at: $serverAddress, port ${if (serverPort.isNotEmpty()){
-                        serverPort
-                    } else {
-                        "9987"
-                    }}.")
+                    println(
+                        "Connecting to server at: $serverAddress, port ${if (serverPort.isNotEmpty()) {
+                            serverPort
+                        } else {
+                            "9987"
+                        }}."
+                    )
                     println("Using $nickname as the bot\'s nickname.")
 
-                    runCommand(ignoreOutput = true, command = "teamspeak3 -nosingleinstance \"ts3server://$serverAddress?port=${if (serverPort.isNotEmpty()) {
-                        serverPort
-                    } else {
-                        "9987"
-                    }}&nickname=${nickname.replace(" ", "%20")}&${if ((serverPassword.isNotEmpty())) {
-                        "password=$serverPassword"
-                    } else {
-                        ""
-                    }}&${if (channelName.isNotEmpty()) {
-                        "channel=${channelName.replace(" ", "%20")}"
-                    } else {
-                        ""
-                    }} &\"")
+                    runCommand(
+                        ignoreOutput = true,
+                        command = "teamspeak3 -nosingleinstance \"ts3server://$serverAddress?port=${if (serverPort.isNotEmpty()) {
+                            serverPort
+                        } else {
+                            "9987"
+                        }}&nickname=${nickname.replace(" ", "%20")}&${if ((serverPassword.isNotEmpty())) {
+                            "password=$serverPassword"
+                        } else {
+                            ""
+                        }}&${if (channelName.isNotEmpty()) {
+                            "channel=${channelName.replace(" ", "%20")}"
+                        } else {
+                            ""
+                        }} &\""
+                    )
+                    while (runCommand("ps aux | grep --exclude=\"grep\" ts3client").isEmpty()) {
+                        //do nothing
+                    }
                 } else {
                     println("Error!\nOptions -a, -s and -n are required. See -h or --help for more information")
                     exitProcess(0)
                 }
                 Thread.sleep(5000)
                 //get the server's name
-                val virtualserver_name = runCommand("(echo auth apikey=$apiKey; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639", printOutput = false).split("\n".toRegex())
+                val virtualserver_name = runCommand(
+                    "(echo auth apikey=$apiKey; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
+                    printOutput = false
+                ).split("\n".toRegex())
                 var serverName = ""
-                for (line in virtualserver_name){
-                    if (line.contains("virtualserver_name") && line.contains("=")){
+                for (line in virtualserver_name) {
+                    if (line.contains("virtualserver_name") && line.contains("=")) {
                         serverName = line.split("=".toRegex())[1].replace("\\s", " ")
                         println("Server name: $serverName")
                     }
@@ -174,15 +185,22 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 val chatDir = File("${System.getProperty("user.home")}/.ts3client/chats")
                 println("Looking in \"$chatDir\" for chat files.")
                 var channelFile = File("")
-                if (chatDir.exists()){
+                if (chatDir.exists()) {
                     for (dir in chatDir.list()!!) {
                         println("Checking in $dir")
                         val serverFile = File("${System.getProperty("user.home")}/.ts3client/chats/$dir/server.html")
-                        val lines = runCommand("cat ${serverFile.absolutePath}", printOutput = false).split("\n".toRegex())
-                        for (line in lines){
+                        val lines =
+                            runCommand("cat ${serverFile.absolutePath}", printOutput = false).split("\n".toRegex())
+                        for (line in lines) {
                             if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
                                 //compare serverName to the one in server.html
-                                val htmlServerName = line.replace("&apos;", "'").split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0].replace("\\s", " ")
+                                val htmlServerName = line.replace(
+                                    "&apos;",
+                                    "'"
+                                ).split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0].replace(
+                                    "\\s",
+                                    " "
+                                )
                                 if (htmlServerName == serverName) {
                                     channelFile = if (channelFilename.isNotEmpty()) {
                                         File(channelFilename)
@@ -211,8 +229,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         override fun onCommandIssued(command: String) {
                             if (command.startsWith("%"))
                                 chatReader.parseLine("__console__", command)
-                            else{
-                                when (command){
+                            else {
+                                when (command) {
                                     "save-settings" -> saveSettings(showGui = false)
                                 }
                             }
@@ -227,30 +245,32 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
 
         }
 
-        private fun saveSettings(botSettings: BotSettings = BotSettings(), showGui: Boolean){
+        private fun saveSettings(botSettings: BotSettings = BotSettings(), showGui: Boolean) {
             //save settings to a config file
             val file: File?
 
-            if (showGui){
+            if (showGui) {
                 val fileChooser = FileChooser()
                 fileChooser.title = "Select where to save the config file."
                 fileChooser.initialDirectory = File(System.getProperty("user.dir"))
                 fileChooser.initialFileName = "ts3-musicbot.config"
-                fileChooser.selectedExtensionFilter = FileChooser.ExtensionFilter("Configuration file", listOf("*.config"))
+                fileChooser.selectedExtensionFilter =
+                    FileChooser.ExtensionFilter("Configuration file", listOf("*.config"))
                 file = fileChooser.showSaveDialog(window)
-            }else{
+            } else {
                 val console = System.console()
-                val configPath = console.readLine("Enter path where to save config (Default location is your current directory): ")
-                file = if (configPath.isNotEmpty()){
-                    if(File(configPath).isDirectory)
+                val configPath =
+                    console.readLine("Enter path where to save config (Default location is your current directory): ")
+                file = if (configPath.isNotEmpty()) {
+                    if (File(configPath).isDirectory)
                         File("$configPath/ts3-musicbot.config")
                     else
                         File(configPath)
-                }else{
+                } else {
                     File("${System.getProperty("user.dir")}/ts3-musicbot.config")
                 }
             }
-            if (file != null){
+            if (file != null) {
                 val fileWriter = PrintWriter(file)
                 fileWriter.println("API_KEY=${botSettings.apiKey}")
                 fileWriter.println("SERVER_ADDRESS=${botSettings.serverAddress}")
@@ -266,9 +286,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
         private fun loadSettings(settingsFile: File): BotSettings {
             val settings = BotSettings()
 
-            if (settingsFile.exists()){
-                for (line in settingsFile.readLines()){
-                    when (line.substringBefore("=")){
+            if (settingsFile.exists()) {
+                for (line in settingsFile.readLines()) {
+                    when (line.substringBefore("=")) {
                         "API_KEY" -> settings.apiKey = line.substringAfter("=")
                         "SERVER_ADDRESS" -> settings.serverAddress = line.substringAfter("=")
                         "SERVER_PORT" -> settings.serverPort = line.substringAfter("=")
@@ -287,44 +307,51 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
          * @param settings settings that are used to start teamspeak and connect to desired server
          * @return returns true if starting teamspeak is successful, false if it fails
          */
-        private fun startTeamSpeak(settings: BotSettings): Boolean{
-            if (settings.apiKey.isNotEmpty() && settings.serverAddress.isNotEmpty() && settings.nickname.isNotEmpty()){
+        private fun startTeamSpeak(settings: BotSettings): Boolean {
+            if (settings.apiKey.isNotEmpty() && settings.serverAddress.isNotEmpty() && settings.nickname.isNotEmpty()) {
                 //start teamspeak
-                runCommand(ignoreOutput = true, command = "teamspeak3 -nosingleinstance \"ts3server://${settings.serverAddress}?port=${if (settings.serverPort.isNotEmpty()) {
-                    settings.serverPort
-                } else {
-                    "9987"
-                }}&nickname=${settings.nickname.replace(" ", "%20")}&${if ((settings.serverPassword.isNotEmpty())) {
-                    "password=${settings.serverPassword}"
-                } else {
-                    ""
-                }}&${if (settings.channelName.isNotEmpty()) {
-                    "channel=${settings.channelName.replace(" ", "%20")}"
-                } else {
-                    ""
-                }} &\"")
+                runCommand(
+                    ignoreOutput = true,
+                    command = "teamspeak3 -nosingleinstance \"ts3server://${settings.serverAddress}?port=${if (settings.serverPort.isNotEmpty()) {
+                        settings.serverPort
+                    } else {
+                        "9987"
+                    }}&nickname=${settings.nickname.replace(" ", "%20")}&${if ((settings.serverPassword.isNotEmpty())) {
+                        "password=${settings.serverPassword}"
+                    } else {
+                        ""
+                    }}&${if (settings.channelName.isNotEmpty()) {
+                        "channel=${settings.channelName.replace(" ", "%20")}"
+                    } else {
+                        ""
+                    }} &\""
+                )
                 //wait for teamspeak to start
-                while (runCommand("ps aux | grep --exclude=\"grep\" ts3client").isEmpty()){
+                while (runCommand("ps aux | grep --exclude=\"grep\" ts3client").isEmpty()) {
                     //do nothing
                 }
                 Thread.sleep(1500)
                 return true
-            }else{
-                statusTextView.text = "Error!\nYou need to provide at least the api key, server address and a nickname for the bot."
+            } else {
+                statusTextView.text =
+                    "Error!\nYou need to provide at least the api key, server address and a nickname for the bot."
                 println("Error!\nOptions -a, -s and -n are required. See -h or --help for more information")
                 return false
             }
         }
 
-        private fun getChannelFile(settings: BotSettings): File{
+        private fun getChannelFile(settings: BotSettings): File {
             var channelFile = File("")
-            if (settings.channelFilePath.isEmpty()){
+            if (settings.channelFilePath.isEmpty()) {
                 //get the server's name
-                val virtualserverName = runCommand("(echo auth apikey=${settings.apiKey}; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639", printOutput = false).split("\n".toRegex())
+                val virtualserverName = runCommand(
+                    "(echo auth apikey=${settings.apiKey}; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
+                    printOutput = false
+                ).split("\n".toRegex())
                 var serverName = ""
                 println("Getting server name...")
-                for (line in virtualserverName){
-                    if (line.contains("virtualserver_name") && line.contains("=")){
+                for (line in virtualserverName) {
+                    if (line.contains("virtualserver_name") && line.contains("=")) {
                         serverName = line.split("=".toRegex())[1].replace("\\s", " ")
                         println("Server name: $serverName")
                     }
@@ -334,16 +361,23 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 println("\nGetting path to channel.txt file...")
                 val chatDir = File("${System.getProperty("user.home")}/.ts3client/chats")
                 println("Looking in \"$chatDir\" for chat files.")
-                if (chatDir.exists()){
+                if (chatDir.exists()) {
                     for (dir in chatDir.list()!!) {
                         println("Checking in $dir")
                         val serverFile = File("${System.getProperty("user.home")}/.ts3client/chats/$dir/server.html")
                         for (line in serverFile.readLines()) {
                             if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
                                 //compare serverName to the one in server.html
-                                val htmlServerName = line.replace("&apos;", "'").split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0].replace("\\s", " ")
+                                val htmlServerName = line.replace(
+                                    "&apos;",
+                                    "'"
+                                ).split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0].replace(
+                                    "\\s",
+                                    " "
+                                )
                                 if (htmlServerName == serverName) {
-                                    channelFile = File("${System.getProperty("user.home")}/.ts3client/chats/$dir/channel.txt")
+                                    channelFile =
+                                        File("${System.getProperty("user.home")}/.ts3client/chats/$dir/channel.txt")
                                     println("Using channel file at \"$channelFile\"\n\n")
                                     break
                                 }
@@ -395,13 +429,13 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
         showAdvancedSettingsRadioButton.isSelected = false
 
         advancedSettingsRadioGroup.selectedToggleProperty().addListener { _, _, _ ->
-            when (advancedSettingsRadioGroup.selectedToggle){
+            when (advancedSettingsRadioGroup.selectedToggle) {
                 hideAdvancedSettingsRadioButton -> {
                     hideAdvancedSettingsRadioButton.isSelected = true
                     showAdvancedSettingsRadioButton.isSelected = false
 
                     showAdvancedOptions(false)
-                    if (showPasswordCheckBox.isSelected){
+                    if (showPasswordCheckBox.isSelected) {
                         showPasswordCheckBox.isSelected = false
                         serverPasswordVisibleEditText.isManaged = false
                         serverPasswordVisibleEditText.isVisible = false
@@ -421,13 +455,13 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
         serverPasswordVisibleEditText.isVisible = false
         showPasswordCheckBox.text = "Show password"
         showPasswordCheckBox.onAction = EventHandler {
-            if (showPasswordCheckBox.isSelected){
+            if (showPasswordCheckBox.isSelected) {
                 serverPasswordEditText.isManaged = false
                 serverPasswordEditText.isVisible = false
                 serverPasswordVisibleEditText.text = serverPasswordEditText.text
                 serverPasswordVisibleEditText.isManaged = true
                 serverPasswordVisibleEditText.isVisible = true
-            } else{
+            } else {
                 serverPasswordVisibleEditText.isManaged = false
                 serverPasswordVisibleEditText.isVisible = false
                 serverPasswordEditText.text = serverPasswordVisibleEditText.text
@@ -460,7 +494,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
         statusTextView.text = "Status: Bot not active."
     }
 
-    private fun showAdvancedOptions(showAdvanced: Boolean){
+    private fun showAdvancedOptions(showAdvanced: Boolean) {
         enterServerPortTextView.isManaged = showAdvanced
         enterServerPortTextView.isVisible = showAdvanced
         enterServerPasswordTextView.isManaged = showAdvanced
@@ -486,13 +520,34 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
     private fun ui() {
         //prepare layout
         layout.spacing = 10.0
-        layout.children.addAll(enterApiKeyTextView, apiKeyEditText, enterServerAddressTextView, serverAddressEditText,
-            enterChannelNameTextView, channelNameEditText, enterNicknameTextView, nicknameEditText,
-            hideAdvancedSettingsRadioButton, showAdvancedSettingsRadioButton,
-            enterServerPortTextView, serverPortEditText,
-            enterServerPasswordTextView, serverPasswordEditText, serverPasswordVisibleEditText, showPasswordCheckBox,
-            enterMarketTextView, marketEditText,
-            enterChannelFilePathTextView, channelFilePathEditText, browseChannelFileButton, saveSettingsButton, loadSettingsButton, startBotButton, stopBotButton, statusTextView)
+        layout.children.addAll(
+            enterApiKeyTextView,
+            apiKeyEditText,
+            enterServerAddressTextView,
+            serverAddressEditText,
+            enterChannelNameTextView,
+            channelNameEditText,
+            enterNicknameTextView,
+            nicknameEditText,
+            hideAdvancedSettingsRadioButton,
+            showAdvancedSettingsRadioButton,
+            enterServerPortTextView,
+            serverPortEditText,
+            enterServerPasswordTextView,
+            serverPasswordEditText,
+            serverPasswordVisibleEditText,
+            showPasswordCheckBox,
+            enterMarketTextView,
+            marketEditText,
+            enterChannelFilePathTextView,
+            channelFilePathEditText,
+            browseChannelFileButton,
+            saveSettingsButton,
+            loadSettingsButton,
+            startBotButton,
+            stopBotButton,
+            statusTextView
+        )
 
         //build scene
         scene = Scene(layout, 640.0, 700.0)
@@ -508,7 +563,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 val fileChooser = FileChooser()
                 fileChooser.title = "Select TeamSpeak chat file. (channel.html or channel.txt)"
                 fileChooser.initialDirectory = File("${System.getProperty("user.home")}/.ts3client/chats")
-                fileChooser.selectedExtensionFilter = FileChooser.ExtensionFilter("Chat File", listOf("*.html", "*.txt"))
+                fileChooser.selectedExtensionFilter =
+                    FileChooser.ExtensionFilter("Chat File", listOf("*.html", "*.txt"))
 
                 val file = fileChooser.showOpenDialog(window)
                 inputFilePath = file.absolutePath
@@ -519,9 +575,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 val apiKey = apiKeyEditText.text
                 val serverAddress = serverAddressEditText.text
                 val serverPort = serverPortEditText.text
-                val serverPassword = if (showPasswordCheckBox.isSelected){
+                val serverPassword = if (showPasswordCheckBox.isSelected) {
                     serverPasswordVisibleEditText.text
-                }else{
+                } else {
                     serverPasswordEditText.text
                 }
                 val channelName = channelNameEditText.text
@@ -529,7 +585,16 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 val nickname = nicknameEditText.text
                 val market = marketEditText.text
 
-                val settings = BotSettings(apiKey, serverAddress, serverPort, serverPassword, channelName, channelFilePath, nickname, market)
+                val settings = BotSettings(
+                    apiKey,
+                    serverAddress,
+                    serverPort,
+                    serverPassword,
+                    channelName,
+                    channelFilePath,
+                    nickname,
+                    market
+                )
                 saveSettings(settings, true)
             }
 
@@ -537,7 +602,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 val fileChooser = FileChooser()
                 fileChooser.title = "Select config file which contains bot settings"
                 fileChooser.initialDirectory = File(System.getProperty("user.dir"))
-                fileChooser.selectedExtensionFilter = FileChooser.ExtensionFilter("Configuration File", listOf("*.config", "*.conf"))
+                fileChooser.selectedExtensionFilter =
+                    FileChooser.ExtensionFilter("Configuration File", listOf("*.config", "*.conf"))
                 val file: File = fileChooser.showOpenDialog(window)
                 val settings = loadSettings(file)
                 apiKeyEditText.text = settings.apiKey
@@ -553,10 +619,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
             startBotButton -> {
                 val settings = getSettings()
                 //start teamspeak
-                if (startTeamSpeak(settings)){
+                if (startTeamSpeak(settings)) {
                     //start reading chat
                     chatReader = ChatReader(getChannelFile(settings), this, getSettings().apiKey)
-                    if (chatReader.startReading()){
+                    if (chatReader.startReading()) {
                         statusTextView.text = "Status: Connected."
                         startBotButton.isManaged = false
                         startBotButton.isVisible = false
@@ -567,7 +633,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
             }
 
             stopBotButton -> {
-                runCommand("xdotool search \"Teamspeak 3\" windowactivate --sync key --window 0 --clearmodifiers alt+F4", ignoreOutput = true)
+                runCommand(
+                    "xdotool search \"Teamspeak 3\" windowactivate --sync key --window 0 --clearmodifiers alt+F4",
+                    ignoreOutput = true
+                )
                 chatReader.stopReading()
                 statusTextView.text = "Status: Bot not active."
                 startBotButton.isManaged = true
@@ -579,7 +648,16 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
     }
 
     //gets settings from text fields in gui
-    private fun getSettings(): BotSettings = BotSettings(apiKeyEditText.text, serverAddressEditText.text, serverPortEditText.text, serverPasswordEditText.text, channelNameEditText.text, channelFilePathEditText.text, nicknameEditText.text, marketEditText.text)
+    private fun getSettings(): BotSettings = BotSettings(
+        apiKeyEditText.text,
+        serverAddressEditText.text,
+        serverPortEditText.text,
+        serverPasswordEditText.text,
+        channelNameEditText.text,
+        channelFilePathEditText.text,
+        nicknameEditText.text,
+        marketEditText.text
+    )
 
 
     override fun onChatUpdated(update: ChatUpdate) {
