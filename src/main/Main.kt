@@ -159,6 +159,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                             ""
                         }} &\""
                     )
+                    Thread.sleep(1000)
                     while (runCommand("ps aux | grep --exclude=\"grep\" ts3client").isEmpty()) {
                         //do nothing
                     }
@@ -326,6 +327,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         ""
                     }} &\""
                 )
+                Thread.sleep(1000)
                 //wait for teamspeak to start
                 while (runCommand("ps aux | grep --exclude=\"grep\" ts3client").isEmpty()) {
                     //do nothing
