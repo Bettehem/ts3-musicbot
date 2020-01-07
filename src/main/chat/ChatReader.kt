@@ -1148,30 +1148,6 @@ class ChatReader(
         }
     }
 
-    //focus window and use xdotool to type message
-    @Deprecated(
-        message = "Use the other printToChat function without xdotool for more reliable functionality",
-        replaceWith = ReplaceWith("printToChat(userName: String, messageLines: List<String>, apikey: String)")
-    )
-    fun printToChat(message: List<String>, focusWindow: Boolean) {
-        if (focusWindow) {
-            //Runtime.getRuntime().exec(arrayOf("sh", "-c", "sleep 1 && xdotool windowraise \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1)"))
-            //Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool windowactivate --sync \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1) && sleep 0.5 && xdotool key ctrl+Return && sleep 0.5"))
-            runCommand("xdotool windowactivate --sync \$(xdotool search --classname \"ts3client_linux_amd64\" | tail -n1) && sleep 0.5 && xdotool key ctrl+Return && sleep 0.5")
-        }
-        for (line in message) {
-            //Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool type --delay 25 \"${line.replace("\"", "\\\"")}\" && sleep 0.25 && xdotool key ctrl+Return")).waitFor()
-            runCommand(
-                "xdotool type --delay 25 \"${line.replace(
-                    "\"",
-                    "\\\""
-                )}\" && sleep 0.25 && xdotool key ctrl+Return"
-            )
-        }
-        //Runtime.getRuntime().exec(arrayOf("sh", "-c", "xdotool sleep 0.5 key \"Return\""))
-        runCommand("xdotool sleep 0.5 key \"Return\"")
-    }
-
     //use ClientQuery to send message (requires apikey)
     private fun printToChat(userName: String, messageLines: List<String>, apikey: String) {
         if (userName == "__console__") {
@@ -1190,8 +1166,6 @@ class ChatReader(
                     ).replace("$", "\\$")}\"; echo quit) | nc localhost 25639",
                     printOutput = false
                 )
-            } else {
-                printToChat(messageLines, true)
             }
         }
     }
