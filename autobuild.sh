@@ -17,10 +17,15 @@
 
 #Start monitoring current dir
 while true; do
+    echo "Waiting for changes in project..."
     inotifywait -q -e modify,create,delete,move -r $(pwd)
         if ./build.sh; then
             echo "Building succesful. Pushing file to remote..."
-            scp $JAR_FILE $HOST_ADDR
+            if scp $JAR_FILE $HOST_ADDR; then
+                echo "File pushed."
+            else
+                echo "Pushing failed."
+            fi
         else
             echo "Building failed."
         fi
