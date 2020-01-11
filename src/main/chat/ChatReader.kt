@@ -168,10 +168,13 @@ class ChatReader(
                     if (links.size > 1) {
                         if (message.substringAfter(linkArg).replace("-s", "").replace(" ", "").isNotEmpty())
                             links.reverse()
+                        printToChat(userName, listOf("Adding tracks to queue..."))
                         //for each link, run the %queue-add command
                         for (link in links) {
-                            parseLine(userName, "%queue-add [URL]$link[/URL]${message.substringAfter(linkArg)}")
+                            //add track to queue, but only print it to the console so it won't spam the teamspeak chat
+                            parseLine("__console__", "%queue-add [URL]$link[/URL]${message.substringAfter(linkArg)}")
                         }
+                        printToChat(userName, listOf("Added tracks to queue."))
                     } else {
                         if (message.substringAfter("%queue-add ").contains("spotify:") || message.substringAfter("%queue-add ").contains(
                                 "https://open.spotify.com"
