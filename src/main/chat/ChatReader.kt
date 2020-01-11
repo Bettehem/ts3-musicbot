@@ -168,7 +168,7 @@ class ChatReader(
                     if (links.size > 1) {
                         if (message.substringAfter(linkArg).replace("-s", "").replace(" ", "").isNotEmpty())
                             links.reverse()
-                        printToChat(userName, listOf("Adding tracks to queue..."))
+                        printToChat(userName, listOf("Adding tracks to queue..."), apikey)
                         //for each link, run the %queue-add command
                         for (link in links) {
                             //add track to queue, but only print it to the console so it won't spam the teamspeak chat
