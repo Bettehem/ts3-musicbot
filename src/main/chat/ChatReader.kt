@@ -1137,6 +1137,10 @@ class ChatReader(
                      */
                 }
 
+
+                "%sc-play" -> runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                "%sc-stop" -> runCommand("echo \"stop\" | socat - /tmp/mpvsocket")
+
                 else -> {
                     if (userName == "__console__") {
                         when (message.split(" ".toRegex())[0]) {
