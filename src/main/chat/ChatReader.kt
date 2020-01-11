@@ -138,6 +138,15 @@ class ChatReader(
                     lines.add("%yt-nowplaying               -Shows information on currently playing track")
                     lines.add("%yt-search <type> <text>     -Search on YouTube. Shows 10 first results. <type> can be track, video or playlist")
 
+
+                    lines.add("SoundCloud commands:")
+                    lines.add("%sc-pauses                   -Pauses SounCloud playback")
+                    lines.add("%sc-resume                   -Resumes the SoundCloud playback")
+                    lines.add("%sc-play                     -Resumes the SoundCloud playback")
+                    lines.add("%sc-stop                     -Stops the SoundCloud playback")
+                    lines.add("%sc-playsong <link>          -Plays a SoundCloud song based on link")
+                    lines.add("%sc-nowplaying               -Shows information on currently playing track")
+
                     printToChat(userName, lines, apikey)
                 }
 
