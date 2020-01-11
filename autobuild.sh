@@ -17,7 +17,7 @@
 
 #Start monitoring current dir
 while true; do
-    inotifywait -q -m -e modify,create,delete,move -r $(pwd)
+    inotifywait -q -e modify,create,delete,move -r $(pwd)
         if ./build.sh; then
             echo "Building succesful. Pushing file to remote..."
             scp $JAR_FILE $HOST_ADDR
