@@ -160,7 +160,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         }} &\""
                     )
                     Thread.sleep(1000)
-                    while (!runCommand("ps aux | grep ts3client").contains("ts3client_linux")) {
+                    while (!runCommand("ps aux | grep ts3client", printOutput = false).contains("ts3client_linux")) {
                         //do nothing
                     }
                 } else {
