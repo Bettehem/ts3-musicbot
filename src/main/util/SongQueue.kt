@@ -350,6 +350,10 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             onNewSongPlaying("mpv", currentSong)
             shouldMonitorSp.set(false)
             shouldMonitorYt.set(true)
+        } else {
+            //song not supported so skip it
+            songQueue.remove(currentSong)
+            playSong(songQueue[0])
         }
     }
 
