@@ -174,7 +174,7 @@ class ChatReader(
                             //add track to queue, but only print it to the console so it won't spam the teamspeak chat
                             parseLine("__console__", "%queue-add [URL]$link[/URL]${message.substringAfter(linkArg)}")
                         }
-                        printToChat(userName, listOf("Added tracks to queue."))
+                        printToChat(userName, listOf("Added tracks to queue."), apikey)
                     } else {
                         if (message.substringAfter("%queue-add ").contains("spotify:") || message.substringAfter("%queue-add ").contains(
                                 "https://open.spotify.com"
