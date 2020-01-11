@@ -140,7 +140,7 @@ class ChatReader(
 
 
                     lines.add("SoundCloud commands:")
-                    lines.add("%sc-pauses                   -Pauses SounCloud playback")
+                    lines.add("%sc-pause                    -Pauses SounCloud playback")
                     lines.add("%sc-resume                   -Resumes the SoundCloud playback")
                     lines.add("%sc-play                     -Resumes the SoundCloud playback")
                     lines.add("%sc-stop                     -Stops the SoundCloud playback")
