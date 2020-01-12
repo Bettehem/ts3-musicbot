@@ -431,7 +431,6 @@ class ChatReader(
                                     songQueue.addToQueue(track.link)
                                 }
                             }
-                            songQueue.addToQueue(parseLink(message))
                             printToChat(userName, listOf("Added track" + if (trackList.size > 1) {"s"}else{""} + " to queue."), apikey)
                         } else if (message.substringAfter("%queue-add").isEmpty()) {
                             printToChat(
