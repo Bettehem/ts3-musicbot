@@ -423,8 +423,16 @@ class ChatReader(
                                 }
                             }
                         } else if (message.substringAfter("%queue-add ").contains("soundcloud.com")) {
-                            printToChat(userName, listOf("Adding track to queue..."), apikey)
+                            printToChat(userName, listOf("Getting link info..."), apikey)
+                            val trackList = SoundCloud().getTracks(parseLink(message))
+                            printToChat(userName, listOf("Adding track" + if (trackList.size > 1) {"s"}else{""} + " to queue..."), apikey)
+                            for (track in trackList) {
+                                if (track.isPlayable) {
+                                    songQueue.addToQueue(track.link)
+                                }
+                            }
                             songQueue.addToQueue(parseLink(message))
+                            printToChat(userName, listOf("Added track" + if (trackList.size > 1) {"s"}else{""} + " to queue."), apikey)
                         } else if (message.substringAfter("%queue-add").isEmpty()) {
                             printToChat(
                                 userName,
@@ -799,7 +807,7 @@ class ChatReader(
                         messageLines.add("Now playing:")
                         if (currentTrack.album.isNotEmpty())
                             messageLines.add("Album:\t${currentTrack.album}")
-                        if (currentTrack.album.isNotEmpty())
+                        if (currentTrack.artist.isNotEmpty())
                             messageLines.add("Artist:   \t${currentTrack.artist}")
                         messageLines.add("Title:    \t${currentTrack.title}")
                         messageLines.add("Link:  \t${currentTrack.link}")
@@ -1265,7 +1273,7 @@ class ChatReader(
                 ) {
                     ytLink = track
                     println("Playing ${YouTube().getTitle(track)}")
-                }else if (track.startsWith("https://soundcloud.com")){
+                } else if (track.startsWith("https://soundcloud.com")) {
                     val trackData = SoundCloud().getSongInfo(track)
                     println("Playing ${trackData.artist} - ${trackData.title}")
                 }
