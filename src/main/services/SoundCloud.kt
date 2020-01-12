@@ -8,28 +8,35 @@ class SoundCloud {
         val jsonData = JSONObject(runCommand("youtube-dl --no-playlist -j $link"))
         val track =
             Track(album = "", artist = jsonData.getString("uploader"), title = jsonData.getString("title"), link = link)
-        println(jsonData)
         return track
     }
 
     //gets info on track(s) based on soundcloud song/playlist link
     fun getTracks(link: String): ArrayList<Track> {
         val trackList = ArrayList<Track>()
-        val data = StringBuilder()
-            .append(runCommand("youtube-dl -j $link").substringBeforeLast("}"))
-            .append("}").toString()
-        for (line in data.split("\n".toRegex())) {
-            val jsonLine = JSONObject(line)
-            trackList.add(
-                Track(
-                    "",
-                    jsonLine.getString("uploader"),
-                    jsonLine.getString("title"),
-                    jsonLine.getString("webpage_url")
-                )
-            )
+        val data = JSONObject(runCommand("youtube-dl -i -J $link"))
+        try {
+            if (data.getString("_type")!!.contentEquals("playlist")) {
+                val list = data.getJSONArray("entries")
+                for (item in list) {
+                    try {
+                        item as JSONObject
+                        trackList.add(
+                            Track(
+                                "",
+                                item.getString("uploader"),
+                                item.getString("title"),
+                                item.getString("webpage_url")
+                            )
+                        )
+                    } catch (e: Exception) {
+
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            trackList.add(SoundCloud().getSongInfo(link))
         }
-        println(trackList)
         return trackList
     }
 }
