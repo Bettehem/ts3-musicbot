@@ -19,6 +19,8 @@ class SongQueue(private val market: String = "") : PlayStateListener {
     @Volatile
     private var shouldMonitorYt: AtomicBoolean = AtomicBoolean(false)
     @Volatile
+    private var shouldMonitorSc: AtomicBoolean = AtomicBoolean(false)
+    @Volatile
     private var songQueueActive: AtomicBoolean = AtomicBoolean(false)
     @Volatile
     private var songPosition = 0
@@ -321,8 +323,9 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             if (currentUrl == currentSong.substringBefore("?")) {
                 onNewSongPlaying("spotify", currentSong)
                 songPosition = 0
-                shouldMonitorSp.set(true)
                 shouldMonitorYt.set(false)
+                shouldMonitorSc.set(false)
+                shouldMonitorSp.set(true)
             }
 
         } else if (songLink.startsWith("https://youtu.be") || songLink.startsWith("https://youtube.com") || songLink.startsWith(
@@ -349,7 +352,31 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             }
             onNewSongPlaying("mpv", currentSong)
             shouldMonitorSp.set(false)
+            shouldMonitorSc.set(false)
             shouldMonitorYt.set(true)
+        } else if (songLink.startsWith("https://soundcloud.com")) {
+            if (runCommand("playerctl -p spotify status") == "Playing")
+                runCommand("playerctl -p spotify pause")
+            currentSong = songLink
+            songQueue.remove(currentSong)
+            startSoundCloudMonitor()
+            val scThread = Thread {
+                Runnable {
+                    runCommand(
+                        "mpv --no-terminal --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $songLink",
+                        inheritIO = true,
+                        ignoreOutput = true
+                    )
+                }.run()
+            }
+            scThread.start()
+            while (runCommand("playerctl -p mpv status", printOutput = false, printErrors = false) != "Playing") {
+                //wait for song to start
+            }
+            onNewSongPlaying("mpv", currentSong)
+            shouldMonitorSp.set(false)
+            shouldMonitorYt.set(false)
+            shouldMonitorSc.set(true)
         } else {
             //song not supported so skip it
             songQueue.remove(currentSong)
@@ -362,12 +389,14 @@ class SongQueue(private val market: String = "") : PlayStateListener {
         if (songQueue.isNotEmpty()) {
             shouldMonitorYt.set(false)
             shouldMonitorSp.set(false)
+            shouldMonitorSc.set(false)
             runCommand("playerctl -p spotify pause", printOutput = false)
             runCommand("playerctl -p mpv stop", printOutput = false, printErrors = false)
             playSong(songQueue[0])
         } else {
             shouldMonitorSp.set(false)
             shouldMonitorYt.set(false)
+            shouldMonitorSc.set(false)
             songQueueActive.set(false)
             currentSong = ""
         }
@@ -437,6 +466,44 @@ class SongQueue(private val market: String = "") : PlayStateListener {
         }
     }
 
+    private fun startSoundCloudMonitor() {
+        val soundCloudListenerThread = Thread {
+            Runnable {
+                while (songQueueActive.get()) {
+                    if (shouldMonitorSc.get()) {
+                        if (runCommand(
+                                "playerctl -p mpv status",
+                                printOutput = false,
+                                printErrors = false
+                            ) == "Playing"
+                        ) {
+                        } else {
+                            val current = runCommand(
+                                "playerctl -p mpv metadata --format '{{ title }}'",
+                                printOutput = false,
+                                printErrors = false
+                            )
+                            println("current = $current")
+                            if (!current.contains("soundcloud.com") && !current.contains(
+                                    runCommand(
+                                        "youtube-dl -s -e \"$currentSong\"",
+                                        printOutput = false, printErrors = false
+                                    )
+                                ) && current == "No players found"
+                            ) {
+                                playStateListener.onSongEnded("mpv", currentSong)
+                                break
+                            }
+                        }
+                    }
+                    Thread.sleep(990)
+                }
+            }.run()
+        }
+        if (!soundCloudListenerThread.isAlive) {
+            soundCloudListenerThread.start()
+        }
+    }
 
 }
 
