@@ -1,5 +1,6 @@
 package src.main.util
 
+import src.main.services.SoundCloud
 import src.main.services.Spotify
 import src.main.services.Track
 import src.main.services.YouTube
@@ -151,6 +152,9 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             "youtube" -> {
                 Track("", "", YouTube().getTitle(currentSong), currentSong)
             }
+            "soundcloud" -> {
+                SoundCloud().getSongInfo(currentSong)
+            }
             else -> {
                 Track.Empty
             }
@@ -178,8 +182,12 @@ class SongQueue(private val market: String = "") : PlayStateListener {
     private val String.linkType: String
         get() = if (startsWith("https://open.spotify.com/") || (startsWith("spotify:") && contains(":track:"))) {
             "spotify"
-        } else {
+        } else if (contains("youtube.com") || contains("youtu.be")) {
             "youtube"
+        } else if (contains("soundcloud.com")){
+            "soundcloud"
+        }else{
+            ""
         }
 
     fun shuffleQueue() {

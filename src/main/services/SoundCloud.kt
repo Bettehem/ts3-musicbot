@@ -6,9 +6,7 @@ import src.main.util.runCommand
 class SoundCloud {
     fun getSongInfo(link: String): Track {
         val jsonData = JSONObject(runCommand("youtube-dl --no-playlist -j $link"))
-        val track =
-            Track(album = "", artist = jsonData.getString("uploader"), title = jsonData.getString("title"), link = link)
-        return track
+        return Track(album = "", artist = jsonData.getString("uploader"), title = jsonData.getString("title"), link = link)
     }
 
     //gets info on track(s) based on soundcloud song/playlist link
