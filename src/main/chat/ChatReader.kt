@@ -423,12 +423,28 @@ class ChatReader(
                                 }
                             }
                         } else if (message.substringAfter("%queue-add ").contains("soundcloud.com")) {
+                            var uri = ""
+                            for (arg in message.split(" ".toRegex())){
+                                if (arg.contains("soundcloud.com")) {
+                                    uri = arg
+                                    break
+                                }
+                            }
+                            val position = if (message.substringAfter(uri).contains(" ")){
+                                message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
+                            }else {
+                                if (songQueue.getQueue().isNotEmpty()){
+                                    songQueue.getQueue().size
+                                }else{
+                                    0
+                                }
+                            }
                             printToChat(userName, listOf("Getting link info..."), apikey)
                             val trackList = SoundCloud().getTracks(parseLink(message))
                             printToChat(userName, listOf("Adding track" + if (trackList.size > 1) {"s"}else{""} + " to queue..."), apikey)
                             for (track in trackList) {
                                 if (track.isPlayable) {
-                                    songQueue.addToQueue(track.link)
+                                    songQueue.addToQueue(track.link, position)
                                 }
                             }
                             printToChat(userName, listOf("Added track" + if (trackList.size > 1) {"s"}else{""} + " to queue."), apikey)
