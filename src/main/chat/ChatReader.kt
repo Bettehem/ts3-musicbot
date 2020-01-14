@@ -1086,7 +1086,7 @@ class ChatReader(
                             Runnable {
                                 run {
                                     runCommand(
-                                        "mpv --no-terminal --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $ytLink",
+                                        "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $ytLink",
                                         inheritIO = true,
                                         ignoreOutput = true
                                     )
@@ -1179,7 +1179,7 @@ class ChatReader(
                             Runnable {
                                 run {
                                     runCommand(
-                                        "mpv --no-terminal --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $scLink",
+                                        "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $scLink",
                                         inheritIO = true,
                                         ignoreOutput = true
                                     )

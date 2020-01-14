@@ -348,7 +348,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             val ytThread = Thread {
                 Runnable {
                     runCommand(
-                        "mpv --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $songLink",
+                        "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $songLink",
                         inheritIO = true,
                         ignoreOutput = true
                     )
@@ -371,7 +371,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             val scThread = Thread {
                 Runnable {
                     runCommand(
-                        "mpv --no-terminal --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $songLink",
+                        "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $songLink",
                         inheritIO = true,
                         ignoreOutput = true
                     )
