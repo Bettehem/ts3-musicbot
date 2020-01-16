@@ -258,8 +258,8 @@ class SongQueue(private val market: String = "") : PlayStateListener {
      */
     fun resume() {
         when (currentSong.linkType) {
-            "spotify" -> runCommand("playerctl -p spotify pause", printOutput = false, printErrors = false)
-            "youtube", "soundcloud" -> runCommand("playerctl -p mpv pause", printOutput = false, printErrors = false)
+            "spotify" -> runCommand("playerctl -p spotify play", printOutput = false, printErrors = false)
+            "youtube", "soundcloud" -> runCommand("playerctl -p mpv play", printOutput = false, printErrors = false)
         }
     }
 
@@ -268,8 +268,8 @@ class SongQueue(private val market: String = "") : PlayStateListener {
      */
     fun pause() {
         when (currentSong.linkType) {
-            "spotify" -> runCommand("playerctl -p spotify play", printOutput = false, printErrors = false)
-            "youtube", "soundcloud" -> runCommand("playerctl -p mpv play", printOutput = false, printErrors = false)
+            "spotify" -> runCommand("playerctl -p spotify pause", printOutput = false, printErrors = false)
+            "youtube", "soundcloud" -> runCommand("playerctl -p mpv pause", printOutput = false, printErrors = false)
         }
     }
 
