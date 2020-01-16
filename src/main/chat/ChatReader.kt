@@ -105,6 +105,8 @@ class ChatReader(
                     lines.add("%queue-stop                  -Stops the queue")
                     lines.add("%queue-status                -Returns the status of the song queue")
                     lines.add("%queue-nowplaying            -Returns information on the currently playing track")
+                    lines.add("%queue-pause                 -Pauses playback")
+                    lines.add("%queue-resume                -Resumes playback")
                     lines.add("")
                     printToChat(userName, lines, apikey)
                     lines.clear()
@@ -795,6 +797,12 @@ class ChatReader(
                         printToChat(userName, listOf("No song playing!"), apikey)
                     }
 
+                }
+                "%queue-pause" -> {
+                   songQueue.pause()
+                }
+                "%queue-resume" -> {
+                    songQueue.resume()
                 }
 
 

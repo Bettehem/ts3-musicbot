@@ -121,6 +121,11 @@ class SongQueue(private val market: String = "") : PlayStateListener {
         }.run()
     }
 
+    /**
+     * Adds track to queue
+     * @param songLink song's link
+     * @param position position in which the song should be added.
+     */
     fun addToQueue(
         songLink: String, position: Int = if (songQueue.isNotEmpty()) {
             songQueue.size
@@ -131,16 +136,30 @@ class SongQueue(private val market: String = "") : PlayStateListener {
         songQueue.add(position, songLink)
     }
 
+    /**
+     * Adds a list of links to the queue
+     * @param songLinks list of links to add to the queue
+     */
     fun addAllToQueue(songLinks: ArrayList<String>) {
         songQueue.addAll(songLinks)
     }
 
+    /**
+     * Clear the queue
+     */
     fun clearQueue() {
         songQueue.clear()
     }
 
+    /**
+     * Get an ArrayList of links in the queue
+     */
     fun getQueue(): ArrayList<String> = songQueue
 
+    /**
+     * Get currently playing track
+     * @return returns a Track object based on the current song's link
+     */
     fun nowPlaying(): Track {
         return when (currentSong.linkType) {
             "spotify" -> {
@@ -155,6 +174,13 @@ class SongQueue(private val market: String = "") : PlayStateListener {
         }
     }
 
+    /**
+     * Adds a getTrack function to ArrayList<String>.
+     * It can be used to get a Track object straight from the songQueue list, for example:
+     * val track = songQueue.getTrack("https://open.spotify.com/track/1WtBDRmbb0q9hzDk2H4pyH")
+     * @param songLink link to track
+     * @return returns a Track object based on the link
+     */
     private fun ArrayList<String>.getTrack(songLink: String): Track {
         return if (any { it == songLink }) {
             return when (songLink.linkType) {
@@ -173,6 +199,10 @@ class SongQueue(private val market: String = "") : PlayStateListener {
         }
     }
 
+    /**
+     * Adds a linkType function to String.
+     * Checks the given String if it contains a supported link type and returns it's type.
+     */
     private val String.linkType: String
         get() = if (startsWith("https://open.spotify.com/") || (startsWith("spotify:") && contains(":track:"))) {
             "spotify"
@@ -180,10 +210,16 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             "youtube"
         }
 
+    /**
+     * Shuffles the queue.
+     */
     fun shuffleQueue() {
         songQueue.shuffle()
     }
 
+    /**
+     * Skips the current song and starts playing the next one in the queue, if it isn't empty.
+     */
     fun skipSong() {
         if (songQueue.isNotEmpty()) {
             playNext()
@@ -200,8 +236,13 @@ class SongQueue(private val market: String = "") : PlayStateListener {
         }
     }
 
+    /**
+     * Moves a desired track to a new position
+     * @param link link to move
+     * @param newPosition new position of the track
+     */
     fun moveTrack(link: String, newPosition: Int) {
-        if (newPosition < songQueue.size) {
+        if (newPosition < songQueue.size && newPosition >= 0) {
             for (i in songQueue.indices) {
                 if (songQueue[i] == link) {
                     songQueue.removeAt(i)
@@ -212,7 +253,29 @@ class SongQueue(private val market: String = "") : PlayStateListener {
         }
     }
 
+    /**
+     * Resumes playback.
+     */
+    fun resume() {
+        when (currentSong.linkType) {
+            "spotify" -> runCommand("playerctl -p spotify pause", printOutput = false, printErrors = false)
+            "youtube", "soundcloud" -> runCommand("playerctl -p mpv pause", printOutput = false, printErrors = false)
+        }
+    }
 
+    /**
+     * Pauses playback.
+     */
+    fun pause() {
+        when (currentSong.linkType) {
+            "spotify" -> runCommand("playerctl -p spotify play", printOutput = false, printErrors = false)
+            "youtube", "soundcloud" -> runCommand("playerctl -p mpv play", printOutput = false, printErrors = false)
+        }
+    }
+
+    /**
+     * Stops the queue.
+     */
     fun stopQueue() {
         songQueueActive.set(false)
         shouldMonitorSp.set(false)
@@ -415,7 +478,6 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                                 playStateListener.onSongEnded("mpv", currentSong)
                             }
                             */
-                            println("current = $current")
                             if (!current.contains("v=") && !current.contains(
                                     runCommand(
                                         "youtube-dl --geo-bypass -s -e \"$currentSong\"",
