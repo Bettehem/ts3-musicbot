@@ -2,6 +2,7 @@ package src.main.chat
 
 import src.main.services.SoundCloud
 import src.main.services.Spotify
+import src.main.services.Track
 import src.main.services.YouTube
 import src.main.util.SongQueue
 import src.main.util.PlayStateListener
@@ -439,8 +440,14 @@ class ChatReader(
                                     0
                                 }
                             }
-                            printToChat(userName, listOf("Getting link info..."), apikey)
-                            val trackList = SoundCloud().getTracks(parseLink(message))
+                            //check if a playlist
+                            val trackList = ArrayList<Track>()
+                            if (parseLink(message).contains("/sets/")){
+                                printToChat(userName, listOf("Please wait, getting track list..."), apikey)
+                                trackList.addAll(SoundCloud().getPlaylistTracks(parseLink(message)))
+                            }else{
+                                trackList.add(SoundCloud().getTrack(parseLink(message)))
+                            }
                             printToChat(userName, listOf("Adding track" + if (trackList.size > 1) {"s"}else{""} + " to queue..."), apikey)
                             for (track in trackList) {
                                 if (track.isPlayable) {
@@ -822,8 +829,12 @@ class ChatReader(
                         messageLines.add("Now playing:")
                         if (currentTrack.album.isNotEmpty())
                             messageLines.add("Album:\t${currentTrack.album}")
-                        if (currentTrack.artist.isNotEmpty())
-                            messageLines.add("Artist:   \t${currentTrack.artist}")
+                        if (currentTrack.artist.isNotEmpty()){
+                            if (currentTrack.link.contains("soundcloud.com"))
+                                messageLines.add("Uploader:   \t${currentTrack.artist}")
+                            else
+                                messageLines.add("Artist:   \t${currentTrack.artist}")
+                        }
                         messageLines.add("Title:    \t${currentTrack.title}")
                         messageLines.add("Link:  \t${currentTrack.link}")
                         printToChat(userName, messageLines, apikey)
@@ -1289,7 +1300,7 @@ class ChatReader(
                     ytLink = track
                     println("Playing ${YouTube().getTitle(track)}")
                 } else if (track.startsWith("https://soundcloud.com")) {
-                    val trackData = SoundCloud().getSongInfo(track)
+                    val trackData = SoundCloud().getTrack(track)
                     println("Playing ${trackData.artist} - ${trackData.title}")
                 }
                 parseLine("", "%queue-nowplaying")

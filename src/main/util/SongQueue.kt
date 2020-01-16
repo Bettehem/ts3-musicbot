@@ -153,7 +153,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                 Track("", "", YouTube().getTitle(currentSong), currentSong)
             }
             "soundcloud" -> {
-                SoundCloud().getSongInfo(currentSong)
+                SoundCloud().getTrack(currentSong)
             }
             else -> {
                 Track.Empty
@@ -491,7 +491,6 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                                 printOutput = false,
                                 printErrors = false
                             )
-                            println("current = $current")
                             if (!current.contains("soundcloud.com") && !current.contains(
                                     runCommand(
                                         "youtube-dl -s -e \"$currentSong\"",
