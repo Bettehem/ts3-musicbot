@@ -411,7 +411,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             val ytThread = Thread {
                 Runnable {
                     runCommand(
-                        "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $songLink",
+                        "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl-raw-options=cookies=youtube-dl.cookies --ytdl $songLink",
                         inheritIO = true,
                         ignoreOutput = true
                     )

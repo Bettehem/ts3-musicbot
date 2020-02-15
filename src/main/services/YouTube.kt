@@ -49,7 +49,7 @@ class YouTube {
         var response = sendRequest(1, part = "id")
 
         val listItems = ArrayList<Track>()
-        val totalItems = response.getJSONObject("pageInfo").getInt("totalResults")
+        var totalItems = response.getJSONObject("pageInfo").getInt("totalResults")
         if (totalItems > 50) {
             while (listItems.size < totalItems) {
                 response = sendRequest(
@@ -62,18 +62,22 @@ class YouTube {
                 for (item in response.getJSONArray("items")) {
                     item as JSONObject
 
-                    val title = item.getJSONObject("snippet").getString("title")
-                    val videoLink =
+                    try {
+                        val title = item.getJSONObject("snippet").getString("title")
+                        val videoLink =
                         "https://youtu.be/${item.getJSONObject("snippet").getJSONObject("resourceId").getString("videoId")}"
-                    val isPlayable = when (item.getJSONObject("status").getString("privacyStatus")) {
-                        "public", "unlisted" -> true
-                        else -> false
+                        val isPlayable = when (item.getJSONObject("status").getString("privacyStatus")) {
+                            "public", "unlisted" -> true
+                            else -> false
+                        }
+                        val track = Track("", "", "", "")
+                        track.title = title
+                        track.link = videoLink
+                        track.isPlayable = isPlayable
+                        listItems.add(track)
+                    }catch(e: Exception){
+                        totalItems -= 1
                     }
-                    val track = Track("", "", "", "")
-                    track.title = title
-                    track.link = videoLink
-                    track.isPlayable = isPlayable
-                    listItems.add(track)
                 }
                 if (!response.has("nextPageToken"))
                     break
@@ -83,18 +87,22 @@ class YouTube {
             for (item in response.getJSONArray("items")) {
                 item as JSONObject
 
-                val title = item.getJSONObject("snippet").getString("title")
-                val videoLink =
+                try {
+                    val title = item.getJSONObject("snippet").getString("title")
+                    val videoLink =
                     "https://youtu.be/${item.getJSONObject("snippet").getJSONObject("resourceId").getString("videoId")}"
-                val isPlayable = when (item.getJSONObject("status").getString("privacyStatus")) {
-                    "public", "unlisted" -> true
-                    else -> false
+                    val isPlayable = when (item.getJSONObject("status").getString("privacyStatus")) {
+                        "public", "unlisted" -> true
+                        else -> false
+                    }
+                    val track = Track("", "", "", "")
+                    track.title = title
+                    track.link = videoLink
+                    track.isPlayable = isPlayable
+                    listItems.add(track)
+                }catch(e: Exception){
+                    totalItems -= 1
                 }
-                val track = Track("", "", "", "")
-                track.title = title
-                track.link = videoLink
-                track.isPlayable = isPlayable
-                listItems.add(track)
             }
         }
         return listItems
