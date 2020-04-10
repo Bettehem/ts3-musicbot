@@ -206,7 +206,7 @@ class ChatReader(
                                         message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
                                     } else {
                                         if (songQueue.getQueue().isNotEmpty()) {
-                                            songQueue.getQueue().size
+                                            -1
                                         } else {
                                             0
                                         }
@@ -232,7 +232,7 @@ class ChatReader(
                                         message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
                                     } else {
                                         if (songQueue.getQueue().isNotEmpty()) {
-                                            songQueue.getQueue().size
+                                            -1
                                         } else {
                                             0
                                         }
@@ -263,7 +263,7 @@ class ChatReader(
                                         message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
                                     } else {
                                         if (songQueue.getQueue().isNotEmpty()) {
-                                            songQueue.getQueue().size
+                                            -1
                                         } else {
                                             0
                                         }
@@ -293,7 +293,7 @@ class ChatReader(
                                         message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
                                     } else {
                                         if (songQueue.getQueue().isNotEmpty()) {
-                                            songQueue.getQueue().size
+                                            -1
                                         } else {
                                             0
                                         }
@@ -324,7 +324,7 @@ class ChatReader(
                                         message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
                                     } else {
                                         if (songQueue.getQueue().isNotEmpty()) {
-                                            songQueue.getQueue().size
+                                            -1
                                         } else {
                                             0
                                         }
@@ -356,7 +356,7 @@ class ChatReader(
                                                 .substringAfterLast(" ").toInt()
                                         } else {
                                             if (songQueue.getQueue().isNotEmpty()) {
-                                                songQueue.getQueue().size
+                                                -1
                                             } else {
                                                 0
                                             }
@@ -387,7 +387,7 @@ class ChatReader(
                                         message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
                                     } else {
                                         if (songQueue.getQueue().isNotEmpty()) {
-                                            songQueue.getQueue().size
+                                            -1
                                         } else {
                                             0
                                         }
@@ -415,7 +415,7 @@ class ChatReader(
                                         message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
                                     } else {
                                         if (songQueue.getQueue().isNotEmpty()) {
-                                            songQueue.getQueue().size
+                                            -1
                                         } else {
                                             0
                                         }
@@ -437,14 +437,14 @@ class ChatReader(
                                 message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
                             }else {
                                 if (songQueue.getQueue().isNotEmpty()){
-                                    songQueue.getQueue().size
+                                    -1
                                 }else{
                                     0
                                 }
                             }
                             //check if a playlist
                             val trackList = ArrayList<Track>()
-                            if (parseLink(message).contains("/sets/")){
+                            if (parseLink(message).substringBefore("?").contains("/sets/")){
                                 printToChat(userName, listOf("Please wait, getting track list..."), apikey)
                                 trackList.addAll(SoundCloud().getPlaylistTracks(parseLink(message)))
                             }else{

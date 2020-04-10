@@ -43,7 +43,11 @@ class YouTube {
                 "User-Agent: Mozilla/5.0"
             )
             val rawResponse = sendHttpRequest(url, requestMethod, properties)
-            return JSONObject(rawResponse)
+            return try {
+                JSONObject(rawResponse)
+            }catch (e: Exception){
+                JSONObject("{pageInfo: {totalResults: 0}, items: []}")
+            }
         }
 
         var response = sendRequest(1, part = "id")

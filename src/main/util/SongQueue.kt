@@ -4,11 +4,13 @@ import src.main.services.SoundCloud
 import src.main.services.Spotify
 import src.main.services.Track
 import src.main.services.YouTube
+import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.collections.ArrayList
 
 class SongQueue(private val market: String = "") : PlayStateListener {
     @Volatile
-    private var songQueue = ArrayList<String>()
+    private var songQueue = Collections.synchronizedList(ArrayList<String>())
 
     private val playStateListener: PlayStateListener = this
     private lateinit var playStateListener2: PlayStateListener
@@ -130,13 +132,18 @@ class SongQueue(private val market: String = "") : PlayStateListener {
      * @param position position in which the song should be added.
      */
     fun addToQueue(
-        songLink: String, position: Int = if (songQueue.isNotEmpty()) {
-            songQueue.size
+        songLink: String, position: Int = if (synchronized(this) { songQueue }.isNotEmpty()) {
+            -1
         } else {
             0
         }
     ) {
-        songQueue.add(position, songLink)
+        synchronized(this) {
+            if (position >= 0)
+                songQueue.add(position, songLink)
+            else
+                songQueue.add(songLink)
+        }
     }
 
     /**
@@ -144,20 +151,24 @@ class SongQueue(private val market: String = "") : PlayStateListener {
      * @param songLinks list of links to add to the queue
      */
     fun addAllToQueue(songLinks: ArrayList<String>) {
-        songQueue.addAll(songLinks)
+        synchronized(this) {
+            songQueue.addAll(songLinks)
+        }
     }
 
     /**
      * Clear the queue
      */
     fun clearQueue() {
-        songQueue.clear()
+        synchronized(this) {
+            songQueue.clear()
+        }
     }
 
     /**
      * Get an ArrayList of links in the queue
      */
-    fun getQueue(): ArrayList<String> = songQueue
+    fun getQueue(): ArrayList<String> = synchronized(this) { songQueue }.toMutableList() as ArrayList<String>
 
     /**
      * Get currently playing track
@@ -214,9 +225,9 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             "spotify"
         } else if (contains("youtube.com") || contains("youtu.be")) {
             "youtube"
-        } else if (contains("soundcloud.com")){
+        } else if (contains("soundcloud.com")) {
             "soundcloud"
-        }else{
+        } else {
             ""
         }
 
@@ -224,14 +235,16 @@ class SongQueue(private val market: String = "") : PlayStateListener {
      * Shuffles the queue.
      */
     fun shuffleQueue() {
-        songQueue.shuffle()
+        synchronized(this) {
+            songQueue.shuffle()
+        }
     }
 
     /**
      * Skips the current song and starts playing the next one in the queue, if it isn't empty.
      */
     fun skipSong() {
-        if (songQueue.isNotEmpty()) {
+        if (synchronized(this) { songQueue }.isNotEmpty()) {
             playNext()
         } else {
             val currentPlayers = runCommand("playerctl -l", printOutput = false).split("\n".toRegex())
@@ -252,12 +265,14 @@ class SongQueue(private val market: String = "") : PlayStateListener {
      * @param newPosition new position of the track
      */
     fun moveTrack(link: String, newPosition: Int) {
-        if (newPosition < songQueue.size && newPosition >= 0) {
-            for (i in songQueue.indices) {
-                if (songQueue[i] == link) {
-                    songQueue.removeAt(i)
-                    songQueue.add(newPosition, link)
-                    break
+        synchronized(this) {
+            if (newPosition < songQueue.size && newPosition >= 0) {
+                for (i in songQueue.indices) {
+                    if (songQueue[i] == link) {
+                        songQueue.removeAt(i)
+                        songQueue.add(newPosition, link)
+                        break
+                    }
                 }
             }
         }
@@ -308,11 +323,14 @@ class SongQueue(private val market: String = "") : PlayStateListener {
     fun playQueue(queueListener: PlayStateListener) {
         if (!queueActive()) {
             runCommand("killall playerctl", printOutput = false)
+            runCommand("killall mpv", printOutput = false)
         }
-        if (songQueue.size >= 1) {
-            //queue is not empty, so start playing the list.
-            playStateListener2 = queueListener
-            playSong(songQueue[0])
+        synchronized(this) {
+            if (songQueue.size >= 1) {
+                //queue is not empty, so start playing the list.
+                playStateListener2 = queueListener
+                playSong(songQueue[0])
+            }
         }
     }
 
@@ -324,7 +342,9 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             if (runCommand("playerctl -p mpv status", printOutput = false, printErrors = false) == "Playing")
                 runCommand("playerctl -p mpv stop")
             currentSong = songLink
-            songQueue.remove(currentSong)
+            synchronized(this) {
+                songQueue.remove(currentSong)
+            }
             startSpotifyMonitor()
             val spThread = Thread {
                 Runnable {
@@ -406,7 +426,9 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             if (runCommand("playerctl -p spotify status") == "Playing")
                 runCommand("playerctl -p spotify pause")
             currentSong = songLink
-            songQueue.remove(currentSong)
+            synchronized(this) {
+                songQueue.remove(currentSong)
+            }
             startYouTubeMonitor()
             val ytThread = Thread {
                 Runnable {
@@ -429,12 +451,14 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             if (runCommand("playerctl -p spotify status") == "Playing")
                 runCommand("playerctl -p spotify pause")
             currentSong = songLink
-            songQueue.remove(currentSong)
+            synchronized(this) {
+                songQueue.remove(currentSong)
+            }
             startSoundCloudMonitor()
             val scThread = Thread {
                 Runnable {
                     runCommand(
-                        "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $songLink",
+                        "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl-raw-options=cookies=youtube-dl.cookies --ytdl $songLink",
                         inheritIO = true,
                         ignoreOutput = true
                     )
@@ -450,20 +474,24 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             shouldMonitorSc.set(true)
         } else {
             //song not supported so skip it
-            songQueue.remove(currentSong)
-            playSong(songQueue[0])
+            synchronized(this) {
+                songQueue.remove(currentSong)
+                playSong(songQueue[0])
+            }
         }
     }
 
     private fun playNext() {
         //play next song in queue if not empty
-        if (songQueue.isNotEmpty()) {
+        if (synchronized(this) { songQueue }.isNotEmpty()) {
             shouldMonitorYt.set(false)
             shouldMonitorSp.set(false)
             shouldMonitorSc.set(false)
             runCommand("playerctl -p spotify pause", printOutput = false)
             runCommand("playerctl -p mpv stop", printOutput = false, printErrors = false)
-            playSong(songQueue[0])
+            synchronized(this) {
+                playSong(songQueue[0])
+            }
         } else {
             shouldMonitorSp.set(false)
             shouldMonitorYt.set(false)
@@ -547,6 +575,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                                 printErrors = false
                             ) == "Playing"
                         ) {
+                            //song is playing, do nothing
                         } else {
                             val current = runCommand(
                                 "playerctl -p mpv metadata --format '{{ title }}'",

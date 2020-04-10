@@ -7,7 +7,7 @@ import src.main.util.sendHttpRequest
 import java.net.URL
 
 class SoundCloud {
-    private val clientId = "L1Tsmo5VZ0rup3p9fjY67862DyPiWGaG"
+    private val clientId = "7jmNkIpPjgR8GNweCuKnUywa81GQsSGT"
 
 
     /*
@@ -63,8 +63,8 @@ class SoundCloud {
             val id = resolveId(link)
 
             val urlBuilder = StringBuilder()
-            urlBuilder.append("https://api.soundcloud.com/playlists/")
-            urlBuilder.append("$id/tracks")
+            urlBuilder.append("https://api-v2.soundcloud.com/playlists/")
+            urlBuilder.append(id)
             urlBuilder.append("?client_id=$clientId")
             val url = URL(urlBuilder.toString())
             val requestMethod = "GET"
@@ -73,19 +73,16 @@ class SoundCloud {
                 "User-Agent: Mozilla/5.0"
             )
             val rawResponse = sendHttpRequest(url, requestMethod, properties)
-            val response = JSONArray(rawResponse)
+            val response = JSONObject(rawResponse)
 
             val trackList = ArrayList<Track>()
-            for (item in response) {
+            for (item in response.getJSONArray("tracks")) {
                 item as JSONObject
-                trackList.add(
-                    Track(
-                        "",
-                        item.getJSONObject("user").getString("username"),
-                        item.getString("title"),
-                        item.getString("permalink_url")
-                    )
-                )
+                try {
+                    trackList.add(getTrack("https://api.soundcloud.com/tracks/${item.getInt("id")}"))
+                }catch (e: Exception){
+                    trackList.add(Track.Empty)
+                }
             }
             trackList
         } catch (e: Exception) {
@@ -100,13 +97,17 @@ class SoundCloud {
      */
     fun getTrack(link: String): Track {
         return try {
-            val id = resolveId(link)
+            val id = if (link.startsWith("https://api.soundcloud.com/tracks/")){
+                link.substringAfterLast("/")
+            }else{
+                resolveId(link)
+            }
 
 
             val urlBuilder = StringBuilder()
-            urlBuilder.append("https://api.soundcloud.com/tracks/")
-            urlBuilder.append(id)
-            urlBuilder.append("?client_id=$clientId")
+            urlBuilder.append("https://api-v2.soundcloud.com/resolve?url=")
+            urlBuilder.append("https://api.soundcloud.com/tracks/$id")
+            urlBuilder.append("&client_id=$clientId")
             val url = URL(urlBuilder.toString())
             val requestMethod = "GET"
             val properties = arrayOf(
@@ -116,7 +117,7 @@ class SoundCloud {
             val rawResponse = sendHttpRequest(url, requestMethod, properties)
             val response = JSONObject(rawResponse)
 
-            Track("", response.getJSONObject("user").getString("username"), response.getString("title"), link)
+            Track("", response.getJSONObject("user").getString("username"), response.getString("title"), response.getString("permalink_url"))
         } catch (e: Exception) {
             Track.Empty
         }
@@ -129,7 +130,7 @@ class SoundCloud {
      */
     private fun resolveId(link: String): String {
         val urlBuilder = StringBuilder()
-        urlBuilder.append("https://api.soundcloud.com/resolve?")
+        urlBuilder.append("https://api-v2.soundcloud.com/resolve?")
         urlBuilder.append("client_id=$clientId")
         urlBuilder.append("&url=$link")
         val url = URL(urlBuilder.toString())
