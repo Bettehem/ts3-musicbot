@@ -1209,8 +1209,10 @@ class ChatReader(
                 }
 
                 else -> {
+                    //if userName is set to __console__, allow the usage of %say command
                     if (userName == "__console__") {
                         when (message.split(" ".toRegex())[0]) {
+                            //send a message to the chat
                             "%say" -> {
                                 val lines = ArrayList<String>()
                                 lines.addAll(message.substringAfterLast("%say ").split("\n"))
