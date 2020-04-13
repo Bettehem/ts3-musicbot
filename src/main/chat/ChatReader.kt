@@ -1,6 +1,8 @@
 package src.main.chat
 
+import src.main.services.SoundCloud
 import src.main.services.Spotify
+import src.main.services.Track
 import src.main.services.YouTube
 import src.main.util.SongQueue
 import src.main.util.PlayStateListener
@@ -140,6 +142,15 @@ class ChatReader(
                     lines.add("%yt-nowplaying               -Shows information on currently playing track")
                     lines.add("%yt-search <type> <text>     -Search on YouTube. Shows 10 first results. <type> can be track, video or playlist")
 
+
+                    lines.add("SoundCloud commands:")
+                    lines.add("%sc-pause                    -Pauses SoundCloud playback")
+                    lines.add("%sc-resume                   -Resumes the SoundCloud playback")
+                    lines.add("%sc-play                     -Resumes the SoundCloud playback")
+                    lines.add("%sc-stop                     -Stops the SoundCloud playback")
+                    lines.add("%sc-playsong <link>          -Plays a SoundCloud song based on link")
+                    lines.add("%sc-nowplaying               -Shows information on currently playing track")
+
                     printToChat(userName, lines, apikey)
                 }
 
@@ -151,11 +162,11 @@ class ChatReader(
                         //check if argument contains any of the supported link types
                         if (arg.contains("spotify:track") || arg.contains(":playlist:") ||
                             arg.contains(":album:") || arg.contains("https://open.spotify.com") ||
-                            arg.contains("youtu.be") || arg.contains("youtube.com")
+                            arg.contains("youtu.be") || arg.contains("youtube.com") || arg.contains("https://soundcloud.com")
                         ) {
                             //check if there's a "," in the argument, which indicates that there's more than one link
                             if (arg.contains(",")) {
-                                //get all links and add to $links Arraylist
+                                //get all links and add to $links ArrayList
                                 val args = ArrayList<String>()
                                 for (link in arg.split(",".toRegex())) {
                                     args.add(parseLink(link))
@@ -195,7 +206,7 @@ class ChatReader(
                                         message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
                                     } else {
                                         if (songQueue.getQueue().isNotEmpty()) {
-                                            songQueue.getQueue().size
+                                            -1
                                         } else {
                                             0
                                         }
@@ -221,7 +232,7 @@ class ChatReader(
                                         message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
                                     } else {
                                         if (songQueue.getQueue().isNotEmpty()) {
-                                            songQueue.getQueue().size
+                                            -1
                                         } else {
                                             0
                                         }
@@ -252,7 +263,7 @@ class ChatReader(
                                         message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
                                     } else {
                                         if (songQueue.getQueue().isNotEmpty()) {
-                                            songQueue.getQueue().size
+                                            -1
                                         } else {
                                             0
                                         }
@@ -282,7 +293,7 @@ class ChatReader(
                                         message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
                                     } else {
                                         if (songQueue.getQueue().isNotEmpty()) {
-                                            songQueue.getQueue().size
+                                            -1
                                         } else {
                                             0
                                         }
@@ -313,7 +324,7 @@ class ChatReader(
                                         message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
                                     } else {
                                         if (songQueue.getQueue().isNotEmpty()) {
-                                            songQueue.getQueue().size
+                                            -1
                                         } else {
                                             0
                                         }
@@ -345,7 +356,7 @@ class ChatReader(
                                                 .substringAfterLast(" ").toInt()
                                         } else {
                                             if (songQueue.getQueue().isNotEmpty()) {
-                                                songQueue.getQueue().size
+                                                -1
                                             } else {
                                                 0
                                             }
@@ -376,7 +387,7 @@ class ChatReader(
                                         message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
                                     } else {
                                         if (songQueue.getQueue().isNotEmpty()) {
-                                            songQueue.getQueue().size
+                                            -1
                                         } else {
                                             0
                                         }
@@ -404,7 +415,7 @@ class ChatReader(
                                         message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
                                     } else {
                                         if (songQueue.getQueue().isNotEmpty()) {
-                                            songQueue.getQueue().size
+                                            -1
                                         } else {
                                             0
                                         }
@@ -414,6 +425,38 @@ class ChatReader(
                                     printToChat(userName, listOf("Added track to queue."), apikey)
                                 }
                             }
+                        } else if (message.substringAfter("%queue-add ").contains("soundcloud.com")) {
+                            var uri = ""
+                            for (arg in message.split(" ".toRegex())){
+                                if (arg.contains("soundcloud.com")) {
+                                    uri = arg
+                                    break
+                                }
+                            }
+                            val position = if (message.substringAfter(uri).contains(" ")){
+                                message.substringAfter(uri).replace("-s", "").replace(" ", "").toInt()
+                            }else {
+                                if (songQueue.getQueue().isNotEmpty()){
+                                    -1
+                                }else{
+                                    0
+                                }
+                            }
+                            //check if a playlist
+                            val trackList = ArrayList<Track>()
+                            if (parseLink(message).substringBefore("?").contains("/sets/")){
+                                printToChat(userName, listOf("Please wait, getting track list..."), apikey)
+                                trackList.addAll(SoundCloud().getPlaylistTracks(parseLink(message)))
+                            }else{
+                                trackList.add(SoundCloud().getTrack(parseLink(message)))
+                            }
+                            printToChat(userName, listOf("Adding track" + if (trackList.size > 1) {"s"}else{""} + " to queue..."), apikey)
+                            for (track in trackList) {
+                                if (track.isPlayable) {
+                                    songQueue.addToQueue(track.link, position)
+                                }
+                            }
+                            printToChat(userName, listOf("Added track" + if (trackList.size > 1) {"s"}else{""} + " to queue."), apikey)
                         } else if (message.substringAfter("%queue-add").isEmpty()) {
                             printToChat(
                                 userName,
@@ -788,8 +831,12 @@ class ChatReader(
                         messageLines.add("Now playing:")
                         if (currentTrack.album.isNotEmpty())
                             messageLines.add("Album:\t${currentTrack.album}")
-                        if (currentTrack.album.isNotEmpty())
-                            messageLines.add("Artist:   \t${currentTrack.artist}")
+                        if (currentTrack.artist.isNotEmpty()){
+                            if (currentTrack.link.contains("soundcloud.com"))
+                                messageLines.add("Uploader:   \t${currentTrack.artist}")
+                            else
+                                messageLines.add("Artist:   \t${currentTrack.artist}")
+                        }
                         messageLines.add("Title:    \t${currentTrack.title}")
                         messageLines.add("Link:  \t${currentTrack.link}")
                         printToChat(userName, messageLines, apikey)
@@ -1051,15 +1098,14 @@ class ChatReader(
 
 
                 "%yt-playsong" -> {
-                    //val link = message.split(" ".toRegex())[2].split("href=\"".toRegex())[1].split("\">".toRegex())[0]
                     ytLink = parseLink(message)
-                    //Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -o - \"$link\" | mpv --no-video --input-ipc-server=/tmp/mpvsocket - &"))
+                    //Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -o - \"$ytLink\" | mpv --no-terminal --no-video --input-ipc-server=/tmp/mpvsocket - &"))
                     if (ytLink.isNotEmpty()) {
                         Thread {
                             Runnable {
                                 run {
                                     runCommand(
-                                        "mpv --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $ytLink",
+                                        "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $ytLink",
                                         inheritIO = true,
                                         ignoreOutput = true
                                     )
@@ -1139,9 +1185,34 @@ class ChatReader(
                      */
                 }
 
+
+                "%sc-pause" -> runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                "%sc-resume" -> runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                "%sc-play" -> runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                "%sc-stop" -> runCommand("echo \"stop\" | socat - /tmp/mpvsocket")
+                "%sc-playsong" -> {
+                    val scLink = parseLink(message)
+                    //Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -o - \"$scLink\" | mpv --no-terminal --no-video --input-ipc-server=/tmp/mpvsocket - &"))
+                    if (scLink.isNotEmpty()) {
+                        Thread {
+                            Runnable {
+                                run {
+                                    runCommand(
+                                        "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $scLink",
+                                        inheritIO = true,
+                                        ignoreOutput = true
+                                    )
+                                }
+                            }.run()
+                        }.start()
+                    }
+                }
+
                 else -> {
+                    //if userName is set to __console__, allow the usage of %say command
                     if (userName == "__console__") {
                         when (message.split(" ".toRegex())[0]) {
+                            //send a message to the chat
                             "%say" -> {
                                 val lines = ArrayList<String>()
                                 lines.addAll(message.substringAfterLast("%say ").split("\n"))
@@ -1237,9 +1308,12 @@ class ChatReader(
                     )
                 ) {
                     ytLink = track
+                    println("Playing ${YouTube().getTitle(track)}")
+                } else if (track.startsWith("https://soundcloud.com")) {
+                    val trackData = SoundCloud().getTrack(track)
+                    println("Playing ${trackData.artist} - ${trackData.title}")
                 }
                 parseLine("", "%queue-nowplaying")
-                println("Playing ${YouTube().getTitle(track)}")
             }
         }
     }
