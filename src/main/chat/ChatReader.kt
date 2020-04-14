@@ -131,7 +131,7 @@ class ChatReader(
                     //%help command
                     commandString.contains("%help\\s*%?[a-z]*-?[a-z]*".toRegex()) -> {
                         //check extra arguments
-                        if (commandString.substringAfter("%help").contains("(\\s+%?help)*".toRegex())) {
+                        if (commandString.substringAfter("%help").contains("%?help".toRegex())) {
                             //print normal help message
                             printToChat(userName, helpMessages["%help"]?.split("\n".toRegex()), apikey)
                             return true
@@ -145,6 +145,12 @@ class ChatReader(
                             if (commandList.any { it.contains(args.toRegex()) }) {
                                 //print help for command
                                 printToChat(userName, helpMessages[args]?.split("\n".toRegex()), apikey)
+                            } else {
+                                printToChat(
+                                    userName,
+                                    listOf("Command doesn't exist! See %help for available commands."),
+                                    apikey
+                                )
                             }
                         }
                     }

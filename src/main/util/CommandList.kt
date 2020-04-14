@@ -98,11 +98,17 @@ val helpMessages = hashMapOf(
     Pair(
         "%queue-add", "\n" +
                 "Showing help for %queue-add command:\n" +
-                "%queue-add lets you add songs, albums and playlists to the end of the song queue."
+                "%queue-add lets you add songs, albums and playlists to the end of the song queue.\n" +
+                "You can add options either before or after song link(s).\n" +
+                "Available options:\n" +
+                "-s    \t-Shuffle the playlist/album before adding to the queue.\n" +
+                "-p    \t-Add track(s) to a specific position in the queue.\n" +
+                "Example - Add playlist to queue at position 15 and shuffle it before that:\n" +
+                "%queue-add -s https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt -p 15"
     ),
     Pair(
         "%queue-playnext", "\n" +
                 "Showing help for %queue-playnext command:\n" +
-                "%queue-playnext lets you add songs, albums and playlists to the end of the song queue."
+                "%queue-playnext lets you add songs, albums and playlists to the start of the song queue."
     )
 )
