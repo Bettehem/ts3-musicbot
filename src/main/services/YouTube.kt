@@ -35,7 +35,8 @@ class YouTube {
             urlBuilder.append("&part=${part.replace(",", "%2C")}")
             urlBuilder.append("&key=AIzaSyB_FpJTYVMuQ2I_DxaidXUd7z4Q-ScMv6Y")
             urlBuilder.append("&maxResults=$maxResults")
-            urlBuilder.append("&pageToken=$pageToken")
+            if (pageToken.isNotEmpty())
+                urlBuilder.append("&pageToken=$pageToken")
             val url = URL(urlBuilder.toString())
             val requestMethod = "GET"
             val properties = arrayOf(

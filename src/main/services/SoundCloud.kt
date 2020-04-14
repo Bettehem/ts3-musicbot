@@ -1,8 +1,6 @@
 package src.main.services
 
-import org.json.JSONArray
 import org.json.JSONObject
-import src.main.util.runCommand
 import src.main.util.sendHttpRequest
 import java.net.URL
 
@@ -74,13 +72,17 @@ class SoundCloud {
             )
             val rawResponse = sendHttpRequest(url, requestMethod, properties)
             val response = JSONObject(rawResponse)
+            val tracks = response.getJSONArray("tracks")
+            if (tracks.length() > 50){
+                println("This playlist has ${tracks.length()} tracks. Please wait...")
+            }
 
             val trackList = ArrayList<Track>()
-            for (item in response.getJSONArray("tracks")) {
+            for (item in tracks) {
                 item as JSONObject
                 try {
                     trackList.add(getTrack("https://api.soundcloud.com/tracks/${item.getInt("id")}"))
-                }catch (e: Exception){
+                } catch (e: Exception) {
                     trackList.add(Track.Empty)
                 }
             }
@@ -97,9 +99,9 @@ class SoundCloud {
      */
     fun getTrack(link: String): Track {
         return try {
-            val id = if (link.startsWith("https://api.soundcloud.com/tracks/")){
+            val id = if (link.startsWith("https://api.soundcloud.com/tracks/")) {
                 link.substringAfterLast("/")
-            }else{
+            } else {
                 resolveId(link)
             }
 
@@ -117,7 +119,12 @@ class SoundCloud {
             val rawResponse = sendHttpRequest(url, requestMethod, properties)
             val response = JSONObject(rawResponse)
 
-            Track("", response.getJSONObject("user").getString("username"), response.getString("title"), response.getString("permalink_url"))
+            Track(
+                "",
+                response.getJSONObject("user").getString("username"),
+                response.getString("title"),
+                response.getString("permalink_url")
+            )
         } catch (e: Exception) {
             Track.Empty
         }

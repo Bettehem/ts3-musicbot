@@ -8,7 +8,7 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.ArrayList
 
-class SongQueue(private val market: String = "") : PlayStateListener {
+class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
     @Volatile
     private var songQueue = Collections.synchronizedList(ArrayList<String>())
 
@@ -17,14 +17,19 @@ class SongQueue(private val market: String = "") : PlayStateListener {
 
     @Volatile
     private var currentSong = ""
+
     @Volatile
     private var shouldMonitorSp: AtomicBoolean = AtomicBoolean(false)
+
     @Volatile
     private var shouldMonitorYt: AtomicBoolean = AtomicBoolean(false)
+
     @Volatile
     private var shouldMonitorSc: AtomicBoolean = AtomicBoolean(false)
+
     @Volatile
     private var songQueueActive: AtomicBoolean = AtomicBoolean(false)
+
     @Volatile
     private var songPosition = 0
 
@@ -110,6 +115,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                                     }
                                 } else {
                                     //Song is paused, wait for user to resume playback
+                                    continue
                                 }
                             }
                         } else {
@@ -149,10 +155,21 @@ class SongQueue(private val market: String = "") : PlayStateListener {
     /**
      * Adds a list of links to the queue
      * @param songLinks list of links to add to the queue
+     * @param position position in which the songs should be added
      */
-    fun addAllToQueue(songLinks: ArrayList<String>) {
+    fun addAllToQueue(
+        songLinks: ArrayList<String>, position: Int = if (synchronized(this) { songQueue }.isNotEmpty()) {
+            -1
+        } else {
+            0
+        }
+    ) {
         synchronized(this) {
-            songQueue.addAll(songLinks)
+            if (position >= 0)
+                songQueue.addAll(position, songLinks)
+            else {
+                songQueue.addAll(songLinks)
+            }
         }
     }
 
@@ -177,7 +194,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
     fun nowPlaying(): Track {
         return when (currentSong.linkType) {
             "spotify" -> {
-                Spotify(market).getTrack(currentSong)
+                spotify.getTrack(currentSong)
             }
             "youtube" -> {
                 Track("", "", YouTube().getTitle(currentSong), currentSong)
@@ -202,7 +219,7 @@ class SongQueue(private val market: String = "") : PlayStateListener {
         return if (any { it == songLink }) {
             return when (songLink.linkType) {
                 "spotify" -> {
-                    Spotify(market).getTrack(songLink)
+                    spotify.getTrack(songLink)
                 }
                 "youtube" -> {
                     Track("", "", YouTube().getTitle(songLink), songLink)
@@ -349,9 +366,10 @@ class SongQueue(private val market: String = "") : PlayStateListener {
             val spThread = Thread {
                 Runnable {
                     runCommand(
-                        "playerctl -p spotify open spotify:track:${songLink.substringAfter("spotify.com/track/").substringBefore(
-                            "?"
-                        )}", ignoreOutput = false
+                        "playerctl -p spotify open spotify:track:${songLink.substringAfter("spotify.com/track/")
+                            .substringBefore(
+                                "?"
+                            )}", ignoreOutput = false
                     )
                 }.run()
             }
@@ -396,9 +414,10 @@ class SongQueue(private val market: String = "") : PlayStateListener {
                     val spThread2 = Thread {
                         Runnable {
                             runCommand(
-                                "playerctl -p spotify open spotify:track:${songLink.substringAfter("spotify.com/track/").substringBefore(
-                                    "?"
-                                )}", ignoreOutput = false
+                                "playerctl -p spotify open spotify:track:${songLink.substringAfter("spotify.com/track/")
+                                    .substringBefore(
+                                        "?"
+                                    )}", ignoreOutput = false
                             )
                         }.run()
                     }
