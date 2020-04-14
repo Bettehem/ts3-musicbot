@@ -154,6 +154,7 @@ class ChatReader(
 
                         val shouldPlayNext = commandString.contains("^%queue-playnext".toRegex())
                         var shouldShuffle = false
+                        var hasCustomPosition = false
                         var customPosition = if (shouldPlayNext) {
                             0
                         } else {
@@ -168,8 +169,9 @@ class ChatReader(
                                 args[i].contentEquals("-s") -> shouldShuffle = true
 
                                 //check if custom position is provided
-                                args[i].contains("\\s+-p\\s+".toRegex()) && args[i + 1].contains("-?[0-9]+".toRegex()) -> {
+                                args[i].contains("-p".toRegex()) && args[i + 1].contains("-?[0-9]+".toRegex()) -> {
                                     customPosition = args[i + 1].toInt()
+                                    hasCustomPosition = true
                                 }
 
                                 args[i].contains("((\\[URL])?(https?://(open\\.spotify\\.com|soundcloud\\.com|youtu\\.be|(m|www)\\.youtube\\.com))(\\[/URL])?.+)|(spotify:(track|album|playlist):.+)".toRegex()) -> {
@@ -181,6 +183,8 @@ class ChatReader(
                                 }
                             }
                         }
+                        if (shouldPlayNext || hasCustomPosition)
+                            links.reverse()
 
                         println("Getting tracks...")
                         println("Total number of links: ${links.size}")
