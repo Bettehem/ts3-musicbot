@@ -169,7 +169,7 @@ class ChatReader(
                                 args[i].contentEquals("-s") -> shouldShuffle = true
 
                                 //check if custom position is provided
-                                args[i].contains("-p".toRegex()) -> {
+                                args[i].contains("^-p$".toRegex()) -> {
                                     if (args.size >= i + 1) {
                                         if (args[i + 1].contains("-?[0-9]+".toRegex())) {
                                             customPosition = args[i + 1].toInt()
