@@ -48,8 +48,8 @@ val helpMessages = hashMapOf(
         "%help", "\n" +
                 "General commands:\n" +
                 "%help <command>              -Shows this help message. Use %help <command> to get more help on a specific command.\n" +
-                "%queue-add <-s> <link> <pos> -Add track(s) to queue. Also add the -s if you want a list/album to be pre-shuffled before adding to the queue. You can add multiple links separated by a comma \",\". pos can be the position in which you want to place your link(s) in the queue, starting from 0\n" +
-                "%queue-playnext <-s> <link> <pos> -Add track/playlist/album to the top of the queue. Add multiple links separated by a comma \",\". Shuffle with the -s option\n" +
+                "%queue-add                   -Add track(s) to queue.\n" +
+                "%queue-playnext              -Add track/playlist/album to the top of the queue. Add multiple links separated by a comma \",\". Shuffle with the -s option\n" +
                 "%queue-play                  -Play the song queue\n" +
                 "%queue-list <-a,--all>       -Lists current songs in queue. Add the -a or --all option to show all tracks if there are more than 15\n" +
                 "%queue-clear                 -Clears the song queue\n" +
@@ -99,6 +99,7 @@ val helpMessages = hashMapOf(
         "%queue-add", "\n" +
                 "Showing help for %queue-add command:\n" +
                 "%queue-add lets you add songs, albums and playlists to the end of the song queue.\n" +
+                "Counting starts from 0, so the first song is at position 0, second is at 1 and so on.\n" +
                 "You can add options either before or after song link(s).\n" +
                 "Available options:\n" +
                 "-s    \t-Shuffle the playlist/album before adding to the queue.\n" +
@@ -109,6 +110,151 @@ val helpMessages = hashMapOf(
     Pair(
         "%queue-playnext", "\n" +
                 "Showing help for %queue-playnext command:\n" +
-                "%queue-playnext lets you add songs, albums and playlists to the start of the song queue."
+                "%queue-playnext lets you add songs, albums and playlists to the start of the song queue.\n" +
+                "Counting starts from 0, so the first song is at position 0, second is at 1 and so on.\n" +
+                "You can add options either before or after song link(s).\n" +
+                "Available options:\n" +
+                "-s    \t-Shuffle the playlist/album before adding to the queue.\n" +
+                "-p    \t-Add track(s) to a specific position in the queue.\n" +
+                "Example - Add playlist to queue at position 15 and shuffle it before that:\n" +
+                "%queue-playnext -s https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt -p 15"
+    ),
+    Pair(
+        "%queue-play", "\n" +
+                "Showing help for %queue-play command:\n" +
+                "%queue-play starts playing songs in the song queue."
+    ),
+    Pair(
+        "%queue-list", "\n" +
+                "Showing help for %queue-list command:\n" +
+                "%queue-list shows a list of songs in the queue.\n" +
+                "By default it shows the first 15 songs in the queue.\n" +
+                "Available options:\n" +
+                "-a, --all    \t-Show all songs in the queue"
+    ),
+    Pair(
+        "%queue-clear", "\n" +
+                "Showing help for %queue-clear command:\n" +
+                "%queue-clear command clears the song queue."
+    ),
+    Pair(
+        "%queue-shuffle", "\n" +
+                "Showing help for %queue-shuffle command:\n" +
+                "%queue-shuffle shuffles the song queue."
+    ),
+    Pair(
+        "%queue-skip", "\n" +
+                "Showing help for %queue-skip command:\n" +
+                "%queue-skip skips to the next song in the queue."
+    ),
+    Pair(
+        "%queue-move", "\n" +
+                "Showing help for %queue-move command:\n" +
+                "%queue-move lets you move a song to a new position in the queue.\n" +
+                "Counting starts from 0, so the first song is at position 0, second is at 1 and so on.\n" +
+                "Example - Move a song to position 10\n" +
+                "%queue-move https://open.spotify.com/track/6H0zRPEV1ezBHOidNXSt1D 10"
+    ),
+    Pair(
+        "%queue-stop", "\n" +
+                "Showing help for %queue-stop command:\n" +
+                "%queue-stop stops the song queue.\n"
+    ),
+    Pair(
+        "%queue-status", "\n" +
+                "Showing help for %queue-status command:\n" +
+                "%queue-status returns the status of the queue.\n" +
+                "The status can be either \"Active\" or \"Not active\""
+    ),
+    Pair(
+        "%queue-nowplaying", "\n" +
+                "Showing help for %queue-nowplaying command:\n" +
+                "%queue-nowplaying returns information on the currently playing song."
+    ),
+    Pair(
+        "%queue-pause", "\n" +
+                "Showing help for %queue-pause command:\n" +
+                "%queue-pause pauses the song queue."
+    ),
+    Pair(
+        "%queue-resume", "\n" +
+                "Showing help for %queue-resume command:\n" +
+                "%queue-resume resumes playback if the song queue is paused."
+    ),
+    Pair(
+        "%sp-pause", "\n" +
+                "Showing help for %sp-pause command:\n" +
+                "%sp-pause pauses Spotify playback."
+    ),
+    Pair(
+        "%sp-resume", "\n" +
+                "Showing help for %sp-resume command:\n" +
+                "%sp-resume resumes Spotify playback."
+    ),
+    Pair(
+        "%sp-play", "\n" +
+                "Showing help for %sp-play command:\n" +
+                "%sp-play starts/resumes Spotify playback."
+    ),
+    Pair(
+        "%sp-skip", "\n" +
+                "Showing help for %sp-skip command:\n" +
+                "%sp-skip skips to the next Spotify song in the queue.\n" +
+                "This only affects Spotify's internal song queue and has nothing to do with the music bot's own queue."
+    ),
+    Pair(
+        "%sp-next", "\n" +
+                "Showing help for %sp-next command:\n" +
+                "%sp-next skips to the next Spotify song in the queue."
+    ),
+    Pair(
+        "%sp-prev", "\n" +
+                "Showing help for %sp-prev command:\n" +
+                "%sp-prev goes back to the previous song in Spotify."
+    ),
+    Pair(
+        "%sp-playsong", "\n" +
+                "Showing help for %sp-playsong command:\n" +
+                "%sp-playsong plays a song on Spotify.\n" +
+                "Example - Play a song on Spotify:\n" +
+                "%sp-playsong https://open.spotify.com/track/2GYHyAoLWpkxLVa4oYTVko"
+    ),
+    Pair(
+        "%sp-playlist", "\n" +
+                "Showing help for %sp-playlist command:\n" +
+                "%sp-playlist starts a playlist on Spotify.\n" +
+                "Example - Start a playlist on Spotify:\n" +
+                "%sp-playlist https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt"
+    ),
+    Pair(
+        "%sp-playalbum", "\n" +
+                "Showing help for %sp-playalbum command:\n" +
+                "%sp-playalbum plays an album on Spotify.\n" +
+                "Example - Start playing an album on Spotify:\n" +
+                "%sp-playalbum https://open.spotify.com/album/4Ijivtrfqk2AMTF4dhrl2Q"
+    ),
+    Pair(
+        "%sp-nowplaying", "\n" +
+                "Showing help for %sp-nowplaying command:\n" +
+                "%sp-nowplaying returns details on the currently playing track on Spotify."
+    ),
+    Pair(
+        "%sp-search", "\n" +
+                "Showing help for %sp-search command:\n" +
+                "%sp-search can be used to search for tracks, albums and playlists on Spotify.\n" +
+                "To perform a search, you need to provide a search type followed by keywords.\n" +
+                "Example - Search for a Spotify track with the keywords \"Tesseract Exile\":\n" +
+                "%sp-search track Tesseract Exile\n" +
+                "Example - Search for a Spotify album with the keywords \"The Algorithm Brute Force\":\n" +
+                "%sp-search album The Algorithm Brute Force"
+    ),
+    Pair(
+        "%sp-info", "\n" +
+                "Showing help for %sp-info command:\n" +
+                "%sp-info shows information on a given track.\n" +
+                "Example - Get info on spotify track link:\n" +
+                "%sp-info https://open.spotify.com/track/2igwFfvr1OAGX9SKDCPBwO\n" +
+                "Example - Get info on spotify URI:\n" +
+                "%sp-info spotify:track:2igwFfvr1OAGX9SKDCPBwO"
     )
 )

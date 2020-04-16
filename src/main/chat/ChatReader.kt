@@ -15,7 +15,7 @@ class ChatReader(
     private var chatFile: File,
     private var onChatUpdateListener: ChatUpdateListener,
     private val apikey: String = "",
-    private val market: String = ""
+    market: String = ""
 ) : PlayStateListener {
 
     private var chatListenerThread: Thread
@@ -122,9 +122,6 @@ class ChatReader(
                     }
                 }
             } else {
-                //valid arguments for %queue-add and %queue-playnext commands
-                val validArgs = "s|p"
-
                 //parse and execute commands
                 when {
 
@@ -156,7 +153,7 @@ class ChatReader(
                     }
 
                     //%queue-add and %queue-playnext command
-                    commandString.contains("^%queue-(add|playnext)\\s*(\\s(-($validArgs)\\s)+(-?[0-9]+\\s+)?)?((\\[URL])?(https?://\\S+)(\\[/URL])?.+,?\\s*)|((\\[URL])?(spotify:(track|album|playlist):.+?,?\\s*)(\\[/URL])?)(\\s(-($validArgs)\\s)+(-?[0-9]+\\s+)?)?".toRegex()) -> {
+                    commandString.contains("^%queue-(add|playnext)(\\s+-(s|(p\\s+[0-9]+)))*(\\s*(\\[URL])?((spotify:(track|album|playlist):\\S+)|(https?://\\S+))(\\[/URL])?\\s*,?\\s*)+(\\s+-(s|(p\\s+[0-9]+)))*\$".toRegex()) -> {
 
                         val shouldPlayNext = commandString.contains("^%queue-playnext".toRegex())
                         var shouldShuffle = false
@@ -341,7 +338,7 @@ class ChatReader(
                         return true
                     }
 
-                    //queue-play command
+                    //%queue-play command
                     commandString.contains("^%queue-play$".toRegex()) -> {
                         if (songQueue.getQueue().isNotEmpty()) {
                             if (songQueue.queueActive()) {
@@ -368,8 +365,8 @@ class ChatReader(
                                 val queue = if (songQueue.getQueue().size <= 15) {
                                     songQueue.getQueue().toMutableList()
                                 } else {
-                                    if (message.substringAfter("%queue-list")
-                                            .contains(" -a") || message.substringAfter("%queue-list").contains(
+                                    if (commandString.substringAfter("%queue-list")
+                                            .contains(" -a") || commandString.substringAfter("%queue-list").contains(
                                             " --all"
                                         )
                                     ) {
@@ -514,7 +511,6 @@ class ChatReader(
                         runCommand("playerctl -p spotify previous && sleep 0.1 & playerctl -p spotify previous")
                         return true
                     }
-
                     //%sp-playsong command
                     //Play Spotify song based on link or URI
                     commandString.contains("^%sp-playsong\\s+".toRegex()) -> {
@@ -538,7 +534,6 @@ class ChatReader(
                             return false
                         }
                     }
-
                     //%sp-playlist command
                     //Play Spotify playlist based on link or URI
                     commandString.contains("^%sp-playlist\\s+".toRegex()) -> {
@@ -563,7 +558,6 @@ class ChatReader(
                         }
                         return true
                     }
-
                     //%sp-playalbum command
                     commandString.contains("^%sp-playalbum\\s+".toRegex()) -> {
                         if (message.split(" ".toRegex())[1].startsWith("spotify:album")) {
@@ -578,8 +572,6 @@ class ChatReader(
                         }
                         return true
                     }
-
-
                     //%sp-nowplaying command
                     commandString.contains("^%sp-nowplaying$".toRegex()) -> {
                         val lines = ArrayList<String>()
@@ -616,7 +608,6 @@ class ChatReader(
                         printToChat(userName, lines, apikey)
                         return true
                     }
-
                     //%sp-search command
                     commandString.contains("^%sp-search\\s+".toRegex()) -> {
 
