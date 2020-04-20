@@ -259,5 +259,88 @@ val helpMessages = hashMapOf(
                 "%sp-info https://open.spotify.com/track/2igwFfvr1OAGX9SKDCPBwO\n" +
                 "Example - Get info on spotify URI:\n" +
                 "%sp-info spotify:track:2igwFfvr1OAGX9SKDCPBwO"
+    ),
+    Pair(
+        "%yt-pause", "\n" +
+                "Showing help for %yt-pause command:\n" +
+                "%yt-pause pauses YouTube playback."
+    ),
+    Pair(
+        "%yt-resume", "\n" +
+                "Showing help for %yt-resume command:\n" +
+                "%yt-resume resumes YouTube playback."
+    ),
+    Pair(
+        "%yt-play", "\n" +
+                "Showing help for %yt-play command:\n" +
+                "%yt-play resumes YouTube playback if it was paused."
+    ),
+    Pair(
+        "%yt-stop", "\n" +
+                "Showing help for %yt-stop command:\n" +
+                "%yt-stop stops YouTube playback.\n" +
+                "This is different from %yt-pause command, because %yt-stop also exits the player,\n" +
+                "meaning the song can't be resumed."
+    ),
+    Pair(
+        "%yt-playsong", "\n" +
+                "Showing help for %yt-playsong command:\n" +
+                "%yt-playsong plays a song from YouTube.\n" +
+                "Example - Play a song from YouTube:\n" +
+                "%yt-playsong https://youtu.be/Pn2xd6_-baY\n" +
+                "Example - Play a song from YouTube:\n" +
+                "%yt-playsong https://www.youtube.com/watch?v=Pn2xd6_-baY"
+    ),
+    Pair(
+        "%yt-nowplaying", "\n" +
+                "Showing help for %yt-nowplaying command:\n" +
+                "%yt-nowplaying returns information on the currently playing YouTube track."
+    ),
+    Pair(
+        "%yt-search", "\n" +
+                "Showing help for %yt-search command:\n" +
+                "%yt-search can be used to search for tracks/videos and playlists on YouTube.\n" +
+                "When searching, you need to specify what type of search you are doing.\n" +
+                "Available search types:\n" +
+                "video    \tSearch for a YouTube video.\n" +
+                "track    \tSame as video.\n" +
+                "playlist    \tSearch for a YouTube playlist.\n" +
+                "Example - Search on YouTube for a video with the name \"Jinjer Pisces\":\n" +
+                "%yt-search track Jinjer Pisces\n" +
+                "Example 2:\n" +
+                "%yt-search video Jinjer Pisces"
+    ),
+    Pair(
+        "%sc-pause", "\n" +
+                "Showing help for %sc-pause command:\n" +
+                "%sc-pause pauses SoundCloud playback."
+    ),
+    Pair(
+        "%sc-resume", "\n" +
+                "Showing help for %sc-resume command:\n" +
+                "%sc-resume resumes SoundCloud playback."
+    ),
+    Pair(
+        "%sc-play", "\n" +
+                "Showing help for %sc-play command:\n" +
+                "%sc-play resumes SoundCloud playback if it was paused."
+    ),
+    Pair(
+        "%sc-stop", "\n" +
+                "Showing help for %sc-stop command:\n" +
+                "%sc-stop stops SoundCloud playback. This is different from %sc-pause,\n" +
+                "because %sc-stop also exits the player, which means that the song can't be resumed."
+    ),
+    Pair(
+        "%sc-playsong", "\n" +
+                "Showing help for %sc-playsong command:\n" +
+                "%sc-playsong plays a song from SoundCloud.\n" +
+                "Example - play a song from SoundCloud:\n" +
+                "%sc-playsong https://soundcloud.com/mrsuicidesheep/imagined-herbal-flows-clouds"
+    ),
+    Pair(
+        "%sc-nowplaying", "\n" +
+                "Showing help for %sc-nowplaying command:\n" +
+                "%sc-playsong returns information on the currently playing SoundCloud track."
     )
 )
