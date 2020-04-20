@@ -353,7 +353,7 @@ class ChatReader(
                         return true
                     }
                     //%queue-list command
-                    commandString.contains("^%queue-list$".toRegex()) -> {
+                    commandString.contains("^%queue-list\\s*".toRegex()) -> {
                         if (songQueue.queueActive()) {
                             printToChat(userName, listOf("Currently playing:\n${songQueue.nowPlaying().link}"), apikey)
                         }
@@ -410,35 +410,42 @@ class ChatReader(
                         return true
                     }
                     //%queue-move command
-                    commandString.contains("^%queue-move$".toRegex()) -> {
-                        val link = parseLink(message)
-                        if (message.substringAfter(" ").contains(" ") && message.substringAfter(" ")
-                                .split(" ".toRegex()).size == 2
-                        ) {
-                            val position = message.substringAfter(" ").split(" ".toRegex())[1].toInt()
-                            when {
-                                position > songQueue.getQueue().size - 1 -> {
-                                    printToChat(
-                                        userName,
-                                        listOf("lol u think arrays start at 1?"),
-                                        apikey
-                                    )
-                                    return false
+                    commandString.contains("^%queue-move\\s+".toRegex()) -> {
+                        val link = parseLink(commandString).substringBefore("?")
+                        var position = 0
+                        //parse arguments
+                        val args = commandString.split("\\s+".toRegex())
+                        for (i in args.indices){
+                            when{
+                                args[i].contains("(-p|--position)".toRegex()) -> {
+                                    if (args.size >= i + 1 && args[i + 1].contains("\\d+".toRegex())){
+                                        position = args[i + 1].toInt()
+                                    }
                                 }
+                            }
+                        }
+                        when {
+                            position > songQueue.getQueue().size - 1 -> {
+                                printToChat(
+                                    userName,
+                                    listOf("lol u think arrays start at 1?"),
+                                    apikey
+                                )
+                                return false
+                            }
 
-                                position < 0 -> {
-                                    printToChat(
-                                        userName,
-                                        listOf("What were you thinking?", "You can't do that."),
-                                        apikey
-                                    )
-                                    return false
-                                }
+                            position < 0 -> {
+                                printToChat(
+                                    userName,
+                                    listOf("What were you thinking?", "You can't do that."),
+                                    apikey
+                                )
+                                return false
+                            }
 
-                                else -> {
-                                    songQueue.moveTrack(link, position)
-                                    return true
-                                }
+                            else -> {
+                                songQueue.moveTrack(link, position)
+                                return true
                             }
                         }
                     }

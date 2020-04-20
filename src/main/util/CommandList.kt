@@ -152,8 +152,11 @@ val helpMessages = hashMapOf(
                 "Showing help for %queue-move command:\n" +
                 "%queue-move lets you move a song to a new position in the queue.\n" +
                 "Counting starts from 0, so the first song is at position 0, second is at 1 and so on.\n" +
+                "Available arguments:\n" +
+                "-p, --position <pos>    \tSet a position where to move the song.\n" +
                 "Example - Move a song to position 10\n" +
-                "%queue-move https://open.spotify.com/track/6H0zRPEV1ezBHOidNXSt1D 10"
+                "%queue-move https://open.spotify.com/track/6H0zRPEV1ezBHOidNXSt1D -p 10\n" +
+                "%queue-move https://open.spotify.com/track/6H0zRPEV1ezBHOidNXSt1D --position 10"
     ),
     Pair(
         "%queue-stop", "\n" +
