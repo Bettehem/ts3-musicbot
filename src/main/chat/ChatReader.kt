@@ -304,8 +304,8 @@ class ChatReader(
                                 link.contains("https?://soundcloud\\.com/".toRegex()) -> {
                                     //get link type
                                     val type = when {
-                                        link.contains("https?://soundcloud\\.com/".toRegex()) && !link.contains("/sets/".toRegex()) -> "track"
-                                        link.contains("https?://soundcloud\\.com/\\S+/sets/\\S+".toRegex()) -> "playlist"
+                                        link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/(?!sets)\\S+".toRegex()) -> "track"
+                                        link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/sets/\\S+".toRegex()) -> "playlist"
                                         else -> ""
                                     }
                                     println("SoundCloud link: $link\nLink type: $type")
@@ -471,15 +471,15 @@ class ChatReader(
                             val messageLines = ArrayList<String>()
                             messageLines.add("Now playing:")
                             if (currentTrack.album.isNotEmpty())
-                                messageLines.add("Album:\t${currentTrack.album}")
+                                messageLines.add("Album:  \t\t\t${currentTrack.album}")
                             if (currentTrack.artist.isNotEmpty()) {
                                 if (currentTrack.link.contains("soundcloud.com"))
-                                    messageLines.add("Uploader:   \t${currentTrack.artist}")
+                                    messageLines.add("Uploader: \t\t${currentTrack.artist}")
                                 else
-                                    messageLines.add("Artist:   \t${currentTrack.artist}")
+                                    messageLines.add("Artist:    \t\t\t${currentTrack.artist}")
                             }
-                            messageLines.add("Title:    \t${currentTrack.title}")
-                            messageLines.add("Link:  \t${currentTrack.link}")
+                            messageLines.add("Title:      \t\t\t${currentTrack.title}")
+                            messageLines.add("Link:      \t\t\t${currentTrack.link}")
                             printToChat(userName, messageLines, apikey)
                         } else {
                             printToChat(userName, listOf("No song playing!"), apikey)
