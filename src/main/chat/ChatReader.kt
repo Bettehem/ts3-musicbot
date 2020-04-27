@@ -15,7 +15,8 @@ class ChatReader(
     private var chatFile: File,
     private var onChatUpdateListener: ChatUpdateListener,
     private val apikey: String = "",
-    market: String = ""
+    market: String = "",
+    private val spotifyPlayer: String = "spotify"
 ) : PlayStateListener {
 
     private var chatListenerThread: Thread
@@ -24,7 +25,7 @@ class ChatReader(
     private val spotify = Spotify(market)
 
     @Volatile
-    private var songQueue = SongQueue(spotify)
+    private var songQueue = SongQueue(spotify, spotifyPlayer)
 
     init {
         //initialise spotify token
@@ -103,7 +104,7 @@ class ChatReader(
                         command.contains("\\s+&{2}\\s+%[a-z]+(-?[a-z])".toRegex()) -> {
                             //run commands
                             for (cmd in command.split("\\s+&{2}\\s+".toRegex())) {
-                                if (parseLine(userName, message, cmd)) {
+                                if (parseLine(userName, message, cmd)) { 
                                     //command was successful, continue to next command
                                     continue
                                 } else {
@@ -500,22 +501,22 @@ class ChatReader(
 
                     //%sp-pause command
                     commandString.contains("^%sp-pause$".toRegex()) -> {
-                        runCommand("playerctl -p spotify pause && sleep 1")
+                        runCommand("playerctl -p $spotifyPlayer pause && sleep 1")
                         return true
                     }
                     //%sp-resume & %sp-play command
                     commandString.contains("^%sp-(resume|play)$".toRegex()) -> {
-                        runCommand("playerctl -p spotify play && sleep 1")
+                        runCommand("playerctl -p $spotifyPlayer play && sleep 1")
                         return true
                     }
                     //%sp-skip & %sp-next command
                     commandString.contains("^%sp-(skip|next)$".toRegex()) -> {
-                        runCommand("playerctl -p spotify next && sleep 1")
+                        runCommand("playerctl -p $spotifyPlayer next && sleep 1")
                         return true
                     }
                     //%sp-prev command
                     commandString.contains("^%sp-prev$".toRegex()) -> {
-                        runCommand("playerctl -p spotify previous && sleep 0.1 & playerctl -p spotify previous")
+                        runCommand("playerctl -p $spotifyPlayer previous && sleep 0.1 & playerctl -p $spotifyPlayer previous")
                         return true
                     }
                     //%sp-playsong command
@@ -524,13 +525,13 @@ class ChatReader(
                         if (message.substringAfter("%sp-playsong").isNotEmpty()) {
                             if (parseLink(message).startsWith("https://open.spotify.com/track")) {
                                 runCommand(
-                                    "playerctl -p spotify open spotify:track:${parseLink(message).split("track/".toRegex())[1].split(
+                                    "playerctl -p $spotifyPlayer open spotify:track:${parseLink(message).split("track/".toRegex())[1].split(
                                         "\\?si=".toRegex()
                                     )[0]}"
                                 )
                             } else {
                                 runCommand(
-                                    "playerctl -p spotify open spotify:track:${message.split(" ".toRegex())[1].split(
+                                    "playerctl -p $spotifyPlayer open spotify:track:${message.split(" ".toRegex())[1].split(
                                         "track:".toRegex()
                                     )[1]}"
                                 )
@@ -549,15 +550,15 @@ class ChatReader(
                             )
                         ) {
                             runCommand(
-                                "playerctl -p spotify open spotify:user:${message.split(" ".toRegex())[1].split(":".toRegex())[2]}:playlist:${message.split(
+                                "playerctl -p $spotifyPlayer open spotify:user:${message.split(" ".toRegex())[1].split(":".toRegex())[2]}:playlist:${message.split(
                                     ":".toRegex()
                                 ).last()}"
                             )
                         } else if (message.split(" ".toRegex())[1].startsWith("spotify:playlist")) {
-                            runCommand("playerctl -p spotify open spotify:playlist:${message.substringAfter("playlist:")}")
+                            runCommand("playerctl -p $spotifyPlayer open spotify:playlist:${message.substringAfter("playlist:")}")
                         } else if (parseLink(message).startsWith("https://open.spotify.com/")) {
                             runCommand(
-                                "playerctl -p spotify open spotify:playlist:${parseLink(message).substringAfter("playlist/")
+                                "playerctl -p $spotifyPlayer open spotify:playlist:${parseLink(message).substringAfter("playlist/")
                                     .substringBefore(
                                         "?"
                                     )}"
@@ -568,10 +569,10 @@ class ChatReader(
                     //%sp-playalbum command
                     commandString.contains("^%sp-playalbum\\s+".toRegex()) -> {
                         if (message.split(" ".toRegex())[1].startsWith("spotify:album")) {
-                            runCommand("playerctl -p spotify open spotify:album:${message.substringAfter("album:")}")
+                            runCommand("playerctl -p $spotifyPlayer open spotify:album:${message.substringAfter("album:")}")
                         } else if (parseLink(message).startsWith("https://open.spotify.com/")) {
                             runCommand(
-                                "playerctl -p spotify open spotify:album:${parseLink(message).substringAfter("album/")
+                                "playerctl -p $spotifyPlayer open spotify:album:${parseLink(message).substringAfter("album/")
                                     .substringBefore(
                                         "?"
                                     )}"
@@ -583,7 +584,7 @@ class ChatReader(
                     commandString.contains("^%sp-nowplaying$".toRegex()) -> {
                         val lines = ArrayList<String>()
                         lines.add("Now playing on Spotify:")
-                        val nowPlaying = runCommand("playerctl -p spotify metadata").split("\n".toRegex())
+                        val nowPlaying = runCommand("playerctl -p $spotifyPlayer metadata").split("\n".toRegex())
                         for (line in nowPlaying) {
                             when (line.substringAfter("xesam:").split("\\s+".toRegex())[0]) {
                                 "album" -> lines.add(
@@ -1008,7 +1009,7 @@ class ChatReader(
 
     override fun onNewSongPlaying(player: String, track: String) {
         when (player) {
-            "spotify" -> {
+            "spotify", "ncspot" -> {
                 parseLine("", "%queue-nowplaying")
                 val spotifyTrack = spotify.getTrack(track)
                 println("Playing ${spotifyTrack.artist} - ${spotifyTrack.title}")

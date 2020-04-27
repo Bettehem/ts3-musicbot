@@ -8,7 +8,8 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.ArrayList
 
-class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
+class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPlayer: String = "spotify") :
+    PlayStateListener {
     @Volatile
     private var songQueue = Collections.synchronizedList(ArrayList<String>())
 
@@ -41,7 +42,7 @@ class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
                 if (shouldMonitorSp.get()) {
                     val lengthMicroseconds = try {
                         runCommand(
-                            "playerctl -p spotify metadata --format '{{ mpris:length }}'",
+                            "playerctl -p $spotifyPlayer metadata --format '{{ mpris:length }}'",
                             printOutput = false
                         ).toInt()
                     } catch (e: Exception) {
@@ -49,12 +50,15 @@ class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
                         0
                     }
                     val current =
-                        runCommand("playerctl -p spotify metadata --format '{{ xesam:url }}'", printOutput = false)
-                    val playerStatus = runCommand("playerctl -p spotify status", printOutput = false)
+                        runCommand(
+                            "playerctl -p $spotifyPlayer metadata --format '{{ xesam:url }}'",
+                            printOutput = false
+                        )
+                    val playerStatus = runCommand("playerctl -p $spotifyPlayer status", printOutput = false)
                     if (playerStatus == "Playing") {
                         //song is playing
 
-                        if (current == currentSong.substringBefore("?")) {
+                        if (current.substringAfterLast(":").substringBefore("?").substringAfterLast("/") == currentSong.substringAfterLast(":").substringBefore("?").substringAfterLast("/")) {
                             val minutes = lengthMicroseconds / 1000000 / 60
                             val seconds = lengthMicroseconds / 1000000 % 60
                             songLength = minutes * 60 + seconds
@@ -83,32 +87,35 @@ class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
                     } else {
                         //Song is paused/stopped
 
-                        if (current == currentSong.substringBefore("?")) {
+                        if (current.substringAfterLast(":").substringBefore("?")
+                                .substringAfterLast("/") == currentSong.substringAfterLast(":").substringBefore("?")
+                                .substringAfterLast("/")
+                        ) {
                             adNotified = false
                             if (songPosition >= songLength - 10) {
                                 //Song has ended
                                 Thread.sleep(380)
                                 songPosition = 0
                                 //shouldMonitorSp = false
-                                playStateListener.onSongEnded("spotify", currentSong)
+                                playStateListener.onSongEnded(spotifyPlayer, currentSong)
                             } else {
                                 //check if song position is 0
                                 if (songPosition == 0) {
                                     //start playback
 
                                     //spotify broken?
-                                    runCommand("playerctl -p spotify play")
+                                    runCommand("playerctl -p $spotifyPlayer play")
                                     Thread.sleep(1000)
                                     if (runCommand(
-                                            "playerctl -p spotify status",
+                                            "playerctl -p $spotifyPlayer status",
                                             printOutput = false
                                         ) != "Playing"
                                     ) {
-                                        runCommand("killall spotify && spotify &", printOutput = false)
+                                        runCommand("killall $spotifyPlayer && $spotifyPlayer &", printOutput = false)
                                         Thread.sleep(5000)
 
                                         runCommand(
-                                            "playerctl -p spotify open spotify:track:${
+                                            "playerctl -p $spotifyPlayer open spotify:track:${
                                             currentSong.substringAfter("spotify.com/track/")
                                                 .substringBefore("?")}", ignoreOutput = false
                                         )
@@ -269,7 +276,7 @@ class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
                 for (player in currentPlayers) {
                     when (player) {
                         "mpv" -> runCommand("playerctl -p mpv stop", ignoreOutput = true)
-                        "spotify" -> runCommand("playerctl -p spotify next", ignoreOutput = true)
+                        spotifyPlayer -> runCommand("playerctl -p $spotifyPlayer next", ignoreOutput = true)
                     }
                 }
             }
@@ -300,7 +307,7 @@ class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
      */
     fun resume() {
         when (currentSong.linkType) {
-            "spotify" -> runCommand("playerctl -p spotify play", printOutput = false, printErrors = false)
+            spotifyPlayer -> runCommand("playerctl -p $spotifyPlayer play", printOutput = false, printErrors = false)
             "youtube", "soundcloud" -> runCommand("playerctl -p mpv play", printOutput = false, printErrors = false)
         }
     }
@@ -310,7 +317,7 @@ class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
      */
     fun pause() {
         when (currentSong.linkType) {
-            "spotify" -> runCommand("playerctl -p spotify pause", printOutput = false, printErrors = false)
+            spotifyPlayer -> runCommand("playerctl -p $spotifyPlayer pause", printOutput = false, printErrors = false)
             "youtube", "soundcloud" -> runCommand("playerctl -p mpv pause", printOutput = false, printErrors = false)
         }
     }
@@ -339,8 +346,8 @@ class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
     //starts playing song queue
     fun playQueue(queueListener: PlayStateListener) {
         if (!queueActive()) {
-            runCommand("killall playerctl", printOutput = false)
-            runCommand("killall mpv", printOutput = false)
+            runCommand("killall playerctl", printOutput = false, ignoreOutput = true)
+            runCommand("killall mpv", printOutput = false, ignoreOutput = true)
         }
         synchronized(this) {
             if (songQueue.size >= 1) {
@@ -366,10 +373,10 @@ class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
             val spThread = Thread {
                 Runnable {
                     runCommand(
-                        "playerctl -p spotify open spotify:track:${songLink.substringAfter("spotify.com/track/")
+                        "playerctl -p $spotifyPlayer open spotify:track:${songLink.substringAfter("spotify.com/track/")
                             .substringBefore(
                                 "?"
-                            )}", ignoreOutput = false
+                            )}", ignoreOutput = true
                     )
                 }.run()
             }
@@ -377,19 +384,23 @@ class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
 
             //get current url from spotify player
             var currentUrl = runCommand(
-                "playerctl -p spotify metadata --format '{{ xesam:url }}'",
+                "playerctl -p $spotifyPlayer metadata --format '{{ xesam:url }}'",
                 printOutput = false,
                 printErrors = false
             )
 
             var adNotified = false
 
-            while (currentUrl != currentSong.substringBefore("?")) {
+            while (currentUrl.substringAfterLast(":").substringBefore("?")
+                    .substringAfterLast("/") != currentSong.substringAfterLast(":").substringBefore("?")
+                    .substringAfterLast("/")
+            ) {
                 //get player status
-                val playerStatus = runCommand("playerctl -p spotify status", printOutput = false, printErrors = false)
+                val playerStatus =
+                    runCommand("playerctl -p $spotifyPlayer status", printOutput = false, printErrors = false)
                 //get current url from spotify player
                 currentUrl = runCommand(
-                    "playerctl -p spotify metadata --format '{{ xesam:url }}'",
+                    "playerctl -p $spotifyPlayer metadata --format '{{ xesam:url }}'",
                     printOutput = false,
                     printErrors = false
                 )
@@ -398,14 +409,21 @@ class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
                     //start spotify
                     val spotifyLauncherThread = Thread {
                         Runnable {
-                            runCommand("spotify &", printOutput = false)
+                            when (spotifyPlayer) {
+                                "spotify" -> runCommand("$spotifyPlayer &", printOutput = false)
+                                "ncspot" -> runCommand(
+                                    "killall ncspot; \$TERMINAL -e \"ncspot\" &",
+                                    printOutput = false,
+                                    ignoreOutput = true
+                                )
+                            }
                         }.run()
                     }
                     spotifyLauncherThread.start()
                     while (!runCommand(
-                            "ps aux | grep spotify",
+                            "ps aux | grep $spotifyPlayer",
                             printOutput = false
-                        ).contains("--product-version=Spotify")
+                        ).contains("(--product-version=Spotify|ncspot)?".toRegex())
                     ) {
                         //do nothing
                     }
@@ -414,10 +432,10 @@ class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
                     val spThread2 = Thread {
                         Runnable {
                             runCommand(
-                                "playerctl -p spotify open spotify:track:${songLink.substringAfter("spotify.com/track/")
+                                "playerctl -p $spotifyPlayer open spotify:track:${songLink.substringAfter("spotify.com/track/")
                                     .substringBefore(
                                         "?"
-                                    )}", ignoreOutput = false
+                                    )} &", ignoreOutput = true
                             )
                         }.run()
                     }
@@ -430,8 +448,11 @@ class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
                     }
                 }
             }
-            if (currentUrl == currentSong.substringBefore("?")) {
-                onNewSongPlaying("spotify", currentSong)
+            if (currentUrl.substringAfterLast(":").substringBefore("?")
+                    .substringAfterLast("/") == currentSong.substringAfterLast(":").substringBefore("?")
+                    .substringAfterLast("/")
+            ) {
+                onNewSongPlaying(spotifyPlayer, currentSong)
                 songPosition = 0
                 shouldMonitorYt.set(false)
                 shouldMonitorSc.set(false)
@@ -442,8 +463,8 @@ class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
                 "https://www.youtube.com"
             )
         ) {
-            if (runCommand("playerctl -p spotify status") == "Playing")
-                runCommand("playerctl -p spotify pause")
+            if (runCommand("playerctl -p $spotifyPlayer status") == "Playing")
+                runCommand("playerctl -p $spotifyPlayer pause")
             currentSong = songLink
             synchronized(this) {
                 songQueue.remove(currentSong)
@@ -467,8 +488,8 @@ class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
             shouldMonitorSc.set(false)
             shouldMonitorYt.set(true)
         } else if (songLink.startsWith("https://soundcloud.com")) {
-            if (runCommand("playerctl -p spotify status") == "Playing")
-                runCommand("playerctl -p spotify pause")
+            if (runCommand("playerctl -p $spotifyPlayer status") == "Playing")
+                runCommand("playerctl -p $spotifyPlayer pause")
             currentSong = songLink
             synchronized(this) {
                 songQueue.remove(currentSong)
@@ -506,7 +527,7 @@ class SongQueue(private val spotify: Spotify = Spotify()) : PlayStateListener {
             shouldMonitorYt.set(false)
             shouldMonitorSp.set(false)
             shouldMonitorSc.set(false)
-            runCommand("playerctl -p spotify pause", printOutput = false)
+            runCommand("playerctl -p $spotifyPlayer pause", printOutput = false)
             runCommand("playerctl -p mpv stop", printOutput = false, printErrors = false)
             synchronized(this) {
                 playSong(songQueue[0])

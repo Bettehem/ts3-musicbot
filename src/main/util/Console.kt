@@ -59,6 +59,7 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener) {
         }
 
         runCommand("killall mpv", ignoreOutput = true)
+        runCommand("killall ncspot", ignoreOutput = true)
         consoleUpdateListener.onCommandIssued(command)
         exitProcess(0)
     }
