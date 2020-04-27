@@ -92,7 +92,7 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
                                 .substringAfterLast("/")
                         ) {
                             adNotified = false
-                            if (songPosition >= songLength - 10) {
+                            if (songPosition >= songLength - 10 || playerStatus == "Stopped") {
                                 //Song has ended
                                 Thread.sleep(380)
                                 songPosition = 0
