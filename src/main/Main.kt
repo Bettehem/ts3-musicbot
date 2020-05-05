@@ -230,7 +230,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                             if (update.message.startsWith("%"))
                                 print("\nUser ${update.userName} issued command \"${update.message}\"\nCommand: ")
                         }
-                    }, apiKey, market, spotifyPlayer)
+                    }, apiKey, market, spotifyPlayer, channelName, nickname)
                     chatReader.startReading()
                     println("Bot $nickname started listening to the chat in channel $channelName.")
 
@@ -631,7 +631,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 //start teamspeak
                 if (startTeamSpeak(settings)) {
                     //start reading chat
-                    chatReader = ChatReader(getChannelFile(settings), this, getSettings().apiKey)
+                    chatReader = ChatReader(getChannelFile(settings), this, getSettings().apiKey, channelName = getSettings().channelName, botName = getSettings().nickname)
                     if (chatReader.startReading()) {
                         statusTextView.text = "Status: Connected."
                         startBotButton.isManaged = false

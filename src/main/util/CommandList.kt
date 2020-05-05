@@ -10,6 +10,7 @@ val commandList =
                 "%queue-clear" +
                 "%queue-shuffle" +
                 "%queue-skip" +
+                "%queue-voteskip" +
                 "%queue-move" +
                 "%queue-stop" +
                 "%queue-status" +
@@ -55,6 +56,7 @@ val helpMessages = hashMapOf(
                 "%queue-clear                 -Clears the song queue\n" +
                 "%queue-shuffle               -Shuffles the queue\n" +
                 "%queue-skip                  -Skips current song\n" +
+                "%queue-voteskip              -Vote to skip the currently playing track. All users currently listening will also have to run %queue-voteskip for the track to be skipped.\n" +
                 "%queue-move <link> <pos>     -Moves a track to a desired position in the queue. <link> should be your song link and <pos> should be the new position of your song.\n" +
                 "%queue-stop                  -Stops the queue\n" +
                 "%queue-status                -Returns the status of the song queue\n" +
@@ -146,6 +148,12 @@ val helpMessages = hashMapOf(
         "%queue-skip", "\n" +
                 "Showing help for %queue-skip command:\n" +
                 "%queue-skip skips to the next song in the queue."
+    ),
+    Pair(
+        "%queue-voteskip", "\n" +
+                "Showing help for %queue-voteskip command:\n" +
+                "%queue-voteskip lets you vote to skip the currently playing track in the queue.\n" +
+                "All currently listening users will have to run %queue-voteskip too for the skip to happen."
     ),
     Pair(
         "%queue-move", "\n" +

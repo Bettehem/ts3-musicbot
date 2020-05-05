@@ -16,13 +16,16 @@ class ChatReader(
     private var onChatUpdateListener: ChatUpdateListener,
     private val apikey: String = "",
     market: String = "",
-    private val spotifyPlayer: String = "spotify"
+    private val spotifyPlayer: String = "spotify",
+    private val channelName: String,
+    private val botName: String
 ) : PlayStateListener {
 
     private var chatListenerThread: Thread
     private var shouldRead = false
     private var ytLink = ""
     private val spotify = Spotify(market)
+    private var voteSkipUsers = ArrayList<Pair<String, Boolean>>()
 
     @Volatile
     private var songQueue = SongQueue(spotify, spotifyPlayer)
@@ -104,7 +107,7 @@ class ChatReader(
                         command.contains("\\s+&{2}\\s+%[a-z]+(-?[a-z])".toRegex()) -> {
                             //run commands
                             for (cmd in command.split("\\s+&{2}\\s+".toRegex())) {
-                                if (parseLine(userName, message, cmd)) { 
+                                if (parseLine(userName, message, cmd)) {
                                     //command was successful, continue to next command
                                     continue
                                 } else {
@@ -410,16 +413,95 @@ class ChatReader(
                         songQueue.skipSong()
                         return true
                     }
+                    //%queue-voteskip command
+                    commandString.contains("^%queue-voteskip$".toRegex()) -> {
+                        val userList = ArrayList<String>()
+                        //get channel list
+                        val channelList = ArrayList<Pair<String, String>>()
+                        val tsChannelListData = runCommand(
+                            "(echo auth apikey=$apikey; echo \"channellist\"; echo quit) | nc localhost 25639",
+                            printOutput = false
+                        ).split("\n".toRegex())
+                        for (line in tsChannelListData) {
+                            if (line.contains("cid=".toRegex())) {
+                                val channelDataList = line.split("\\|".toRegex())
+                                for (channel in channelDataList) {
+                                    val channelData = channel.split(" ".toRegex())
+                                    channelList.add(
+                                        Pair(
+                                            channelData[3].split("=".toRegex())[1],
+                                            channelData[0].split("=".toRegex())[1]
+                                        )
+                                    )
+                                }
+                                break
+                            }
+                        }
+
+                        //get users in current channel
+                        for (channel in channelList) {
+                            if (channel.first == channelName.substringAfterLast("/")) {
+                                val tsUserListData =
+                                    runCommand("(echo auth apikey=$apikey; echo \"clientlist\"; echo quit) | nc localhost 25639").split(
+                                        "\n".toRegex()
+                                    )
+                                for (line in tsUserListData) {
+                                    if (line.contains("clid=".toRegex())) {
+                                        val clientDataList = line.split("\\|".toRegex())
+                                        for (data in clientDataList) {
+                                            if (data.split(" ".toRegex())[1].split("=".toRegex())[1] == channel.second) {
+                                                userList.add(data.split(" ".toRegex())[3].split("=".toRegex())[1])
+                                            }
+                                        }
+                                    }
+                                }
+                                break
+                            }
+                        }
+
+                        //update voteskip users list
+                        val currentList = voteSkipUsers.toList()
+                        val newList = ArrayList<Pair<String, Boolean>>()
+                        voteSkipUsers.clear()
+                        for (user in userList) {
+                            if (user != botName) {
+                                for (voteSkipUser in currentList) {
+                                    if (user == voteSkipUser.first) {
+                                        if (userName == user) {
+                                            newList.add(Pair(user, true))
+                                        } else {
+                                            newList.add(Pair(user, voteSkipUser.second))
+                                        }
+                                    }
+                                }
+                                if (currentList.isEmpty()) {
+                                    newList.add(Pair(user, userName == user))
+                                }
+                            }
+                        }
+                        voteSkipUsers.addAll(newList)
+                        if (voteSkipUsers.any { !it.second }) {
+                            printToChat(
+                                userName,
+                                listOf("\nAll users have not voted yet.\nWaiting for more votes..."),
+                                apikey
+                            )
+                        } else {
+                            printToChat(userName, listOf("Skipping current song."), apikey)
+                            voteSkipUsers.clear()
+                            songQueue.skipSong()
+                        }
+                    }
                     //%queue-move command
                     commandString.contains("^%queue-move\\s+".toRegex()) -> {
                         val link = parseLink(commandString).substringBefore("?")
                         var position = 0
                         //parse arguments
                         val args = commandString.split("\\s+".toRegex())
-                        for (i in args.indices){
-                            when{
+                        for (i in args.indices) {
+                            when {
                                 args[i].contains("(-p|--position)".toRegex()) -> {
-                                    if (args.size >= i + 1 && args[i + 1].contains("\\d+".toRegex())){
+                                    if (args.size >= i + 1 && args[i + 1].contains("\\d+".toRegex())) {
                                         position = args[i + 1].toInt()
                                     }
                                 }
