@@ -1033,14 +1033,14 @@ class ChatReader(
                 messageLines?.forEach { stringBuffer.append(it + "\n") }
                 val distro = runCommand("cat /etc/issue", printOutput = false)
                 val command = when {
-                    distro.contains("Ubuntu 16.04") -> {
+                    distro.contains("Ubuntu 16.04".toRegex()) -> {
                         "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${stringBuffer.toString()
                             .replace(
                                 " ",
                                 "\\\\\\s"
                             ).replace("\n", "\\\\\\n").replace("/", "\\/").replace("|", "\\\\p").replace("'", "\\\\'").replace(
                                 "\"",
-                                "\\\\\""
+                                "\\\""
                             ).replace("&quot;", "\\\""
                             ).replace("$", "\\\\$")}\"; echo quit) | nc localhost 25639"
                     }
