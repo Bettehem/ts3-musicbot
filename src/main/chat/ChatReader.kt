@@ -1031,17 +1031,33 @@ class ChatReader(
             if (apikey.isNotEmpty()) {
                 val stringBuffer = StringBuffer()
                 messageLines?.forEach { stringBuffer.append(it + "\n") }
-                runCommand(
-                    "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${stringBuffer.toString()
-                        .replace(
-                            " ",
-                            "\\s"
-                        ).replace("\n", "\\n").replace("/", "\\/").replace("|", "\\p").replace("'", "\\'").replace(
-                            "\"",
-                            "\\\""
-                        ).replace("$", "\\$")}\"; echo quit) | nc localhost 25639",
-                    printOutput = false
-                )
+                val distro = runCommand("cat /etc/issue", printOutput = false)
+                val command = when {
+                    distro.contains("Ubuntu 16.04") -> {
+                        "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${stringBuffer.toString()
+                            .replace(
+                                " ",
+                                "\\\\\\s"
+                            ).replace("\n", "\\\\\\n").replace("/", "\\/").replace("|", "\\\\p").replace("'", "\\\\'").replace(
+                                "\"",
+                                "\\\\\""
+                            ).replace("&quot;", "\\\""
+                            ).replace("$", "\\\\$")}\"; echo quit) | nc localhost 25639"
+                    }
+
+                    else -> {
+                        "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${stringBuffer.toString()
+                            .replace(
+                                " ",
+                                "\\s"
+                            ).replace("\n", "\\n").replace("/", "\\/").replace("|", "\\p").replace("'", "\\'").replace(
+                                "\"",
+                                "\\\""
+                            ).replace("&quot;", "\\\""
+                            ).replace("$", "\\$")}\"; echo quit) | nc localhost 25639"
+                    }
+                }
+                runCommand(command, printOutput = false)
             }
         }
     }
