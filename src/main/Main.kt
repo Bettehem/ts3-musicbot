@@ -74,6 +74,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 var channelName = ""
                 var channelFilename = ""
                 var market = ""
+                var configFile = ""
                 var spotifyPlayer = "spotify"
 
                 val helpMessage = "\n" +
@@ -90,7 +91,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         "-m, --market           Specify a market/country for Spotify.\n" +
                         "--ncspot               Use ncspot as the Spotify player (Requires Spotify Premium).\n" +
                         "                       Before starting the bot, you also need to export your terminal app of preference as \$TERMINAL.\n" +
-                        "                       Example: export TERMINAL=xfce4-terminal"
+                        "                       Example: export TERMINAL=xfce4-terminal\n" +
+                        "--config               provide a config file where to read arguments from"
 
                 //go through given arguments and save them
                 for (argPos in args.indices) {
@@ -134,9 +136,25 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         }
                         "--ncspot" -> {
                             if (args.size >= argPos + 1)
-                               spotifyPlayer = "ncspot" 
+                                spotifyPlayer = "ncspot"
+                        }
+                        "--config" -> {
+                            if (args.size >= argPos + 1)
+                                configFile = args[argPos + 1]
                         }
                     }
+                }
+
+                if (configFile.isNotEmpty()){
+                    val settings: BotSettings? = loadSettings(File(configFile))
+                    apiKey = settings?.apiKey!!
+                    serverAddress = settings.serverAddress
+                    serverPort = settings.serverPort
+                    nickname = settings.nickname
+                    serverPassword = settings.serverPassword
+                    channelName = settings.channelName
+                    channelFilename = settings.channelFilePath
+                    market = settings.market
                 }
 
                 //connect to desired server and channel, after which find the server's channel file and start listening for commands
@@ -240,7 +258,19 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                                 chatReader.parseLine("__console__", command)
                             else {
                                 when (command) {
-                                    "save-settings" -> saveSettings(showGui = false)
+                                    "save-settings" -> {
+                                        val settings = BotSettings(
+                                            apiKey,
+                                            serverAddress,
+                                            serverPort,
+                                            serverPassword,
+                                            channelName,
+                                            channelFilename,
+                                            nickname,
+                                            market
+                                        )
+                                        saveSettings(settings, showGui = false)
+                                    }
                                 }
                             }
                         }
@@ -631,7 +661,13 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 //start teamspeak
                 if (startTeamSpeak(settings)) {
                     //start reading chat
-                    chatReader = ChatReader(getChannelFile(settings), this, getSettings().apiKey, channelName = getSettings().channelName, botName = getSettings().nickname)
+                    chatReader = ChatReader(
+                        getChannelFile(settings),
+                        this,
+                        getSettings().apiKey,
+                        channelName = getSettings().channelName,
+                        botName = getSettings().nickname
+                    )
                     if (chatReader.startReading()) {
                         statusTextView.text = "Status: Connected."
                         startBotButton.isManaged = false
