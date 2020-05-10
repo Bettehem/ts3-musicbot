@@ -45,7 +45,7 @@ class YouTube {
             )
             val rawResponse = sendHttpRequest(url, requestMethod, properties)
             return try {
-                JSONObject(rawResponse)
+                JSONObject(rawResponse.second)
             }catch (e: Exception){
                 JSONObject("{pageInfo: {totalResults: 0}, items: []}")
             }
@@ -134,7 +134,7 @@ class YouTube {
             "User-Agent: Mozilla/5.0"
         )
         val rawResponse = sendHttpRequest(url, requestMethod, properties)
-        val response = JSONObject(rawResponse)
+        val response = JSONObject(rawResponse.second)
         val searchResult = StringBuilder()
 
         when (searchType) {

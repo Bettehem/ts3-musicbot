@@ -44,7 +44,7 @@ val commandList =
                 "%sc-nowplaying"
     )
 
-val helpMessages = hashMapOf(
+val helpMessages = mapOf(
     Pair(
         "%help", "\n" +
                 "General commands:\n" +

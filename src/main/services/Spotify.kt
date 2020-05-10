@@ -25,7 +25,7 @@ class Spotify(private val market: String = "") {
         )
         val data = arrayOf("grant_type=client_credentials")
         val rawResponse = sendHttpRequest(url, requestMethod, properties, data)
-        val response = JSONObject(rawResponse)
+        val response = JSONObject(rawResponse.second)
         return response.getString("access_token")
     }
 
@@ -49,7 +49,7 @@ class Spotify(private val market: String = "") {
                 "User-Agent: Mozilla/5.0"
             )
             val rawResponse = sendHttpRequest(url, requestMethod, properties)
-            return if (rawResponse.isNotEmpty()) {
+            return if (rawResponse.second.isNotEmpty()) {
                 JSONObject(rawResponse)
             } else {
                 JSONObject("{ \"error\": { \"status\": 401, \"message\": \"The access token expired\" } }")
@@ -182,7 +182,7 @@ class Spotify(private val market: String = "") {
                 "User-Agent: Mozilla/5.0"
             )
             val rawResponse = sendHttpRequest(url, requestMethod, properties)
-            return if (rawResponse.isNotEmpty())
+            return if (rawResponse.second.isNotEmpty())
                 JSONObject(rawResponse)
             else
                 JSONObject("{ \"error\": { \"status\": 401, \"message\": \"The access token expired\" } }")
@@ -219,7 +219,7 @@ class Spotify(private val market: String = "") {
                         "User-Agent: Mozilla/5.0"
                     )
                     val listRawResponse = sendHttpRequest(listUrl, listRequestMethod, listProperties)
-                    return if (listRawResponse.isNotEmpty()) {
+                    return if (listRawResponse.second.isNotEmpty()) {
                         JSONObject(listRawResponse)
                     } else {
                         JSONObject("{ \"error\": { \"status\": 401, \"message\": \"The access token expired\" } }")
@@ -315,7 +315,7 @@ class Spotify(private val market: String = "") {
                 "User-Agent: Mozilla/5.0"
             )
             val rawResponse = sendHttpRequest(url, requestMethod, properties)
-            return if (rawResponse.isNotEmpty())
+            return if (rawResponse.second.isNotEmpty())
                 JSONObject(rawResponse)
             else
                 JSONObject("{ \"error\": { \"status\": 401, \"message\": \"The access token expired\" } }")
@@ -357,7 +357,7 @@ class Spotify(private val market: String = "") {
                         "User-Agent: Mozilla/5.0"
                     )
                     val albumRawResponse = sendHttpRequest(albumUrl, albumRequestMethod, albumProperties)
-                    return if (albumRawResponse.isNotEmpty())
+                    return if (albumRawResponse.second.isNotEmpty())
                         JSONObject(albumRawResponse)
                     else
                         JSONObject("{ \"error\": { \"status\": 401, \"message\": \"The access token expired\" } }")
@@ -430,7 +430,7 @@ class Spotify(private val market: String = "") {
                 "User-Agent: Mozilla/5.0"
             )
             val rawResponse = sendHttpRequest(url, requestMethod, properties)
-            return if (rawResponse.isNotEmpty())
+            return if (rawResponse.second.isNotEmpty())
                 JSONObject(rawResponse)
             else
                 JSONObject("{ \"error\": { \"status\": 401, \"message\": \"The access token expired\" } }")

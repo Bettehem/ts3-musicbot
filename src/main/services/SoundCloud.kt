@@ -1,55 +1,33 @@
 package src.main.services
 
 import org.json.JSONObject
+import src.main.util.runCommand
 import src.main.util.sendHttpRequest
+import java.net.HttpURLConnection
 import java.net.URL
 
 class SoundCloud {
-    private val clientId = "7jmNkIpPjgR8GNweCuKnUywa81GQsSGT"
+    private var clientId = "dp8jYbqmo9I3kJhH02V2UjpLbmMgwbN5"
 
-
-    /*
-    // youtube-dl way of getting track info
-    //TODO delete getSongIfo and getTracks if not needed
-
-    fun getSongInfo(link: String): Track {
-        return try {
-            val jsonData = JSONObject(runCommand("youtube-dl --no-playlist -i -j $link 2> /dev/null", printOutput = false))
-            Track(album = "", artist = jsonData.getString("uploader"), title = jsonData.getString("title"), link = link)
-        }catch (e: Exception){
-            Track(album = "", artist = "", title = "", link = link)
-        }
-    }
-
-    //gets info on track(s) based on SoundCloud song/playlist link
-    fun getTracks(link: String): ArrayList<Track> {
-        val trackList = ArrayList<Track>()
-        val data = JSONObject(runCommand("youtube-dl -i -J $link 2> /dev/null", printOutput = false))
-        try {
-            if (data.getString("_type")!!.contentEquals("playlist")) {
-                val list = data.getJSONArray("entries")
-                for (item in list) {
-                    try {
-                        item as JSONObject
-                        trackList.add(
-                            Track(
-                                "",
-                                item.getString("uploader"),
-                                item.getString("title"),
-                                item.getString("webpage_url")
-                            )
-                        )
-                    } catch (e: Exception) {
-
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            trackList.add(getSongInfo(link))
-        }
-        return trackList
-    }
+    /**
+     * Updates the clientId
      */
+    private fun updateId() {
+        println("Updating SoundCloud ClientId")
+        val lines = runCommand(
+            "curl https://soundcloud.com 2> /dev/null | grep -E \"<script crossorigin src=\\\"https:\\/\\/\\S*\\.js\\\"></script>\"",
+            printOutput = false
+        ).split("\n")
+        for (line in lines) {
+            val url = line.substringAfter("\"").substringBefore("\"")
+            val data = runCommand("curl $url 2> /dev/null | grep \"client_id=\"", printOutput = false)
+            if (data.isNotEmpty()) {
+                val id = data.substringAfter("client_id=").substringBefore("&")
+                clientId = id
+                break
+            }
+        }
+    }
 
     /**
      * Get tracks from a SoundCloud playlist
@@ -57,7 +35,7 @@ class SoundCloud {
      * @return returns an ArrayList containing the playlist's tracks as Track objects
      */
     fun getPlaylistTracks(link: String): ArrayList<Track> {
-        return try {
+        fun getTracks(): Pair<Int, String> {
             val id = resolveId(link)
 
             val urlBuilder = StringBuilder()
@@ -70,26 +48,41 @@ class SoundCloud {
                 "Content-Type: application/x-www-form-urlencoded",
                 "User-Agent: Mozilla/5.0"
             )
-            val rawResponse = sendHttpRequest(url, requestMethod, properties)
-            val response = JSONObject(rawResponse)
-            val tracks = response.getJSONArray("tracks")
-            if (tracks.length() > 50){
-                println("This playlist has ${tracks.length()} tracks. Please wait...")
-            }
+            return sendHttpRequest(url, requestMethod, properties)
+        }
 
-            val trackList = ArrayList<Track>()
-            for (item in tracks) {
-                item as JSONObject
-                try {
-                    trackList.add(getTrack("https://api.soundcloud.com/tracks/${item.getInt("id")}"))
-                } catch (e: Exception) {
-                    trackList.add(Track.Empty)
+        val trackList = ArrayList<Track>()
+        var gettingData = true
+        while (gettingData) {
+            val trackData = getTracks()
+            when (trackData.first) {
+                HttpURLConnection.HTTP_OK -> {
+                    gettingData = false
+                    try {
+                        val tracks = JSONObject(trackData.second).getJSONArray("tracks")
+                        if (tracks.length() > 50) {
+                            println("This playlist has ${tracks.length()} tracks. Please wait...")
+                        }
+                        for (item in tracks) {
+                            item as JSONObject
+                            try {
+                                trackList.add(getTrack("https://api.soundcloud.com/tracks/${item.getInt("id")}"))
+                            } catch (e: Exception) {
+                                trackList.add(Track.Empty)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+                HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                    updateId()
+                }
+                else -> {
                 }
             }
-            trackList
-        } catch (e: Exception) {
-            ArrayList()
         }
+        return trackList
     }
 
     /**
@@ -117,7 +110,7 @@ class SoundCloud {
                 "User-Agent: Mozilla/5.0"
             )
             val rawResponse = sendHttpRequest(url, requestMethod, properties)
-            val response = JSONObject(rawResponse)
+            val response = JSONObject(rawResponse.second)
 
             Track(
                 "",
@@ -136,21 +129,37 @@ class SoundCloud {
      * @return returns the corresponding id for the given link as a String
      */
     private fun resolveId(link: String): String {
-        val urlBuilder = StringBuilder()
-        urlBuilder.append("https://api-v2.soundcloud.com/resolve?")
-        urlBuilder.append("client_id=$clientId")
-        urlBuilder.append("&url=$link")
-        val url = URL(urlBuilder.toString())
-        val requestMethod = "GET"
-        val properties = arrayOf(
-            "Content-Type: application/x-www-form-urlencoded",
-            "User-Agent: Mozilla/5.0"
-        )
-        val rawResponse = sendHttpRequest(url, requestMethod, properties)
-        val response = JSONObject(rawResponse)
-
-
-        return response.getInt("id").toString()
+        fun getId(): Pair<Int, String> {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("https://api-v2.soundcloud.com/resolve?")
+            urlBuilder.append("client_id=$clientId")
+            urlBuilder.append("&url=$link")
+            val url = URL(urlBuilder.toString())
+            val requestMethod = "GET"
+            val properties = arrayOf(
+                "Content-Type: application/x-www-form-urlencoded",
+                "User-Agent: Mozilla/5.0"
+            )
+            return sendHttpRequest(url, requestMethod, properties)
+        }
+        var id = ""
+        var gettingData = true
+        while (gettingData) {
+            val idData = getId()
+            when (idData.first) {
+                HttpURLConnection.HTTP_OK -> {
+                    id = JSONObject(idData.second).getInt("id").toString()
+                    gettingData = false
+                }
+                HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                    updateId()
+                }
+                else -> {
+                    println("Error: code ")
+                }
+            }
+        }
+        return id
     }
 }
 
