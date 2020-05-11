@@ -1,4 +1,4 @@
-package src.main
+package ts3_musicbot
 
 import javafx.application.Application
 import javafx.event.ActionEvent

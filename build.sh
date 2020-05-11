@@ -4,7 +4,7 @@ echo "Building..."
 # Make dir for ts3 musicbot .jar file
 mkdir -p out/artifacts/ts3_musicbot
 # Build ts3 music bot
-kotlinc -cp $(echo lib/*.jar | tr " " ":") -include-runtime src -d out/artifacts/ts3_musicbot/ts3-musicbot.jar 
+kotlinc -cp $(echo lib/*.jar | tr " " ":") -include-runtime src/main -d out/artifacts/ts3_musicbot/ts3-musicbot.jar
 echo "Adding manifest file..."
 # Add manifest file
 jar -ufm out/artifacts/ts3_musicbot/ts3-musicbot.jar src/META-INF/MANIFEST.MF 2> /dev/null

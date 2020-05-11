@@ -4,6 +4,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import src.main.util.sendHttpRequest
+import java.net.HttpURLConnection
 import java.net.URL
 
 class Spotify(private val market: String = "") {
@@ -409,7 +410,7 @@ class Spotify(private val market: String = "") {
 
     fun getTrack(trackLink: String): Track {
 
-        fun getTrackData(): JSONObject {
+        fun getTrackData(): Pair<Int, String> {
             val urlBuilder = StringBuilder()
             urlBuilder.append("https://api.spotify.com/v1/tracks/")
             urlBuilder.append(
@@ -429,11 +430,7 @@ class Spotify(private val market: String = "") {
                 "Content-Type: application/x-www-form-urlencoded",
                 "User-Agent: Mozilla/5.0"
             )
-            val rawResponse = sendHttpRequest(url, requestMethod, properties)
-            return if (rawResponse.second.isNotEmpty())
-                JSONObject(rawResponse.second)
-            else
-                JSONObject("{ \"error\": { \"status\": 401, \"message\": \"The access token expired\" } }")
+            return sendHttpRequest(url, requestMethod, properties)
         }
 
         fun parseData(trackData: JSONObject): Track {
@@ -459,15 +456,22 @@ class Spotify(private val market: String = "") {
 
         var track: Track = Track.Empty
         var gettingData = true
-        while (gettingData) {
+        gettingData@ while (gettingData) {
             val trackData = getTrackData()
-            //check token
-            if (trackData.has("error") && trackData.getJSONObject("error").getInt("status") == 401) {
-                //token expired, update it
-                updateToken()
-            } else {
-                track = parseData(trackData)
-                gettingData = false
+            when (trackData.first){
+                HttpURLConnection.HTTP_OK -> {
+                    try {
+                        track = parseData(JSONObject(trackData.second))
+                        gettingData = false
+                    }catch (e: JSONException){
+                        //json is messed up, try again
+                        println("JSON broken. Trying again...")
+                        continue@gettingData
+                    }
+                }
+                HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                    updateToken()
+                }
             }
         }
         return track

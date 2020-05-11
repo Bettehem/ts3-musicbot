@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/TS3_Music_Bot.iml" filepath="$PROJECT_DIR$/TS3_Music_Bot.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/ts3-musicbot.iml" filepath="$PROJECT_DIR$/.idea/ts3-musicbot.iml" />
     </modules>
   </component>
 </project>
