@@ -51,7 +51,7 @@ class Spotify(private val market: String = "") {
             )
             val rawResponse = sendHttpRequest(url, requestMethod, properties)
             return if (rawResponse.second.isNotEmpty()) {
-                JSONObject(rawResponse)
+                JSONObject(rawResponse.second)
             } else {
                 JSONObject("{ \"error\": { \"status\": 401, \"message\": \"The access token expired\" } }")
             }
