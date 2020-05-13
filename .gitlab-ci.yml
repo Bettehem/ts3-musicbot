@@ -1,8 +1,9 @@
 image: "gradle:jdk8"
 
 before_script:
-  - apt-get install snapd
-  - snap install --classic kotlin
+  - curl -s https://get.sdkman.io | bash
+  - source "$HOME/.sdkman/bin/sdkman-init.sh"
+  - sdk install kotlin
 
 build:
   script:
