@@ -1,9 +1,9 @@
-package src.main.util
+package ts3_musicbot.util
 
-import src.main.services.SoundCloud
-import src.main.services.Spotify
-import src.main.services.Track
-import src.main.services.YouTube
+import ts3_musicbot.services.SoundCloud
+import ts3_musicbot.services.Spotify
+import ts3_musicbot.services.Track
+import ts3_musicbot.services.YouTube
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.ArrayList

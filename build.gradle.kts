@@ -17,6 +17,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
 
     implementation("org.json:json:+")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.6")
 }
 
 application {

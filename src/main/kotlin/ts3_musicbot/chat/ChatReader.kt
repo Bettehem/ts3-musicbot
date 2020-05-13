@@ -1,10 +1,11 @@
-package src.main.chat
+package ts3_musicbot.chat
 
-import src.main.services.SoundCloud
-import src.main.services.Spotify
-import src.main.services.Track
-import src.main.services.YouTube
-import src.main.util.*
+import ts3_musicbot.services.SoundCloud
+import ts3_musicbot.services.Spotify
+import ts3_musicbot.services.YouTube
+import ts3_musicbot.util.*
+import ts3_musicbot.util.commandList
+import ts3_musicbot.util.helpMessages
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files

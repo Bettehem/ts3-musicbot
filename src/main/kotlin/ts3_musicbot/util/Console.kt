@@ -1,4 +1,4 @@
-package src.main.util
+package ts3_musicbot.util
 
 import kotlin.system.exitProcess
 

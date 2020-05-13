@@ -1,0 +1,5 @@
+image: "gradle:jdk8"
+
+build:
+  script:
+    - gradle build

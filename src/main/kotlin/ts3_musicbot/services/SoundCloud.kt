@@ -1,8 +1,9 @@
-package src.main.services
+package ts3_musicbot.services
 
 import org.json.JSONObject
-import src.main.util.runCommand
-import src.main.util.sendHttpRequest
+import ts3_musicbot.services.Track
+import ts3_musicbot.util.runCommand
+import ts3_musicbot.util.sendHttpRequest
 import java.net.HttpURLConnection
 import java.net.URL
 

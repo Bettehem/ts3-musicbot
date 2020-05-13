@@ -1,4 +1,4 @@
-package src.main.util
+package ts3_musicbot.util
 
 /*
     Copyright 2016  Chris Mustola

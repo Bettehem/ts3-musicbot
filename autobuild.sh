@@ -7,7 +7,7 @@
 
 
 #First set the BUILD_DIR and HOST_ADDR variables, for example:
-#export JAR_FILE=out/artifacts/ts3_musicboti/ts3-musicbot.jar
+#export JAR_FILE=out/artifacts/ts3_musicbot/ts3-musicbot.jar
 #export HOST_ADDR=user@cooladdress.com:~/cooldirectory/.
 
 ###

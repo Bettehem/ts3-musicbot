@@ -1,4 +1,4 @@
-package src.main.services
+package ts3_musicbot.services
 
 open class Track(var album: String, var artist: String, var title: String, var link: String, var isPlayable: Boolean = true){
     object Empty : Track("", "", "", "")
