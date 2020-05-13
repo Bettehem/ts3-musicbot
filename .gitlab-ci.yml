@@ -1,7 +1,7 @@
 image: "archlinux"
 
 before_script:
-  - pacman -Sy kotlin gradle jdk8-openjdk java8-openjfx --noconfirm
+  - pacman -Sy kotlin gradle jdk8-openjdk java8-openjfx youtube-dl --noconfirm
 
 stages:
   - build
