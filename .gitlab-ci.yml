@@ -1,7 +1,7 @@
 image: "gradle:jdk8"
 
 before_script:
-  - apt-get install curl
+  - apt-get install snapd
   - snap install --classic kotlin
 
 build:
