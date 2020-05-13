@@ -3,7 +3,6 @@ package ts3_musicbot.services
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
-import ts3_musicbot.services.Track
 import ts3_musicbot.util.sendHttpRequest
 import java.net.HttpURLConnection
 import java.net.URL
@@ -243,9 +242,13 @@ class Spotify(private val market: String = "") {
                                         } else {
                                             item.getJSONObject("track").getJSONObject("album").getString("name")
                                         }
-                                        val artist = item.getJSONObject("track").getJSONArray("artists")
-                                            .forEach { it as JSONObject; StringBuilder().append("${it.getString("name")},") }
-                                            .toString().substringBeforeLast(",")
+                                        val artistList = item.getJSONObject("track").getJSONArray("artists")
+                                        val artistBuilder = StringBuilder()
+                                        for (artistJSON in artistList) {
+                                            artistJSON as JSONObject
+                                            artistBuilder.append(artistJSON.getString("name") + ",")
+                                        }
+                                        val artist = artistBuilder.toString().substringBeforeLast(",")
                                         val title = item.getJSONObject("track").getString("name")
                                         val link =
                                             item.getJSONObject("track").getJSONObject("external_urls")
@@ -368,9 +371,13 @@ class Spotify(private val market: String = "") {
                 fun parseItems(items: JSONArray) {
                     for (item in items) {
                         item as JSONObject
-                        val artist = item.getJSONArray("artists")
-                            .forEach { it as JSONObject; StringBuilder().append("${it.getString("name")},") }.toString()
-                            .substringBeforeLast(",")
+                        val artistList = item.getJSONArray("artists")
+                        val artistBuilder = StringBuilder()
+                        for (artistJSON in artistList){
+                            artistJSON as JSONObject
+                            artistBuilder.append(artistJSON.getString("name") + ",")
+                        }
+                        val artist = artistBuilder.toString().substringBeforeLast(",")
                         val title = item.getString("name")
                         val link = item.getJSONObject("external_urls").getString("spotify")
                         val isPlayable = if (market.isNotEmpty()) {
@@ -459,12 +466,12 @@ class Spotify(private val market: String = "") {
         var gettingData = true
         gettingData@ while (gettingData) {
             val trackData = getTrackData()
-            when (trackData.first){
+            when (trackData.first) {
                 HttpURLConnection.HTTP_OK -> {
                     try {
                         track = parseData(JSONObject(trackData.second))
                         gettingData = false
-                    }catch (e: JSONException){
+                    } catch (e: JSONException) {
                         //json is messed up, try again
                         println("JSON broken. Trying again...")
                         continue@gettingData

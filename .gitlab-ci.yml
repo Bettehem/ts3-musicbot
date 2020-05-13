@@ -3,6 +3,17 @@ image: "archlinux"
 before_script:
   - pacman -Sy kotlin gradle jdk8-openjdk java8-openjfx --noconfirm
 
-build:
+stages:
+  - build
+  - test
+
+buildTS3MusicBot:
+  stage: build
   script:
     - gradle build
+
+
+testSpotify:
+  stage: test
+  script:
+    - gradle :test --tests "ts3_musicbot.SpotifyTest"
