@@ -1,10 +1,7 @@
-image: "gradle:jdk8"
+image: "archlinux"
 
 before_script:
-  - apt-get install zip
-  - curl -s https://get.sdkman.io | bash
-  - source "$HOME/.sdkman/bin/sdkman-init.sh"
-  - sdk install kotlin
+  - pacman -S kotlin gradle jdk8-openjdk java8-openjfx
 
 build:
   script:
