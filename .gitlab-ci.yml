@@ -12,8 +12,13 @@ buildTS3MusicBot:
   script:
     - gradle build
 
+testCommandRunner:
+  stage: test
+  script:
+    - gradle :test --tests "ts3_musicbot.CommandRunnerTest"
 
-testSpotify:
+testApis:
   stage: test
   script:
     - gradle :test --tests "ts3_musicbot.SpotifyTest"
+    - gradle :test --tests "ts3_musicbot.YouTubeTest"

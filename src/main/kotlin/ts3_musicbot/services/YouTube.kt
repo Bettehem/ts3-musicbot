@@ -12,7 +12,7 @@ class YouTube {
      * @return returns a title
      */
     fun getTitle(videoLink: String): String {
-        return runCommand("youtube-dl --no-playlist --geo-bypass -e \"$videoLink\" 2> /dev/null", printErrors = false)
+        return runCommand("youtube-dl --no-playlist --geo-bypass -e \"$videoLink\" 2> /dev/null", printErrors = false, printOutput = false)
     }
 
     /**
