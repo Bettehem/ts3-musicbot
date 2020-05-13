@@ -1,7 +1,7 @@
 image: "archlinux"
 
 before_script:
-  - pacman -Sy kotlin gradle jdk8-openjdk java8-openjfx
+  - pacman -Sy kotlin gradle jdk8-openjdk java8-openjfx --noconfirm
 
 build:
   script:
