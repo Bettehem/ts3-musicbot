@@ -1,8 +1,6 @@
 package ts3_musicbot.chat
 
-import ts3_musicbot.services.SoundCloud
-import ts3_musicbot.services.Spotify
-import ts3_musicbot.services.YouTube
+import ts3_musicbot.services.*
 import ts3_musicbot.util.*
 import ts3_musicbot.util.commandList
 import ts3_musicbot.util.helpMessages
@@ -291,7 +289,7 @@ class ChatReader(
                                         "playlist" -> {
                                             //get playlist tracks
                                             val playlistTracks =
-                                                YouTube().getPlaylistTracks("https://youtube.com/playlist?list=$id")
+                                                getYouTubePlaylistTracks("https://youtube.com/playlist?list=$id")
                                             if (shouldShuffle)
                                                 playlistTracks.shuffle()
                                             val trackList = ArrayList<String>()
@@ -325,7 +323,7 @@ class ChatReader(
 
                                         "playlist" -> {
                                             //get playlist tracks
-                                            val playlistTracks = SoundCloud().getPlaylistTracks(parseLink(link))
+                                            val playlistTracks = getSoundCloudPlaylistTracks(parseLink(link))
                                             if (shouldShuffle)
                                                 playlistTracks.shuffle()
                                             val trackList = ArrayList<String>()
@@ -881,7 +879,6 @@ class ChatReader(
                     //%yt-playsong command
                     commandString.contains("^%yt-playsong\\s+".toRegex()) -> {
                         ytLink = parseLink(message)
-                        //Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -o - \"$ytLink\" | mpv --no-terminal --no-video --input-ipc-server=/tmp/mpvsocket - &"))
                         if (ytLink.isNotEmpty()) {
                             Thread {
                                 Runnable {
@@ -902,7 +899,7 @@ class ChatReader(
                         printToChat(
                             userName, listOf(
                                 "Now playing on YouTube:",
-                                YouTube().getTitle(ytLink),
+                                getYouTubeVideoTitle(ytLink),
                                 "Link: $ytLink"
                             ), apikey
                         )
@@ -916,7 +913,7 @@ class ChatReader(
                         when (searchType) {
                             "video", "track", "playlist" -> {
                                 printToChat(userName, listOf("Searching, please wait..."), apikey)
-                                val results = YouTube().searchYoutube(searchType.replace("track", "video"), searchQuery)
+                                val results = searchYoutube(searchType.replace("track", "video"), searchQuery)
                                 val lines = ArrayList<String>()
                                 lines.addAll(results.split("\n".toRegex()))
                                 if (lines.size <= 12) {
@@ -1039,10 +1036,12 @@ class ChatReader(
                             .replace(
                                 " ",
                                 "\\\\\\s"
-                            ).replace("\n", "\\\\\\n").replace("/", "\\/").replace("|", "\\\\p").replace("'", "\\\\'").replace(
+                            ).replace("\n", "\\\\\\n").replace("/", "\\/").replace("|", "\\\\p").replace("'", "\\\\'")
+                            .replace(
                                 "\"",
                                 "\\\""
-                            ).replace("&quot;", "\\\""
+                            ).replace(
+                                "&quot;", "\\\""
                             ).replace("$", "\\\\$")}\"; echo quit) | nc localhost 25639"
                     }
 
@@ -1054,7 +1053,8 @@ class ChatReader(
                             ).replace("\n", "\\n").replace("/", "\\/").replace("|", "\\p").replace("'", "\\'").replace(
                                 "\"",
                                 "\\\""
-                            ).replace("&quot;", "\\\""
+                            ).replace(
+                                "&quot;", "\\\""
                             ).replace("$", "\\$")}\"; echo quit) | nc localhost 25639"
                     }
                 }
@@ -1119,9 +1119,9 @@ class ChatReader(
                     )
                 ) {
                     ytLink = track
-                    println("Playing ${YouTube().getTitle(track)}")
+                    println("Playing ${getYouTubeVideoTitle(track)}")
                 } else if (track.startsWith("https://soundcloud.com")) {
-                    val trackData = SoundCloud().getTrack(track)
+                    val trackData = getSoundCloudTrack(track)
                     println("Playing ${trackData.artist} - ${trackData.title}")
                 }
                 parseLine("", "%queue-nowplaying")

@@ -1,9 +1,9 @@
 package ts3_musicbot.util
 
-import ts3_musicbot.services.SoundCloud
 import ts3_musicbot.services.Spotify
 import ts3_musicbot.services.Track
-import ts3_musicbot.services.YouTube
+import ts3_musicbot.services.getSoundCloudTrack
+import ts3_musicbot.services.getYouTubeVideoTitle
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.ArrayList
@@ -58,7 +58,10 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
                     if (playerStatus == "Playing") {
                         //song is playing
 
-                        if (current.substringAfterLast(":").substringBefore("?").substringAfterLast("/") == currentSong.substringAfterLast(":").substringBefore("?").substringAfterLast("/")) {
+                        if (current.substringAfterLast(":").substringBefore("?")
+                                .substringAfterLast("/") == currentSong.substringAfterLast(":").substringBefore("?")
+                                .substringAfterLast("/")
+                        ) {
                             val minutes = lengthMicroseconds / 1000000 / 60
                             val seconds = lengthMicroseconds / 1000000 % 60
                             songLength = minutes * 60 + seconds
@@ -204,10 +207,10 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
                 spotify.getTrack(currentSong)
             }
             "youtube" -> {
-                Track("", "", YouTube().getTitle(currentSong), currentSong)
+                Track("", "", getYouTubeVideoTitle(currentSong), currentSong)
             }
             "soundcloud" -> {
-                SoundCloud().getTrack(currentSong)
+                getSoundCloudTrack(currentSong)
             }
             else -> {
                 Track.Empty
@@ -229,7 +232,7 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
                     spotify.getTrack(songLink)
                 }
                 "youtube" -> {
-                    Track("", "", YouTube().getTitle(songLink), songLink)
+                    Track("", "", getYouTubeVideoTitle(songLink), songLink)
                 }
                 else -> {
                     Track.Empty

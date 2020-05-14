@@ -24,3 +24,4 @@ testApis:
   script:
     - gradle :test --tests "ts3_musicbot.SpotifyTest"
     - gradle :test --tests "ts3_musicbot.YouTubeTest"
+    - gradle :test --tests "ts3_musicbot.SoundCloudTest"
