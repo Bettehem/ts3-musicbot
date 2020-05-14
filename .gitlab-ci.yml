@@ -10,7 +10,7 @@ before_script:
 buildTS3MusicBot:
   stage: build
   script:
-    - gradle build
+    - gradle assemble
 
 testCommandRunner:
   stage: test
