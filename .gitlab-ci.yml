@@ -20,7 +20,7 @@ testCommandRunner:
 testApis:
   stage: test
   before_script:
-    - pacman -Sy youtube-dl
+    - pacman -Sy youtube-dl --noconfirm --needed
   script:
     - gradle :test --tests "ts3_musicbot.SpotifyTest"
     - gradle :test --tests "ts3_musicbot.YouTubeTest"
