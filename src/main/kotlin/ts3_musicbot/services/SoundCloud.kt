@@ -1,7 +1,6 @@
 package ts3_musicbot.services
 
 import org.json.JSONObject
-import ts3_musicbot.services.Track
 import ts3_musicbot.util.runCommand
 import ts3_musicbot.util.sendHttpRequest
 import java.net.HttpURLConnection

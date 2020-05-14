@@ -18,14 +18,14 @@ import java.util.Calendar
 import java.util.Date
 
 class Time : Comparable<Time> {
-    lateinit var year: String
-    lateinit var month: String
-    lateinit var date: String
+    private lateinit var year: String
+    private lateinit var month: String
+    private lateinit var date: String
     lateinit var hour: String
     lateinit var minute: String
     lateinit var second: String
 
-    val timeInMillis: Long
+    private val timeInMillis: Long
         get() {
             val calendar = Calendar.getInstance()
             calendar.set(Integer.parseInt(year), Integer.parseInt(month), Integer.parseInt(date), Integer.parseInt(hour), Integer.parseInt(minute), Integer.parseInt(second))

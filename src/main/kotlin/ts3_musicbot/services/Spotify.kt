@@ -8,7 +8,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class Spotify(private val market: String = "") {
-    var accessToken = ""
+    private var accessToken = ""
 
     fun updateToken() {
         println("Updating Spotify access token...")
@@ -16,24 +16,48 @@ class Spotify(private val market: String = "") {
     }
 
     private fun getSpotifyToken(): String {
-        val auth = "ZGUzZGFlNGUxZTE3NGRkNGFjYjY0YWYyMjcxMWEwYmI6ODk5OGQxMmJjZDBlNDAzM2E2Mzg2ZTg4Y2ZjZTk2NDg="
-        val url = URL("https://accounts.spotify.com/api/token")
-        val requestMethod = "POST"
-        val properties = arrayOf(
-            "Authorization: Basic $auth",
-            "Content-Type: application/x-www-form-urlencoded",
-            "User-Agent: Mozilla/5.0"
-        )
-        val data = arrayOf("grant_type=client_credentials")
-        val rawResponse = sendHttpRequest(url, requestMethod, properties, data)
-        val response = JSONObject(rawResponse.second)
-        return response.getString("access_token")
+        fun getData(): Pair<Int, String> {
+            val auth = "ZGUzZGFlNGUxZTE3NGRkNGFjYjY0YWYyMjcxMWEwYmI6ODk5OGQxMmJjZDBlNDAzM2E2Mzg2ZTg4Y2ZjZTk2NDg="
+            val url = URL("https://accounts.spotify.com/api/token")
+            val requestMethod = "POST"
+            val properties = arrayOf(
+                "Authorization: Basic $auth",
+                "Content-Type: application/x-www-form-urlencoded",
+                "User-Agent: Mozilla/5.0"
+            )
+            val data = arrayOf("grant_type=client_credentials")
+            return sendHttpRequest(url, requestMethod, properties, data)
+        }
+
+        var token = ""
+        var gettingData = true
+        while (gettingData) {
+            val data = getData()
+            //check http return code
+            when (data.first) {
+                HttpURLConnection.HTTP_OK -> {
+                    try {
+                        val tokenData = JSONObject(data.second)
+                        token = tokenData.getString("access_token")
+                        gettingData = false
+                    } catch (e: JSONException) {
+                        //JSON broken, try getting the data again
+                        println("Failed JSON:\n${data.second}\n")
+                        println("Failed to get data from JSON, trying again...")
+                    }
+                }
+                else -> {
+                    println("HTTP ERROR! CODE: ${data.first}")
+                }
+            }
+        }
+        return token
     }
 
     fun searchSpotify(searchType: String, searchQuery: String): String {
         val searchResult = StringBuilder()
 
-        fun searchData(): JSONObject {
+        fun searchData(): Pair<Int, String> {
             val urlBuilder = StringBuilder()
             urlBuilder.append("https://api.spotify.com/v1/search?")
             urlBuilder.append("q=${searchQuery.replace(" ", "%20").replace("\"", "%22")}")
@@ -49,12 +73,7 @@ class Spotify(private val market: String = "") {
                 "Content-Type: application/x-www-form-urlencoded",
                 "User-Agent: Mozilla/5.0"
             )
-            val rawResponse = sendHttpRequest(url, requestMethod, properties)
-            return if (rawResponse.second.isNotEmpty()) {
-                JSONObject(rawResponse.second)
-            } else {
-                JSONObject("{ \"error\": { \"status\": 401, \"message\": \"The access token expired\" } }")
-            }
+            return sendHttpRequest(url, requestMethod, properties)
         }
 
         fun parseResults(searchData: JSONObject) {
@@ -149,13 +168,24 @@ class Spotify(private val market: String = "") {
         while (gettingData) {
             println("Searching for \"$searchQuery\" on Spotify...")
             val searchData = searchData()
-            //check if token is valid
-            if (searchData.has("error") && searchData.getJSONObject("error").getInt("status") == 401) {
-                //token has expired, update it
-                updateToken()
-            } else {
-                parseResults(searchData)
-                gettingData = false
+            //check http return code
+            when (searchData.first) {
+                HttpURLConnection.HTTP_OK -> {
+                    try {
+                        val resultData = JSONObject(searchData.second)
+                        parseResults(resultData)
+                        gettingData = false
+                    } catch (e: JSONException) {
+                        //JSON broken, try getting the data again
+                        println("Failed JSON:\n${searchData.second}\n")
+                        println("Failed to get data from JSON, trying again...")
+                    }
+                }
+
+                HttpURLConnection.HTTP_UNAUTHORIZED -> updateToken() //token expired, update it.
+
+                else -> println("HTTP ERROR! CODE: ${searchData.first}")
+
             }
         }
         return searchResult.toString().substringBeforeLast("\n")
@@ -164,7 +194,7 @@ class Spotify(private val market: String = "") {
     fun getPlaylistTracks(playListLink: String): ArrayList<Track> {
         val trackItems = ArrayList<Track>()
 
-        fun getPlaylistData(): JSONObject {
+        fun getPlaylistData(): Pair<Int, String> {
             //First get the playlist length
             val urlBuilder = StringBuilder()
             urlBuilder.append("https://api.spotify.com/v1/playlists/")
@@ -182,11 +212,7 @@ class Spotify(private val market: String = "") {
                 "Content-Type: application/x-www-form-urlencoded",
                 "User-Agent: Mozilla/5.0"
             )
-            val rawResponse = sendHttpRequest(url, requestMethod, properties)
-            return if (rawResponse.second.isNotEmpty())
-                JSONObject(rawResponse.second)
-            else
-                JSONObject("{ \"error\": { \"status\": 401, \"message\": \"The access token expired\" } }")
+            return sendHttpRequest(url, requestMethod, properties)
         }
 
         fun parsePlaylistData(playlistData: JSONObject) {
@@ -197,7 +223,7 @@ class Spotify(private val market: String = "") {
             var listOffset = 0
             while (trackItems.size < playlistLength) {
 
-                fun getItems(): JSONObject {
+                fun getItemData(): Pair<Int, String> {
                     val listUrlBuilder = StringBuilder()
                     listUrlBuilder.append("https://api.spotify.com/v1/playlists/")
                     listUrlBuilder.append(
@@ -219,12 +245,7 @@ class Spotify(private val market: String = "") {
                         "Content-Type: application/x-www-form-urlencoded",
                         "User-Agent: Mozilla/5.0"
                     )
-                    val listRawResponse = sendHttpRequest(listUrl, listRequestMethod, listProperties)
-                    return if (listRawResponse.second.isNotEmpty()) {
-                        JSONObject(listRawResponse.second)
-                    } else {
-                        JSONObject("{ \"error\": { \"status\": 401, \"message\": \"The access token expired\" } }")
-                    }
+                    return sendHttpRequest(listUrl, listRequestMethod, listProperties)
                 }
 
                 fun parseItems(items: JSONArray) {
@@ -271,14 +292,30 @@ class Spotify(private val market: String = "") {
                     }
                 }
 
-                val itemList = getItems()
-                //check token
-                if (itemList.has("error") && itemList.getJSONObject("error").getInt("status") == 401) {
-                    //token expired, update it
-                    updateToken()
-                } else {
-                    parseItems(itemList.getJSONArray("items"))
-                    listOffset += 100
+                val itemData = getItemData()
+                var gettingData = true
+                while (gettingData) {
+                    when (itemData.first) {
+                        HttpURLConnection.HTTP_OK -> {
+                            try {
+                                val item = JSONObject(itemData.second)
+                                parseItems(item.getJSONArray("items"))
+                                listOffset += 100
+                                gettingData = false
+                            } catch (e: JSONException) {
+                                //JSON broken, try getting the data again
+                                println("Failed JSON:\n${itemData.second}\n")
+                                println("Failed to get data from JSON, trying again...")
+                            }
+                        }
+                        HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                            //token expired, update it
+                            updateToken()
+                        }
+                        else -> {
+                            println("HTTP ERROR! CODE: ${itemData.first}")
+                        }
+                    }
                 }
             }
         }
@@ -286,23 +323,33 @@ class Spotify(private val market: String = "") {
         var gettingData = true
         while (gettingData) {
             val playlistData = getPlaylistData()
-            //check token
-            if (playlistData.has("error") && playlistData.getJSONObject("error").getInt("status") == 401) {
-                //token expired, update
-                updateToken()
-            } else {
-                parsePlaylistData(playlistData)
-                gettingData = false
+            //check http return code
+            when (playlistData.first) {
+                HttpURLConnection.HTTP_OK -> {
+                    try {
+                        val playlist = JSONObject(playlistData.second)
+                        parsePlaylistData(playlist)
+                        gettingData = false
+                    } catch (e: JSONException) {
+                        //JSON broken, try getting the data again
+                        println("Failed JSON:\n${playlistData.second}\n")
+                        println("Failed to get data from JSON, trying again...")
+                    }
+                }
+                HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                    //token expired, update
+                    updateToken()
+                }
+                else -> println("HTTP ERROR! CODE: ${playlistData.first}")
             }
         }
-
         return trackItems
     }
 
     fun getAlbumTracks(albumLink: String): ArrayList<Track> {
         val trackItems = ArrayList<Track>()
 
-        fun getAlbumData(): JSONObject {
+        fun getAlbumData(): Pair<Int, String> {
             val urlBuilder = StringBuilder()
             urlBuilder.append("https://api.spotify.com/v1/albums/")
             urlBuilder.append(
@@ -319,11 +366,7 @@ class Spotify(private val market: String = "") {
                 "Content-Type: application/x-www-form-urlencoded",
                 "User-Agent: Mozilla/5.0"
             )
-            val rawResponse = sendHttpRequest(url, requestMethod, properties)
-            return if (rawResponse.second.isNotEmpty())
-                JSONObject(rawResponse.second)
-            else
-                JSONObject("{ \"error\": { \"status\": 401, \"message\": \"The access token expired\" } }")
+            return sendHttpRequest(url, requestMethod, properties)
         }
 
         fun parseAlbumData(albumData: JSONObject) {
@@ -373,7 +416,7 @@ class Spotify(private val market: String = "") {
                         item as JSONObject
                         val artistList = item.getJSONArray("artists")
                         val artistBuilder = StringBuilder()
-                        for (artistJSON in artistList){
+                        for (artistJSON in artistList) {
                             artistJSON as JSONObject
                             artistBuilder.append(artistJSON.getString("name") + ",")
                         }
@@ -404,13 +447,25 @@ class Spotify(private val market: String = "") {
         var gettingData = true
         while (gettingData) {
             val albumData = getAlbumData()
-            //check token
-            if (albumData.has("error") && albumData.getJSONObject("error").getInt("status") == 401) {
-                //token expired, update it
-                updateToken()
-            } else {
-                parseAlbumData(albumData)
-                gettingData = false
+            //check http return code
+            when (albumData.first) {
+                HttpURLConnection.HTTP_OK -> {
+                    try {
+                        val data = JSONObject(albumData.second)
+                        parseAlbumData(data)
+                        gettingData = false
+                    } catch (e: JSONException) {
+                        //JSON broken, try getting the data again
+                        println("Failed JSON:\n${albumData.second}\n")
+                        println("Failed to get data from JSON, trying again...")
+                    }
+                }
+                HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                    //token expired, update it
+                    updateToken()
+                }
+
+                else -> println("HTTP ERROR! CODE ${albumData.first}")
             }
         }
         return trackItems
@@ -464,7 +519,7 @@ class Spotify(private val market: String = "") {
 
         var track: Track = Track.Empty
         var gettingData = true
-        gettingData@ while (gettingData) {
+        while (gettingData) {
             val trackData = getTrackData()
             when (trackData.first) {
                 HttpURLConnection.HTTP_OK -> {
@@ -472,14 +527,15 @@ class Spotify(private val market: String = "") {
                         track = parseData(JSONObject(trackData.second))
                         gettingData = false
                     } catch (e: JSONException) {
-                        //json is messed up, try again
-                        println("JSON broken. Trying again...")
-                        continue@gettingData
+                        //JSON broken, try getting the data again
+                        println("Failed JSON:\n${trackData.second}\n")
+                        println("Failed to get data from JSON, trying again...")
                     }
                 }
                 HttpURLConnection.HTTP_UNAUTHORIZED -> {
                     updateToken()
                 }
+                else -> println("HTTP ERROR! CODE: ${trackData.first}")
             }
         }
         return track

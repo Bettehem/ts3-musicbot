@@ -1,11 +1,11 @@
 image: "archlinux"
 
-before_script:
-  - pacman -Sy kotlin gradle jdk8-openjdk java8-openjfx youtube-dl --noconfirm
-
 stages:
   - build
   - test
+
+before_script:
+  - pacman -Sy kotlin gradle jdk8-openjdk java8-openjfx --noconfirm --needed
 
 buildTS3MusicBot:
   stage: build
@@ -19,6 +19,8 @@ testCommandRunner:
 
 testApis:
   stage: test
+  before_script:
+    - pacman -Sy youtube-dl
   script:
     - gradle :test --tests "ts3_musicbot.SpotifyTest"
     - gradle :test --tests "ts3_musicbot.YouTubeTest"

@@ -1,7 +1,6 @@
 package ts3_musicbot
 
 import ts3_musicbot.services.YouTube
-import ts3_musicbot.util.runCommand
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -10,6 +9,7 @@ class YouTubeTest {
     fun testGettingYouTubeTrack(){
         //YouTube link for track: Phace & Noisia - Non-Responsive
         val testYtLink = "https://youtu.be/IKZnGWxJN3I"
+        //You need to have youtube-dl installed for the getTitle function to work.
         val title = YouTube().getTitle(testYtLink)
         assertEquals("Phace & Noisia - Non-Responsive", title)
     }
