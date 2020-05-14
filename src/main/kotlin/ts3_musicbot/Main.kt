@@ -12,9 +12,9 @@ import ts3_musicbot.chat.ChatReader
 import ts3_musicbot.chat.ChatUpdate
 import ts3_musicbot.chat.ChatUpdateListener
 import ts3_musicbot.util.BotSettings
+import ts3_musicbot.util.CommandRunner
 import ts3_musicbot.util.Console
 import ts3_musicbot.util.ConsoleUpdateListener
-import ts3_musicbot.util.runCommand
 import java.io.File
 import java.io.PrintWriter
 import java.lang.Exception
@@ -23,6 +23,7 @@ import kotlin.system.exitProcess
 var inputFilePath = ""
 private lateinit var window: Stage
 private var statusTextView = Label()
+private val commandRunner = CommandRunner()
 
 class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
     private lateinit var scene: Scene
@@ -169,7 +170,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     )
                     println("Using $nickname as the bot\'s nickname.")
 
-                    runCommand(
+                    commandRunner.runCommand(
                         ignoreOutput = true,
                         command = "teamspeak3 -nosingleinstance \"ts3server://$serverAddress?port=${if (serverPort.isNotEmpty()) {
                             serverPort
@@ -186,7 +187,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         }} &\""
                     )
                     Thread.sleep(1000)
-                    while (!runCommand("ps aux | grep ts3client", printOutput = false).contains("ts3client_linux")) {
+                    while (!commandRunner.runCommand("ps aux | grep ts3client", printOutput = false).contains("ts3client_linux")) {
                         //do nothing
                     }
                 } else {
@@ -195,7 +196,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 }
                 Thread.sleep(5000)
                 //get the server's name
-                val virtualserver_name = runCommand(
+                val virtualserver_name = commandRunner.runCommand(
                     "(echo auth apikey=$apiKey; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
                     printOutput = false
                 ).split("\n".toRegex())
@@ -217,7 +218,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         println("Checking in $dir")
                         val serverFile = File("${System.getProperty("user.home")}/.ts3client/chats/$dir/server.html")
                         val lines =
-                            runCommand("cat ${serverFile.absolutePath}", printOutput = false).split("\n".toRegex())
+                            commandRunner.runCommand("cat ${serverFile.absolutePath}", printOutput = false).split("\n".toRegex())
                         for (line in lines) {
                             if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
                                 //compare serverName to the one in server.html
@@ -349,7 +350,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
         private fun startTeamSpeak(settings: BotSettings): Boolean {
             if (settings.apiKey.isNotEmpty() && settings.serverAddress.isNotEmpty() && settings.nickname.isNotEmpty()) {
                 //start teamspeak
-                runCommand(
+                commandRunner.runCommand(
                     ignoreOutput = true,
                     command = "teamspeak3 -nosingleinstance \"ts3server://${settings.serverAddress}?port=${if (settings.serverPort.isNotEmpty()) {
                         settings.serverPort
@@ -367,7 +368,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 )
                 Thread.sleep(1000)
                 //wait for teamspeak to start
-                while (!runCommand("ps aux | grep ts3client").contains("ts3client_linux")) {
+                while (!commandRunner.runCommand("ps aux | grep ts3client").contains("ts3client_linux")) {
                     //do nothing
                 }
                 Thread.sleep(1500)
@@ -384,7 +385,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
             var channelFile = File("")
             if (settings.channelFilePath.isEmpty()) {
                 //get the server's name
-                val virtualserverName = runCommand(
+                val virtualserverName = commandRunner.runCommand(
                     "(echo auth apikey=${settings.apiKey}; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
                     printOutput = false
                 ).split("\n".toRegex())
@@ -679,7 +680,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
             }
 
             stopBotButton -> {
-                runCommand(
+                commandRunner.runCommand(
                     "xdotool search \"Teamspeak 3\" windowactivate --sync key --window 0 --clearmodifiers alt+F4",
                     ignoreOutput = true
                 )

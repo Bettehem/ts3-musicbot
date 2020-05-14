@@ -3,6 +3,7 @@ package ts3_musicbot.util
 import kotlin.system.exitProcess
 
 class Console(private val consoleUpdateListener: ConsoleUpdateListener) {
+    private val commandRunner = CommandRunner()
 
     fun startConsole() {
         //start console
@@ -34,7 +35,7 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener) {
                     if (command.startsWith("%") && !command.startsWith("%say"))
                         consoleUpdateListener.onCommandIssued(userCommand)
                     else if (command.startsWith("!")) {
-                        runCommand(userCommand.substringAfter("!"), inheritIO = true)
+                        commandRunner.runCommand(userCommand.substringAfter("!"), inheritIO = true)
                     } else
                         println("Command $command not found! Type \"help\" to see available commands.")
                 }
@@ -49,7 +50,7 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener) {
             val exitTeamSpeak = console.readLine("Close TeamSpeak? [Y/n]: ").toLowerCase()
             if (exitTeamSpeak.contentEquals("y") || exitTeamSpeak.contentEquals("yes") || exitTeamSpeak.contentEquals("")) {
                 confirmed = true
-                runCommand(
+                commandRunner.runCommand(
                     "xdotool search \"Teamspeak 3\" windowactivate --sync key --window 0 --clearmodifiers alt+F4",
                     ignoreOutput = true
                 )
@@ -58,8 +59,8 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener) {
             }
         }
 
-        runCommand("killall mpv", ignoreOutput = true)
-        runCommand("killall ncspot", ignoreOutput = true)
+        commandRunner.runCommand("killall mpv", ignoreOutput = true)
+        commandRunner.runCommand("killall ncspot", ignoreOutput = true)
         consoleUpdateListener.onCommandIssued(command)
         exitProcess(0)
     }

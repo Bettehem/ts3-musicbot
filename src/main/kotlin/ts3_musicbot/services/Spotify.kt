@@ -1,5 +1,11 @@
 package ts3_musicbot.services
 
+import kotlinx.coroutines.CompletableJob
+import kotlinx.coroutines.Dispatchers.Default
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -10,12 +16,14 @@ import java.net.URL
 class Spotify(private val market: String = "") {
     private var accessToken = ""
 
-    fun updateToken() {
+    suspend fun updateToken() {
         println("Updating Spotify access token...")
-        accessToken = getSpotifyToken()
+        withContext(IO){
+            accessToken = getSpotifyToken()
+        }
     }
 
-    private fun getSpotifyToken(): String {
+    private suspend fun getSpotifyToken(): String {
         fun getData(): Pair<Int, String> {
             val auth = "ZGUzZGFlNGUxZTE3NGRkNGFjYjY0YWYyMjcxMWEwYmI6ODk5OGQxMmJjZDBlNDAzM2E2Mzg2ZTg4Y2ZjZTk2NDg="
             val url = URL("https://accounts.spotify.com/api/token")
@@ -46,6 +54,12 @@ class Spotify(private val market: String = "") {
                         println("Failed to get data from JSON, trying again...")
                     }
                 }
+                //Code 429 stands for TOO_MANY_REQUESTS
+                429 -> {
+                    println("Too many requests! Waiting for ${data.second} seconds.")
+                    //wait for given time before next request.
+                    delay(data.second.toLong()*1000)
+                }
                 else -> {
                     println("HTTP ERROR! CODE: ${data.first}")
                 }
@@ -54,7 +68,7 @@ class Spotify(private val market: String = "") {
         return token
     }
 
-    fun searchSpotify(searchType: String, searchQuery: String): String {
+    suspend fun searchSpotify(searchType: String, searchQuery: String): String {
         val searchResult = StringBuilder()
 
         fun searchData(): Pair<Int, String> {
@@ -167,31 +181,43 @@ class Spotify(private val market: String = "") {
         var gettingData = true
         while (gettingData) {
             println("Searching for \"$searchQuery\" on Spotify...")
-            val searchData = searchData()
-            //check http return code
-            when (searchData.first) {
-                HttpURLConnection.HTTP_OK -> {
-                    try {
-                        val resultData = JSONObject(searchData.second)
-                        parseResults(resultData)
-                        gettingData = false
-                    } catch (e: JSONException) {
-                        //JSON broken, try getting the data again
-                        println("Failed JSON:\n${searchData.second}\n")
-                        println("Failed to get data from JSON, trying again...")
+            val searchJob = Job()
+            withContext(IO + searchJob){
+                val searchData = searchData()
+                //check http return code
+                when (searchData.first) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val resultData = JSONObject(searchData.second)
+                            withContext(Default + searchJob){
+                                parseResults(resultData)
+                            }
+                            gettingData = false
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${searchData.second}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
                     }
+
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> updateToken() //token expired, update it.
+
+                    //Code 429 stands for TOO_MANY_REQUESTS
+                    429 -> {
+                        println("Too many requests! Waiting for ${searchData.second} seconds.")
+                        //wait for given time before next request.
+                        delay(searchData.second.toLong()*1000)
+                    }
+
+                    else -> println("HTTP ERROR! CODE: ${searchData.first}")
+
                 }
-
-                HttpURLConnection.HTTP_UNAUTHORIZED -> updateToken() //token expired, update it.
-
-                else -> println("HTTP ERROR! CODE: ${searchData.first}")
-
             }
         }
         return searchResult.toString().substringBeforeLast("\n")
     }
 
-    fun getPlaylistTracks(playListLink: String): ArrayList<Track> {
+    suspend fun getPlaylistTracks(playListLink: String): ArrayList<Track> {
         val trackItems = ArrayList<Track>()
 
         fun getPlaylistData(): Pair<Int, String> {
@@ -215,7 +241,7 @@ class Spotify(private val market: String = "") {
             return sendHttpRequest(url, requestMethod, properties)
         }
 
-        fun parsePlaylistData(playlistData: JSONObject) {
+        suspend fun parsePlaylistData(playlistData: JSONObject) {
             //get playlist length
             var playlistLength = playlistData.getJSONObject("tracks").getInt("total")
             //Now get all tracks
@@ -292,14 +318,16 @@ class Spotify(private val market: String = "") {
                     }
                 }
 
-                val itemData = getItemData()
                 var gettingData = true
                 while (gettingData) {
+                    val itemData = getItemData()
                     when (itemData.first) {
                         HttpURLConnection.HTTP_OK -> {
                             try {
                                 val item = JSONObject(itemData.second)
-                                parseItems(item.getJSONArray("items"))
+                                withContext(Default){
+                                    parseItems(item.getJSONArray("items"))
+                                }
                                 listOffset += 100
                                 gettingData = false
                             } catch (e: JSONException) {
@@ -312,6 +340,12 @@ class Spotify(private val market: String = "") {
                             //token expired, update it
                             updateToken()
                         }
+                        //Code 429 stands for TOO_MANY_REQUESTS
+                        429 -> {
+                            println("Too many requests! Waiting for ${itemData.second} seconds.")
+                            //wait for given time before next request.
+                            delay(itemData.second.toLong()*1000)
+                        }
                         else -> {
                             println("HTTP ERROR! CODE: ${itemData.first}")
                         }
@@ -322,31 +356,40 @@ class Spotify(private val market: String = "") {
 
         var gettingData = true
         while (gettingData) {
-            val playlistData = getPlaylistData()
-            //check http return code
-            when (playlistData.first) {
-                HttpURLConnection.HTTP_OK -> {
-                    try {
-                        val playlist = JSONObject(playlistData.second)
-                        parsePlaylistData(playlist)
-                        gettingData = false
-                    } catch (e: JSONException) {
-                        //JSON broken, try getting the data again
-                        println("Failed JSON:\n${playlistData.second}\n")
-                        println("Failed to get data from JSON, trying again...")
+            val playlistJob: CompletableJob = Job()
+            withContext(IO + playlistJob){
+                val playlistData = getPlaylistData()
+                //check http return code
+                when (playlistData.first) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val playlist = JSONObject(playlistData.second)
+                            parsePlaylistData(playlist)
+                            gettingData = false
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${playlistData.second}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
                     }
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        //token expired, update
+                        updateToken()
+                    }
+                    //Code 429 stands for TOO_MANY_REQUESTS
+                    429 -> {
+                        println("Too many requests! Waiting for ${playlistData.second} seconds.")
+                        //wait for given time before next request.
+                        delay(playlistData.second.toLong()*1000)
+                    }
+                    else -> println("HTTP ERROR! CODE: ${playlistData.first}")
                 }
-                HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                    //token expired, update
-                    updateToken()
-                }
-                else -> println("HTTP ERROR! CODE: ${playlistData.first}")
             }
         }
         return trackItems
     }
 
-    fun getAlbumTracks(albumLink: String): ArrayList<Track> {
+    suspend fun getAlbumTracks(albumLink: String): ArrayList<Track> {
         val trackItems = ArrayList<Track>()
 
         fun getAlbumData(): Pair<Int, String> {
@@ -369,7 +412,7 @@ class Spotify(private val market: String = "") {
             return sendHttpRequest(url, requestMethod, properties)
         }
 
-        fun parseAlbumData(albumData: JSONObject) {
+        suspend fun parseAlbumData(albumData: JSONObject) {
             val trackItemsLength = albumData.getJSONObject("tracks").getInt("total")
             val albumName = if (albumData.getString("album_type") == "single") {
                 "${albumData.getString("name")} (Single)"
@@ -382,7 +425,7 @@ class Spotify(private val market: String = "") {
             var listOffset = 0
             while (trackItems.size < trackItemsLength) {
 
-                fun getAlbumTracks(): JSONObject {
+                fun getAlbumTrackData(): Pair<Int, String> {
                     val albumUrlBuilder = StringBuilder()
                     albumUrlBuilder.append("https://api.spotify.com/v1/albums/")
                     albumUrlBuilder.append(
@@ -404,11 +447,7 @@ class Spotify(private val market: String = "") {
                         "Content-Type: application/x-www-form-urlencoded",
                         "User-Agent: Mozilla/5.0"
                     )
-                    val albumRawResponse = sendHttpRequest(albumUrl, albumRequestMethod, albumProperties)
-                    return if (albumRawResponse.second.isNotEmpty())
-                        JSONObject(albumRawResponse.second)
-                    else
-                        JSONObject("{ \"error\": { \"status\": 401, \"message\": \"The access token expired\" } }")
+                    return sendHttpRequest(albumUrl, albumRequestMethod, albumProperties)
                 }
 
                 fun parseItems(items: JSONArray) {
@@ -432,46 +471,76 @@ class Spotify(private val market: String = "") {
                     }
                 }
 
-                val albumTracks = getAlbumTracks()
-                //check token
-                if (albumTracks.has("error") && albumTracks.getJSONObject("error").getInt("status") == 401) {
-                    //token expired, update it
-                    updateToken()
-                } else {
-                    parseItems(albumTracks.getJSONArray("items"))
-                    listOffset += 20
+                var gettingData = true
+                while (gettingData){
+                    val albumTrackData = getAlbumTrackData()
+                    when (albumTrackData.first){
+                        HttpURLConnection.HTTP_OK -> {
+                            try {
+                                val tracks = JSONObject(albumTrackData.second)
+                                withContext(Default){
+                                    parseItems(tracks.getJSONArray("items"))
+                                }
+                                listOffset += 20
+                                gettingData = false
+                            }catch (e: JSONException){
+                                //JSON broken, try getting the data again
+                                println("Failed JSON:\n${albumTrackData.second}\n")
+                                println("Failed to get data from JSON, trying again...")
+                            }
+                        }
+                        HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                            //token expired, update it
+                            updateToken()
+                        }
+                        //Code 429 stands for TOO_MANY_REQUESTS
+                        429 -> {
+                            println("Too many requests! Waiting for ${albumTrackData.second} seconds.")
+                            //wait for given time before next request.
+                            delay(albumTrackData.second.toLong()*1000)
+                        }
+                        else -> println("HTTP ERROR! CODE ${albumTrackData.first}")
+                    }
                 }
             }
         }
 
         var gettingData = true
         while (gettingData) {
-            val albumData = getAlbumData()
-            //check http return code
-            when (albumData.first) {
-                HttpURLConnection.HTTP_OK -> {
-                    try {
-                        val data = JSONObject(albumData.second)
-                        parseAlbumData(data)
-                        gettingData = false
-                    } catch (e: JSONException) {
-                        //JSON broken, try getting the data again
-                        println("Failed JSON:\n${albumData.second}\n")
-                        println("Failed to get data from JSON, trying again...")
+            val albumJob = Job()
+            withContext(IO + albumJob){
+                val albumData = getAlbumData()
+                //check http return code
+                when (albumData.first) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val data = JSONObject(albumData.second)
+                            parseAlbumData(data)
+                            gettingData = false
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${albumData.second}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
                     }
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        //token expired, update it
+                        updateToken()
+                    }
+                    //Code 429 stands for TOO_MANY_REQUESTS
+                    429 -> {
+                        println("Too many requests! Waiting for ${albumData.second} seconds.")
+                        //wait for given time before next request.
+                        delay(albumData.second.toLong()*1000)
+                    }
+                    else -> println("HTTP ERROR! CODE ${albumData.first}")
                 }
-                HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                    //token expired, update it
-                    updateToken()
-                }
-
-                else -> println("HTTP ERROR! CODE ${albumData.first}")
             }
         }
         return trackItems
     }
 
-    fun getTrack(trackLink: String): Track {
+    suspend fun getTrack(trackLink: String): Track {
 
         fun getTrackData(): Pair<Int, String> {
             val urlBuilder = StringBuilder()
@@ -520,22 +589,33 @@ class Spotify(private val market: String = "") {
         var track: Track = Track.Empty
         var gettingData = true
         while (gettingData) {
-            val trackData = getTrackData()
-            when (trackData.first) {
-                HttpURLConnection.HTTP_OK -> {
-                    try {
-                        track = parseData(JSONObject(trackData.second))
-                        gettingData = false
-                    } catch (e: JSONException) {
-                        //JSON broken, try getting the data again
-                        println("Failed JSON:\n${trackData.second}\n")
-                        println("Failed to get data from JSON, trying again...")
+            val trackJob = Job()
+            withContext(IO + trackJob){
+                val trackData = getTrackData()
+                when (trackData.first) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            withContext(Default){
+                                track = parseData(JSONObject(trackData.second))
+                            }
+                            gettingData = false
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${trackData.second}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
                     }
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        updateToken()
+                    }
+                    //Code 429 stands for TOO_MANY_REQUESTS
+                    429 -> {
+                        println("Too many requests! Waiting for ${trackData.second} seconds.")
+                        //wait for given time before next request.
+                        delay(trackData.second.toLong()*1000)
+                    }
+                    else -> println("HTTP ERROR! CODE: ${trackData.first}")
                 }
-                HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                    updateToken()
-                }
-                else -> println("HTTP ERROR! CODE: ${trackData.first}")
             }
         }
         return track

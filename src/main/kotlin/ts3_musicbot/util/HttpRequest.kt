@@ -50,6 +50,11 @@ fun sendHttpRequest(
             HttpURLConnection.HTTP_UNAUTHORIZED -> {
                 "Unauthorized"
             }
+
+            //Code 429 stands for TOO_MANY_REQUESTS
+            429 -> {
+                connection.getHeaderField("Retry-After")
+            }
             else -> {
                 println("\n\n\nError! Http request failed at\n$url\n")
                 println("Bad response! Code ${connection.responseCode}")
@@ -58,4 +63,5 @@ fun sendHttpRequest(
             }
         }
     )
+
 }
