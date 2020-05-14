@@ -17,9 +17,9 @@ class YouTubeTest {
 
     @Test
     fun testGettingYouTubePlaylist() {
-        //YouTube link for playlist: Sheepy. The playlist length is 536 tracks.
-        val testYtLink = "https://www.youtube.com/playlist?list=PLVzaRVhV8EbZY5Y6ylmQSsifzcShleNwZ"
+        //YouTube link for playlist: prog. The playlist length is 5 tracks.
+        val testYtLink = "https://www.youtube.com/playlist?list=PLVzaRVhV8Ebb5m6IIEpOJeOIBMKk4AVwm"
         val playlist = youTube.getPlaylistTracks(testYtLink)
-        assert(playlist.size == 536)
+        assert(playlist.size == 5)
     }
 }
