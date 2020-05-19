@@ -11,7 +11,7 @@ jar -ufm out/artifacts/ts3_musicbot/ts3-musicbot.jar src/META-INF/MANIFEST.MF 2>
 # Include libraries
 mkdir -p .temp/lib
 echo "Extracting libraries from lib..."
-unzip -q lib/*.jar -d .temp/lib
+unzip -q "lib/*.jar" -d .temp/lib
 echo "Removing unnecessary MANIFEST.MF file(s)..."
 rm -f .temp/lib/META-INF/MANIFEST.MF
 echo "Adding library files to .jar..."
