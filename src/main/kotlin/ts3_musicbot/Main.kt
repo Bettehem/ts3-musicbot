@@ -6,6 +6,7 @@ import javafx.event.EventHandler
 import javafx.scene.Scene
 import javafx.scene.control.*
 import javafx.scene.layout.VBox
+import javafx.scene.layout.Priority
 import javafx.stage.FileChooser
 import javafx.stage.Stage
 import ts3_musicbot.chat.ChatReader
@@ -13,6 +14,7 @@ import ts3_musicbot.chat.ChatUpdate
 import ts3_musicbot.chat.ChatUpdateListener
 import ts3_musicbot.util.BotSettings
 import ts3_musicbot.util.CommandRunner
+import ts3_musicbot.util.CommandList.commandList
 import ts3_musicbot.util.Console
 import ts3_musicbot.util.ConsoleUpdateListener
 import java.io.File
@@ -22,13 +24,16 @@ import kotlin.system.exitProcess
 
 var inputFilePath = ""
 private lateinit var window: Stage
-private var statusTextView = Label()
+private var statusTextView = TextArea()
 private val commandRunner = CommandRunner()
+private var spotifyPlayer = "spotify"
 
 class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
     private lateinit var scene: Scene
 
     private var layout: VBox = VBox()
+    private var scrollPane: ScrollPane = ScrollPane()
+    private var statusScrollPane: ScrollPane = ScrollPane()
     private var enterApiKeyTextView = Label()
     private var enterServerAddressTextView = Label()
     private var enterChannelNameTextView = Label()
@@ -54,6 +59,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
 
     private var showPasswordCheckBox = CheckBox()
     private var browseChannelFileButton = Button()
+    private var selectSpotifyPlayerTextView = Label()
+    private var spotifyPlayerRadioGroup = ToggleGroup()
+    private var ncspotRadioButton = RadioButton()
+    private var spotifyRadioButton = RadioButton()
     private var saveSettingsButton = Button()
     private var loadSettingsButton = Button()
     private var startBotButton = Button()
@@ -76,7 +85,6 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 var channelFilename = ""
                 var market = ""
                 var configFile = ""
-                var spotifyPlayer = "spotify"
 
                 val helpMessage = "\n" +
                         "TS3 Music Bot help message\n" +
@@ -146,7 +154,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     }
                 }
 
-                if (configFile.isNotEmpty()){
+                if (configFile.isNotEmpty()) {
                     val settings: BotSettings? = loadSettings(File(configFile))
                     apiKey = settings?.apiKey!!
                     serverAddress = settings.serverAddress
@@ -187,7 +195,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         }} &\""
                     )
                     Thread.sleep(1000)
-                    while (!commandRunner.runCommand("ps aux | grep ts3client", printOutput = false).contains("ts3client_linux")) {
+                    while (!commandRunner.runCommand("ps aux | grep ts3client | grep -v grep", printOutput = false)
+                            .contains("ts3client_linux".toRegex())
+                    ) {
                         //do nothing
                     }
                 } else {
@@ -218,7 +228,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         println("Checking in $dir")
                         val serverFile = File("${System.getProperty("user.home")}/.ts3client/chats/$dir/server.html")
                         val lines =
-                            commandRunner.runCommand("cat ${serverFile.absolutePath}", printOutput = false).split("\n".toRegex())
+                            commandRunner.runCommand("cat ${serverFile.absolutePath}", printOutput = false)
+                                .split("\n".toRegex())
                         for (line in lines) {
                             if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
                                 //compare serverName to the one in server.html
@@ -319,6 +330,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 fileWriter.println("CHANNEL_NAME=${botSettings.channelName}")
                 fileWriter.println("CHANNEL_FILE_PATH=${botSettings.channelFilePath}")
                 fileWriter.println("NICKNAME=${botSettings.nickname}")
+                fileWriter.println("MARKET=${botSettings.market}")
+                fileWriter.println("SPOTIFY_PLAYER=${botSettings.spotifyPlayer}")
                 fileWriter.close()
             }
         }
@@ -336,10 +349,13 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         "CHANNEL_NAME" -> settings.channelName = line.substringAfter("=")
                         "CHANNEL_FILE_PATH" -> settings.channelFilePath = line.substringAfter("=")
                         "NICKNAME" -> settings.nickname = line.substringAfter("=")
+                        "MARKET" -> settings.market = line.substringAfter("=")
+                        "SPOTIFY_PLAYER" -> settings.spotifyPlayer = line.substringAfter("=")
                     }
                 }
             }
 
+            println("Loaded settings from ${settingsFile.absolutePath}")
             return settings
         }
 
@@ -368,10 +384,12 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 )
                 Thread.sleep(1000)
                 //wait for teamspeak to start
-                while (!commandRunner.runCommand("ps aux | grep ts3client").contains("ts3client_linux")) {
+                while (!commandRunner.runCommand("ps aux | grep ts3client | grep -v grep", printOutput = false)
+                        .contains("ts3client_linux".toRegex())
+                ) {
                     //do nothing
                 }
-                Thread.sleep(1500)
+                Thread.sleep(5000)
                 return true
             } else {
                 statusTextView.text =
@@ -460,7 +478,6 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
 
         showAdvancedOptions(false)
 
-
         hideAdvancedSettingsRadioButton.text = "Hide advanced settings"
         hideAdvancedSettingsRadioButton.toggleGroup = advancedSettingsRadioGroup
         hideAdvancedSettingsRadioButton.isSelected = true
@@ -517,6 +534,26 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
         marketEditText.isVisible = false
 
         browseChannelFileButton.text = "Browse channel file"
+
+        selectSpotifyPlayerTextView.text = "Select Spotify player (ncspot requires Spotify Premium)"
+        spotifyRadioButton.text = "Spotify"
+        spotifyRadioButton.toggleGroup = spotifyPlayerRadioGroup
+        spotifyRadioButton.isSelected = true
+        ncspotRadioButton.text = "ncspot"
+        ncspotRadioButton.toggleGroup = spotifyPlayerRadioGroup
+        ncspotRadioButton.isSelected = false
+        spotifyPlayerRadioGroup.selectedToggleProperty().addListener { _, _, _ ->
+            when (spotifyPlayerRadioGroup.selectedToggle) {
+                spotifyRadioButton -> {
+                    spotifyPlayer = "spotify"
+                }
+                ncspotRadioButton -> {
+                    spotifyPlayer = "ncspot"
+                }
+            }
+        }
+
+
         saveSettingsButton.text = "Save settings"
         loadSettingsButton.text = "Load settings"
         startBotButton.text = "Start Bot"
@@ -533,6 +570,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
 
 
         statusTextView.text = "Status: Bot not active."
+        statusTextView.isEditable = false
     }
 
     private fun showAdvancedOptions(showAdvanced: Boolean) {
@@ -556,12 +594,37 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
         enterMarketTextView.isVisible = showAdvanced
         marketEditText.isManaged = showAdvanced
         marketEditText.isVisible = showAdvanced
+        selectSpotifyPlayerTextView.isVisible = showAdvanced
+        spotifyRadioButton.isVisible = showAdvanced
+        ncspotRadioButton.isVisible = showAdvanced
     }
 
     private fun ui() {
         //prepare layout
-        layout.spacing = 10.0
+        val statusLayout = VBox()
+        layout.spacing = 5.0
+        layout.setPrefSize(640.0, 700.0)
         layout.children.addAll(
+            scrollPane,
+            saveSettingsButton,
+            loadSettingsButton,
+            startBotButton,
+            stopBotButton,
+            statusLayout
+        )
+
+        //build scene
+        scene = Scene(layout, 640.0, 700.0)
+
+        //setup window
+        window.title = "TeamSpeak 3 Music Bot"
+        window.scene = scene
+
+        VBox.setVgrow(scrollPane, Priority.ALWAYS)
+
+        val itemLayout = VBox()
+        itemLayout.spacing = 10.0
+        itemLayout.children.addAll(
             enterApiKeyTextView,
             apiKeyEditText,
             enterServerAddressTextView,
@@ -583,19 +646,19 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
             enterChannelFilePathTextView,
             channelFilePathEditText,
             browseChannelFileButton,
-            saveSettingsButton,
-            loadSettingsButton,
-            startBotButton,
-            stopBotButton,
-            statusTextView
+            selectSpotifyPlayerTextView,
+            spotifyRadioButton,
+            ncspotRadioButton
         )
+        scrollPane.content = itemLayout
+        scrollPane.minHeight = 250.0
+        scrollPane.isFitToWidth = true
+        scrollPane.isFitToHeight = true
+        scrollPane.heightProperty().addListener { _ -> scrollPane.vvalue = 0.0 }
 
-        //build scene
-        scene = Scene(layout, 640.0, 700.0)
 
-        //setup window
-        window.title = "TeamSpeak 3 Music Bot"
-        window.scene = scene
+        statusLayout.children.addAll(statusTextView)
+        statusLayout.minHeight = 75.0
     }
 
     override fun handle(p0: ActionEvent?) {
@@ -645,16 +708,30 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                 fileChooser.initialDirectory = File(System.getProperty("user.dir"))
                 fileChooser.selectedExtensionFilter =
                     FileChooser.ExtensionFilter("Configuration File", listOf("*.config", "*.conf"))
-                val file: File = fileChooser.showOpenDialog(window)
-                val settings = loadSettings(file)
-                apiKeyEditText.text = settings.apiKey
-                serverAddressEditText.text = settings.serverAddress
-                channelNameEditText.text = settings.channelName
-                nicknameEditText.text = settings.nickname
-                serverPortEditText.text = settings.serverPort
-                serverPasswordEditText.text = settings.serverPassword
-                channelFilePathEditText.text = settings.channelFilePath
-                marketEditText.text = settings.market
+                val file: File? = fileChooser.showOpenDialog(window)
+                if (file != null && file.exists()) {
+                    val settings = loadSettings(file)
+                    apiKeyEditText.text = settings.apiKey
+                    serverAddressEditText.text = settings.serverAddress
+                    channelNameEditText.text = settings.channelName
+                    nicknameEditText.text = settings.nickname
+                    serverPortEditText.text = settings.serverPort
+                    serverPasswordEditText.text = settings.serverPassword
+                    channelFilePathEditText.text = settings.channelFilePath
+                    marketEditText.text = settings.market
+                    when (settings.spotifyPlayer) {
+                        "spotify" -> {
+                            spotifyRadioButton.isSelected = true
+                            ncspotRadioButton.isSelected = false
+                        }
+                        "ncspot" -> {
+                            ncspotRadioButton.isSelected = true
+                            spotifyRadioButton.isSelected = false
+                        }
+                    }
+                } else {
+                    println("Could not load file!")
+                }
             }
 
             startBotButton -> {
@@ -665,9 +742,11 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     chatReader = ChatReader(
                         getChannelFile(settings),
                         this,
-                        getSettings().apiKey,
-                        channelName = getSettings().channelName,
-                        botName = getSettings().nickname
+                        settings.apiKey,
+                        market = settings.market,
+                        spotifyPlayer = settings.spotifyPlayer,
+                        channelName = settings.channelName,
+                        botName = settings.nickname
                     )
                     if (chatReader.startReading()) {
                         statusTextView.text = "Status: Connected."
@@ -703,11 +782,20 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
         channelNameEditText.text,
         channelFilePathEditText.text,
         nicknameEditText.text,
-        marketEditText.text
+        marketEditText.text,
+        when (spotifyPlayerRadioGroup.selectedToggle) {
+            spotifyRadioButton -> "spotify"
+            ncspotRadioButton -> "ncspot"
+            else -> "spotify" //default to spotify
+        }
     )
 
 
     override fun onChatUpdated(update: ChatUpdate) {
-        //statusTextView.text = statusTextView.text.split(" ".toRegex())[0] + "\n\n\n\nStatus:\n\nTime: ${update.time}\nUser: ${update.userName}\nMessage: ${update.message}"
+        if (commandList.any { update.message.startsWith(it) }) {
+            statusTextView.appendText("\nUser: ${update.userName}\nCommand: ${update.message}\n")
+            statusScrollPane.layout()
+            statusScrollPane.vvalue = 1.0
+        }
     }
 }

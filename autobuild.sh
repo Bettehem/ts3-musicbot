@@ -7,7 +7,7 @@
 
 
 #First set the BUILD_DIR and HOST_ADDR variables, for example:
-#export JAR_FILE=out/artifacts/ts3_musicbot/ts3-musicbot.jar
+#export JAR_FILE=build/libs/ts3-musicbot.jar
 #export HOST_ADDR=user@cooladdress.com:~/cooldirectory/.
 
 ###
@@ -19,7 +19,7 @@
 while true; do
     echo "Waiting for changes in project..."
     inotifywait -q -e modify,create,delete,move -r "$(pwd)"
-        if ./build.sh; then
+        if ./gradlew assemble; then
             echo "Building succesful. Pushing file to remote..."
             if scp "$JAR_FILE" "$HOST_ADDR"; then
                 echo "File pushed."
@@ -29,4 +29,5 @@ while true; do
         else
             echo "Building failed."
         fi
+        echo -e "Time: $(date)\n\n"
 done

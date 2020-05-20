@@ -3,6 +3,7 @@ package ts3_musicbot.chat
 import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Dispatchers.Main
 import ts3_musicbot.services.*
 import ts3_musicbot.util.*
 import ts3_musicbot.util.CommandList.commandList
@@ -715,7 +716,7 @@ class ChatReader(
                                         searchedLines.addAll(
                                             spotify.searchSpotify(
                                                 message.split(" ".toRegex())[1].toLowerCase(),
-                                                message.substringAfter(message.split(" ".toRegex())[1])
+                                                message.substringAfter(message.split(" ".toRegex())[1] + " ")
                                                     .replace("&owner=\\w+", "")
                                             ).split("\n".toRegex())
                                         )
@@ -1106,7 +1107,7 @@ class ChatReader(
         }
     }
 
-    private fun chatUpdated(line: String) {
+    private suspend fun chatUpdated(line: String) {
         when (chatFile.extension) {
             "html" -> {
                 //extract message
@@ -1121,7 +1122,9 @@ class ChatReader(
 
                 val userMessage = line.split("TextMessage_Text\">".toRegex())[1].split("</span>".toRegex())[0]
                 parseLine(userName, userMessage)
-                onChatUpdateListener.onChatUpdated(ChatUpdate(userName, time, userMessage))
+                withContext(Main) {
+                    onChatUpdateListener.onChatUpdated(ChatUpdate(userName, time, userMessage))
+                }
             }
 
             "txt" -> {
@@ -1137,7 +1140,9 @@ class ChatReader(
 
                     val userMessage = line.substringAfter("$userName: ")
                     parseLine(userName, userMessage)
-                    onChatUpdateListener.onChatUpdated(ChatUpdate(userName, time, userMessage))
+                    withContext(Main) {
+                        onChatUpdateListener.onChatUpdated(ChatUpdate(userName, time, userMessage))
+                    }
                 }
             }
 
