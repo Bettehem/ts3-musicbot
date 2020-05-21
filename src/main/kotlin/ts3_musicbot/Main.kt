@@ -101,7 +101,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         "--ncspot               Use ncspot as the Spotify player (Requires Spotify Premium).\n" +
                         "                       Before starting the bot, you also need to export your terminal app of preference as \$TERMINAL.\n" +
                         "                       Example: export TERMINAL=xfce4-terminal\n" +
-                        "--config               provide a config file where to read arguments from"
+                        "--config               provide a config file where to read arguments from\n"
 
                 //go through given arguments and save them
                 for (argPos in args.indices) {
