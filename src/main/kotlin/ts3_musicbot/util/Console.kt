@@ -51,7 +51,7 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener) {
             if (exitTeamSpeak.contentEquals("y") || exitTeamSpeak.contentEquals("yes") || exitTeamSpeak.contentEquals("")) {
                 confirmed = true
                 commandRunner.runCommand(
-                    "xdotool search \"Teamspeak 3\" windowactivate --sync key --window 0 --clearmodifiers alt+F4",
+                    "xdotool search \"TeamSpeak 3\" windowactivate --sync key --window 0 --clearmodifiers Ctrl+q",
                     ignoreOutput = true
                 )
             } else if (exitTeamSpeak.contentEquals("n") || exitTeamSpeak.contentEquals("no")) {

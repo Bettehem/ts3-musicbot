@@ -164,6 +164,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     channelName = settings.channelName
                     channelFilename = settings.channelFilePath
                     market = settings.market
+                    spotifyPlayer = settings.spotifyPlayer
                 }
 
                 //connect to desired server and channel, after which find the server's channel file and start listening for commands
@@ -697,7 +698,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     channelName,
                     channelFilePath,
                     nickname,
-                    market
+                    market,
+                    spotifyPlayer
                 )
                 saveSettings(settings, true)
             }

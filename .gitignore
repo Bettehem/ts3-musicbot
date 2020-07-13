@@ -3,6 +3,7 @@ out
 .idea/misc.xml
 .idea/dictionaries
 .idea/inspectionProfiles
+.idea/compiler.xml
 tags
 build
 *.iml

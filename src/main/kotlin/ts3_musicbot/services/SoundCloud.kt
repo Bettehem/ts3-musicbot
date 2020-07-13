@@ -1,14 +1,16 @@
 package ts3_musicbot.services
 
 import org.json.JSONObject
-import ts3_musicbot.util.CommandRunner
-import ts3_musicbot.util.sendHttpRequest
+import ts3_musicbot.util.*
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.LocalDate
 
 class SoundCloud {
     private val commandRunner = CommandRunner()
     private var clientId = "dp8jYbqmo9I3kJhH02V2UjpLbmMgwbN5"
+    private val api2URL = URL("https://api-v2.soundcloud.com")
+    private val apiURL = URL("https://api.soundcloud.com")
 
     /**
      * Updates the clientId
@@ -21,7 +23,7 @@ class SoundCloud {
         ).split("\n")
         for (line in lines) {
             val url = line.substringAfter("\"").substringBefore("\"")
-            val data = commandRunner.runCommand("curl $url 2> /dev/null | grep \"client_id=\"", printOutput = false)
+            val data = commandRunner.runCommand("curl $url 2> /dev/null | grep \"client_id=\"", printOutput = false, printErrors = false)
             if (data.isNotEmpty()) {
                 val id = data.substringAfter("client_id=").substringBefore("&")
                 clientId = id
@@ -35,41 +37,48 @@ class SoundCloud {
      * @param link SoundCloud playlist link
      * @return returns an ArrayList containing the playlist's tracks as Track objects
      */
-    fun getPlaylistTracks(link: String): ArrayList<Track> {
-        fun getTracks(): Pair<Int, String> {
+    fun getPlaylistTracks(link: Link): ArrayList<Track> {
+        fun getTracks(): Pair<ResponseCode, ResponseData> {
             val id = resolveId(link)
-
             val urlBuilder = StringBuilder()
-            urlBuilder.append("https://api-v2.soundcloud.com/playlists/")
+            urlBuilder.append("$api2URL/playlists/")
             urlBuilder.append(id)
             urlBuilder.append("?client_id=$clientId")
-            val url = URL(urlBuilder.toString())
-            val requestMethod = "GET"
-            val properties = arrayOf(
-                "Content-Type: application/x-www-form-urlencoded",
-                "User-Agent: Mozilla/5.0"
-            )
-            return sendHttpRequest(url, requestMethod, properties)
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
 
         val trackList = ArrayList<Track>()
         var gettingData = true
         while (gettingData) {
             val trackData = getTracks()
-            when (trackData.first) {
+            when (trackData.first.code) {
                 HttpURLConnection.HTTP_OK -> {
                     gettingData = false
                     try {
-                        val tracks = JSONObject(trackData.second).getJSONArray("tracks")
+                        val tracks = JSONObject(trackData.second.data).getJSONArray("tracks")
                         if (tracks.length() > 50) {
                             println("This playlist has ${tracks.length()} tracks. Please wait...")
                         }
                         for (item in tracks) {
                             item as JSONObject
                             try {
-                                trackList.add(getTrack("https://api.soundcloud.com/tracks/${item.getInt("id")}"))
+                                trackList.add(getTrack(Link("$apiURL/tracks/${item.getInt("id")}")))
                             } catch (e: Exception) {
-                                trackList.add(Track.Empty)
+                                trackList.add(
+                                    Track(
+                                        Album(
+                                            Name(""),
+                                            Artists(emptyList()),
+                                            ReleaseDate(LocalDate.now()),
+                                            TrackList(emptyList()),
+                                            Link("")
+                                        ),
+                                        Artists(emptyList()),
+                                        Name(""),
+                                        Link(""),
+                                        Playability(false)
+                                    )
+                                )
                             }
                         }
                     } catch (e: Exception) {
@@ -91,36 +100,54 @@ class SoundCloud {
      * @param link link to the song
      * @return returns a Track object with uploader, title and link
      */
-    fun getTrack(link: String): Track {
+    fun getTrack(link: Link): Track {
         return try {
-            val id = if (link.startsWith("https://api.soundcloud.com/tracks/")) {
-                link.substringAfterLast("/")
-            } else {
+            val id = if (link.link.startsWith("$apiURL/tracks/"))
+                link.link.substringAfterLast("/")
+            else
                 resolveId(link)
-            }
-
 
             val urlBuilder = StringBuilder()
-            urlBuilder.append("https://api-v2.soundcloud.com/resolve?url=")
-            urlBuilder.append("https://api.soundcloud.com/tracks/$id")
+            urlBuilder.append("$api2URL/resolve?url=")
+            urlBuilder.append("$apiURL/tracks/$id")
             urlBuilder.append("&client_id=$clientId")
-            val url = URL(urlBuilder.toString())
-            val requestMethod = "GET"
-            val properties = arrayOf(
-                "Content-Type: application/x-www-form-urlencoded",
-                "User-Agent: Mozilla/5.0"
-            )
-            val rawResponse = sendHttpRequest(url, requestMethod, properties)
-            val response = JSONObject(rawResponse.second)
+            val rawResponse = sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            val response = JSONObject(rawResponse.second.data)
 
             Track(
-                "",
-                response.getJSONObject("user").getString("username"),
-                response.getString("title"),
-                response.getString("permalink_url")
+                Album(
+                    Name(""),
+                    Artists(emptyList()),
+                    ReleaseDate(LocalDate.now()),
+                    TrackList(emptyList()),
+                    Link("")
+                ),
+                Artists(
+                    listOf(
+                        Artist(
+                            Name(response.getJSONObject("user").getString("username")),
+                            Link(response.getJSONObject("user").getString("permalink_url"))
+                        )
+                    )
+                ),
+                Name(response.getString("title")),
+                Link(response.getString("permalink_url")),
+                Playability(response.getBoolean("streamable"))
             )
         } catch (e: Exception) {
-            Track.Empty
+            Track(
+                Album(
+                    Name(""),
+                    Artists(emptyList()),
+                    ReleaseDate(LocalDate.now()),
+                    TrackList(emptyList()),
+                    Link("")
+                ),
+                Artists(emptyList()),
+                Name(""),
+                Link(""),
+                Playability(false)
+            )
         }
     }
 
@@ -129,35 +156,29 @@ class SoundCloud {
      * @param link link to resolve
      * @return returns the corresponding id for the given link as a String
      */
-    private fun resolveId(link: String): String {
-        fun getId(): Pair<Int, String> {
+    private fun resolveId(link: Link): String {
+        fun getId(): Pair<ResponseCode, ResponseData> {
             val urlBuilder = StringBuilder()
-            urlBuilder.append("https://api-v2.soundcloud.com/resolve?")
+            urlBuilder.append("$api2URL/resolve?")
             urlBuilder.append("client_id=$clientId")
-            urlBuilder.append("&url=$link")
-            val url = URL(urlBuilder.toString())
-            val requestMethod = "GET"
-            val properties = arrayOf(
-                "Content-Type: application/x-www-form-urlencoded",
-                "User-Agent: Mozilla/5.0"
-            )
-            return sendHttpRequest(url, requestMethod, properties)
+            urlBuilder.append("&url=${link.link}")
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
 
-        var id = ""
+        lateinit var id: String
         var gettingData = true
         while (gettingData) {
             val idData = getId()
-            when (idData.first) {
+            when (idData.first.code) {
                 HttpURLConnection.HTTP_OK -> {
-                    id = JSONObject(idData.second).getInt("id").toString()
+                    id = JSONObject(idData.second.data).getInt("id").toString()
                     gettingData = false
                 }
                 HttpURLConnection.HTTP_UNAUTHORIZED -> {
                     updateId()
                 }
                 else -> {
-                    println("Error: code ")
+                    println("Error: code ${idData.first.code}")
                 }
             }
         }

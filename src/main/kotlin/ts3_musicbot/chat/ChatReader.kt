@@ -24,7 +24,7 @@ class ChatReader(
 ) : PlayStateListener {
 
     private var shouldRead = false
-    private var ytLink = ""
+    private var ytLink = Link("")
     private val commandRunner = CommandRunner()
     private val spotify = Spotify(market)
     private val youTube = YouTube()
@@ -41,28 +41,24 @@ class ChatReader(
         }
     }
 
-    private fun parseLink(link: String): String {
+    private fun parseLink(link: Link): Link {
         when (chatFile.extension) {
             "html" -> {
-                return if (link.contains("href=\"")) {
-                    link.substringAfter(link.split(" ".toRegex())[0])
+                return Link(if (link.link.contains("href=\"")) {
+                    link.link.substringAfter(link.link.split(" ".toRegex())[0])
                         .split("href=\"".toRegex())[1].split("\">".toRegex())[0].replace(
                         " -s",
                         ""
                     )
                 } else {
-                    link
-                }
+                    link.link
+                })
             }
-
             "txt" -> {
-                /*return link.substringAfter("${link.split(" ".toRegex())[0]} ").substringAfter("[URL]")
-                    .substringBefore("[/URL]").replace("-s", "")*/
-                return link.substringAfter("[URL]").substringBefore("[/URL]")
+                return Link(link.link.substringAfter("[URL]").substringBefore("[/URL]"))
             }
         }
-
-        return ""
+        return Link("")
     }
 
     /**
@@ -145,7 +141,7 @@ class ChatReader(
                                 } else {
                                     -1
                                 }
-                                val links = ArrayList<String>()
+                                val links = ArrayList<Link>()
                                 //get arguments in command
                                 val args = commandString.split("\\s".toRegex())
                                 for (i in args.indices) {
@@ -166,9 +162,9 @@ class ChatReader(
                                         args[i].contains("((\\[URL])?(https?://(open\\.spotify\\.com|soundcloud\\.com|youtu\\.be|(m|www)\\.youtube\\.com))(\\[/URL])?.+)|(spotify:(track|album|playlist):.+)".toRegex()) -> {
                                             //add links to ArrayList
                                             if (args[i].contains(",\\s*".toRegex()))
-                                                links.addAll(args[i].split(",\\s*".toRegex()))
+                                                links.addAll(args[i].split(",\\s*".toRegex()).map{ Link(it) })
                                             else
-                                                links.add(args[i])
+                                                links.add(Link(args[i]))
                                         }
                                     }
                                 }
@@ -182,12 +178,12 @@ class ChatReader(
                                 for (link in links) {
                                     when {
                                         //Spotify
-                                        link.contains("(https?://open\\.spotify\\.com/)|(spotify:(album|track|playlist):.+)".toRegex()) -> {
+                                        link.link.contains("(https?://open\\.spotify\\.com/)|(spotify:(album|track|playlist):.+)".toRegex()) -> {
                                             //get link type
                                             val type = when {
-                                                link.contains("(spotify:track:.+)|(open\\.spotify\\.com/track/)".toRegex()) -> "track"
-                                                link.contains("(spotify:album:.+)|(open\\.spotify\\.com/album/)".toRegex()) -> "album"
-                                                link.contains("(spotify:playlist:.+)|(open\\.spotify\\.com/playlist/)".toRegex()) -> "playlist"
+                                                link.link.contains("(spotify:track:.+)|(open\\.spotify\\.com/track/)".toRegex()) -> "track"
+                                                link.link.contains("(spotify:album:.+)|(open\\.spotify\\.com/album/)".toRegex()) -> "album"
+                                                link.link.contains("(spotify:playlist:.+)|(open\\.spotify\\.com/playlist/)".toRegex()) -> "playlist"
                                                 else -> ""
                                             }
                                             println("Spotify link: $link\nLink type: $type")
@@ -195,7 +191,7 @@ class ChatReader(
                                             when (type) {
                                                 "track" -> {
                                                     songQueue.addToQueue(
-                                                        "https://open.spotify.com/$type/${link.substringAfter(type)
+                                                        "https://open.spotify.com/$type/${link.link.substringAfter(type)
                                                             .substring(1).substringBefore("[/URL]")
                                                             .substringBefore("?")}",
                                                         customPosition
@@ -205,59 +201,63 @@ class ChatReader(
                                                 "album" -> {
                                                     //get album's tracks
                                                     val albumTracks = spotify.getAlbumTracks(
-                                                        "https://open.spotify.com/$type/${link.substringAfter(type)
-                                                            .substring(1)
-                                                            .substringBefore("[/URL]").substringBefore("?")}"
+                                                        Link(
+                                                            "https://open.spotify.com/$type/${link.link.substringAfter(type)
+                                                                .substring(1)
+                                                                .substringBefore("[/URL]").substringBefore("?")}"
+                                                        )
                                                     )
-                                                    if (shouldShuffle)
-                                                        albumTracks.shuffle()
-
                                                     val trackList = ArrayList<String>()
-                                                    for (track in albumTracks) {
-                                                        if (track.isPlayable)
-                                                            trackList.add(track.link)
+                                                    for (track in albumTracks.trackList) {
+                                                        if (track.isPlayable.isPlayable)
+                                                            trackList.add(track.link.link)
                                                     }
-                                                    println("Album \"${albumTracks[0].album}\" has a total of ${trackList.size} tracks.\nAdding to queue...")
+                                                    println("Album \"${albumTracks.trackList[0].album}\" has a total of ${trackList.size} tracks.\nAdding to queue...")
                                                     //add tracks to queue
-                                                    songQueue.addAllToQueue(trackList, customPosition)
+                                                    songQueue.addAllToQueue(
+                                                        if (shouldShuffle) trackList.shuffled() else trackList,
+                                                        customPosition
+                                                    )
                                                 }
 
                                                 "playlist" -> {
                                                     //get playlist's tracks
                                                     val playlistTracks = spotify.getPlaylistTracks(
-                                                        "https://open.spotify.com/$type/${link.substringAfter(type)
-                                                            .substring(1)
-                                                            .substringAfter("[URL]").substringBefore("[/URL]")
-                                                            .substringBefore("?")}"
+                                                        Link(
+                                                            "https://open.spotify.com/$type/${link.link.substringAfter(type)
+                                                                .substring(1)
+                                                                .substringAfter("[URL]").substringBefore("[/URL]")
+                                                                .substringBefore("?")}"
+                                                        )
                                                     )
-                                                    if (shouldShuffle)
-                                                        playlistTracks.shuffle()
-
                                                     val trackList = ArrayList<String>()
-                                                    for (track in playlistTracks) {
-                                                        if (track.isPlayable)
-                                                            trackList.add(track.link)
+                                                    for (track in playlistTracks.trackList) {
+                                                        if (track.isPlayable.isPlayable)
+                                                            trackList.add(track.link.link)
                                                     }
                                                     println("Playlist has a total of ${trackList.size} tracks.\nAdding to queue...")
                                                     //add tracks to queue
-                                                    songQueue.addAllToQueue(trackList, customPosition)
+                                                    songQueue.addAllToQueue(
+                                                        if (shouldShuffle) trackList.shuffled() else trackList,
+                                                        customPosition
+                                                    )
                                                 }
                                             }
                                             println("Added to queue.")
                                         }
 
                                         //YouTube
-                                        link.contains("https?://(youtu\\.be|(m|www)\\.youtube\\.com)".toRegex()) -> {
+                                        link.link.contains("https?://(youtu\\.be|(m|www)\\.youtube\\.com)".toRegex()) -> {
                                             //get link type
                                             val type = when {
-                                                link.contains("https?://((m|www)\\.youtube\\.com/watch\\?v=|youtu\\.be/\\S+)".toRegex()) -> "track"
-                                                link.contains("https?://((m|www)\\.youtube\\.com/playlist\\?list=\\S+)".toRegex()) -> "playlist"
+                                                link.link.contains("https?://((m|www)\\.youtube\\.com/watch\\?v=|youtu\\.be/\\S+)".toRegex()) -> "track"
+                                                link.link.contains("https?://((m|www)\\.youtube\\.com/playlist\\?list=\\S+)".toRegex()) -> "playlist"
                                                 else -> ""
                                             }
                                             println("YouTube link: $link\nLink type: $type")
                                             //get track/playlist id
                                             val id =
-                                                link.split("((m|www)\\.youtube\\.com/(watch|playlist)\\?(v|list)=)|(youtu.be/)".toRegex())[1]
+                                                link.link.split("((m|www)\\.youtube\\.com/(watch|playlist)\\?(v|list)=)|(youtu.be/)".toRegex())[1]
                                                     .substringAfter("[URL]")
                                                     .substringBefore("[/URL]")
                                                     .substringBefore("&")
@@ -270,13 +270,13 @@ class ChatReader(
                                                 "playlist" -> {
                                                     //get playlist tracks
                                                     val playlistTracks =
-                                                        youTube.getPlaylistTracks("https://youtube.com/playlist?list=$id")
+                                                        youTube.getPlaylistTracks(Link("https://youtube.com/playlist?list=$id"))
                                                     if (shouldShuffle)
                                                         playlistTracks.shuffle()
                                                     val trackList = ArrayList<String>()
                                                     for (track in playlistTracks) {
-                                                        if (track.isPlayable)
-                                                            trackList.add(track.link)
+                                                        if (track.isPlayable.isPlayable)
+                                                            trackList.add(track.link.link)
                                                     }
                                                     println("Playlist has a total of ${trackList.size} tracks.\nAdding to queue...")
                                                     songQueue.addAllToQueue(trackList, customPosition)
@@ -285,11 +285,11 @@ class ChatReader(
                                         }
 
                                         //SoundCloud
-                                        link.contains("https?://soundcloud\\.com/".toRegex()) -> {
+                                        link.link.contains("https?://soundcloud\\.com/".toRegex()) -> {
                                             //get link type
                                             val type = when {
-                                                link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/(?!sets)\\S+".toRegex()) -> "track"
-                                                link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/sets/\\S+".toRegex()) -> "playlist"
+                                                link.link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/(?!sets)\\S+".toRegex()) -> "track"
+                                                link.link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/sets/\\S+".toRegex()) -> "playlist"
                                                 else -> ""
                                             }
                                             println("SoundCloud link: $link\nLink type: $type")
@@ -297,7 +297,7 @@ class ChatReader(
                                             when (type) {
                                                 "track" -> {
                                                     songQueue.addToQueue(
-                                                        link.substringAfter("[URL]")
+                                                        link.link.substringAfter("[URL]")
                                                             .substringBefore("[/URL]")
                                                             .substringBefore("?"), customPosition
                                                     )
@@ -310,8 +310,8 @@ class ChatReader(
                                                         playlistTracks.shuffle()
                                                     val trackList = ArrayList<String>()
                                                     for (track in playlistTracks) {
-                                                        if (track.isPlayable)
-                                                            trackList.add(track.link)
+                                                        if (track.isPlayable.isPlayable)
+                                                            trackList.add(track.link.link)
                                                     }
                                                     songQueue.addAllToQueue(trackList, customPosition)
                                                 }
@@ -485,7 +485,7 @@ class ChatReader(
                             }
                             //%queue-move command
                             commandString.contains("^%queue-move\\s+".toRegex()) -> {
-                                val link = parseLink(commandString).substringBefore("?")
+                                val link = parseLink(Link(commandString)).link.substringBefore("?")
                                 var position = 0
                                 //parse arguments
                                 val args = commandString.split("\\s+".toRegex())
@@ -540,17 +540,17 @@ class ChatReader(
                             }
                             //%queue-nowplaying command
                             commandString.contains("^%queue-nowplaying$".toRegex()) -> {
-                                if (songQueue.nowPlaying().isNotEmpty()) {
+                                if (songQueue.nowPlaying().title.name.isNotEmpty()) {
                                     val currentTrack = songQueue.nowPlaying()
                                     val messageLines = ArrayList<String>()
                                     messageLines.add("Now playing:")
-                                    if (currentTrack.album.isNotEmpty())
+                                    if (currentTrack.album.name.name.isNotEmpty())
                                         messageLines.add("Album:  \t\t\t${currentTrack.album}")
-                                    if (currentTrack.artist.isNotEmpty()) {
-                                        if (currentTrack.link.contains("soundcloud.com"))
-                                            messageLines.add("Uploader: \t\t${currentTrack.artist}")
+                                    if (currentTrack.artists.artists.isNotEmpty()) {
+                                        if (currentTrack.link.link.contains("soundcloud.com"))
+                                            messageLines.add("Uploader: \t\t${currentTrack.artists}")
                                         else
-                                            messageLines.add("Artist:    \t\t\t${currentTrack.artist}")
+                                            messageLines.add("Artist:    \t\t\t${currentTrack.artists}")
                                     }
                                     messageLines.add("Title:      \t\t\t${currentTrack.title}")
                                     messageLines.add("Link:      \t\t\t${currentTrack.link}")
@@ -596,10 +596,10 @@ class ChatReader(
                             //Play Spotify song based on link or URI
                             commandString.contains("^%sp-playsong\\s+".toRegex()) -> {
                                 if (message.substringAfter("%sp-playsong").isNotEmpty()) {
-                                    if (parseLink(message).startsWith("https://open.spotify.com/track")) {
+                                    if (parseLink(Link(message)).link.startsWith("https://open.spotify.com/track")) {
                                         commandRunner.runCommand(
                                             "playerctl -p $spotifyPlayer open spotify:track:${
-                                            parseLink(message)
+                                            parseLink(Link(message)).link
                                                 .split("track/".toRegex())[1]
                                                 .split("\\?si=".toRegex())[0]
                                             }"
@@ -638,10 +638,10 @@ class ChatReader(
                                         message.substringAfter("playlist:")
                                         }"
                                     )
-                                } else if (parseLink(message).startsWith("https://open.spotify.com/")) {
+                                } else if (parseLink(Link(message)).link.startsWith("https://open.spotify.com/")) {
                                     commandRunner.runCommand(
                                         "playerctl -p $spotifyPlayer open spotify:playlist:${
-                                        parseLink(message).substringAfter("playlist/")
+                                        parseLink(Link(message)).link.substringAfter("playlist/")
                                             .substringBefore("?")
                                         }"
                                     )
@@ -656,10 +656,10 @@ class ChatReader(
                                         message.substringAfter("album:")
                                         }"
                                     )
-                                } else if (parseLink(message).startsWith("https://open.spotify.com/")) {
+                                } else if (parseLink(Link(message)).link.startsWith("https://open.spotify.com/")) {
                                     commandRunner.runCommand(
                                         "playerctl -p $spotifyPlayer open spotify:album:${
-                                        parseLink(message).substringAfter("album/")
+                                        parseLink(Link(message)).link.substringAfter("album/")
                                             .substringBefore("?")
                                         }"
                                     )
@@ -715,9 +715,11 @@ class ChatReader(
                                         val searchedLines = ArrayList<String>()
                                         searchedLines.addAll(
                                             spotify.searchSpotify(
-                                                message.split(" ".toRegex())[1].toLowerCase(),
-                                                message.substringAfter(message.split(" ".toRegex())[1] + " ")
-                                                    .replace("&owner=\\w+", "")
+                                                SearchType(message.split(" ".toRegex())[1].toLowerCase()),
+                                                SearchQuery(
+                                                    message.substringAfter(message.split(" ".toRegex())[1] + " ")
+                                                        .replace("&owner=\\w+", "")
+                                                )
                                             ).split("\n".toRegex())
                                         )
                                         for (line in searchedLines.indices) {
@@ -774,6 +776,7 @@ class ChatReader(
                                                             resultLines.clear()
                                                         }
                                                     }
+                                                    resultLines.add(0, "")
                                                     printToChat(userName, resultLines, apikey)
                                                 }
                                             }
@@ -796,6 +799,7 @@ class ChatReader(
                                                             resultLines.clear()
                                                         }
                                                     }
+                                                    resultLines.add(0, "")
                                                     printToChat(userName, resultLines, apikey)
                                                 }
                                             }
@@ -820,6 +824,7 @@ class ChatReader(
                                                         }
 
                                                     }
+                                                    resultLines.add(0, "")
                                                     printToChat(userName, resultLines, apikey)
                                                 }
                                             }
@@ -835,37 +840,80 @@ class ChatReader(
                                 }
                             }
                             //%sp-info command
-                            commandString.contains("^%sp-info\\s+".toRegex()) -> {
-                                if (message.substringAfter("%sp-info ")
-                                        .isNotEmpty() && message.substringAfter("%sp-info").length > 1
-                                ) {
-                                    if (parseLink(message).startsWith("https://open.spotify.com/track")) {
-                                        val track = spotify.getTrack(parseLink(message))
+                            commandString.contains("%sp-info(\\s+((\\[URL])?http(s)?://open\\.)?spotify(:|\\.com/)(album|track|playlist|artist)[:/]\\S+\$)?".toRegex()) -> {
+                                val link = parseLink(Link(commandString.substringAfter("%sp-info ")))
+                                when {
+                                    link.link.contains("track".toRegex()) -> {
+                                        val track = spotify.getTrack(link)
                                         printToChat(
                                             userName, listOf(
                                                 "",
-                                                "Album:     ${track.album}",
-                                                "Artist:    ${track.artist}",
-                                                "Title:     ${track.title}"
+                                                "Album:\t${track.album}",
+                                                "Artist:   \t${track.artists}",
+                                                "Title:    \t${track.title}"
                                             ), apikey
                                         )
-                                    } else if (message.substringAfter("%sp-info ").contains("spotify:") &&
-                                        message.substringAfter("%sp-info ").contains(":track:")
-                                    ) {
-                                        val track = spotify.getTrack(message.substringAfter("%sp-info "))
-                                        printToChat(
-                                            userName, listOf(
-                                                "",
-                                                "Album:     ${track.album}",
-                                                "Artist:    ${track.artist}",
-                                                "Title:     ${track.title}"
-                                            ), apikey
-                                        )
+                                        return true
                                     }
-                                    return true
-                                } else {
-                                    printToChat(userName, listOf("You have to provide a Spotify link or URI to a track!"), apikey)
-                                    return false
+                                    link.link.contains("album".toRegex()) -> {
+                                        val album = spotify.getAlbum(link)
+                                        val lines = ArrayList<String>()
+                                        for (line in album.toString().lines()) {
+                                            if (lines.size <= 15) {
+                                                lines.add(line)
+                                            } else {
+                                                lines.add(0, "")
+                                                lines.add(line)
+                                                printToChat(userName, lines, apikey)
+                                                lines.clear()
+                                            }
+                                        }
+                                        lines.add(0, "")
+                                        printToChat(userName, lines, apikey)
+                                        return true
+                                    }
+                                    link.link.contains("playlist".toRegex()) -> {
+                                        val playlist = spotify.getPlaylist(link)
+                                        val lines = ArrayList<String>()
+                                        for (line in playlist.toString().lines()) {
+                                            if (lines.size <= 15) {
+                                                lines.add(line)
+                                            } else {
+                                                lines.add(0, "")
+                                                lines.add(line)
+                                                printToChat(userName, lines, apikey)
+                                                lines.clear()
+                                            }
+                                        }
+                                        lines.add(0, "")
+                                        printToChat(userName, lines, apikey)
+                                        return true
+                                    }
+                                    link.link.contains("artist".toRegex()) -> {
+                                        val artist = spotify.getArtist(link)
+                                        val lines = ArrayList<String>()
+                                        for (line in artist.toString().lines()) {
+                                            if (lines.size <= 14) {
+                                                lines.add(line)
+                                            } else {
+                                                lines.add(0, "")
+                                                lines.add(line)
+                                                printToChat(userName, lines, apikey)
+                                                lines.clear()
+                                            }
+                                        }
+                                        lines.add(0, "")
+                                        printToChat(userName, lines, apikey)
+                                        return true
+                                    }
+                                    else -> {
+                                        printToChat(
+                                            userName,
+                                            listOf("You have to provide a Spotify link or URI to a track!"),
+                                            apikey
+                                        )
+                                        return false
+                                    }
                                 }
                             }
 
@@ -892,8 +940,8 @@ class ChatReader(
                             }
                             //%yt-playsong command
                             commandString.contains("^%yt-playsong\\s+".toRegex()) -> {
-                                ytLink = parseLink(message)
-                                if (ytLink.isNotEmpty()) {
+                                ytLink = parseLink(Link(message))
+                                if (ytLink.link.isNotEmpty()) {
                                     Thread {
                                         Runnable {
                                             run {
@@ -928,7 +976,7 @@ class ChatReader(
                                     "video", "track", "playlist" -> {
                                         printToChat(userName, listOf("Searching, please wait..."), apikey)
                                         val results =
-                                            youTube.searchYoutube(searchType.replace("track", "video"), searchQuery)
+                                            youTube.searchYoutube(SearchType(searchType.replace("track", "video")), SearchQuery(searchQuery))
                                         val lines = ArrayList<String>()
                                         lines.addAll(results.split("\n".toRegex()))
                                         if (lines.size <= 12) {
@@ -990,9 +1038,9 @@ class ChatReader(
                             }
                             //%sc-playsong command
                             commandString.contains("^%sc-playsong\\s+".toRegex()) -> {
-                                val scLink = parseLink(message)
+                                val scLink = parseLink(Link(message))
                                 //Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -o - \"$scLink\" | mpv --no-terminal --no-video --input-ipc-server=/tmp/mpvsocket - &"))
-                                if (scLink.isNotEmpty()) {
+                                if (scLink.link.isNotEmpty()) {
                                     Thread {
                                         Runnable {
                                             run {
@@ -1007,29 +1055,27 @@ class ChatReader(
                                 }
                                 return true
                             }
-
-                            else -> {
-                                //if userName is set to __console__, allow the usage of %say command
-                                if (userName == "__console__") {
-                                    when (message.split(" ".toRegex())[0]) {
-                                        //send a message to the chat
-                                        "%say" -> {
-                                            val lines = ArrayList<String>()
-                                            lines.addAll(message.substringAfterLast("%say ").split("\n"))
-                                            printToChat("", lines, apikey)
-                                            return true
-                                        }
-                                    }
-                                } else {
-                                    val lines = ArrayList<String>()
-                                    lines.add("Command not found! Try %help to see available commands.")
-                                    printToChat(userName, lines, apikey)
-                                    return false
-                                }
-                            }
+                            else -> {}
 
                         }
+                    } else {
+                        //if userName is set to __console__, allow the usage of %say command
+                        if (userName == "__console__") {
+                            when {
+                                //send a message to the chat
+                                message.contains("^%say(\\s+\\S+)+$".toRegex()) -> {
+                                    printToChat("", message.substringAfter("%say ").lines(), apikey)
+                                    return true
+                                }
+                            }
+                        } else {
+                            val lines = ArrayList<String>()
+                            lines.add("Command not found! Try %help to see available commands.")
+                            printToChat(userName, lines, apikey)
+                            return false
+                        }
                     }
+
                     return false
                 }
 
@@ -1072,12 +1118,12 @@ class ChatReader(
             messageLines?.forEach { println(it) }
         } else {
             if (apikey.isNotEmpty()) {
-                val stringBuffer = StringBuffer()
-                messageLines?.forEach { stringBuffer.append(it + "\n") }
+                val stringBuilder = StringBuilder()
+                messageLines?.forEach { stringBuilder.appendln(it) }
                 val distro = commandRunner.runCommand("cat /etc/issue", printOutput = false)
                 val command = when {
                     distro.contains("Ubuntu".toRegex()) -> {
-                        "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${stringBuffer.toString()
+                        "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${stringBuilder.toString()
                             .replace(" ", "\\\\\\s")
                             .replace("\n", "\\\\\\n")
                             .replace("/", "\\/")
@@ -1090,7 +1136,7 @@ class ChatReader(
                     }
 
                     else -> {
-                        "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${stringBuffer.toString()
+                        "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${stringBuilder.toString()
                             .replace(" ", "\\s")
                             .replace("\n", "\\n")
                             .replace("/", "\\/")
@@ -1152,27 +1198,27 @@ class ChatReader(
         }
     }
 
-    override fun onSongEnded(player: String, track: String) {}
+    override fun onSongEnded(player: String, trackLink: Link) {}
 
-    override fun onNewSongPlaying(player: String, track: String) {
+    override fun onNewSongPlaying(player: String, trackLink: Link) {
         when (player) {
             "spotify", "ncspot" -> {
                 CoroutineScope(Default).launch {
                     parseLine("", "%queue-nowplaying")
-                    val spotifyTrack = spotify.getTrack(track)
-                    println("Playing ${spotifyTrack.artist} - ${spotifyTrack.title}")
+                    val spotifyTrack = spotify.getTrack(trackLink)
+                    println("Playing ${spotifyTrack.artists} - ${spotifyTrack.title}")
                 }
             }
             "mpv" -> {
-                if (track.startsWith("https://youtube.com") || track.startsWith("https://youtu.be") || track.startsWith(
+                if (trackLink.link.startsWith("https://youtube.com") || trackLink.link.startsWith("https://youtu.be") || trackLink.link.startsWith(
                         "https://www.youtube.com"
                     )
                 ) {
-                    ytLink = track
-                    println("Playing ${youTube.getVideoTitle(track)}")
-                } else if (track.startsWith("https://soundcloud.com")) {
-                    val trackData = soundCloud.getTrack(track)
-                    println("Playing ${trackData.artist} - ${trackData.title}")
+                    ytLink = trackLink
+                    println("Playing ${youTube.getVideoTitle(trackLink)}")
+                } else if (trackLink.link.startsWith("https://soundcloud.com")) {
+                    val trackData = soundCloud.getTrack(trackLink)
+                    println("Playing ${trackData.artists} - ${trackData.title}")
                 }
                 parseLine("", "%queue-nowplaying")
             }

@@ -1,11 +1,11 @@
 package ts3_musicbot.services
 
 import org.json.JSONObject
-import ts3_musicbot.util.CommandRunner
-import ts3_musicbot.util.sendHttpRequest
+import ts3_musicbot.util.*
 import java.net.URL
+import java.time.LocalDate
 
-class YouTube{
+class YouTube {
     private val commandRunner = CommandRunner()
 
     /**
@@ -13,7 +13,7 @@ class YouTube{
      * @param videoLink link to video
      * @return returns a title
      */
-    fun getVideoTitle(videoLink: String): String {
+    fun getVideoTitle(videoLink: Link): String {
         return commandRunner.runCommand(
             "youtube-dl --no-playlist --geo-bypass -e \"$videoLink\" 2> /dev/null",
             printErrors = false,
@@ -26,7 +26,7 @@ class YouTube{
      * @param link link to playlist
      * @return returns a list of videos/tracks
      */
-    fun getPlaylistTracks(link: String): ArrayList<Track> {
+    fun getPlaylistTracks(link: Link): ArrayList<Track> {
         /**
          * Send a request to YouTube API to get playlist items
          * @param maxResults max results to receive. 50 is the maximum per request
@@ -37,21 +37,15 @@ class YouTube{
         fun sendRequest(maxResults: Int = 50, pageToken: String = "", part: String = "snippet,status"): JSONObject {
             val urlBuilder = StringBuilder()
             urlBuilder.append("https://www.googleapis.com/youtube/v3/playlistItems?")
-            urlBuilder.append("playlistId=${link.substringAfter("list=")}")
+            urlBuilder.append("playlistId=${link.link.substringAfter("list=")}")
             urlBuilder.append("&part=${part.replace(",", "%2C")}")
             urlBuilder.append("&key=AIzaSyB_FpJTYVMuQ2I_DxaidXUd7z4Q-ScMv6Y")
             urlBuilder.append("&maxResults=$maxResults")
             if (pageToken.isNotEmpty())
                 urlBuilder.append("&pageToken=$pageToken")
-            val url = URL(urlBuilder.toString())
-            val requestMethod = "GET"
-            val properties = arrayOf(
-                "Content-Type: application/x-www-form-urlencoded",
-                "User-Agent: Mozilla/5.0"
-            )
-            val rawResponse = sendHttpRequest(url, requestMethod, properties)
+            val rawResponse = sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
             return try {
-                JSONObject(rawResponse.second)
+                JSONObject(rawResponse.second.data)
             } catch (e: Exception) {
                 JSONObject("{pageInfo: {totalResults: 0}, items: []}")
             }
@@ -82,10 +76,19 @@ class YouTube{
                             "public", "unlisted" -> true
                             else -> false
                         }
-                        val track = Track("", "", "", "")
-                        track.title = title
-                        track.link = videoLink
-                        track.isPlayable = isPlayable
+                        val track = Track(
+                                Album(
+                                    Name(""),
+                                    Artists(emptyList()),
+                                    ReleaseDate(LocalDate.now()),
+                                    TrackList(emptyList()),
+                                    Link("")
+                                ),
+                                Artists(emptyList()),
+                                Name(title),
+                                Link(videoLink),
+                                Playability(isPlayable)
+                            )
                         listItems.add(track)
                     } catch (e: Exception) {
                         totalItems -= 1
@@ -102,15 +105,25 @@ class YouTube{
                 try {
                     val title = item.getJSONObject("snippet").getString("title")
                     val videoLink =
-                        "https://youtu.be/${item.getJSONObject("snippet").getJSONObject("resourceId").getString("videoId")}"
+                        "https://youtu.be/${item.getJSONObject("snippet").getJSONObject("resourceId")
+                            .getString("videoId")}"
                     val isPlayable = when (item.getJSONObject("status").getString("privacyStatus")) {
                         "public", "unlisted" -> true
                         else -> false
                     }
-                    val track = Track("", "", "", "")
-                    track.title = title
-                    track.link = videoLink
-                    track.isPlayable = isPlayable
+                    val track = Track(
+                        Album(
+                            Name(""),
+                            Artists(emptyList()),
+                            ReleaseDate(LocalDate.now()),
+                            TrackList(emptyList()),
+                            Link("")
+                        ),
+                        Artists(emptyList()),
+                        Name(title),
+                        Link(videoLink),
+                        Playability(isPlayable)
+                    )
                     listItems.add(track)
                 } catch (e: Exception) {
                     totalItems -= 1
@@ -126,25 +139,19 @@ class YouTube{
      * @param searchQuery search keywords
      * @return returns top 10 results from the search
      */
-    fun searchYoutube(searchType: String, searchQuery: String): String {
+    fun searchYoutube(searchType: SearchType, searchQuery: SearchQuery): String {
         val urlBuilder = StringBuilder()
         urlBuilder.append("https://www.googleapis.com/youtube/v3/search?")
-        urlBuilder.append("q=${searchQuery.replace(" ", "%20").replace("\"", "%22")}")
+        urlBuilder.append("q=${searchQuery.query.replace(" ", "%20").replace("\"", "%22")}")
         urlBuilder.append("&type=$searchType")
         urlBuilder.append("&maxResults=10")
         urlBuilder.append("&part=snippet")
         urlBuilder.append("&key=AIzaSyB_FpJTYVMuQ2I_DxaidXUd7z4Q-ScMv6Y")
-        val url = URL(urlBuilder.toString())
-        val requestMethod = "GET"
-        val properties = arrayOf(
-            "Content-Type: application/x-www-form-urlencoded",
-            "User-Agent: Mozilla/5.0"
-        )
-        val rawResponse = sendHttpRequest(url, requestMethod, properties)
-        val response = JSONObject(rawResponse.second)
+        val rawResponse = sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        val response = JSONObject(rawResponse.second.data)
         val searchResult = StringBuilder()
 
-        when (searchType) {
+        when (searchType.type) {
             "track", "video" -> {
                 val results = response.getJSONArray("items")
                 for (resultData in results) {
@@ -167,7 +174,8 @@ class YouTube{
                     val listTitle = resultData.getJSONObject("snippet").getString("title")
                     val listCreator = resultData.getJSONObject("snippet").getString("channelTitle")
                     val listLink =
-                        "https://www.youtube.com/playlist?list=${resultData.getJSONObject("id").getString("playlistId")}"
+                        "https://www.youtube.com/playlist?list=${resultData.getJSONObject("id")
+                            .getString("playlistId")}"
 
                     searchResult.appendln(
                         "Playlist: $listTitle\n" +

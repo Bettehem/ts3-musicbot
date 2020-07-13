@@ -6,93 +6,90 @@ import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONException
-import org.json.JSONObject
-import ts3_musicbot.util.sendHttpRequest
+import org.json.*
+import ts3_musicbot.util.*
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatterBuilder
+import java.time.temporal.ChronoField
 
 class Spotify(private val market: String = "") {
+    private val apiURL = URL("https://api.spotify.com/v1")
     private var accessToken = ""
 
     suspend fun updateToken() {
         println("Updating Spotify access token...")
-        withContext(IO){
+        withContext(IO) {
             accessToken = getSpotifyToken()
         }
     }
 
     private suspend fun getSpotifyToken(): String {
-        fun getData(): Pair<Int, String> {
+        fun getData(): Pair<ResponseCode, ResponseData> {
             val auth = "ZGUzZGFlNGUxZTE3NGRkNGFjYjY0YWYyMjcxMWEwYmI6ODk5OGQxMmJjZDBlNDAzM2E2Mzg2ZTg4Y2ZjZTk2NDg="
-            val url = URL("https://accounts.spotify.com/api/token")
-            val requestMethod = "POST"
-            val properties = arrayOf(
-                "Authorization: Basic $auth",
-                "Content-Type: application/x-www-form-urlencoded",
-                "User-Agent: Mozilla/5.0"
+            return sendHttpRequest(
+                URL("https://accounts.spotify.com/api/token"),
+                RequestMethod("POST"),
+                ExtraProperties(listOf("Authorization: Basic $auth")),
+                PostData(listOf("grant_type=client_credentials"))
             )
-            val data = arrayOf("grant_type=client_credentials")
-            return sendHttpRequest(url, requestMethod, properties, data)
         }
 
-        var token = ""
-        var gettingData = true
-        while (gettingData) {
-            val data = getData()
-            //check http return code
-            when (data.first) {
-                HttpURLConnection.HTTP_OK -> {
-                    try {
-                        val tokenData = JSONObject(data.second)
-                        token = tokenData.getString("access_token")
-                        gettingData = false
-                    } catch (e: JSONException) {
-                        //JSON broken, try getting the data again
-                        println("Failed JSON:\n${data.second}\n")
-                        println("Failed to get data from JSON, trying again...")
+        lateinit var token: String
+        val tokenJob = Job()
+        withContext(IO + tokenJob) {
+            while (true) {
+                val data = getData()
+                //check http return code
+                when (data.first.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val tokenData = JSONObject(data.second.data)
+                            token = tokenData.getString("access_token")
+                            return@withContext
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${data.second.data}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
                     }
-                }
-                //Code 429 stands for TOO_MANY_REQUESTS
-                429 -> {
-                    println("Too many requests! Waiting for ${data.second} seconds.")
-                    //wait for given time before next request.
-                    delay(data.second.toLong()*1000)
-                }
-                else -> {
-                    println("HTTP ERROR! CODE: ${data.first}")
+                    HTTP_TOO_MANY_REQUESTS -> {
+                        println("Too many requests! Waiting for ${data.second.data} seconds.")
+                        //wait for given time before next request.
+                        delay(data.second.data.toLong() * 1000)
+                    }
+                    else -> {
+                        println("HTTP ERROR! CODE: ${data.first.code}")
+                    }
                 }
             }
         }
         return token
     }
 
-    suspend fun searchSpotify(searchType: String, searchQuery: String): String {
+    suspend fun searchSpotify(type: SearchType, searchQuery: SearchQuery): String {
         val searchResult = StringBuilder()
 
-        fun searchData(): Pair<Int, String> {
+        fun searchData(): Pair<ResponseCode, ResponseData> {
             val urlBuilder = StringBuilder()
-            urlBuilder.append("https://api.spotify.com/v1/search?")
-            urlBuilder.append("q=${searchQuery.replace(" ", "%20").replace("\"", "%22")}")
-            urlBuilder.append("&type=$searchType")
-            //urlBuilder.append("&limit=10")
-            if (market.isNotEmpty()) {
+            urlBuilder.append("$apiURL/search?")
+            urlBuilder.append("q=${URLEncoder.encode(searchQuery.query, Charsets.UTF_8.toString())}")
+            urlBuilder.append("&type=${type.type}")
+            if (market.isNotEmpty())
                 urlBuilder.append("&market=$market")
-            }
-            val url = URL(urlBuilder.toString())
-            val requestMethod = "GET"
-            val properties = arrayOf(
-                "Authorization: Bearer $accessToken",
-                "Content-Type: application/x-www-form-urlencoded",
-                "User-Agent: Mozilla/5.0"
+            return sendHttpRequest(
+                URL(urlBuilder.toString()),
+                RequestMethod("GET"),
+                ExtraProperties(listOf("Authorization: Bearer $accessToken"))
             )
-            return sendHttpRequest(url, requestMethod, properties)
         }
 
         fun parseResults(searchData: JSONObject) {
             //token is valid, parse data
-            when (searchType) {
+            when (type.type) {
                 "track" -> {
                     val trackList = searchData.getJSONObject("tracks").getJSONArray("items")
                     for (trackData in trackList) {
@@ -152,7 +149,6 @@ class Spotify(private val market: String = "") {
                                     "Link:   $albumLink\n"
                         )
                     }
-
                 }
                 "playlist" -> {
                     val playlists = searchData.getJSONObject("playlists").getJSONArray("items")
@@ -178,38 +174,36 @@ class Spotify(private val market: String = "") {
             }
         }
 
-        var gettingData = true
-        while (gettingData) {
-            println("Searching for \"$searchQuery\" on Spotify...")
-            val searchJob = Job()
-            withContext(IO + searchJob){
+        println("Searching for \"${searchQuery}\" on Spotify...")
+        val searchJob = Job()
+        withContext(IO + searchJob) {
+            while (true) {
                 val searchData = searchData()
                 //check http return code
-                when (searchData.first) {
+                when (searchData.first.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val resultData = JSONObject(searchData.second)
-                            withContext(Default + searchJob){
+                            val resultData = JSONObject(searchData.second.data)
+                            withContext(Default + searchJob) {
                                 parseResults(resultData)
                             }
-                            gettingData = false
+                            return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${searchData.second}\n")
+                            println("Failed JSON:\n${searchData.second.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
 
                     HttpURLConnection.HTTP_UNAUTHORIZED -> updateToken() //token expired, update it.
 
-                    //Code 429 stands for TOO_MANY_REQUESTS
-                    429 -> {
-                        println("Too many requests! Waiting for ${searchData.second} seconds.")
+                    HTTP_TOO_MANY_REQUESTS -> {
+                        println("Too many requests! Waiting for ${searchData.second.data} seconds.")
                         //wait for given time before next request.
-                        delay(searchData.second.toLong()*1000)
+                        delay(searchData.second.data.toLong() * 1000)
                     }
 
-                    else -> println("HTTP ERROR! CODE: ${searchData.first}")
+                    else -> println("HTTP ERROR! CODE: ${searchData.first.code}")
 
                 }
             }
@@ -217,30 +211,71 @@ class Spotify(private val market: String = "") {
         return searchResult.toString().substringBeforeLast("\n")
     }
 
-    suspend fun getPlaylistTracks(playListLink: String): ArrayList<Track> {
-        val trackItems = ArrayList<Track>()
+    private fun getPlaylistData(playlistLink: Link): Pair<ResponseCode, ResponseData> {
+        //First get the playlist length
+        val urlBuilder = StringBuilder()
+        urlBuilder.append("$apiURL/playlists/")
+        urlBuilder.append(
+            playlistLink.link.substringAfterLast(":")
+                .substringBefore("?si=")
+                .substringAfterLast("/")
+        )
+        return sendHttpRequest(
+            URL(urlBuilder.toString()),
+            RequestMethod("GET"),
+            ExtraProperties(listOf("Authorization: Bearer $accessToken"))
+        )
+    }
 
-        fun getPlaylistData(): Pair<Int, String> {
-            //First get the playlist length
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("https://api.spotify.com/v1/playlists/")
-            urlBuilder.append(
-                if (playListLink.contains("spotify:") && playListLink.contains("playlist:")) {
-                    playListLink.substringAfterLast(":")
-                } else {
-                    playListLink.substringAfter("playlist/").substringBefore("?si=")
-                }
+    suspend fun getPlaylist(playlistLink: Link): Playlist {
+        lateinit var playlist: Playlist
+        suspend fun parsePlaylistData(data: JSONObject): Playlist {
+            return Playlist(
+                Name(data.getString("name")),
+                getUser(Link(data.getJSONObject("owner").getJSONObject("external_urls").getString("spotify"))),
+                Description(data.getString("description")),
+                Followers(data.getJSONObject("followers").getInt("total")),
+                Publicity(data.getBoolean("public")),
+                Collaboration(data.getBoolean("collaborative")),
+                Link(data.getJSONObject("external_urls").getString("spotify"))
             )
-            val url = URL(urlBuilder.toString())
-            val requestMethod = "GET"
-            val properties = arrayOf(
-                "Authorization: Bearer $accessToken",
-                "Content-Type: application/x-www-form-urlencoded",
-                "User-Agent: Mozilla/5.0"
-            )
-            return sendHttpRequest(url, requestMethod, properties)
         }
 
+        val playlistJob = Job()
+        withContext(IO + playlistJob) {
+            while (true) {
+                val playlistData = getPlaylistData(playlistLink)
+                //check http return code
+                when (playlistData.first.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val data = JSONObject(playlistData.second.data)
+                            playlist = parsePlaylistData(data)
+                            return@withContext
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${playlistData.second.data}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
+                    }
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        //token expired, update it
+                        updateToken()
+                    }
+                    HTTP_TOO_MANY_REQUESTS -> {
+                        println("Too many requests! Waiting for ${playlistData.second.data} seconds.")
+                        //wait for given time before next request.
+                        delay(playlistData.second.data.toLong() * 1000)
+                    }
+                    else -> println("HTTP ERROR! CODE ${playlistData.first.code}")
+                }
+            }
+        }
+        return playlist
+    }
+
+    suspend fun getPlaylistTracks(playlistLink: Link): TrackList {
+        val trackItems = ArrayList<Track>()
         suspend fun parsePlaylistData(playlistData: JSONObject) {
             //get playlist length
             var playlistLength = playlistData.getJSONObject("tracks").getInt("total")
@@ -249,29 +284,24 @@ class Spotify(private val market: String = "") {
             var listOffset = 0
             while (trackItems.size < playlistLength) {
 
-                fun getItemData(): Pair<Int, String> {
+                fun getItemData(): Pair<ResponseCode, ResponseData> {
                     val listUrlBuilder = StringBuilder()
                     listUrlBuilder.append("https://api.spotify.com/v1/playlists/")
                     listUrlBuilder.append(
-                        if (playListLink.contains("spotify:") && playListLink.contains("playlist:")) {
-                            playListLink.substringAfterLast(":")
-                        } else {
-                            playListLink.substringAfter("playlist/").substringBefore("?si=")
-                        }
+                        playlistLink.link.substringAfterLast(":")
+                            .substringBefore("?si=")
+                            .substringAfterLast("/")
                     )
                     listUrlBuilder.append("/tracks?limit=100")
                     listUrlBuilder.append("&offset=$listOffset")
-                    if (market.isNotEmpty()) {
+                    if (market.isNotEmpty())
                         listUrlBuilder.append("&market=$market")
-                    }
                     val listUrl = URL(listUrlBuilder.toString())
-                    val listRequestMethod = "GET"
-                    val listProperties = arrayOf(
-                        "Authorization: Bearer $accessToken",
-                        "Content-Type: application/x-www-form-urlencoded",
-                        "User-Agent: Mozilla/5.0"
+                    return sendHttpRequest(
+                        listUrl,
+                        RequestMethod("GET"),
+                        ExtraProperties(listOf("Authorization: Bearer $accessToken"))
                     )
-                    return sendHttpRequest(listUrl, listRequestMethod, listProperties)
                 }
 
                 fun parseItems(items: JSONArray) {
@@ -284,28 +314,76 @@ class Spotify(private val market: String = "") {
                                         val albumName = if (item.getJSONObject("track").getJSONObject("album")
                                                 .getString("album_type") == "single"
                                         ) {
-                                            "${item.getJSONObject("track").getJSONObject("album")
-                                                .getString("name")} (Single)"
+                                            Name(
+                                                "${item.getJSONObject("track").getJSONObject("album")
+                                                    .getString("name")} (Single)"
+                                            )
                                         } else {
-                                            item.getJSONObject("track").getJSONObject("album").getString("name")
+                                            Name(item.getJSONObject("track").getJSONObject("album").getString("name"))
                                         }
-                                        val artistList = item.getJSONObject("track").getJSONArray("artists")
-                                        val artistBuilder = StringBuilder()
-                                        for (artistJSON in artistList) {
-                                            artistJSON as JSONObject
-                                            artistBuilder.append(artistJSON.getString("name") + ",")
-                                        }
-                                        val artist = artistBuilder.toString().substringBeforeLast(",")
-                                        val title = item.getJSONObject("track").getString("name")
-                                        val link =
+                                        val artistsData = item.getJSONObject("track").getJSONArray("artists")
+                                        val artists = Artists(
+                                            artistsData.map {
+                                                it as JSONObject
+                                                Artist(
+                                                    Name(it.getString("name")),
+                                                    Link(it.getJSONObject("external_urls").getString("spotify")),
+                                                    TrackList(emptyList()),
+                                                    Artists(emptyList())
+                                                )
+                                            }
+                                        )
+                                        val album = Album(
+                                            albumName,
+                                            artists,
+                                            when (item.getJSONObject("track").getJSONObject("album").getString("release_date_precision")) {
+                                                "day" -> {
+                                                    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                                                    ReleaseDate(
+                                                        LocalDate.parse(
+                                                            item.getJSONObject("track").getJSONObject("album").getString("release_date"), formatter
+                                                        )
+                                                    )
+                                                }
+                                                "month" -> {
+                                                    val formatter = DateTimeFormatterBuilder().appendPattern("yyyy-MM")
+                                                        .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                                                        .toFormatter()
+                                                    ReleaseDate(
+                                                        LocalDate.parse(
+                                                            item.getJSONObject("track").getJSONObject("album").getString("release_date"), formatter
+                                                        )
+                                                    )
+                                                }
+                                                else -> {
+                                                    val formatter = DateTimeFormatterBuilder().appendPattern("yyyy")
+                                                        .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+                                                        .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                                                        .toFormatter()
+                                                    ReleaseDate(
+                                                        LocalDate.parse(
+                                                            item.getJSONObject("track").getJSONObject("album").getString("release_date"), formatter
+                                                        )
+                                                    )
+                                                }
+                                            },
+                                            TrackList(emptyList()),
+                                            Link(
+                                                item.getJSONObject("track").getJSONObject("album")
+                                                    .getJSONObject("external_urls").getString("spotify")
+                                            )
+                                        )
+                                        val title = Name(item.getJSONObject("track").getString("name"))
+                                        val link = Link(
                                             item.getJSONObject("track").getJSONObject("external_urls")
                                                 .getString("spotify")
+                                        )
                                         val isPlayable = if (market.isNotEmpty()) {
                                             item.getJSONObject("track").getBoolean("is_playable")
                                         } else {
                                             true
                                         }
-                                        trackItems.add(Track(albumName, artist, title, link, isPlayable))
+                                        trackItems.add(Track(album, artists, title, link, Playability(isPlayable)))
                                     } else {
                                         playlistLength -= 1
                                     }
@@ -314,61 +392,60 @@ class Spotify(private val market: String = "") {
                         } catch (e: JSONException) {
                             playlistLength -= 1
                         }
-
                     }
                 }
 
-                var gettingData = true
-                while (gettingData) {
-                    val itemData = getItemData()
-                    when (itemData.first) {
-                        HttpURLConnection.HTTP_OK -> {
-                            try {
-                                val item = JSONObject(itemData.second)
-                                withContext(Default){
-                                    parseItems(item.getJSONArray("items"))
+                val itemJob = Job()
+                withContext(IO + itemJob) {
+                    while (true) {
+                        val itemData = getItemData()
+                        when (itemData.first.code) {
+                            HttpURLConnection.HTTP_OK -> {
+                                try {
+                                    val item = JSONObject(itemData.second.data)
+                                    withContext(Default) {
+                                        parseItems(item.getJSONArray("items"))
+                                    }
+                                    listOffset += 100
+                                    return@withContext
+                                } catch (e: JSONException) {
+                                    //JSON broken, try getting the data again
+                                    println("Failed JSON:\n${itemData.second.data}\n")
+                                    println("Failed to get data from JSON, trying again...")
                                 }
-                                listOffset += 100
-                                gettingData = false
-                            } catch (e: JSONException) {
-                                //JSON broken, try getting the data again
-                                println("Failed JSON:\n${itemData.second}\n")
-                                println("Failed to get data from JSON, trying again...")
                             }
-                        }
-                        HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                            //token expired, update it
-                            updateToken()
-                        }
-                        //Code 429 stands for TOO_MANY_REQUESTS
-                        429 -> {
-                            println("Too many requests! Waiting for ${itemData.second} seconds.")
-                            //wait for given time before next request.
-                            delay(itemData.second.toLong()*1000)
-                        }
-                        else -> {
-                            println("HTTP ERROR! CODE: ${itemData.first}")
+                            HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                                //token expired, update it
+                                updateToken()
+                            }
+                            HTTP_TOO_MANY_REQUESTS -> {
+                                println("Too many requests! Waiting for ${itemData.second.data} seconds.")
+                                //wait for given time before next request.
+                                delay(itemData.second.data.toLong() * 1000)
+                            }
+                            else -> {
+                                println("HTTP ERROR! CODE: ${itemData.first.code}")
+                            }
                         }
                     }
                 }
             }
         }
 
-        var gettingData = true
-        while (gettingData) {
-            val playlistJob: CompletableJob = Job()
-            withContext(IO + playlistJob){
-                val playlistData = getPlaylistData()
+        val playlistJob: CompletableJob = Job()
+        withContext(IO + playlistJob) {
+            while (true) {
+                val playlistData = getPlaylistData(playlistLink)
                 //check http return code
-                when (playlistData.first) {
+                when (playlistData.first.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val playlist = JSONObject(playlistData.second)
+                            val playlist = JSONObject(playlistData.second.data)
                             parsePlaylistData(playlist)
-                            gettingData = false
+                            return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${playlistData.second}\n")
+                            println("Failed JSON:\n${playlistData.second.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -376,150 +453,97 @@ class Spotify(private val market: String = "") {
                         //token expired, update
                         updateToken()
                     }
-                    //Code 429 stands for TOO_MANY_REQUESTS
-                    429 -> {
-                        println("Too many requests! Waiting for ${playlistData.second} seconds.")
+                    HTTP_TOO_MANY_REQUESTS -> {
+                        println("Too many requests! Waiting for ${playlistData.second.data} seconds.")
                         //wait for given time before next request.
-                        delay(playlistData.second.toLong()*1000)
+                        delay(playlistData.second.data.toLong() * 1000)
                     }
-                    else -> println("HTTP ERROR! CODE: ${playlistData.first}")
+                    else -> println("HTTP ERROR! CODE: ${playlistData.first.code}")
                 }
             }
         }
-        return trackItems
+        return TrackList(trackItems)
     }
 
-    suspend fun getAlbumTracks(albumLink: String): ArrayList<Track> {
-        val trackItems = ArrayList<Track>()
+    private fun getAlbumData(albumLink: Link): Pair<ResponseCode, ResponseData> {
+        val urlBuilder = StringBuilder()
+        urlBuilder.append("$apiURL/albums/")
+        urlBuilder.append(
+            albumLink.link.substringAfterLast(":")
+                .substringBefore("?si=")
+                .substringAfterLast("/")
+        )
+        return sendHttpRequest(
+            URL(urlBuilder.toString()),
+            RequestMethod("GET"),
+            ExtraProperties(listOf("Authorization: Bearer $accessToken"))
+        )
+    }
 
-        fun getAlbumData(): Pair<Int, String> {
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("https://api.spotify.com/v1/albums/")
-            urlBuilder.append(
-                if (albumLink.contains("spotify:") && albumLink.contains("album:")) {
-                    albumLink.substringAfterLast(":")
-                } else {
-                    albumLink.substringAfter("album/").substringBefore("?si=")
-                }
+    suspend fun getAlbum(albumLink: Link): Album {
+        lateinit var album: Album
+        suspend fun parseAlbumData(data: JSONObject): Album {
+            return Album(
+                Name(data.getString("name")),
+                Artists(data.getJSONArray("artists").map {
+                    it as JSONObject
+                    val artistName = Name(it.getString("name"))
+                    val link = Link(it.getJSONObject("external_urls").getString("spotify"))
+                    Artist(artistName, link)
+                }),
+                when (data.getString("release_date_precision")) {
+                    "day" -> {
+                        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                        ReleaseDate(
+                            LocalDate.parse(
+                                data.getString("release_date"), formatter
+                            )
+                        )
+                    }
+                    "month" -> {
+                        val formatter = DateTimeFormatterBuilder().appendPattern("yyyy-MM")
+                            .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                            .toFormatter()
+                        ReleaseDate(
+                            LocalDate.parse(
+                                data.getString("release_date"), formatter
+                            )
+                        )
+                    }
+                    else -> {
+                        val formatter = DateTimeFormatterBuilder().appendPattern("yyyy")
+                            .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+                            .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                            .toFormatter()
+                        ReleaseDate(
+                            LocalDate.parse(
+                                data.getString("release_date"), formatter
+                            )
+                        )
+                    }
+                },
+                getAlbumTracks(albumLink),
+                albumLink,
+                Genres(data.getJSONArray("genres").map {
+                    if (it is String) it else ""
+                })
             )
-            val url = URL(urlBuilder.toString())
-            val requestMethod = "GET"
-            val properties = arrayOf(
-                "Authorization: Bearer $accessToken",
-                "Content-Type: application/x-www-form-urlencoded",
-                "User-Agent: Mozilla/5.0"
-            )
-            return sendHttpRequest(url, requestMethod, properties)
         }
 
-        suspend fun parseAlbumData(albumData: JSONObject) {
-            val trackItemsLength = albumData.getJSONObject("tracks").getInt("total")
-            val albumName = if (albumData.getString("album_type") == "single") {
-                "${albumData.getString("name")} (Single)"
-            } else {
-                albumData.getString("name")
-            }
-
-            //Now get all tracks
-            //spotify only shows 20 items per search, so with each 20 items, listOffset will be increased
-            var listOffset = 0
-            while (trackItems.size < trackItemsLength) {
-
-                fun getAlbumTrackData(): Pair<Int, String> {
-                    val albumUrlBuilder = StringBuilder()
-                    albumUrlBuilder.append("https://api.spotify.com/v1/albums/")
-                    albumUrlBuilder.append(
-                        if (albumLink.contains("spotify:") && albumLink.contains("album:")) {
-                            albumLink.substringAfterLast(":")
-                        } else {
-                            albumLink.substringAfter("album/").substringBefore("?si=")
-                        }
-                    )
-                    albumUrlBuilder.append("/tracks?limit=20")
-                    albumUrlBuilder.append("&offset=$listOffset")
-                    if (market.isNotEmpty()) {
-                        albumUrlBuilder.append("&market=$market")
-                    }
-                    val albumUrl = URL(albumUrlBuilder.toString())
-                    val albumRequestMethod = "GET"
-                    val albumProperties = arrayOf(
-                        "Authorization: Bearer $accessToken",
-                        "Content-Type: application/x-www-form-urlencoded",
-                        "User-Agent: Mozilla/5.0"
-                    )
-                    return sendHttpRequest(albumUrl, albumRequestMethod, albumProperties)
-                }
-
-                fun parseItems(items: JSONArray) {
-                    for (item in items) {
-                        item as JSONObject
-                        val artistList = item.getJSONArray("artists")
-                        val artistBuilder = StringBuilder()
-                        for (artistJSON in artistList) {
-                            artistJSON as JSONObject
-                            artistBuilder.append(artistJSON.getString("name") + ",")
-                        }
-                        val artist = artistBuilder.toString().substringBeforeLast(",")
-                        val title = item.getString("name")
-                        val link = item.getJSONObject("external_urls").getString("spotify")
-                        val isPlayable = if (market.isNotEmpty()) {
-                            item.getBoolean("is_playable")
-                        } else {
-                            true
-                        }
-                        trackItems.add(Track(albumName, artist, title, link, isPlayable))
-                    }
-                }
-
-                var gettingData = true
-                while (gettingData){
-                    val albumTrackData = getAlbumTrackData()
-                    when (albumTrackData.first){
-                        HttpURLConnection.HTTP_OK -> {
-                            try {
-                                val tracks = JSONObject(albumTrackData.second)
-                                withContext(Default){
-                                    parseItems(tracks.getJSONArray("items"))
-                                }
-                                listOffset += 20
-                                gettingData = false
-                            }catch (e: JSONException){
-                                //JSON broken, try getting the data again
-                                println("Failed JSON:\n${albumTrackData.second}\n")
-                                println("Failed to get data from JSON, trying again...")
-                            }
-                        }
-                        HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                            //token expired, update it
-                            updateToken()
-                        }
-                        //Code 429 stands for TOO_MANY_REQUESTS
-                        429 -> {
-                            println("Too many requests! Waiting for ${albumTrackData.second} seconds.")
-                            //wait for given time before next request.
-                            delay(albumTrackData.second.toLong()*1000)
-                        }
-                        else -> println("HTTP ERROR! CODE ${albumTrackData.first}")
-                    }
-                }
-            }
-        }
-
-        var gettingData = true
-        while (gettingData) {
-            val albumJob = Job()
-            withContext(IO + albumJob){
-                val albumData = getAlbumData()
+        val albumJob = Job()
+        withContext(IO + albumJob) {
+            while (true) {
+                val albumData = getAlbumData(albumLink)
                 //check http return code
-                when (albumData.first) {
+                when (albumData.first.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val data = JSONObject(albumData.second)
-                            parseAlbumData(data)
-                            gettingData = false
+                            val data = JSONObject(albumData.second.data)
+                            album = parseAlbumData(data)
+                            return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${albumData.second}\n")
+                            println("Failed JSON:\n${albumData.second.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -527,97 +551,561 @@ class Spotify(private val market: String = "") {
                         //token expired, update it
                         updateToken()
                     }
-                    //Code 429 stands for TOO_MANY_REQUESTS
-                    429 -> {
-                        println("Too many requests! Waiting for ${albumData.second} seconds.")
+
+                    HTTP_TOO_MANY_REQUESTS -> {
+                        println("Too many requests! Waiting for ${albumData.second.data} seconds.")
                         //wait for given time before next request.
-                        delay(albumData.second.toLong()*1000)
+                        delay(albumData.second.data.toLong() * 1000)
                     }
-                    else -> println("HTTP ERROR! CODE ${albumData.first}")
+                    else -> println("HTTP ERROR! CODE ${albumData.first.code}")
                 }
             }
         }
-        return trackItems
+        return album
     }
 
-    suspend fun getTrack(trackLink: String): Track {
+    suspend fun getAlbumTracks(albumLink: Link): TrackList {
+        val trackItems = ArrayList<Track>()
 
-        fun getTrackData(): Pair<Int, String> {
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("https://api.spotify.com/v1/tracks/")
-            urlBuilder.append(
-                if (trackLink.contains("spotify:") && trackLink.contains(":track:")) {
-                    trackLink.substringAfterLast(":")
-                } else {
-                    trackLink.substringAfter("track/").substringBefore("?si=")
+        suspend fun parseAlbumData(albumData: JSONObject) {
+            val trackItemsLength = albumData.getJSONObject("tracks").getInt("total")
+            val albumName = if (albumData.getString("album_type") == "single")
+                Name("${albumData.getString("name")} (Single)")
+            else
+                Name(albumData.getString("name"))
+
+            val releaseDate = when (albumData.getString("release_date_precision")) {
+                "day" -> {
+                    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                    ReleaseDate(
+                        LocalDate.parse(
+                            albumData.getString("release_date"), formatter
+                        )
+                    )
                 }
-            )
-            if (market.isNotEmpty()) {
-                urlBuilder.append("?market=$market")
+                "month" -> {
+                    val formatter = DateTimeFormatterBuilder().appendPattern("yyyy-MM")
+                        .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                        .toFormatter()
+                    ReleaseDate(
+                        LocalDate.parse(
+                            albumData.getString("release_date"), formatter
+                        )
+                    )
+                }
+                else -> {
+                    val formatter = DateTimeFormatterBuilder().appendPattern("yyyy")
+                        .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+                        .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                        .toFormatter()
+                    ReleaseDate(
+                        LocalDate.parse(
+                            albumData.getString("release_date"), formatter
+                        )
+                    )
+                }
             }
-            val url = URL(urlBuilder.toString())
-            val requestMethod = "GET"
-            val properties = arrayOf(
-                "Authorization: Bearer $accessToken",
-                "Content-Type: application/x-www-form-urlencoded",
-                "User-Agent: Mozilla/5.0"
+            val albumArtists = Artists(albumData.getJSONArray("artists").map {
+                it as JSONObject
+                Artist(
+                    Name(it.getString("name")),
+                    Link(it.getJSONObject("external_urls").getString("spotify")),
+                    TrackList(emptyList()),
+                    Artists(emptyList())
+                )
+            })
+
+            //Now get all tracks
+            //spotify only shows 20 items per search, so with each 20 items, listOffset will be increased
+            var listOffset = 0
+            while (trackItems.size < trackItemsLength) {
+
+                fun getAlbumTrackData(): Pair<ResponseCode, ResponseData> {
+                    val albumUrlBuilder = StringBuilder()
+                    albumUrlBuilder.append("$apiURL/albums/")
+                    albumUrlBuilder.append(
+                        albumLink.link.substringAfterLast(":")
+                            .substringBefore("?si=")
+                            .substringAfterLast("/")
+                    )
+                    albumUrlBuilder.append("/tracks?limit=20")
+                    albumUrlBuilder.append("&offset=$listOffset")
+                    if (market.isNotEmpty())
+                        albumUrlBuilder.append("&market=$market")
+                    return sendHttpRequest(
+                        URL(albumUrlBuilder.toString()),
+                        RequestMethod("GET"),
+                        ExtraProperties(listOf("Authorization: Bearer $accessToken"))
+                    )
+                }
+
+                fun parseItems(items: JSONArray) {
+                    for (item in items) {
+                        item as JSONObject
+                        val artistsData = item.getJSONArray("artists")
+                        val artists = Artists(artistsData.map {
+                            it as JSONObject
+                            Artist(
+                                Name(it.getString("name")),
+                                Link(it.getJSONObject("external_urls").getString("spotify")),
+                                TrackList(emptyList()),
+                                Artists(emptyList())
+                            )
+                        })
+                        val title = Name(item.getString("name"))
+                        val link = Link(item.getJSONObject("external_urls").getString("spotify"))
+                        val isPlayable = if (market.isNotEmpty()) {
+                            item.getBoolean("is_playable")
+                        } else {
+                            true
+                        }
+                        val album = Album(albumName, albumArtists, releaseDate, TrackList(emptyList()), albumLink)
+                        trackItems.add(Track(album, artists, title, link, Playability(isPlayable)))
+                    }
+                }
+
+                var gettingData = true
+                while (gettingData) {
+                    val albumTrackData = getAlbumTrackData()
+                    when (albumTrackData.first.code) {
+                        HttpURLConnection.HTTP_OK -> {
+                            try {
+                                val tracks = JSONObject(albumTrackData.second.data)
+                                withContext(Default) {
+                                    parseItems(tracks.getJSONArray("items"))
+                                }
+                                listOffset += 20
+                                gettingData = false
+                            } catch (e: JSONException) {
+                                //JSON broken, try getting the data again
+                                println("Failed JSON:\n${albumTrackData.second.data}\n")
+                                println("Failed to get data from JSON, trying again...")
+                            }
+                        }
+                        HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                            //token expired, update it
+                            updateToken()
+                        }
+                        HTTP_TOO_MANY_REQUESTS -> {
+                            println("Too many requests! Waiting for ${albumTrackData.second.data} seconds.")
+                            //wait for given time before next request.
+                            delay(albumTrackData.second.data.toLong() * 1000)
+                        }
+                        else -> println("HTTP ERROR! CODE ${albumTrackData.first.code}")
+                    }
+                }
+            }
+        }
+
+        val albumJob = Job()
+        withContext(IO + albumJob) {
+            while (true) {
+                val albumData = getAlbumData(albumLink)
+                //check http return code
+                when (albumData.first.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val data = JSONObject(albumData.second.data)
+                            parseAlbumData(data)
+                            return@withContext
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${albumData.second.data}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
+                    }
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        //token expired, update it
+                        updateToken()
+                    }
+                    HTTP_TOO_MANY_REQUESTS -> {
+                        println("Too many requests! Waiting for ${albumData.second.data} seconds.")
+                        //wait for given time before next request.
+                        delay(albumData.second.data.toLong() * 1000)
+                    }
+                    else -> println("HTTP ERROR! CODE ${albumData.first.code}")
+                }
+            }
+        }
+        return TrackList(trackItems)
+    }
+
+    suspend fun getTrack(trackLink: Link): Track {
+        fun getTrackData(): Pair<ResponseCode, ResponseData> {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$apiURL/tracks/")
+            urlBuilder.append(
+                trackLink.link.substringAfterLast(":")
+                    .substringBefore("?si=")
+                    .substringAfterLast("/")
             )
-            return sendHttpRequest(url, requestMethod, properties)
+            if (market.isNotEmpty())
+                urlBuilder.append("?market=$market")
+            return sendHttpRequest(
+                URL(urlBuilder.toString()),
+                RequestMethod("GET"),
+                ExtraProperties(listOf("Authorization: Bearer $accessToken"))
+            )
         }
 
         fun parseData(trackData: JSONObject): Track {
-            val artistsBuilder = StringBuilder()
-            trackData.getJSONArray("artists").forEach {
-                it as JSONObject
-                artistsBuilder.append("${it.getString("name")}, ")
-            }
-            val artist = artistsBuilder.toString().substringBeforeLast(",")
             val albumName = if (trackData.getJSONObject("album").getString("album_type") == "single") {
-                "${trackData.getJSONObject("album").getString("name")} (Single)"
+                Name("${trackData.getJSONObject("album").getString("name")} (Single)")
             } else {
-                trackData.getJSONObject("album").getString("name")
+                Name(trackData.getJSONObject("album").getString("name"))
             }
-            val title = trackData.getString("name")
+            val albumArtists = Artists(trackData.getJSONObject("album").getJSONArray("artists").map {
+                it as JSONObject
+                Artist(
+                    Name(it.getString("name")),
+                    Link(it.getJSONObject("external_urls").getString("spotify")),
+                    TrackList(emptyList())
+                )
+            })
+            val album = Album(
+                albumName,
+                albumArtists,
+                when (trackData.getJSONObject("album").getString("release_date_precision")) {
+                    "day" -> {
+                        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                        ReleaseDate(
+                            LocalDate.parse(
+                                trackData.getJSONObject("album").getString("release_date"), formatter
+                            )
+                        )
+                    }
+                    "month" -> {
+                        val formatter = DateTimeFormatterBuilder().appendPattern("yyyy-MM")
+                            .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                            .toFormatter()
+                        ReleaseDate(
+                            LocalDate.parse(
+                                trackData.getJSONObject("album").getString("release_date"), formatter
+                            )
+                        )
+                    }
+                    else -> {
+                        val formatter = DateTimeFormatterBuilder().appendPattern("yyyy")
+                            .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+                            .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                            .toFormatter()
+                        ReleaseDate(
+                            LocalDate.parse(
+                                trackData.getJSONObject("album").getString("release_date"), formatter
+                            )
+                        )
+                    }
+                },
+                TrackList(emptyList()),
+                Link(trackData.getJSONObject("album").getJSONObject("external_urls").getString("spotify"))
+            )
+            val artists = Artists(trackData.getJSONArray("artists").map {
+                it as JSONObject
+                Artist(
+                    Name(it.getString("name")),
+                    Link(it.getJSONObject("external_urls").getString("spotify")),
+                    TrackList(emptyList())
+                )
+            })
+            val title = Name(trackData.getString("name"))
             val isPlayable = if (market.isNotEmpty()) {
                 trackData.getBoolean("is_playable")
             } else {
                 true
             }
-            return Track(albumName, artist, title, trackLink, isPlayable)
+            return Track(album, artists, title, trackLink, Playability(isPlayable))
         }
 
-        var track: Track = Track.Empty
-        var gettingData = true
-        while (gettingData) {
-            val trackJob = Job()
-            withContext(IO + trackJob){
+        lateinit var track: Track
+        val trackJob = Job()
+        withContext(IO + trackJob) {
+            while (true) {
                 val trackData = getTrackData()
-                when (trackData.first) {
+                when (trackData.first.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            withContext(Default){
-                                track = parseData(JSONObject(trackData.second))
+                            withContext(Default) {
+                                track = parseData(JSONObject(trackData.second.data))
                             }
-                            gettingData = false
+                            return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${trackData.second}\n")
+                            println("Failed JSON:\n${trackData.second.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateToken()
                     }
-                    //Code 429 stands for TOO_MANY_REQUESTS
-                    429 -> {
-                        println("Too many requests! Waiting for ${trackData.second} seconds.")
-                        //wait for given time before next request.
-                        delay(trackData.second.toLong()*1000)
+                    HTTP_TOO_MANY_REQUESTS -> {
+                        println("Too many requests! Waiting for ${trackData.second.data} seconds.")
+                        //wait for given time before next request. 
+                        delay(trackData.second.data.toLong() * 1000)
                     }
-                    else -> println("HTTP ERROR! CODE: ${trackData.first}")
+                    else -> println("HTTP ERROR! CODE: ${trackData.first.code}")
                 }
             }
         }
         return track
+    }
+
+    suspend fun getArtist(artistLink: Link): Artist {
+        fun getArtistData(): Pair<ResponseCode, ResponseData> {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$apiURL/artists/")
+            urlBuilder.append(
+                artistLink.link.substringAfterLast(":")
+                    .substringBefore("?si=")
+                    .substringAfterLast("/")
+            )
+            if (market.isNotEmpty())
+                urlBuilder.append("?market=$market")
+            return sendHttpRequest(
+                URL(urlBuilder.toString()),
+                RequestMethod("GET"),
+                ExtraProperties(listOf("Authorization: Bearer $accessToken"))
+            )
+        }
+
+        fun getTopTracks(): Pair<ResponseCode, ResponseData> {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$apiURL/artists/")
+            urlBuilder.append(
+                artistLink.link.substringAfterLast(":")
+                    .substringBefore("?si=")
+                    .substringAfterLast("/")
+            )
+            urlBuilder.append("/top-tracks")
+            urlBuilder.append("?country=${if (market.isNotEmpty()) market else "US"}")
+            return sendHttpRequest(
+                URL(urlBuilder.toString()),
+                RequestMethod("GET"),
+                ExtraProperties(listOf("Authorization: Bearer $accessToken"))
+            )
+        }
+
+        fun getRelatedArtists(): Pair<ResponseCode, ResponseData> {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$apiURL/artists/")
+            urlBuilder.append(
+                artistLink.link.substringAfterLast(":")
+                    .substringBefore("?si=")
+                    .substringAfterLast("/")
+            )
+            urlBuilder.append("/related-artists")
+            if (market.isNotEmpty())
+                urlBuilder.append("?country=$market")
+            return sendHttpRequest(
+                URL(urlBuilder.toString()),
+                RequestMethod("GET"),
+                ExtraProperties(listOf("Authorization: Bearer $accessToken"))
+            )
+        }
+
+        suspend fun parseData(artistData: JSONObject, topTracksData: JSONObject, relatedArtists: JSONObject): Artist {
+            val name = Name(artistData.getString("name"))
+            val topTracks = ArrayList<Track>()
+            val topTracksList = topTracksData.getJSONArray("tracks")
+            for (track in topTracksList) {
+                track as JSONObject
+                val list = ArrayList<Artist>()
+                val artists = Artists(track.getJSONArray("artists").mapTo(list, {
+                    it as JSONObject
+                    Artist(
+                        Name(it.getString("name")),
+                        Link(it.getJSONObject("external_urls").getString("spotify"))
+                    )
+                }))
+                val album = Album(
+                    Name(track.getString("name")),
+                    artists,
+                    ReleaseDate(
+                        when (track.getJSONObject("album").getString("release_date_precision")) {
+                            "day" -> {
+                                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                                LocalDate.parse(track.getJSONObject("album").getString("release_date"), formatter)
+                            }
+                            "month" -> {
+                                val formatter = DateTimeFormatterBuilder()
+                                    .appendPattern("yyyy-MM")
+                                    .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                                    .toFormatter()
+                                LocalDate.parse(track.getJSONObject("album").getString("release_date"), formatter)
+                            }
+                            else -> {
+                                val formatter = DateTimeFormatterBuilder()
+                                    .appendPattern("yyyy")
+                                    .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+                                    .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                                    .toFormatter()
+                                LocalDate.now().withYear(2)
+                                LocalDate.parse(track.getJSONObject("album").getString("release_date"), formatter)
+                            }
+                        }
+                    ),
+                    getAlbumTracks(Link(track.getJSONObject("album").getString("uri"))),
+                    artistLink
+                )
+                topTracks.add(
+                    Track(
+                        album,
+                        artists,
+                        Name(track.getString("name")),
+                        Link(track.getJSONObject("external_urls").getString("spotify")),
+                        Playability(if (market.isNotEmpty()) track.getBoolean("is_playable") else true)
+                    )
+                )
+            }
+            val related = ArrayList<Artist>()
+            for (artist in relatedArtists.getJSONArray("artists")) {
+                artist as JSONObject
+                val artistName = Name(artist.getString("name"))
+                val link = Link(artist.getJSONObject("external_urls").getString("spotify"))
+                related.add(Artist(artistName, link))
+            }
+            val genres: List<String> = artistData.getJSONArray("genres").map {
+                if (it is String) it else ""
+            }
+            return Artist(
+                name,
+                artistLink,
+                TrackList(topTracks),
+                Artists(related),
+                Genres(genres)
+            )
+        }
+
+        lateinit var artist: Artist
+        val artistJob = Job()
+        withContext(IO + artistJob) {
+            while (true) {
+                val artistData = getArtistData()
+                when (artistData.first.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            lateinit var topTracks: JSONObject
+                            topTracks@ while (true) {
+                                val topTracksData = getTopTracks()
+                                when (topTracksData.first.code) {
+                                    HttpURLConnection.HTTP_OK -> {
+                                        try {
+                                            withContext(Default) {
+                                                topTracks = JSONObject(topTracksData.second.data)
+                                            }
+                                            break@topTracks
+                                        } catch (e: JSONException) {
+                                            //JSON broken, try getting the data again
+                                            println("Failed JSON:\n${topTracksData.second.data}\n")
+                                            println("Failed to get data from JSON, trying again...")
+                                        }
+                                    }
+                                    HTTP_TOO_MANY_REQUESTS -> {
+                                        println("Too many requests! Waiting for ${topTracksData.second.data} seconds.")
+                                        //wait for given time before next request.
+                                        delay(topTracksData.second.data.toLong() * 1000)
+                                    }
+                                    else -> println("HTTP ERROR! CODE: ${topTracksData.first.code}")
+                                }
+                            }
+                            lateinit var relatedArtists: JSONObject
+                            relatedArtists@ while (true) {
+                                val relatedArtistsData = getRelatedArtists()
+                                when (relatedArtistsData.first.code) {
+                                    HttpURLConnection.HTTP_OK -> {
+                                        try {
+                                            withContext(Default) {
+                                                relatedArtists = JSONObject(relatedArtistsData.second.data)
+                                            }
+                                            break@relatedArtists
+                                        } catch (e: JSONException) {
+                                            //JSON broken, try getting the data again
+                                            println("Failed JSON:\n${relatedArtistsData.second.data}\n")
+                                            println("Failed to get data from JSON, trying again...")
+                                        }
+                                    }
+                                    HTTP_TOO_MANY_REQUESTS -> {
+                                        println("Too many requests! Waiting for ${relatedArtistsData.second.data} seconds.")
+                                        //wait for given time before next request.
+                                        delay(relatedArtistsData.second.data.toLong() * 1000)
+                                    }
+                                    else -> println("HTTP ERROR! CODE: ${relatedArtistsData.first.code}")
+                                }
+                            }
+                            artist = parseData(JSONObject(artistData.second.data), topTracks, relatedArtists)
+                            return@withContext
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${artistData.second.data}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
+                    }
+                    HTTP_TOO_MANY_REQUESTS -> {
+                        println("Too many requests! Waiting for ${artistData.second.data} seconds.")
+                        //wait for given time before next request.
+                        delay(artistData.second.data.toLong() * 1000)
+                    }
+                    else -> println("HTTP ERROR! CODE: ${artistData.first.code}")
+                }
+            }
+        }
+        return artist
+    }
+
+    suspend fun getUser(userLink: Link): User {
+        lateinit var user: User
+        fun getUserData(): Pair<ResponseCode, ResponseData> {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$apiURL/users/")
+            urlBuilder.append(
+                userLink.link.substringAfterLast(":")
+                    .substringBefore("?si=")
+                    .substringAfterLast("/")
+            )
+            return sendHttpRequest(
+                URL(urlBuilder.toString()),
+                RequestMethod("GET"),
+                ExtraProperties(listOf("Authorization: Bearer $accessToken"))
+            )
+        }
+
+        fun parseUserData(userData: JSONObject): User {
+            return User(
+                Name(userData.getString("display_name")),
+                Name(userData.getString("id")),
+                Followers(userData.getJSONObject("followers").getInt("total")),
+                Link(userData.getJSONObject("external_urls").getString("spotify"))
+            )
+        }
+
+        val userJob = Job()
+        withContext(IO + userJob) {
+            while (true) {
+                val userData = getUserData()
+                //check response code
+                when (userData.first.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val data = JSONObject(userData.second.data)
+                            user = parseUserData(data)
+                            return@withContext
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${userData.second.data}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
+                    }
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        updateToken()
+                    }
+                    HTTP_TOO_MANY_REQUESTS -> {
+                        println("Too many requests! Waiting for ${userData.second.data} seconds.")
+                        //wait for given time before next request.
+                        delay(userData.second.data.toLong() * 1000)
+                    }
+                    else -> println("HTTP ERROR! CODE: ${userData.first.code}")
+                }
+            }
+        }
+        return user
     }
 }

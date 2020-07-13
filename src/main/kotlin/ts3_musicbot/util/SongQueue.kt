@@ -1,9 +1,7 @@
 package ts3_musicbot.util
 
-import ts3_musicbot.services.SoundCloud
-import ts3_musicbot.services.Spotify
-import ts3_musicbot.services.Track
-import ts3_musicbot.services.YouTube
+import ts3_musicbot.services.*
+import java.time.LocalDate
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.ArrayList
@@ -103,7 +101,7 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
                                 Thread.sleep(380)
                                 songPosition = 0
                                 //shouldMonitorSp = false
-                                playStateListener.onSongEnded(spotifyPlayer, currentSong)
+                                playStateListener.onSongEnded(spotifyPlayer, Link(currentSong))
                             } else {
                                 //check if song position is 0
                                 if (songPosition == 0) {
@@ -171,7 +169,7 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
      * @param position position in which the songs should be added
      */
     fun addAllToQueue(
-        songLinks: ArrayList<String>, position: Int = if (synchronized(this) { songQueue }.isNotEmpty()) {
+        songLinks: List<String>, position: Int = if (synchronized(this) { songQueue }.isNotEmpty()) {
             -1
         } else {
             0
@@ -206,17 +204,41 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
      */
     suspend fun nowPlaying(): Track {
         return when (currentSong.linkType) {
-            "spotify" -> {
-                spotify.getTrack(currentSong)
+            spotifyPlayer -> {
+                spotify.getTrack(Link(currentSong))
             }
             "youtube" -> {
-                Track("", "", youTube.getVideoTitle(currentSong), currentSong)
+                Track(
+                    Album(
+                        Name(""),
+                        Artists(emptyList()),
+                        ReleaseDate(LocalDate.now()),
+                        TrackList(emptyList()),
+                        Link("")
+                    ),
+                    Artists(emptyList()),
+                    Name(youTube.getVideoTitle(Link(currentSong))),
+                    Link(currentSong),
+                    Playability(true)
+                )
             }
             "soundcloud" -> {
-                soundCloud.getTrack(currentSong)
+                soundCloud.getTrack(Link(currentSong))
             }
             else -> {
-                Track.Empty
+                Track(
+                    Album(
+                        Name(""),
+                        Artists(emptyList()),
+                        ReleaseDate(LocalDate.now()),
+                        TrackList(emptyList()),
+                        Link("")
+                    ),
+                    Artists(emptyList()),
+                    Name(""),
+                    Link(""),
+                    Playability(false)
+                )
             }
         }
     }
@@ -228,24 +250,60 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
      * @param songLink link to track
      * @return returns a Track object based on the link
      */
-    private suspend fun ArrayList<String>.getTrack(songLink: String): Track {
-        return if (any { it == songLink }) {
-            return when (songLink.linkType) {
+    private suspend fun ArrayList<String>.getTrack(songLink: Link): Track {
+        return if (any { it == songLink.link }) {
+            return when (songLink.link.linkType) {
                 "spotify" -> {
                     spotify.getTrack(songLink)
                 }
                 "youtube" -> {
-                    Track("", "", youTube.getVideoTitle(songLink), songLink)
+                    Track(
+                        Album(
+                            Name(""),
+                            Artists(emptyList()),
+                            ReleaseDate(LocalDate.now()),
+                            TrackList(emptyList()),
+                            Link("")
+                        ),
+                        Artists(emptyList()),
+                        Name(youTube.getVideoTitle(songLink)),
+                        songLink,
+                        Playability(true)
+                    )
                 }
                 "soundclud" -> {
-                    soundCloud.getTrack(currentSong)
+                    soundCloud.getTrack(Link(currentSong))
                 }
                 else -> {
-                    Track.Empty
+                    Track(
+                        Album(
+                            Name(""),
+                            Artists(emptyList()),
+                            ReleaseDate(LocalDate.now()),
+                            TrackList(emptyList()),
+                            Link("")
+                        ),
+                        Artists(emptyList()),
+                        Name(""),
+                        Link(""),
+                        Playability(false)
+                    )
                 }
             }
         } else {
-            Track.Empty
+            Track(
+                Album(
+                    Name(""),
+                    Artists(emptyList()),
+                    ReleaseDate(LocalDate.now()),
+                    TrackList(emptyList()),
+                    Link("")
+                ),
+                Artists(emptyList()),
+                Name(""),
+                Link(""),
+                Playability(false)
+            )
         }
     }
 
@@ -254,11 +312,11 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
      * Checks the given String if it contains a supported link type and returns it's type.
      */
     private val String.linkType: String
-        get() = if (startsWith("https://open.spotify.com/") || (startsWith("spotify:") && contains(":track:"))) {
-            "spotify"
-        } else if (contains("youtube.com") || contains("youtu.be")) {
+        get() = if (contains("spotify".toRegex())) {
+            spotifyPlayer
+        } else if (contains("youtube.com".toRegex()) || contains("youtu.be".toRegex())) {
             "youtube"
-        } else if (contains("soundcloud.com")) {
+        } else if (contains("soundcloud.com".toRegex())) {
             "soundcloud"
         } else {
             ""
@@ -338,6 +396,7 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
         songQueueActive.set(false)
         shouldMonitorSp.set(false)
         shouldMonitorYt.set(false)
+        shouldMonitorSc.set(false)
         currentSong = ""
         commandRunner.runCommand("playerctl pause")
         commandRunner.runCommand("playerctl -p mpv stop")
@@ -429,10 +488,10 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
                         }.run()
                     }
                     spotifyLauncherThread.start()
-                    while (!commandRunner.runCommand(
-                            "ps aux | grep $spotifyPlayer",
+                    while (commandRunner.runCommand(
+                            "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?$spotifyPlayer$ | grep -v \"grep\"",
                             printOutput = false
-                        ).contains("(--product-version=Spotify|ncspot)?".toRegex())
+                        ).isEmpty()
                     ) {
                         //do nothing
                     }
@@ -461,7 +520,7 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
                     .substringAfterLast("/") == currentSong.substringAfterLast(":").substringBefore("?")
                     .substringAfterLast("/")
             ) {
-                onNewSongPlaying(spotifyPlayer, currentSong)
+                onNewSongPlaying(spotifyPlayer, Link(currentSong))
                 songPosition = 0
                 shouldMonitorYt.set(false)
                 shouldMonitorSc.set(false)
@@ -492,7 +551,7 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
             while (commandRunner.runCommand("playerctl -p mpv status", printOutput = false, printErrors = false) != "Playing") {
                 //wait for song to start
             }
-            onNewSongPlaying("mpv", currentSong)
+            onNewSongPlaying("mpv", Link(currentSong))
             shouldMonitorSp.set(false)
             shouldMonitorSc.set(false)
             shouldMonitorYt.set(true)
@@ -517,7 +576,7 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
             while (commandRunner.runCommand("playerctl -p mpv status", printOutput = false, printErrors = false) != "Playing") {
                 //wait for song to start
             }
-            onNewSongPlaying("mpv", currentSong)
+            onNewSongPlaying("mpv", Link(currentSong))
             shouldMonitorSp.set(false)
             shouldMonitorYt.set(false)
             shouldMonitorSc.set(true)
@@ -551,14 +610,14 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
     }
 
 
-    override fun onSongEnded(player: String, track: String) {
+    override fun onSongEnded(player: String, trackLink: Link) {
         //song ended, so play the next one in the queue
         playNext()
     }
 
-    override fun onNewSongPlaying(player: String, track: String) {
+    override fun onNewSongPlaying(player: String, trackLink: Link) {
         println("New song started.")
-        playStateListener2.onNewSongPlaying(player, track)
+        playStateListener2.onNewSongPlaying(player, trackLink)
     }
 
     override fun onAdPlaying() {}
@@ -599,7 +658,7 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
                                     )
                                 ) && current == "No players found"
                             ) {
-                                playStateListener.onSongEnded("mpv", currentSong)
+                                playStateListener.onSongEnded("mpv", Link(currentSong))
                                 break
                             }
                         }
@@ -638,7 +697,7 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
                                     )
                                 ) && current == "No players found"
                             ) {
-                                playStateListener.onSongEnded("mpv", currentSong)
+                                playStateListener.onSongEnded("mpv", Link(currentSong))
                                 break
                             }
                         }
@@ -655,7 +714,7 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
 }
 
 interface PlayStateListener {
-    fun onSongEnded(player: String, track: String)
-    fun onNewSongPlaying(player: String, track: String)
+    fun onSongEnded(player: String, trackLink: Link)
+    fun onNewSongPlaying(player: String, trackLink: Link)
     fun onAdPlaying()
 }
