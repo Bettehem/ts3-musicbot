@@ -4,8 +4,12 @@ import org.json.JSONObject
 import ts3_musicbot.util.*
 import java.net.URL
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 class YouTube {
+    private val apiUrl = "https://www.googleapis.com/youtube/v3"
+    private val apiKey = "AIzaSyB_FpJTYVMuQ2I_DxaidXUd7z4Q-ScMv6Y"
     private val commandRunner = CommandRunner()
 
     /**
@@ -18,6 +22,51 @@ class YouTube {
             "youtube-dl --no-playlist --geo-bypass -e \"$videoLink\" 2> /dev/null",
             printErrors = false,
             printOutput = false
+        )
+    }
+
+    fun getVideo(videoLink: Link): Track {
+        /**
+         * Send a request to YouTube API to get playlist items
+         * @param part tells the API what type of information to return
+         * @return returns a JSONObject containing the response from the request
+         */
+        fun sendRequest(part: String = "snippet,status"): JSONObject {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$apiUrl/videos?")
+            urlBuilder.append("id=${videoLink.link.substringAfterLast("/").substringAfter("?v=").substringBefore("&")}")
+            urlBuilder.append("&part=${part.replace(",", "%2C")}")
+            urlBuilder.append("&key=$apiKey")
+            val rawResponse = sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return try {
+                JSONObject(rawResponse.second.data)
+            } catch (e: Exception) {
+                JSONObject("{pageInfo: {totalResults: 0}, items: []}")
+            }
+        }
+
+        val response = sendRequest()
+        val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
+        val itemData = response.getJSONArray("items")[0]
+        itemData as JSONObject
+        val releaseDate =
+            ReleaseDate(LocalDate.parse(itemData.getJSONObject("snippet").getString("publishedAt"), formatter))
+        val isPlayable = when (itemData.getJSONObject("status").getString("privacyStatus")) {
+            "public", "unlisted" -> true
+            else -> false
+        }
+        return Track(
+            Album(
+                Name(""),
+                Artists(emptyList()),
+                releaseDate,
+                TrackList(emptyList()),
+                Link("")
+            ),
+            Artists(emptyList()),
+            Name(itemData.getJSONObject("snippet").getString("title")),
+            Link("https://youtu.be/${itemData.getString("id")}"),
+            Playability(isPlayable)
         )
     }
 
@@ -36,10 +85,10 @@ class YouTube {
          */
         fun sendRequest(maxResults: Int = 50, pageToken: String = "", part: String = "snippet,status"): JSONObject {
             val urlBuilder = StringBuilder()
-            urlBuilder.append("https://www.googleapis.com/youtube/v3/playlistItems?")
+            urlBuilder.append("$apiUrl/playlistItems?")
             urlBuilder.append("playlistId=${link.link.substringAfter("list=")}")
             urlBuilder.append("&part=${part.replace(",", "%2C")}")
-            urlBuilder.append("&key=AIzaSyB_FpJTYVMuQ2I_DxaidXUd7z4Q-ScMv6Y")
+            urlBuilder.append("&key=$apiKey")
             urlBuilder.append("&maxResults=$maxResults")
             if (pageToken.isNotEmpty())
                 urlBuilder.append("&pageToken=$pageToken")
@@ -76,19 +125,26 @@ class YouTube {
                             "public", "unlisted" -> true
                             else -> false
                         }
-                        val track = Track(
-                                Album(
-                                    Name(""),
-                                    Artists(emptyList()),
-                                    ReleaseDate(LocalDate.now()),
-                                    TrackList(emptyList()),
-                                    Link("")
-                                ),
-                                Artists(emptyList()),
-                                Name(title),
-                                Link(videoLink),
-                                Playability(isPlayable)
+                        val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
+                        val releaseDate = ReleaseDate(
+                            LocalDate.parse(
+                                item.getJSONObject("snippet").getString("publishedAt"),
+                                formatter
                             )
+                        )
+                        val track = Track(
+                            Album(
+                                Name(""),
+                                Artists(emptyList()),
+                                releaseDate,
+                                TrackList(emptyList()),
+                                Link("")
+                            ),
+                            Artists(emptyList()),
+                            Name(title),
+                            Link(videoLink),
+                            Playability(isPlayable)
+                        )
                         listItems.add(track)
                     } catch (e: Exception) {
                         totalItems -= 1
@@ -111,11 +167,14 @@ class YouTube {
                         "public", "unlisted" -> true
                         else -> false
                     }
+                    val formatter = DateTimeFormatter.ISO_INSTANT
+                    val releaseDate =
+                        ReleaseDate(LocalDate.parse(item.getJSONObject("snippet").getString("publishedAt"), formatter))
                     val track = Track(
                         Album(
                             Name(""),
                             Artists(emptyList()),
-                            ReleaseDate(LocalDate.now()),
+                            releaseDate,
                             TrackList(emptyList()),
                             Link("")
                         ),

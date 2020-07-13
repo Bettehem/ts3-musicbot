@@ -2,10 +2,12 @@ package ts3_musicbot.util
 
 import java.time.LocalDate
 
-data class Track(var album: Album, var artists: Artists, var title: Name, var link: Link, var isPlayable: Playability){
+data class Track(var album: Album, var artists: Artists, var title: Name, var link: Link, var isPlayable: Playability) {
     override fun toString(): String {
         return "Album: \t\t$album\n" +
-                if (artists.artists.size > 1) "Artists:" else {"Artist:"} + " \t\t$artists\n" +
+                if (artists.artists.size > 1) "Artists:" else {
+                    "Artist:"
+                } + " \t\t$artists\n" +
                 "Title: \t\t$title\n" +
                 "Link: $link"
     }
@@ -49,15 +51,21 @@ data class Followers(val amount: Int)
 data class Artists(val artists: List<Artist>) {
     override fun toString(): String {
         val strBuilder = StringBuilder()
-        artists.forEach { "${strBuilder.append(it)}, " }
-        return strBuilder.toString().substringBeforeLast(",")
+        artists.forEach { "${strBuilder.appendln(it)}" }
+        return strBuilder.toString()
     }
 }
 
 data class TrackList(val trackList: List<Track>) {
     override fun toString(): String {
         val strBuilder = StringBuilder()
-        trackList.forEach { strBuilder.appendln("${it.artists.artists.forEach { artist -> "${artist.name}, " }}".substringBeforeLast(",") + "- ${it.title} : ${it.link}") }
+        trackList.forEach {
+            strBuilder.appendln(
+                "${it.artists.artists.forEach { artist -> "${artist.name}, " }}".substringBeforeLast(
+                    ","
+                ) + " - ${it.title} : ${it.link}"
+            )
+        }
         return strBuilder.toString()
     }
 }
@@ -98,7 +106,11 @@ data class Album(
 ) {
     override fun toString(): String {
         return "Album Name:  \t${name.name}\n" +
-                "Release:    \t\t\t${releaseDate.date}\n" +
+                when {
+                    link.link.contains("(youtube|youtu.be|soundcloud)".toRegex()) -> "Upload Date:  \t\t${releaseDate.date}\n"
+                    link.link.contains("spotify".toRegex()) -> "Release:    \t\t\t${releaseDate.date}\n"
+                    else -> ""
+                } +
                 "Album Link:  \t\t$link\n" +
                 "\nArtists:\n$artists\n" +
                 "Tracks:\n$tracks"

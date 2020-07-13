@@ -5,6 +5,8 @@ import ts3_musicbot.util.*
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 class SoundCloud {
     private val commandRunner = CommandRunner()
@@ -23,7 +25,11 @@ class SoundCloud {
         ).split("\n")
         for (line in lines) {
             val url = line.substringAfter("\"").substringBefore("\"")
-            val data = commandRunner.runCommand("curl $url 2> /dev/null | grep \"client_id=\"", printOutput = false, printErrors = false)
+            val data = commandRunner.runCommand(
+                "curl $url 2> /dev/null | grep \"client_id=\"",
+                printOutput = false,
+                printErrors = false
+            )
             if (data.isNotEmpty()) {
                 val id = data.substringAfter("client_id=").substringBefore("&")
                 clientId = id
@@ -113,12 +119,13 @@ class SoundCloud {
             urlBuilder.append("&client_id=$clientId")
             val rawResponse = sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
             val response = JSONObject(rawResponse.second.data)
-
+            val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
+            val releaseDate = ReleaseDate(LocalDate.parse(response.getString("created_at"), formatter))
             Track(
                 Album(
                     Name(""),
                     Artists(emptyList()),
-                    ReleaseDate(LocalDate.now()),
+                    releaseDate,
                     TrackList(emptyList()),
                     Link("")
                 ),

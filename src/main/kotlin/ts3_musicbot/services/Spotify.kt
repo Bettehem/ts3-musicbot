@@ -336,12 +336,14 @@ class Spotify(private val market: String = "") {
                                         val album = Album(
                                             albumName,
                                             artists,
-                                            when (item.getJSONObject("track").getJSONObject("album").getString("release_date_precision")) {
+                                            when (item.getJSONObject("track").getJSONObject("album")
+                                                .getString("release_date_precision")) {
                                                 "day" -> {
                                                     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
                                                     ReleaseDate(
                                                         LocalDate.parse(
-                                                            item.getJSONObject("track").getJSONObject("album").getString("release_date"), formatter
+                                                            item.getJSONObject("track").getJSONObject("album")
+                                                                .getString("release_date"), formatter
                                                         )
                                                     )
                                                 }
@@ -351,7 +353,8 @@ class Spotify(private val market: String = "") {
                                                         .toFormatter()
                                                     ReleaseDate(
                                                         LocalDate.parse(
-                                                            item.getJSONObject("track").getJSONObject("album").getString("release_date"), formatter
+                                                            item.getJSONObject("track").getJSONObject("album")
+                                                                .getString("release_date"), formatter
                                                         )
                                                     )
                                                 }
@@ -362,7 +365,8 @@ class Spotify(private val market: String = "") {
                                                         .toFormatter()
                                                     ReleaseDate(
                                                         LocalDate.parse(
-                                                            item.getJSONObject("track").getJSONObject("album").getString("release_date"), formatter
+                                                            item.getJSONObject("track").getJSONObject("album")
+                                                                .getString("release_date"), formatter
                                                         )
                                                     )
                                                 }
