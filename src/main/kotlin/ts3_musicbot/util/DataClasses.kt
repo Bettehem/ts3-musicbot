@@ -2,14 +2,26 @@ package ts3_musicbot.util
 
 import java.time.LocalDate
 
-data class Track(var album: Album, var artists: Artists, var title: Name, var link: Link, var isPlayable: Playability) {
+enum class LinkType {
+    SPOTIFY,
+    YOUTUBE,
+    SOUNDCLOUD,
+    OTHER
+}
+
+data class Track(
+    val album: Album = Album(),
+    val artists: Artists = Artists(),
+    val title: Name = Name(),
+    val link: Link = Link(),
+    val playability: Playability = Playability(),
+    val linkType: LinkType = link.linkType()
+) {
     override fun toString(): String {
-        return "Album: \t\t$album\n" +
-                if (artists.artists.size > 1) "Artists:" else {
-                    "Artist:"
-                } + " \t\t$artists\n" +
-                "Title: \t\t$title\n" +
-                "Link: $link"
+        return "$album\n" +
+                "Track Artists:\n$artists\n" +
+                "Title:      \t\t\t\t$title\n" +
+                "Link:       \t\t\t\t$link\n"
     }
 }
 
@@ -25,13 +37,22 @@ data class SearchQuery(val query: String) {
     }
 }
 
-data class Name(val name: String) {
+data class Name(val name: String = "") {
     override fun toString(): String {
         return name
     }
 }
 
-data class Link(val link: String) {
+data class Link(val link: String = "") {
+    fun linkType(): LinkType {
+        return when {
+            link.contains("\\S+spotify\\S+".toRegex()) -> LinkType.SPOTIFY
+            link.contains("(\\S+youtube\\S+|\\S+youtu.be\\S+)".toRegex()) -> LinkType.YOUTUBE
+            link.contains("\\S+soundcloud\\S+".toRegex()) -> LinkType.SOUNDCLOUD
+            else -> LinkType.OTHER
+        }
+    }
+
     override fun toString(): String {
         return link
     }
@@ -45,10 +66,10 @@ data class Description(val text: String) {
 
 data class Publicity(val isPublic: Boolean?)
 data class Collaboration(val isCollaborative: Boolean)
-data class Playability(val isPlayable: Boolean = true)
+data class Playability(val isPlayable: Boolean = false)
 data class Followers(val amount: Int)
 
-data class Artists(val artists: List<Artist>) {
+data class Artists(val artists: List<Artist> = emptyList()) {
     override fun toString(): String {
         val strBuilder = StringBuilder()
         artists.forEach { "${strBuilder.appendln(it)}" }
@@ -56,22 +77,22 @@ data class Artists(val artists: List<Artist>) {
     }
 }
 
-data class TrackList(val trackList: List<Track>) {
+data class TrackList(val trackList: List<Track> = emptyList()) {
     override fun toString(): String {
         val strBuilder = StringBuilder()
         trackList.forEach {
-            strBuilder.appendln(
-                "${it.artists.artists.forEach { artist -> "${artist.name}, " }}".substringBeforeLast(
-                    ","
-                ) + " - ${it.title} : ${it.link}"
-            )
+            for (artist in it.artists.artists){
+                strBuilder.append("${artist.name}, ")
+            }
+            strBuilder.delete(strBuilder.length-2, strBuilder.length-1)
+            strBuilder.appendln(" - ${it.title} : ${it.link}")
         }
         return strBuilder.toString()
     }
 }
 
-data class ReleaseDate(val date: LocalDate)
-data class Genres(val genres: List<String>) {
+data class ReleaseDate(val date: LocalDate = LocalDate.now())
+data class Genres(val genres: List<String> = emptyList()) {
     override fun toString(): String {
         val strBuilder = StringBuilder()
         genres.forEach { strBuilder.append("$it, ") }
@@ -97,12 +118,12 @@ data class Artist(
 }
 
 data class Album(
-    val name: Name,
-    val artists: Artists,
-    val releaseDate: ReleaseDate,
-    val tracks: TrackList,
-    val link: Link,
-    val genres: Genres = Genres(emptyList())
+    val name: Name = Name(),
+    val artists: Artists = Artists(),
+    val releaseDate: ReleaseDate = ReleaseDate(),
+    val tracks: TrackList = TrackList(),
+    val link: Link = Link(),
+    val genres: Genres = Genres()
 ) {
     override fun toString(): String {
         return "Album Name:  \t${name.name}\n" +
@@ -111,9 +132,9 @@ data class Album(
                     link.link.contains("spotify".toRegex()) -> "Release:    \t\t\t${releaseDate.date}\n"
                     else -> ""
                 } +
-                "Album Link:  \t\t$link\n" +
-                "\nArtists:\n$artists\n" +
-                "Tracks:\n$tracks"
+                "Album Link:  \t\t$link\n\n" +
+                "Album Artists:\n$artists\n" +
+                if (tracks.trackList.isNotEmpty()) "Tracks:\n$tracks" else ""
     }
 }
 

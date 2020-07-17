@@ -9,7 +9,7 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener) {
         //start console
         val console = System.console()
         println("Enter command \"help\" for all commands.")
-        while (true) {
+        loop@ while (true) {
             val userCommand = console.readLine("Command: ")
             when (val command = userCommand.substringBefore(" ")) {
                 "help" -> {
@@ -31,6 +31,7 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener) {
                 "clear" -> print("\u001b[H\u001b[2J")
                 "exit" -> exit(command)
                 "quit" -> exit(command)
+                "" -> continue@loop
                 else -> {
                     if (command.startsWith("%") && !command.startsWith("%say"))
                         consoleUpdateListener.onCommandIssued(userCommand)

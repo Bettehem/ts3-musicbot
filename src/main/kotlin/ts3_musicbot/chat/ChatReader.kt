@@ -32,7 +32,7 @@ class ChatReader(
     private var voteSkipUsers = ArrayList<Pair<String, Boolean>>()
 
     @Volatile
-    private var songQueue = SongQueue(spotify, spotifyPlayer)
+    private var songQueue = SongQueue(spotifyPlayer, this)
 
     init {
         //initialise spotify token
@@ -192,59 +192,52 @@ class ChatReader(
                                             //check type
                                             when (type) {
                                                 "track" -> {
-                                                    songQueue.addToQueue(
-                                                        "https://open.spotify.com/$type/${link.link.substringAfter(type)
-                                                            .substring(1).substringBefore("[/URL]")
-                                                            .substringBefore("?")}",
-                                                        customPosition
+                                                    val track = spotify.getTrack(
+                                                        Link(
+                                                            "https://open.spotify.com/$type/${link.link
+                                                                .substringAfter(type).substring(1)
+                                                                .substringBefore("[/URL]").substringBefore("?")}"
+                                                        )
                                                     )
+                                                    if (track.playability.isPlayable)
+                                                        songQueue.addToQueue(track, customPosition)
                                                 }
 
                                                 "album" -> {
                                                     //get album's tracks
-                                                    val albumTracks = spotify.getAlbumTracks(
-                                                        Link(
-                                                            "https://open.spotify.com/$type/${link.link.substringAfter(
-                                                                type
+                                                    val albumTracks = TrackList(
+                                                        spotify.getAlbumTracks(
+                                                            Link(
+                                                                "https://open.spotify.com/$type/${link.link
+                                                                    .substringAfter(type).substring(1)
+                                                                    .substringBefore("[/URL]").substringBefore("?")}"
                                                             )
-                                                                .substring(1)
-                                                                .substringBefore("[/URL]").substringBefore("?")}"
-                                                        )
+                                                        ).trackList.filter { it.playability.isPlayable }
                                                     )
-                                                    val trackList = ArrayList<String>()
-                                                    for (track in albumTracks.trackList) {
-                                                        if (track.isPlayable.isPlayable)
-                                                            trackList.add(track.link.link)
-                                                    }
-                                                    println("Album \"${albumTracks.trackList[0].album}\" has a total of ${trackList.size} tracks.\nAdding to queue...")
+                                                    println("Album \"${albumTracks.trackList[0].album}\" has a total of ${albumTracks.trackList.size} tracks.\nAdding to queue...")
                                                     //add tracks to queue
                                                     songQueue.addAllToQueue(
-                                                        if (shouldShuffle) trackList.shuffled() else trackList,
+                                                        if (shouldShuffle) TrackList(albumTracks.trackList.shuffled()) else albumTracks,
                                                         customPosition
                                                     )
                                                 }
 
                                                 "playlist" -> {
                                                     //get playlist's tracks
-                                                    val playlistTracks = spotify.getPlaylistTracks(
-                                                        Link(
-                                                            "https://open.spotify.com/$type/${link.link.substringAfter(
-                                                                type
+                                                    val playlistTracks = TrackList(
+                                                        spotify.getPlaylistTracks(
+                                                            Link(
+                                                                "https://open.spotify.com/$type/${link.link
+                                                                    .substringAfter(type).substring(1)
+                                                                    .substringAfter("[URL]").substringBefore("[/URL]")
+                                                                    .substringBefore("?")}"
                                                             )
-                                                                .substring(1)
-                                                                .substringAfter("[URL]").substringBefore("[/URL]")
-                                                                .substringBefore("?")}"
-                                                        )
+                                                        ).trackList.filter { it.playability.isPlayable }
                                                     )
-                                                    val trackList = ArrayList<String>()
-                                                    for (track in playlistTracks.trackList) {
-                                                        if (track.isPlayable.isPlayable)
-                                                            trackList.add(track.link.link)
-                                                    }
-                                                    println("Playlist has a total of ${trackList.size} tracks.\nAdding to queue...")
+                                                    println("Playlist has a total of ${playlistTracks.trackList.size} tracks.\nAdding to queue...")
                                                     //add tracks to queue
                                                     songQueue.addAllToQueue(
-                                                        if (shouldShuffle) trackList.shuffled() else trackList,
+                                                        if (shouldShuffle) TrackList(playlistTracks.trackList.shuffled()) else playlistTracks,
                                                         customPosition
                                                     )
                                                 }
@@ -270,22 +263,21 @@ class ChatReader(
                                             //check type
                                             when (type) {
                                                 "track" -> {
-                                                    songQueue.addToQueue("https://youtu.be/$id", customPosition)
+                                                    val track = youTube.getVideo(Link("https://youtu.be/$id"))
+                                                    if (track.playability.isPlayable)
+                                                        songQueue.addToQueue(track, customPosition)
                                                 }
 
                                                 "playlist" -> {
                                                     //get playlist tracks
-                                                    val playlistTracks =
-                                                        youTube.getPlaylistTracks(Link("https://youtube.com/playlist?list=$id"))
-                                                    if (shouldShuffle)
-                                                        playlistTracks.shuffle()
-                                                    val trackList = ArrayList<String>()
-                                                    for (track in playlistTracks) {
-                                                        if (track.isPlayable.isPlayable)
-                                                            trackList.add(track.link.link)
-                                                    }
-                                                    println("Playlist has a total of ${trackList.size} tracks.\nAdding to queue...")
-                                                    songQueue.addAllToQueue(trackList, customPosition)
+                                                    val playlistTracks = TrackList(youTube.getPlaylistTracks(
+                                                        Link("https://youtube.com/playlist?list=$id")
+                                                    ).trackList.filter { it.playability.isPlayable })
+                                                    println("Playlist has a total of ${playlistTracks.trackList.size} tracks.\nAdding to queue...")
+                                                    songQueue.addAllToQueue(
+                                                        if (shouldShuffle) TrackList(playlistTracks.trackList.shuffled()) else playlistTracks,
+                                                        customPosition
+                                                    )
                                                 }
                                             }
                                         }
@@ -302,24 +294,26 @@ class ChatReader(
                                             //check type
                                             when (type) {
                                                 "track" -> {
-                                                    songQueue.addToQueue(
-                                                        link.link.substringAfter("[URL]")
-                                                            .substringBefore("[/URL]")
-                                                            .substringBefore("?"), customPosition
+                                                    val track = soundCloud.getTrack(
+                                                        Link(
+                                                            link.link.substringAfter("[URL]")
+                                                                .substringBefore("[/URL]")
+                                                                .substringBefore("?")
+                                                        )
                                                     )
+                                                    songQueue.addToQueue(track, customPosition)
                                                 }
 
                                                 "playlist" -> {
                                                     //get playlist tracks
-                                                    val playlistTracks = soundCloud.getPlaylistTracks(parseLink(link))
-                                                    if (shouldShuffle)
-                                                        playlistTracks.shuffle()
-                                                    val trackList = ArrayList<String>()
-                                                    for (track in playlistTracks) {
-                                                        if (track.isPlayable.isPlayable)
-                                                            trackList.add(track.link.link)
-                                                    }
-                                                    songQueue.addAllToQueue(trackList, customPosition)
+                                                    val playlistTracks = TrackList(
+                                                        soundCloud.getPlaylistTracks(parseLink(link))
+                                                            .filter { it.playability.isPlayable }
+                                                    )
+                                                    songQueue.addAllToQueue(
+                                                        if (shouldShuffle) TrackList(playlistTracks.trackList.shuffled()) else playlistTracks,
+                                                        customPosition
+                                                    )
                                                 }
                                             }
                                         }
@@ -332,7 +326,7 @@ class ChatReader(
                             //%queue-play command
                             commandString.contains("^%queue-play$".toRegex()) -> {
                                 if (songQueue.getQueue().isNotEmpty()) {
-                                    if (songQueue.queueActive()) {
+                                    if (songQueue.queueState != SongQueue.State.QUEUE_STOPPED) {
                                         printToChat(
                                             userName, listOf(
                                                 "Queue is already active!",
@@ -341,7 +335,7 @@ class ChatReader(
                                         )
                                     } else {
                                         printToChat(userName, listOf("Playing Queue."), apikey)
-                                        songQueue.playQueue(this@ChatReader)
+                                        songQueue.startQueue()
                                     }
                                 } else {
                                     printToChat(userName, listOf("Queue is empty!"), apikey)
@@ -350,7 +344,7 @@ class ChatReader(
                             }
                             //%queue-list command
                             commandString.contains("^%queue-list\\s*".toRegex()) -> {
-                                if (songQueue.queueActive()) {
+                                if (songQueue.queueState != SongQueue.State.QUEUE_STOPPED) {
                                     printToChat(
                                         userName,
                                         listOf("Currently playing:\n${songQueue.nowPlaying().link}"),
@@ -380,7 +374,7 @@ class ChatReader(
                                         }
                                         while (queue.isNotEmpty()) {
                                             if (queueList.size < 15) {
-                                                queueList.add(queue[0])
+                                                queueList.add(queue[0].link.link)
                                                 queue.removeAt(0)
                                             } else {
                                                 queueList.add(0, "")
@@ -496,7 +490,7 @@ class ChatReader(
                             }
                             //%queue-move command
                             commandString.contains("^%queue-move\\s+".toRegex()) -> {
-                                val link = parseLink(Link(commandString)).link.substringBefore("?")
+                                val link = Link(parseLink(Link(commandString)).link.substringBefore("?"))
                                 var position = 0
                                 //parse arguments
                                 val args = commandString.split("\\s+".toRegex())
@@ -529,7 +523,7 @@ class ChatReader(
                                     }
 
                                     else -> {
-                                        songQueue.moveTrack(link, position)
+                                        songQueue.moveTrack(Track(link = link), position)
                                         return true
                                     }
                                 }
@@ -542,7 +536,7 @@ class ChatReader(
                             }
                             //%queue-status command
                             commandString.contains("^%queue-status$".toRegex()) -> {
-                                if (songQueue.queueActive()) {
+                                if (songQueue.queueState != SongQueue.State.QUEUE_STOPPED) {
                                     printToChat(userName, listOf("Queue Status: Active"), apikey)
                                 } else {
                                     printToChat(userName, listOf("Queue Status: Not active"), apikey)
@@ -580,12 +574,12 @@ class ChatReader(
                             }
                             //%queue-pause command
                             commandString.contains("^%queue-pause$".toRegex()) -> {
-                                songQueue.pause()
+                                songQueue.pausePlayback()
                                 return true
                             }
                             //%queue-resume command
                             commandString.contains("^%queue-resume$".toRegex()) -> {
-                                songQueue.resume()
+                                songQueue.resumePlayback()
                                 return true
                             }
 
@@ -864,12 +858,7 @@ class ChatReader(
                                     link.link.contains("track".toRegex()) -> {
                                         val track = spotify.getTrack(link)
                                         printToChat(
-                                            userName, listOf(
-                                                "",
-                                                "Album:\t${track.album}",
-                                                "Artist:   \t${track.artists}",
-                                                "Title:    \t${track.title}"
-                                            ), apikey
+                                            userName, track.toString().lines(), apikey
                                         )
                                         return true
                                     }
@@ -1220,27 +1209,30 @@ class ChatReader(
         }
     }
 
-    override fun onSongEnded(player: String, trackLink: Link) {}
+    override fun onTrackEnded(player: String, track: Track) {}
+    override fun onTrackPaused(player: String, track: Track) {}
+    override fun onTrackResumed(player: String, track: Track) {}
 
-    override fun onNewSongPlaying(player: String, trackLink: Link) {
+    override fun onTrackStarted(player: String, track: Track) {
         when (player) {
             "spotify", "ncspot" -> {
                 CoroutineScope(Default).launch {
                     parseLine("", "%queue-nowplaying")
-                    val spotifyTrack = spotify.getTrack(trackLink)
-                    println("Playing ${spotifyTrack.artists} - ${spotifyTrack.title}")
+                    println("Playing ${track.artists} - ${track.title}")
                 }
             }
             "mpv" -> {
-                if (trackLink.link.startsWith("https://youtube.com") || trackLink.link.startsWith("https://youtu.be") || trackLink.link.startsWith(
-                        "https://www.youtube.com"
-                    )
-                ) {
-                    ytLink = trackLink
-                    println("Playing ${youTube.getVideoTitle(trackLink)}")
-                } else if (trackLink.link.startsWith("https://soundcloud.com")) {
-                    val trackData = soundCloud.getTrack(trackLink)
-                    println("Playing ${trackData.artists} - ${trackData.title}")
+                when (track.linkType) {
+                    LinkType.YOUTUBE -> {
+                        ytLink = track.link
+                        println("Playing ${track.title}")
+
+                    }
+                    LinkType.SOUNDCLOUD -> {
+                        println("Playing ${track.artists} - ${track.title}")
+                    }
+                    else -> {
+                    }
                 }
                 parseLine("", "%queue-nowplaying")
             }

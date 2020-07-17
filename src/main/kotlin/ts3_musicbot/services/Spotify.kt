@@ -387,7 +387,7 @@ class Spotify(private val market: String = "") {
                                         } else {
                                             true
                                         }
-                                        trackItems.add(Track(album, artists, title, link, Playability(isPlayable)))
+                                        trackItems.add(Track(album, artists, title, link, Playability(isPlayable), LinkType.SPOTIFY))
                                     } else {
                                         playlistLength -= 1
                                     }

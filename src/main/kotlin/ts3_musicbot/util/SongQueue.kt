@@ -1,189 +1,68 @@
 package ts3_musicbot.util
 
-import ts3_musicbot.services.*
-import java.time.LocalDate
+import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers.IO
 import java.util.*
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.ArrayList
 
-class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPlayer: String = "spotify") :
-    PlayStateListener {
-    @Volatile
-    private var songQueue = Collections.synchronizedList(ArrayList<String>())
+@Volatile
+private var songQueue = Collections.synchronizedList(ArrayList<Track>())
 
-    private val commandRunner = CommandRunner()
-    private val youTube = YouTube()
-    private val soundCloud = SoundCloud()
-    private val playStateListener: PlayStateListener = this
-    private lateinit var playStateListener2: PlayStateListener
-
-    @Volatile
-    private var currentSong = ""
-
-    @Volatile
-    private var shouldMonitorSp: AtomicBoolean = AtomicBoolean(false)
-
-    @Volatile
-    private var shouldMonitorYt: AtomicBoolean = AtomicBoolean(false)
-
-    @Volatile
-    private var shouldMonitorSc: AtomicBoolean = AtomicBoolean(false)
-
-    @Volatile
-    private var songQueueActive: AtomicBoolean = AtomicBoolean(false)
-
-    @Volatile
-    private var songPosition = 0
-
-    private val spotifyListenerThread = Thread {
-        Runnable {
-            var songLength = 0 //Song length in seconds
-            var adNotified = false
-            while (songQueueActive.get()) {
-                if (shouldMonitorSp.get()) {
-                    val lengthMicroseconds = try {
-                        commandRunner.runCommand(
-                            "playerctl -p $spotifyPlayer metadata --format '{{ mpris:length }}'",
-                            printOutput = false
-                        ).toInt()
-                    } catch (e: Exception) {
-                        //song hasn't started
-                        0
-                    }
-                    val current =
-                        commandRunner.runCommand(
-                            "playerctl -p $spotifyPlayer metadata --format '{{ xesam:url }}'",
-                            printOutput = false
-                        )
-                    val playerStatus =
-                        commandRunner.runCommand("playerctl -p $spotifyPlayer status", printOutput = false)
-                    if (playerStatus == "Playing") {
-                        //song is playing
-
-                        if (current.substringAfterLast(":").substringBefore("?")
-                                .substringAfterLast("/") == currentSong.substringAfterLast(":").substringBefore("?")
-                                .substringAfterLast("/")
-                        ) {
-                            val minutes = lengthMicroseconds / 1000000 / 60
-                            val seconds = lengthMicroseconds / 1000000 % 60
-                            songLength = minutes * 60 + seconds
-
-                            //println("Position = $songPosition / $songLength")
-                            if (songPosition < songLength) {
-                                songPosition++
-                                val delay: Long = 990
-                                val delaySub: Float = songLength.toFloat() / 10
-                                Thread.sleep(delay - delaySub.toLong())
-                            }
-                            adNotified = false
-                        } else if (current.startsWith("https://open.spotify.com/ad/")) {
-                            //ad playing, wait for it to finish.
-                            if (!adNotified) {
-                                adNotified = true
-                                println("Ad playing.")
-                                playStateListener.onAdPlaying()
-                            }
-                        } else {
-                            //song has changed
-                            songPosition = 0
-                            //shouldMonitorSp = false
-                            //playStateListener.onSongEnded("spotify", currentSong)
-                        }
-                    } else {
-                        //Song is paused/stopped
-
-                        if (current.substringAfterLast(":").substringBefore("?")
-                                .substringAfterLast("/") == currentSong.substringAfterLast(":").substringBefore("?")
-                                .substringAfterLast("/")
-                        ) {
-                            adNotified = false
-                            if (songPosition >= songLength - 10 || playerStatus == "Stopped") {
-                                //Song has ended
-                                Thread.sleep(380)
-                                songPosition = 0
-                                //shouldMonitorSp = false
-                                playStateListener.onSongEnded(spotifyPlayer, Link(currentSong))
-                            } else {
-                                //check if song position is 0
-                                if (songPosition == 0) {
-                                    //start playback
-
-                                    //spotify broken?
-                                    commandRunner.runCommand("playerctl -p $spotifyPlayer play")
-                                    Thread.sleep(1000)
-                                    if (commandRunner.runCommand(
-                                            "playerctl -p $spotifyPlayer status",
-                                            printOutput = false
-                                        ) != "Playing"
-                                    ) {
-                                        commandRunner.runCommand(
-                                            "killall $spotifyPlayer && $spotifyPlayer &",
-                                            printOutput = false
-                                        )
-                                        Thread.sleep(5000)
-
-                                        commandRunner.runCommand(
-                                            "playerctl -p $spotifyPlayer open spotify:track:${
-                                            currentSong.substringAfter("spotify.com/track/")
-                                                .substringBefore("?")}", ignoreOutput = false
-                                        )
-                                    }
-                                } else {
-                                    //Song is paused, wait for user to resume playback
-                                    continue
-                                }
-                            }
-                        } else {
-                            //Song has changed
-
-                            //reset songPosition and turn monitor off
-                            songPosition = 0
-                            //shouldMonitorSp = false
-                            //break
-                        }
-                    }
-                }
-            }
-        }.run()
+class SongQueue(
+    spotifyPlayer: String = "spotify",
+    private val playStateListener: PlayStateListener
+) : PlayStateListener {
+    enum class State {
+        QUEUE_PLAYING,
+        QUEUE_PAUSED,
+        QUEUE_STOPPED
     }
+
+    @Volatile
+    var queueState = State.QUEUE_STOPPED
+
+    private val trackPlayer = TrackPlayer(spotifyPlayer, this)
+
+    @Volatile
+    private var currentTrack = Track(Album(), Artists(), Name(), Link(), Playability())
 
     /**
      * Adds track to queue
-     * @param songLink song's link
+     * @param track song's link
      * @param position position in which the song should be added.
      */
     fun addToQueue(
-        songLink: String, position: Int = if (synchronized(this) { songQueue }.isNotEmpty()) {
+        track: Track, position: Int = if (synchronized(songQueue) { songQueue }.isNotEmpty()) {
             -1
         } else {
             0
         }
     ) {
-        synchronized(this) {
+        synchronized(songQueue) {
             if (position >= 0)
-                songQueue.add(position, songLink)
+                songQueue.add(position, track)
             else
-                songQueue.add(songLink)
+                songQueue.add(track)
         }
     }
 
     /**
-     * Adds a list of links to the queue
-     * @param songLinks list of links to add to the queue
-     * @param position position in which the songs should be added
+     * Adds a list of tracks to the queue
+     * @param trackList list of tracks to add to the queue
+     * @param position position in which the tracks should be added
      */
     fun addAllToQueue(
-        songLinks: List<String>, position: Int = if (synchronized(this) { songQueue }.isNotEmpty()) {
+        trackList: TrackList, position: Int = if (synchronized(songQueue) { songQueue }.isNotEmpty()) {
             -1
         } else {
             0
         }
     ) {
-        synchronized(this) {
+        synchronized(songQueue) {
             if (position >= 0)
-                songQueue.addAll(position, songLinks)
+                songQueue.addAll(position, trackList.trackList)
             else {
-                songQueue.addAll(songLinks)
+                songQueue.addAll(trackList.trackList)
             }
         }
     }
@@ -192,171 +71,117 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
      * Clear the queue
      */
     fun clearQueue() {
-        synchronized(this) {
+        synchronized(songQueue) {
             songQueue.clear()
         }
     }
 
-    /**
-     * Get an ArrayList of links in the queue
-     */
-    fun getQueue(): ArrayList<String> = synchronized(this) { songQueue }.toMutableList() as ArrayList<String>
+    fun getQueue(): ArrayList<Track> = synchronized(songQueue) { songQueue }.toMutableList() as ArrayList<Track>
 
-    /**
-     * Get currently playing track
-     * @return returns a Track object based on the current song's link
-     */
-    suspend fun nowPlaying(): Track {
-        return when (currentSong.linkType) {
-            spotifyPlayer -> {
-                spotify.getTrack(Link(currentSong))
-            }
-            "youtube" -> {
-                youTube.getVideo(Link(currentSong))
-            }
-            "soundcloud" -> {
-                soundCloud.getTrack(Link(currentSong))
-            }
-            else -> {
-                Track(
-                    Album(
-                        Name(""),
-                        Artists(emptyList()),
-                        ReleaseDate(LocalDate.now()),
-                        TrackList(emptyList()),
-                        Link("")
-                    ),
-                    Artists(emptyList()),
-                    Name(""),
-                    Link(""),
-                    Playability(false)
-                )
-            }
-        }
+    fun nowPlaying(): Track {
+        return currentTrack
     }
 
-    /**
-     * Adds a getTrack function to ArrayList<String>.
-     * It can be used to get a Track object straight from the songQueue list, for example:
-     * val track = songQueue.getTrack("https://open.spotify.com/track/1WtBDRmbb0q9hzDk2H4pyH")
-     * @param songLink link to track
-     * @return returns a Track object based on the link
-     */
-    private suspend fun ArrayList<String>.getTrack(songLink: Link): Track {
-        return if (any { it == songLink.link }) {
-            return when (songLink.link.linkType) {
-                "spotify" -> {
-                    spotify.getTrack(songLink)
-                }
-                "youtube" -> {
-                    Track(
-                        Album(
-                            Name(""),
-                            Artists(emptyList()),
-                            ReleaseDate(LocalDate.now()),
-                            TrackList(emptyList()),
-                            Link("")
-                        ),
-                        Artists(emptyList()),
-                        Name(youTube.getVideoTitle(songLink)),
-                        songLink,
-                        Playability(true)
-                    )
-                }
-                "soundclud" -> {
-                    soundCloud.getTrack(Link(currentSong))
-                }
-                else -> {
-                    Track(
-                        Album(
-                            Name(""),
-                            Artists(emptyList()),
-                            ReleaseDate(LocalDate.now()),
-                            TrackList(emptyList()),
-                            Link("")
-                        ),
-                        Artists(emptyList()),
-                        Name(""),
-                        Link(""),
-                        Playability(false)
-                    )
-                }
-            }
-        } else {
-            Track(
-                Album(
-                    Name(""),
-                    Artists(emptyList()),
-                    ReleaseDate(LocalDate.now()),
-                    TrackList(emptyList()),
-                    Link("")
-                ),
-                Artists(emptyList()),
-                Name(""),
-                Link(""),
-                Playability(false)
-            )
-        }
-    }
-
-    /**
-     * Adds a linkType function to String.
-     * Checks the given String if it contains a supported link type and returns it's type.
-     */
-    private val String.linkType: String
-        get() = if (contains("spotify".toRegex())) {
-            spotifyPlayer
-        } else if (contains("youtube.com".toRegex()) || contains("youtu.be".toRegex())) {
-            "youtube"
-        } else if (contains("soundcloud.com".toRegex())) {
-            "soundcloud"
-        } else {
-            ""
-        }
-
-    /**
-     * Shuffles the queue.
-     */
     fun shuffleQueue() {
-        synchronized(this) {
+        synchronized(songQueue) {
             songQueue.shuffle()
         }
     }
 
-    /**
-     * Skips the current song and starts playing the next one in the queue, if it isn't empty.
-     */
     fun skipSong() {
-        if (synchronized(this) { songQueue }.isNotEmpty()) {
-            playNext()
-        } else {
-            val currentPlayers = commandRunner.runCommand("playerctl -l", printOutput = false).split("\n".toRegex())
-            if (currentPlayers.size > 1) {
-                for (player in currentPlayers) {
-                    when (player) {
-                        "mpv" -> commandRunner.runCommand("playerctl -p mpv stop", ignoreOutput = true)
-                        spotifyPlayer -> commandRunner.runCommand(
-                            "playerctl -p $spotifyPlayer next",
-                            ignoreOutput = true
-                        )
-                    }
-                }
+        when (queueState) {
+            State.QUEUE_PLAYING, State.QUEUE_PAUSED -> {
+                trackPlayer.stopTrack()
+                currentTrack = Track()
+                playNext()
+            }
+            else -> {
+                println("Track cannot be skipped.")
             }
         }
     }
 
+    //starts playing song queue
+    fun startQueue() {
+        if (queueState == State.QUEUE_STOPPED) {
+            println("Starting queue.")
+            playNext()
+        } else {
+            println("Song queue already active!")
+        }
+    }
+
+    fun resumePlayback() {
+        trackPlayer.resumeTrack()
+    }
+
+    fun pausePlayback() {
+        trackPlayer.pauseTrack()
+    }
+
+    fun stopQueue() {
+        trackPlayer.stopTrack()
+        currentTrack = Track()
+        queueState = State.QUEUE_STOPPED
+    }
+
+
+    private fun playNext() {
+        fun playTrack(track: Track) {
+            trackPlayer.track = track
+            trackPlayer.startTrack()
+        }
+        synchronized(songQueue) {
+            if (songQueue.isNotEmpty()) {
+                playTrack(songQueue[0])
+            } else {
+                println("Song queue is empty!")
+            }
+        }
+    }
+
+
+    override fun onTrackEnded(player: String, track: Track) {
+        playStateListener.onTrackEnded(player, track)
+        playNext()
+    }
+
+    override fun onTrackPaused(player: String, track: Track) {
+        queueState = State.QUEUE_PAUSED
+        println("Queue paused.")
+        playStateListener.onTrackPaused(player, track)
+    }
+
+    override fun onTrackResumed(player: String, track: Track) {
+        queueState = State.QUEUE_PLAYING
+        println("Queue resumed.")
+        playStateListener.onTrackResumed(player, track)
+    }
+
+    override fun onTrackStarted(player: String, track: Track) {
+        queueState = State.QUEUE_PLAYING
+        currentTrack = track
+        synchronized(songQueue) {
+            songQueue.remove(track)
+        }
+        playStateListener.onTrackStarted(player, track)
+    }
+
+    override fun onAdPlaying() {}
+
     /**
      * Moves a desired track to a new position
-     * @param link link to move
+     * @param track link to move
      * @param newPosition new position of the track
      */
-    fun moveTrack(link: String, newPosition: Int) {
+    fun moveTrack(track: Track, newPosition: Int) {
+        //TODO: make possible to choose which track to move if many exist in the queue
         synchronized(this) {
             if (newPosition < songQueue.size && newPosition >= 0) {
                 for (i in songQueue.indices) {
-                    if (songQueue[i] == link) {
+                    if (songQueue[i].link == track.link) {
                         songQueue.removeAt(i)
-                        songQueue.add(newPosition, link)
+                        songQueue.add(newPosition, track)
                         break
                     }
                 }
@@ -364,150 +189,43 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
         }
     }
 
-    /**
-     * Resumes playback.
-     */
-    fun resume() {
-        when (currentSong.linkType) {
-            spotifyPlayer -> commandRunner.runCommand(
-                "playerctl -p $spotifyPlayer play",
-                printOutput = false,
-                printErrors = false
-            )
-            "youtube", "soundcloud" -> commandRunner.runCommand(
-                "playerctl -p mpv play",
-                printOutput = false,
-                printErrors = false
-            )
+    private class TrackPlayer(val spotifyPlayer: String, val listener: PlayStateListener) {
+        @Volatile
+        lateinit var trackJob: CompletableJob
+
+        @Volatile
+        var trackPosition = 0
+
+        lateinit var track: Track
+        private val commandRunner = CommandRunner()
+        fun getPlayer() = when (track.linkType) {
+            LinkType.SPOTIFY -> spotifyPlayer
+            LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> "mpv"
+            else -> ""
         }
-    }
-
-    /**
-     * Pauses playback.
-     */
-    fun pause() {
-        when (currentSong.linkType) {
-            spotifyPlayer -> commandRunner.runCommand(
-                "playerctl -p $spotifyPlayer pause",
-                printOutput = false,
-                printErrors = false
-            )
-            "youtube", "soundcloud" -> commandRunner.runCommand(
-                "playerctl -p mpv pause",
-                printOutput = false,
-                printErrors = false
-            )
-        }
-    }
-
-    /**
-     * Stops the queue.
-     */
-    fun stopQueue() {
-        songQueueActive.set(false)
-        shouldMonitorSp.set(false)
-        shouldMonitorYt.set(false)
-        shouldMonitorSc.set(false)
-        currentSong = ""
-        commandRunner.runCommand("playerctl pause")
-        commandRunner.runCommand("playerctl -p mpv stop")
-        commandRunner.runCommand("killall playerctl")
-    }
-
-    /**
-    @return returns true if the queue is active, false otherwise. Note that the queue can be active even though playback is paused.
-     */
-    fun queueActive(): Boolean {
-        return songQueueActive.get()
-    }
 
 
-    //starts playing song queue
-    fun playQueue(queueListener: PlayStateListener) {
-        if (!queueActive()) {
-            commandRunner.runCommand("killall playerctl", printOutput = false, ignoreOutput = true)
-            commandRunner.runCommand("killall mpv", printOutput = false, ignoreOutput = true)
-        }
-        synchronized(this) {
-            if (songQueue.size >= 1) {
-                //queue is not empty, so start playing the list.
-                playStateListener2 = queueListener
-                playSong(songQueue[0])
-            }
-        }
-    }
+        fun startTrack() {
+            trackPosition = 0
+            trackJob = Job()
 
-    private fun playSong(songLink: String) {
-        if (!songQueueActive.get()) {
-            songQueueActive.set(true)
-        }
-        if (songLink.startsWith("https://open.spotify.com")) {
-            if (commandRunner.runCommand(
-                    "playerctl -p mpv status",
-                    printOutput = false,
-                    printErrors = false
-                ) == "Playing"
-            )
-                commandRunner.runCommand("playerctl -p mpv stop")
-            currentSong = songLink
-            synchronized(this) {
-                songQueue.remove(currentSong)
-            }
-            startSpotifyMonitor()
-            val spThread = Thread {
-                Runnable {
-                    commandRunner.runCommand(
-                        "playerctl -p $spotifyPlayer open spotify:track:${songLink.substringAfter("spotify.com/track/")
-                            .substringBefore(
-                                "?"
-                            )}", ignoreOutput = true
-                    )
-                }.run()
-            }
-            spThread.start()
-
-            //get current url from spotify player
-            var currentUrl = commandRunner.runCommand(
-                "playerctl -p $spotifyPlayer metadata --format '{{ xesam:url }}'",
-                printOutput = false,
-                printErrors = false
+            fun playerStatus() = commandRunner.runCommand(
+                "playerctl -p ${getPlayer()} status", printOutput = false, printErrors = false
             )
 
-            var adNotified = false
-
-            while (currentUrl.substringAfterLast(":").substringBefore("?")
-                    .substringAfterLast("/") != currentSong.substringAfterLast(":").substringBefore("?")
-                    .substringAfterLast("/")
-            ) {
-                //get player status
-                val playerStatus =
-                    commandRunner.runCommand(
-                        "playerctl -p $spotifyPlayer status",
-                        printOutput = false,
-                        printErrors = false
-                    )
-                //get current url from spotify player
-                currentUrl = commandRunner.runCommand(
-                    "playerctl -p $spotifyPlayer metadata --format '{{ xesam:url }}'",
-                    printOutput = false,
-                    printErrors = false
-                )
-
-                if (playerStatus == "No players found") {
-                    //start spotify
-                    val spotifyLauncherThread = Thread {
-                        Runnable {
-                            when (spotifyPlayer) {
-                                "spotify" -> commandRunner.runCommand("$spotifyPlayer &", printOutput = false)
-                                "ncspot" -> commandRunner.runCommand(
-                                    "killall ncspot; \$TERMINAL -e \"ncspot\" &",
-                                    printOutput = false,
-                                    ignoreOutput = true
-                                )
-                            }
-                        }.run()
+            suspend fun startSpotifyPlayer() {
+                withContext(IO + trackJob) {
+                    when (spotifyPlayer) {
+                        "spotify" -> commandRunner.runCommand("$spotifyPlayer &", printOutput = false)
+                        "ncspot" -> commandRunner.runCommand(
+                            "killall ncspot; \$TERMINAL -e \"ncspot\" &",
+                            printOutput = false,
+                            ignoreOutput = true
+                        )
+                        else -> {
+                        }
                     }
-                    spotifyLauncherThread.start()
+                    //wait for the spotify player to start.
                     while (commandRunner.runCommand(
                             "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?$spotifyPlayer$\" | grep -v \"grep\"",
                             printOutput = false
@@ -515,236 +233,199 @@ class SongQueue(private val spotify: Spotify = Spotify(), private val spotifyPla
                     ) {
                         //do nothing
                     }
-                    //wait a bit for spotify to start
-                    Thread.sleep(5000)
-                    val spThread2 = Thread {
-                        Runnable {
+                    delay(5000)
+                    commandRunner.runCommand(
+                        "playerctl -p $spotifyPlayer open spotify:track:${track.link.link.substringAfter("spotify.com/track/")
+                            .substringBefore(
+                                "?"
+                            )} &", ignoreOutput = true
+                    )
+                }
+            }
+
+            //starts playing the track
+            suspend fun openTrack() {
+                withContext(IO + trackJob) {
+                    fun currentUrl() = commandRunner.runCommand(
+                        "playerctl -p ${getPlayer()} metadata --format '{{ xesam:url }}'",
+                        printOutput = false,
+                        printErrors = false
+                    )
+                    while (currentUrl() != track.link.link) {
+                        //wait for track to start
+                        when (track.linkType) {
+                            LinkType.SPOTIFY -> {
+                                commandRunner.runCommand(
+                                    "playerctl -p ${getPlayer()} open spotify:track:${track.link.link.substringAfter("spotify.com/track/")
+                                        .substringBefore("?")}", ignoreOutput = true
+                                )
+                                while (commandRunner.runCommand(
+                                        "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${getPlayer()}(.+)?\" | grep -v \"grep\"",
+                                        printOutput = false
+                                    ).isEmpty()
+                                ) {
+                                    //do nothing
+                                }
+                            }
+                            LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> {
+                                Thread {
+                                    Runnable {
+                                        commandRunner.runCommand(
+                                            "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket " +
+                                                    "--ytdl-raw-options=cookies=youtube-dl.cookies${if (track.linkType == LinkType.YOUTUBE) ",--force-ipv4=" else ""}" +
+                                                    " --ytdl ${track.link}",
+                                            inheritIO = true,
+                                            ignoreOutput = true
+                                        )
+                                    }.run()
+                                }.start()
+                                delay(5000)
+                                while (commandRunner.runCommand(
+                                        "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${getPlayer()}(.+)?\" | grep -v \"grep\"",
+                                        printOutput = false
+                                    ).isEmpty()
+                                ) {
+                                    //do nothing
+                                }
+
+                            }
+                            else -> {
+                                println("Error: ${track.link} is not a supported link type!")
+                                synchronized(songQueue) {
+                                    songQueue.remove(track)
+                                }
+                                trackJob.complete().also { listener.onTrackEnded(getPlayer(), track) }
+                            }
+                        }
+                    }
+                    fun getTrackLength(): Int {
+                        val lengthMicroseconds = try {
                             commandRunner.runCommand(
-                                "playerctl -p $spotifyPlayer open spotify:track:${songLink.substringAfter("spotify.com/track/")
-                                    .substringBefore(
-                                        "?"
-                                    )} &", ignoreOutput = true
-                            )
-                        }.run()
+                                "playerctl -p ${getPlayer()} metadata --format '{{ mpris:length }}'",
+                                printOutput = false
+                            ).toInt()
+                        } catch (e: Exception) {
+                            //track hasn't started
+                            0
+                        }
+                        val minutes = lengthMicroseconds / 1000000 / 60
+                        val seconds = lengthMicroseconds / 1000000 % 60
+                        //convert to seconds
+                        return minutes * 60 + seconds
                     }
-                    spThread2.start()
-                }
-                if (currentUrl.startsWith("https://open.spotify.com/ad/")) {
-                    if (!adNotified) {
-                        adNotified = true
-                        onAdPlaying()
-                    }
-                }
-            }
-            if (currentUrl.substringAfterLast(":").substringBefore("?")
-                    .substringAfterLast("/") == currentSong.substringAfterLast(":").substringBefore("?")
-                    .substringAfterLast("/")
-            ) {
-                onNewSongPlaying(spotifyPlayer, Link(currentSong))
-                songPosition = 0
-                shouldMonitorYt.set(false)
-                shouldMonitorSc.set(false)
-                shouldMonitorSp.set(true)
-            }
 
-        } else if (songLink.startsWith("https://youtu.be") || songLink.startsWith("https://youtube.com") || songLink.startsWith(
-                "https://www.youtube.com"
-            )
-        ) {
-            if (commandRunner.runCommand("playerctl -p $spotifyPlayer status") == "Playing")
-                commandRunner.runCommand("playerctl -p $spotifyPlayer pause")
-            currentSong = songLink
-            synchronized(this) {
-                songQueue.remove(currentSong)
-            }
-            startYouTubeMonitor()
-            val ytThread = Thread {
-                Runnable {
-                    commandRunner.runCommand(
-                        "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl-raw-options=cookies=youtube-dl.cookies,force-ipv4= --ytdl $songLink",
-                        inheritIO = true,
-                        ignoreOutput = true
-                    )
-                }.run()
-            }
-            ytThread.start()
-            while (commandRunner.runCommand(
-                    "playerctl -p mpv status",
-                    printOutput = false,
-                    printErrors = false
-                ) != "Playing"
-            ) {
-                //wait for song to start
-            }
-            onNewSongPlaying("mpv", Link(currentSong))
-            shouldMonitorSp.set(false)
-            shouldMonitorSc.set(false)
-            shouldMonitorYt.set(true)
-        } else if (songLink.startsWith("https://soundcloud.com")) {
-            if (commandRunner.runCommand("playerctl -p $spotifyPlayer status") == "Playing")
-                commandRunner.runCommand("playerctl -p $spotifyPlayer pause")
-            currentSong = songLink
-            synchronized(this) {
-                songQueue.remove(currentSong)
-            }
-            startSoundCloudMonitor()
-            val scThread = Thread {
-                Runnable {
-                    commandRunner.runCommand(
-                        "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl-raw-options=cookies=youtube-dl.cookies --ytdl $songLink",
-                        inheritIO = true,
-                        ignoreOutput = true
-                    )
-                }.run()
-            }
-            scThread.start()
-            while (commandRunner.runCommand(
-                    "playerctl -p mpv status",
-                    printOutput = false,
-                    printErrors = false
-                ) != "Playing"
-            ) {
-                //wait for song to start
-            }
-            onNewSongPlaying("mpv", Link(currentSong))
-            shouldMonitorSp.set(false)
-            shouldMonitorYt.set(false)
-            shouldMonitorSc.set(true)
-        } else {
-            //song not supported so skip it
-            synchronized(this) {
-                songQueue.remove(currentSong)
-                playSong(songQueue[0])
-            }
-        }
-    }
-
-    private fun playNext() {
-        //play next song in queue if not empty
-        if (synchronized(this) { songQueue }.isNotEmpty()) {
-            shouldMonitorYt.set(false)
-            shouldMonitorSp.set(false)
-            shouldMonitorSc.set(false)
-            commandRunner.runCommand("playerctl -p $spotifyPlayer pause", printOutput = false)
-            commandRunner.runCommand("playerctl -p mpv stop", printOutput = false, printErrors = false)
-            synchronized(this) {
-                playSong(songQueue[0])
-            }
-        } else {
-            shouldMonitorSp.set(false)
-            shouldMonitorYt.set(false)
-            shouldMonitorSc.set(false)
-            songQueueActive.set(false)
-            currentSong = ""
-        }
-    }
-
-
-    override fun onSongEnded(player: String, trackLink: Link) {
-        //song ended, so play the next one in the queue
-        playNext()
-    }
-
-    override fun onNewSongPlaying(player: String, trackLink: Link) {
-        println("New song started.")
-        playStateListener2.onNewSongPlaying(player, trackLink)
-    }
-
-    override fun onAdPlaying() {}
-
-    private fun startSpotifyMonitor() {
-        if (!spotifyListenerThread.isAlive)
-            spotifyListenerThread.start()
-    }
-
-    private fun startYouTubeMonitor() {
-        val youTubeListenerThread = Thread {
-            Runnable {
-                while (songQueueActive.get()) {
-                    if (shouldMonitorYt.get()) {
-                        if (commandRunner.runCommand(
-                                "playerctl -p mpv status",
-                                printOutput = false,
-                                printErrors = false
-                            ) == "Playing"
-                        ) {
-                            //val current = commandRunner.runCommand("playerctl -p mpv metadata --format '{{ title }}'")
-                            //playStateListener.onNewSongPlaying("mpv", commandRunner.runCommand("youtube-dl --geo-bypass -s -e \"$currentSong\"", printErrors = false))
-                        } else {
-                            val current = commandRunner.runCommand(
-                                "playerctl -p mpv metadata --format '{{ title }}'",
-                                printOutput = false,
-                                printErrors = false
-                            )
-                            /*
-                            if (current != commandRunner.runCommand("youtube-dl --geo-bypass -s -e \"$currentSong\"", printErrors = false) && !current.contains("v=${currentSong.substringAfter("v=")}") && current == "No players found"){
-                                playStateListener.onSongEnded("mpv", currentSong)
+                    var trackLength = getTrackLength()
+                    var wasPaused = false
+                    while (currentUrl() == track.link.link || currentUrl().startsWith("https://open.spotify.com/ad/")) {
+                        when (playerStatus()) {
+                            "Playing" -> {
+                                while (currentUrl().startsWith("https://open.spotify.com/ad/")) {
+                                    //wait for ad to finish
+                                    if (!currentUrl().startsWith("https://open.spotify.com/ad/")) {
+                                        trackLength = getTrackLength()
+                                    }
+                                }
+                                if (wasPaused) {
+                                    listener.onTrackResumed(getPlayer(), track)
+                                    wasPaused = false
+                                }
+                                if (trackPosition == 0) {
+                                    listener.onTrackStarted(getPlayer(), track)
+                                }
+                                delay(990 - trackLength / 10L)
+                                trackPosition += 1
                             }
-                            */
-                            if (!current.contains("v=") && !current.contains(
-                                    commandRunner.runCommand(
-                                        "youtube-dl --geo-bypass -s -e \"$currentSong\"",
-                                        printOutput = false, printErrors = false
-                                    )
-                                ) && current == "No players found"
-                            ) {
-                                playStateListener.onSongEnded("mpv", Link(currentSong))
-                                break
+                            "Paused" -> {
+                                if (trackPosition >= trackLength - 10) {
+                                    //songEnded
+                                    trackJob.complete().also { listener.onTrackEnded(getPlayer(), track) }
+                                } else {
+                                    if (!wasPaused) {
+                                        listener.onTrackPaused(getPlayer(), track)
+                                        wasPaused = true
+                                    }
+                                }
+                            }
+                            "Stopped" -> {
+                                if (trackPosition > 1) {
+                                    trackJob.complete().also { listener.onTrackEnded(getPlayer(), track) }
+                                }
+                            }
+                            "No players found" -> println("No players found")
+                            else -> {
+                                trackJob.completeExceptionally(Throwable("Unhandled Player Status"))
                             }
                         }
                     }
-                    Thread.sleep(990)
-                }
-            }.run()
-        }
-        if (!youTubeListenerThread.isAlive) {
-            youTubeListenerThread.start()
-        }
-    }
-
-    private fun startSoundCloudMonitor() {
-        val soundCloudListenerThread = Thread {
-            Runnable {
-                while (songQueueActive.get()) {
-                    if (shouldMonitorSc.get()) {
-                        if (commandRunner.runCommand(
-                                "playerctl -p mpv status",
-                                printOutput = false,
-                                printErrors = false
-                            ) == "Playing"
-                        ) {
-                            //song is playing, do nothing
-                        } else {
-                            val current = commandRunner.runCommand(
-                                "playerctl -p mpv metadata --format '{{ title }}'",
-                                printOutput = false,
-                                printErrors = false
-                            )
-                            if (!current.contains("soundcloud.com") && !current.contains(
-                                    commandRunner.runCommand(
-                                        "youtube-dl -s -e \"$currentSong\"",
-                                        printOutput = false, printErrors = false
-                                    )
-                                ) && current == "No players found"
+                    when (track.linkType) {
+                        LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> {
+                            if (commandRunner.runCommand(
+                                    "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${getPlayer()}(.+)?\" | grep -v \"grep\"",
+                                    printOutput = false
+                                ).isEmpty()
                             ) {
-                                playStateListener.onSongEnded("mpv", Link(currentSong))
-                                break
+                                if (trackPosition >= trackLength - 20){
+                                    trackJob.complete().also { listener.onTrackEnded(getPlayer(), track) }
+                                }
                             }
                         }
+                        else -> {
+                        }
                     }
-                    Thread.sleep(990)
                 }
-            }.run()
+            }
+
+            when (track.link.linkType()) {
+                LinkType.SPOTIFY -> {
+                    CoroutineScope(IO + trackJob).launch {
+                        if (playerStatus() == "No players found")
+                            startSpotifyPlayer()
+                        openTrack()
+                    }
+                }
+                LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> {
+                    CoroutineScope(IO + trackJob).launch {
+                        openTrack()
+                    }
+                }
+                else -> {
+                    println("Link type not supported!\n${track.link}")
+                }
+            }
         }
-        if (!soundCloudListenerThread.isAlive) {
-            soundCloudListenerThread.start()
+
+        fun pauseTrack() {
+            CoroutineScope(IO).launch {
+                commandRunner.runCommand("playerctl -p ${getPlayer()} pause")
+            }
+        }
+
+        fun resumeTrack() {
+            CoroutineScope(IO).launch {
+                commandRunner.runCommand("playerctl -p ${getPlayer()} play")
+            }
+        }
+
+        fun stopTrack() {
+            trackJob.cancel().also {
+                commandRunner.runCommand(
+                    "playerctl -p " +
+                            when (getPlayer()) {
+                                "spotify" -> "spotify pause"
+                                else -> "${getPlayer()} stop"
+                            },
+                    printErrors = false, ignoreOutput = true
+                )
+            }
         }
     }
-
 }
 
+
 interface PlayStateListener {
-    fun onSongEnded(player: String, trackLink: Link)
-    fun onNewSongPlaying(player: String, trackLink: Link)
+    fun onTrackEnded(player: String, track: Track)
+    fun onTrackPaused(player: String, track: Track)
+    fun onTrackResumed(player: String, track: Track)
+    fun onTrackStarted(player: String, track: Track)
     fun onAdPlaying()
 }
