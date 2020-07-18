@@ -282,11 +282,14 @@ class YouTube {
                     HttpURLConnection.HTTP_FORBIDDEN -> {
                         if (key == apiKey1)
                             key = apiKey2
-                        else
-                            println("HTTP ERROR! CODE: ${response.first.code}").also { return@withContext }
+                        else {
+                            println("HTTP ERROR! CODE: ${response.first.code}")
+                            return@withContext
+                        }
                     }
                     else -> {
-                        println("HTTP ERROR! CODE: ${response.first.code}").also { return@withContext }
+                        println("HTTP ERROR! CODE: ${response.first.code}")
+                        return@withContext
                     }
                 }
 

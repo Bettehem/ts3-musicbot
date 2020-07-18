@@ -272,7 +272,7 @@ class SongQueue(
                                     Runnable {
                                         commandRunner.runCommand(
                                             "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket " +
-                                                    "--ytdl-raw-options=cookies=youtube-dl.cookies${if (track.linkType == LinkType.YOUTUBE) ",--force-ipv4=" else ""}" +
+                                                    "--ytdl-raw-options=cookies=youtube-dl.cookies${if (track.linkType == LinkType.YOUTUBE) ",force-ipv4=" else ""}" +
                                                     " --ytdl ${track.link}",
                                             inheritIO = true,
                                             ignoreOutput = true
