@@ -56,7 +56,8 @@ class YouTube {
                 when (response.first.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val itemData = JSONObject(response.second.data)
+                            val itemData = JSONObject(response.second.data).getJSONArray("items")[0]
+                            itemData as JSONObject
                             val releaseDate = ReleaseDate(
                                 LocalDate.parse(itemData.getJSONObject("snippet").getString("publishedAt"), formatter)
                             )
@@ -130,21 +131,22 @@ class YouTube {
             var totalItems = data.getJSONObject("pageInfo").getInt("totalResults")
             lateinit var itemData: JSONObject
             if (totalItems > 50) {
-                while (listItems.size < totalItems) {
-                    var key = apiKey1
-                    val getPageJob = Job()
-                    withContext(IO + getPageJob) {
+                var key = apiKey1
+                val getPageJob = Job()
+                var pageData = data
+                withContext(IO + getPageJob){
+                    while (listItems.size < totalItems) {
                         loop@ while (true) {
                             val result = sendRequest(
                                 pageToken = if (listItems.size > 0) {
-                                    data.getString(("nextPageToken"))
+                                    pageData.getString(("nextPageToken"))
                                 } else {
                                     ""
                                 }, apiKey = key
                             )
                             when (result.first.code) {
                                 HttpURLConnection.HTTP_OK -> {
-                                    val pageData = JSONObject(result.second.data)
+                                    pageData = JSONObject(result.second.data)
                                     for (item in pageData.getJSONArray("items")) {
                                         item as JSONObject
 
@@ -179,7 +181,7 @@ class YouTube {
                                         }
                                     }
                                     if (!pageData.has("nextPageToken"))
-                                        break@loop
+                                        return@withContext
                                 }
                                 HttpURLConnection.HTTP_FORBIDDEN -> {
                                     if (key == apiKey1)
@@ -221,7 +223,7 @@ class YouTube {
                                                 "public", "unlisted" -> true
                                                 else -> false
                                             }
-                                        val formatter = DateTimeFormatter.ISO_INSTANT
+                                        val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
                                         val releaseDate =
                                             ReleaseDate(
                                                 LocalDate.parse(
