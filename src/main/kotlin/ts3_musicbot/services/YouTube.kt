@@ -136,7 +136,7 @@ class YouTube {
                 var pageData = data
                 withContext(IO + getPageJob){
                     while (listItems.size < totalItems) {
-                        loop@ while (true) {
+                        while (true) {
                             val result = sendRequest(
                                 pageToken = if (listItems.size > 0) {
                                     pageData.getString(("nextPageToken"))
@@ -238,11 +238,11 @@ class YouTube {
                                             Playability(isPlayable)
                                         )
                                         listItems.add(track)
-                                        return@withContext
                                     } catch (e: Exception) {
                                         totalItems -= 1
                                     }
                                 }
+                                return@withContext
                             }
                             HttpURLConnection.HTTP_FORBIDDEN -> {
                                 if (key == apiKey1)
@@ -258,7 +258,6 @@ class YouTube {
                             }
                         }
                     }
-
                 }
             }
             return TrackList(listItems)
@@ -269,7 +268,7 @@ class YouTube {
         var key = apiKey1
         withContext(IO + playlistJob) {
             while (true) {
-                val response = sendRequest(1, part = "id", apiKey = key)
+                val response = sendRequest(part = "id", apiKey = key)
                 when (response.first.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {

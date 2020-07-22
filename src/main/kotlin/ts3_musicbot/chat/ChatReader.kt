@@ -134,7 +134,6 @@ class ChatReader(
 
                             //%queue-add and %queue-playnext command
                             commandString.contains("^%queue-(add|playnext)(\\s+-(s|(p\\s+[0-9]+)))*(\\s*(\\[URL])?((spotify:(track|album|playlist):\\S+)|(https?://\\S+))(\\[/URL])?\\s*,?\\s*)+(\\s+-(s|(p\\s+[0-9]+)))*\$".toRegex()) -> {
-
                                 val shouldPlayNext = commandString.contains("^%queue-playnext".toRegex())
                                 var shouldShuffle = false
                                 var hasCustomPosition = false
@@ -185,8 +184,8 @@ class ChatReader(
                                             val type = when {
                                                 link.link.contains("(spotify:track:.+)|(open\\.spotify\\.com/track/)".toRegex()) -> "track"
                                                 link.link.contains("(spotify:album:.+)|(open\\.spotify\\.com/album/)".toRegex()) -> "album"
-                                                link.link.contains("(spotify:playlist:.+)|(open\\.spotify\\.com/playlist/)".toRegex()) -> "playlist"
-                                                else -> ""
+                                                link.link.contains("(spotify:playlist:.+)|(open\\.spotify\\.com/(user/\\S+/)?playlist/)".toRegex()) -> "playlist"
+                                                else -> "Not supported!"
                                             }
                                             println("Spotify link: $link\nLink type: $type")
                                             //check type

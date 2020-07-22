@@ -80,12 +80,16 @@ data class Artists(val artists: List<Artist> = emptyList()) {
 data class TrackList(val trackList: List<Track> = emptyList()) {
     override fun toString(): String {
         val strBuilder = StringBuilder()
-        trackList.forEach {
-            for (artist in it.artists.artists){
-                strBuilder.append("${artist.name}, ")
+        if (trackList.isNotEmpty()) {
+            trackList.forEach {
+                for (artist in it.artists.artists){
+                    strBuilder.append("${artist.name}, ")
+                }
+                if (it.artists.artists.isNotEmpty()) {
+                    strBuilder.delete(strBuilder.length-2, strBuilder.length-1)
+                    strBuilder.appendln(" - ${it.title} : ${it.link}")
+                }
             }
-            strBuilder.delete(strBuilder.length-2, strBuilder.length-1)
-            strBuilder.appendln(" - ${it.title} : ${it.link}")
         }
         return strBuilder.toString()
     }
