@@ -234,12 +234,21 @@ class SongQueue(
                         //do nothing
                     }
                     delay(5000)
-                    commandRunner.runCommand(
-                        "playerctl -p $spotifyPlayer open spotify:track:${track.link.link.substringAfter("spotify.com/track/")
-                            .substringBefore(
-                                "?"
-                            )} &", ignoreOutput = true
-                    )
+                    if (track.link.link.contains("/track/")){
+                        commandRunner.runCommand(
+                            "playerctl -p $spotifyPlayer open spotify:track:${track.link.link.substringAfter("spotify.com/track/")
+                                .substringBefore(
+                                    "?"
+                                )} &", ignoreOutput = true
+                        )
+                    }else {
+                        commandRunner.runCommand(
+                            "playerctl -p $spotifyPlayer open spotify:episode:${track.link.link.substringAfter("spotify.com/episode/")
+                                .substringBefore(
+                                    "?"
+                                )} &", ignoreOutput = true
+                        )
+                    }
                 }
             }
 

@@ -13,11 +13,13 @@ class YouTubeTest {
 
     @Test
     fun testGettingYouTubeTrackTitle() {
-        //YouTube link for track: Phace & Noisia - Non-Responsive
-        val testYtLink = Link("https://youtu.be/IKZnGWxJN3I")
-        //You need to have youtube-dl installed for the getTitle function to work.
-        val title = youTube.getVideoTitle(testYtLink)
-        assertEquals("Phace & Noisia - Non-Responsive", title)
+        runBlocking {
+            //YouTube link for track: Phace & Noisia - Non-Responsive
+            val testYtLink = Link("https://youtu.be/IKZnGWxJN3I")
+            //You need to have youtube-dl installed for the getTitle function to work.
+            val title = youTube.getVideoTitle(testYtLink)
+            assertEquals("Phace & Noisia - Non-Responsive", title)
+        }
     }
 
     @Test
@@ -39,7 +41,7 @@ class YouTubeTest {
             //YouTube link for playlist: prog. The playlist length is 5 tracks.
             val testYtLink = Link("https://www.youtube.com/playlist?list=PLVzaRVhV8Ebb5m6IIEpOJeOIBMKk4AVwm")
             val playlist = youTube.getPlaylistTracks(testYtLink)
-            assertTrue(playlist.trackList.size == 5 || playlist.trackList.isEmpty())
+            assertTrue(playlist.trackList.size == 6 || playlist.trackList.isEmpty())
         }
     }
 }

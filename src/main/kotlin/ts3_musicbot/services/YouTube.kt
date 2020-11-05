@@ -23,12 +23,8 @@ class YouTube {
      * @param videoLink link to video
      * @return returns a title
      */
-    fun getVideoTitle(videoLink: Link): String {
-        return commandRunner.runCommand(
-            "youtube-dl --no-playlist --geo-bypass -e \"$videoLink\" 2> /dev/null",
-            printErrors = false,
-            printOutput = false
-        )
+    suspend fun getVideoTitle(videoLink: Link): String {
+        return getVideo(videoLink).title.name
     }
 
     suspend fun getVideo(videoLink: Link): Track {

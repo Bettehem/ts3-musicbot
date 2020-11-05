@@ -16,6 +16,7 @@ import kotlin.collections.ArrayList
 class ChatReader(
     private var chatFile: File,
     private var onChatUpdateListener: ChatUpdateListener,
+    private var commandListener: CommandListener,
     private val apikey: String = "",
     market: String = "",
     private val spotifyPlayer: String = "spotify",
@@ -60,7 +61,7 @@ class ChatReader(
                 return Link(link.link.substringAfter("[URL]").substringBefore("[/URL]"))
             }
         }
-        return Link("")
+        return link
     }
 
     /**
@@ -104,6 +105,7 @@ class ChatReader(
                 suspend fun executeCommand(commandString: String): Boolean {
                     //parse and execute commands
                     if (commandList.any { commandString.startsWith(it) }) {
+                        println("Running command $commandString")
                         when {
                             //%help command
                             commandString.contains("%help\\s*%?[a-z]*-?[a-z]*".toRegex()) -> {
@@ -133,7 +135,8 @@ class ChatReader(
                             }
 
                             //%queue-add and %queue-playnext command
-                            commandString.contains("^%queue-(add|playnext)(\\s+-(s|(p\\s+[0-9]+)))*(\\s*(\\[URL])?((spotify:(track|album|playlist):\\S+)|(https?://\\S+))(\\[/URL])?\\s*,?\\s*)+(\\s+-(s|(p\\s+[0-9]+)))*\$".toRegex()) -> {
+                            commandString.contains("^%queue-(add|playnext)(\\s+-(s|(p\\s+[0-9]+)))*(\\s*(\\[URL])?((spotify:(track|album|playlist|show|episode):\\S+)|(https?://\\S+))(\\[/URL])?\\s*,?\\s*)+(\\s+-(s|(p\\s+[0-9]+)))*\$".toRegex()) -> {
+                                var commandSuccessful = false
                                 val shouldPlayNext = commandString.contains("^%queue-playnext".toRegex())
                                 var shouldShuffle = false
                                 var hasCustomPosition = false
@@ -160,7 +163,7 @@ class ChatReader(
                                             }
                                         }
 
-                                        args[i].contains("((\\[URL])?(https?://(open\\.spotify\\.com|soundcloud\\.com|youtu\\.be|(m|www)\\.youtube\\.com))(\\[/URL])?.+)|(spotify:(track|album|playlist):.+)".toRegex()) -> {
+                                        args[i].contains("((\\[URL])?(https?://(open\\.spotify\\.com|soundcloud\\.com|youtu\\.be|(m|www)\\.youtube\\.com))(\\[/URL])?.+)|(spotify:(track|album|playlist|show|episode):.+)".toRegex()) -> {
                                             //add links to ArrayList
                                             if (args[i].contains(",\\s*".toRegex()))
                                                 links.addAll(args[i].split(",\\s*".toRegex()).map { Link(it) })
@@ -179,12 +182,14 @@ class ChatReader(
                                 for (link in links) {
                                     when {
                                         //Spotify
-                                        link.link.contains("(https?://open\\.spotify\\.com/)|(spotify:(album|track|playlist):.+)".toRegex()) -> {
+                                        link.link.contains("(https?://open\\.spotify\\.com/)|(spotify:(album|track|playlist|show|episode):.+)".toRegex()) -> {
                                             //get link type
                                             val type = when {
                                                 link.link.contains("(spotify:track:.+)|(open\\.spotify\\.com/track/)".toRegex()) -> "track"
                                                 link.link.contains("(spotify:album:.+)|(open\\.spotify\\.com/album/)".toRegex()) -> "album"
                                                 link.link.contains("(spotify:playlist:.+)|(open\\.spotify\\.com/(user/\\S+/)?playlist/)".toRegex()) -> "playlist"
+                                                link.link.contains("(spotify:show:.+)|(open\\.spotify\\.com/show/)".toRegex()) -> "show"
+                                                link.link.contains("(spotify:episode:.+)|(open\\.spotify\\.com/episode/)".toRegex()) -> "episode"
                                                 else -> "Not supported!"
                                             }
                                             println("Spotify link: $link\nLink type: $type")
@@ -193,13 +198,24 @@ class ChatReader(
                                                 "track" -> {
                                                     val track = spotify.getTrack(
                                                         Link(
-                                                            "https://open.spotify.com/$type/${link.link
-                                                                .substringAfter(type).substring(1)
-                                                                .substringBefore("[/URL]").substringBefore("?")}"
+                                                            "https://open.spotify.com/$type/${
+                                                                link.link
+                                                                    .substringAfter(type).substring(1)
+                                                                    .substringBefore("[/URL]").substringBefore("?")
+                                                            }"
                                                         )
                                                     )
-                                                    if (track.playability.isPlayable)
+                                                    if (track.playability.isPlayable) {
                                                         songQueue.addToQueue(track, customPosition)
+                                                        commandSuccessful = if (songQueue.getQueue().contains(track)) {
+                                                            commandListener.onCommandExecuted(
+                                                                commandString,
+                                                                "Added track to queue.",
+                                                                track
+                                                            )
+                                                            true
+                                                        } else false
+                                                    }
                                                 }
 
                                                 "album" -> {
@@ -207,18 +223,32 @@ class ChatReader(
                                                     val albumTracks = TrackList(
                                                         spotify.getAlbumTracks(
                                                             Link(
-                                                                "https://open.spotify.com/$type/${link.link
-                                                                    .substringAfter(type).substring(1)
-                                                                    .substringBefore("[/URL]").substringBefore("?")}"
+                                                                "https://open.spotify.com/$type/${
+                                                                    link.link
+                                                                        .substringAfter(type).substring(1)
+                                                                        .substringBefore("[/URL]").substringBefore("?")
+                                                                }"
                                                             )
                                                         ).trackList.filter { it.playability.isPlayable }
                                                     )
                                                     println("Album \"${albumTracks.trackList[0].album}\" has a total of ${albumTracks.trackList.size} tracks.\nAdding to queue...")
+
                                                     //add tracks to queue
+                                                    val trackList =
+                                                        if (shouldShuffle) TrackList(albumTracks.trackList.shuffled()) else albumTracks
                                                     songQueue.addAllToQueue(
-                                                        if (shouldShuffle) TrackList(albumTracks.trackList.shuffled()) else albumTracks,
+                                                        trackList,
                                                         customPosition
                                                     )
+                                                    commandSuccessful =
+                                                        if (songQueue.getQueue().containsAll(trackList.trackList)) {
+                                                            commandListener.onCommandExecuted(
+                                                                commandString,
+                                                                "Added album to queue.",
+                                                                trackList
+                                                            )
+                                                            true
+                                                        } else false
                                                 }
 
                                                 "playlist" -> {
@@ -226,19 +256,88 @@ class ChatReader(
                                                     val playlistTracks = TrackList(
                                                         spotify.getPlaylistTracks(
                                                             Link(
-                                                                "https://open.spotify.com/$type/${link.link
-                                                                    .substringAfter(type).substring(1)
-                                                                    .substringAfter("[URL]").substringBefore("[/URL]")
-                                                                    .substringBefore("?")}"
+                                                                "https://open.spotify.com/$type/${
+                                                                    link.link
+                                                                        .substringAfter(type).substring(1)
+                                                                        .substringAfter("[URL]")
+                                                                        .substringBefore("[/URL]")
+                                                                        .substringBefore("?")
+                                                                }"
                                                             )
                                                         ).trackList.filter { it.playability.isPlayable }
                                                     )
                                                     println("Playlist has a total of ${playlistTracks.trackList.size} tracks.\nAdding to queue...")
                                                     //add tracks to queue
+                                                    val trackList =
+                                                        if (shouldShuffle) TrackList(playlistTracks.trackList.shuffled()) else playlistTracks
                                                     songQueue.addAllToQueue(
-                                                        if (shouldShuffle) TrackList(playlistTracks.trackList.shuffled()) else playlistTracks,
+                                                        trackList,
                                                         customPosition
                                                     )
+                                                    commandSuccessful =
+                                                        if (songQueue.getQueue().containsAll(trackList.trackList)) {
+                                                            commandListener.onCommandExecuted(
+                                                                commandString,
+                                                                "Added playlist to queue.",
+                                                                trackList
+                                                            )
+                                                            true
+                                                        } else false
+                                                }
+
+                                                "show" -> {
+                                                    //fetch show's episodes
+                                                    val episodes = TrackList(
+                                                        spotify.getShow(
+                                                            Link(
+                                                                "https://open.spotify.com/$type/${
+                                                                    link.link
+                                                                        .substringAfter(type).substring(1)
+                                                                        .substringAfter("[URL]")
+                                                                        .substringBefore("[/URL]")
+                                                                        .substringBefore("?")
+                                                                }"
+                                                            )
+                                                        ).episodes.toTrackList().trackList.filter { it.playability.isPlayable }
+                                                    )
+                                                    val trackList =
+                                                        if (shouldShuffle) TrackList(episodes.trackList.shuffled()) else episodes
+                                                    songQueue.addAllToQueue(trackList)
+                                                    commandSuccessful =
+                                                        if (songQueue.getQueue().containsAll(trackList.trackList)) {
+                                                            commandListener.onCommandExecuted(
+                                                                commandString,
+                                                                "Added podcast to queue.",
+                                                                trackList
+                                                            )
+                                                            true
+                                                        } else false
+                                                }
+
+                                                "episode" -> {
+                                                    //fetch episode
+                                                    val episode = spotify.getEpisode(
+                                                        Link(
+                                                            "https://open.spotify.com/$type/${
+                                                                link.link
+                                                                    .substringAfter(type).substring(1)
+                                                                    .substringAfter("[URL]").substringBefore("[/URL]")
+                                                                    .substringBefore("?")
+                                                            }"
+                                                        )
+                                                    )
+                                                    if (episode.playability.isPlayable) {
+                                                        songQueue.addToQueue(episode.toTrack(), customPosition)
+                                                        commandSuccessful =
+                                                            if (songQueue.getQueue().contains(episode.toTrack())) {
+                                                                commandListener.onCommandExecuted(
+                                                                    commandString,
+                                                                    "Added podcast episode to queue.",
+                                                                    episode
+                                                                )
+                                                                true
+                                                            } else false
+                                                    }
                                                 }
                                             }
                                             println("Added to queue.")
@@ -263,8 +362,17 @@ class ChatReader(
                                             when (type) {
                                                 "track" -> {
                                                     val track = youTube.getVideo(Link("https://youtu.be/$id"))
-                                                    if (track.playability.isPlayable)
+                                                    if (track.playability.isPlayable) {
                                                         songQueue.addToQueue(track, customPosition)
+                                                        commandSuccessful = if (songQueue.getQueue().contains(track)) {
+                                                            commandListener.onCommandExecuted(
+                                                                commandString,
+                                                                "Added track to queue.",
+                                                                track
+                                                            )
+                                                            true
+                                                        } else false
+                                                    }
                                                 }
 
                                                 "playlist" -> {
@@ -273,10 +381,21 @@ class ChatReader(
                                                         Link("https://youtube.com/playlist?list=$id")
                                                     ).trackList.filter { it.playability.isPlayable })
                                                     println("Playlist has a total of ${playlistTracks.trackList.size} tracks.\nAdding to queue...")
+                                                    val trackList =
+                                                        if (shouldShuffle) TrackList(playlistTracks.trackList.shuffled()) else playlistTracks
                                                     songQueue.addAllToQueue(
-                                                        if (shouldShuffle) TrackList(playlistTracks.trackList.shuffled()) else playlistTracks,
+                                                        trackList,
                                                         customPosition
                                                     )
+                                                    commandSuccessful =
+                                                        if (songQueue.getQueue().containsAll(trackList.trackList)) {
+                                                            commandListener.onCommandExecuted(
+                                                                commandString,
+                                                                "Added playlist to queue...",
+                                                                trackList
+                                                            )
+                                                            true
+                                                        } else false
                                                 }
                                             }
                                         }
@@ -301,6 +420,15 @@ class ChatReader(
                                                         )
                                                     )
                                                     songQueue.addToQueue(track, customPosition)
+                                                    commandSuccessful =
+                                                        if (songQueue.getQueue().contains(track)) {
+                                                            commandListener.onCommandExecuted(
+                                                                commandString,
+                                                                "Added track to queue.",
+                                                                track
+                                                            )
+                                                            true
+                                                        } else false
                                                 }
 
                                                 "playlist" -> {
@@ -309,17 +437,33 @@ class ChatReader(
                                                         soundCloud.getPlaylistTracks(parseLink(link))
                                                             .filter { it.playability.isPlayable }
                                                     )
+                                                    val trackList =
+                                                        if (shouldShuffle) TrackList(playlistTracks.trackList.shuffled()) else playlistTracks
                                                     songQueue.addAllToQueue(
-                                                        if (shouldShuffle) TrackList(playlistTracks.trackList.shuffled()) else playlistTracks,
+                                                        trackList,
                                                         customPosition
                                                     )
+                                                    commandSuccessful =
+                                                        if (songQueue.getQueue().containsAll(trackList.trackList)) {
+                                                            commandListener.onCommandExecuted(
+                                                                commandString,
+                                                                "Added playlist to queue.",
+                                                                trackList
+                                                            )
+                                                            true
+                                                        } else false
                                                 }
                                             }
                                         }
                                     }
                                 }
-                                printToChat(userName, listOf("Added tracks to queue."), apikey)
-                                return true
+                                return if (commandSuccessful) {
+                                    printToChat(userName, listOf("Added tracks to queue."), apikey)
+                                    true
+                                } else {
+                                    printToChat(userName, listOf("One or more tracks could not be added :/"), apikey)
+                                    false
+                                }
                             }
 
                             //%queue-play command
@@ -389,6 +533,11 @@ class ChatReader(
                                     userName,
                                     listOf("Queue Length: ${songQueue.getQueue().size} tracks."),
                                     apikey
+                                )
+                                commandListener.onCommandExecuted(
+                                    commandString,
+                                    queueList.toString(),
+                                    songQueue.getQueue()
                                 )
                                 return true
                             }
@@ -610,16 +759,16 @@ class ChatReader(
                                     if (parseLink(Link(message)).link.startsWith("https://open.spotify.com/track")) {
                                         commandRunner.runCommand(
                                             "playerctl -p $spotifyPlayer open spotify:track:${
-                                            parseLink(Link(message)).link
-                                                .split("track/".toRegex())[1]
-                                                .split("\\?si=".toRegex())[0]
+                                                parseLink(Link(message)).link
+                                                    .split("track/".toRegex())[1]
+                                                    .split("\\?si=".toRegex())[0]
                                             }"
                                         )
                                     } else {
                                         commandRunner.runCommand(
                                             "playerctl -p $spotifyPlayer open spotify:track:${
-                                            message.split(" ".toRegex())[1]
-                                                .split("track:".toRegex())[1]
+                                                message.split(" ".toRegex())[1]
+                                                    .split("track:".toRegex())[1]
                                             }"
                                         )
                                     }
@@ -637,23 +786,23 @@ class ChatReader(
                                 ) {
                                     commandRunner.runCommand(
                                         "playerctl -p $spotifyPlayer open spotify:user:${
-                                        message.split(" ".toRegex())[1]
-                                            .split(":".toRegex())[2]
+                                            message.split(" ".toRegex())[1]
+                                                .split(":".toRegex())[2]
                                         }:playlist:${
-                                        message.split(":".toRegex()).last()
+                                            message.split(":".toRegex()).last()
                                         }"
                                     )
                                 } else if (message.split(" ".toRegex())[1].startsWith("spotify:playlist")) {
                                     commandRunner.runCommand(
                                         "playerctl -p $spotifyPlayer open spotify:playlist:${
-                                        message.substringAfter("playlist:")
+                                            message.substringAfter("playlist:")
                                         }"
                                     )
                                 } else if (parseLink(Link(message)).link.startsWith("https://open.spotify.com/")) {
                                     commandRunner.runCommand(
                                         "playerctl -p $spotifyPlayer open spotify:playlist:${
-                                        parseLink(Link(message)).link.substringAfter("playlist/")
-                                            .substringBefore("?")
+                                            parseLink(Link(message)).link.substringAfter("playlist/")
+                                                .substringBefore("?")
                                         }"
                                     )
                                 }
@@ -664,14 +813,14 @@ class ChatReader(
                                 if (message.split(" ".toRegex())[1].startsWith("spotify:album")) {
                                     commandRunner.runCommand(
                                         "playerctl -p $spotifyPlayer open spotify:album:${
-                                        message.substringAfter("album:")
+                                            message.substringAfter("album:")
                                         }"
                                     )
                                 } else if (parseLink(Link(message)).link.startsWith("https://open.spotify.com/")) {
                                     commandRunner.runCommand(
                                         "playerctl -p $spotifyPlayer open spotify:album:${
-                                        parseLink(Link(message)).link.substringAfter("album/")
-                                            .substringBefore("?")
+                                            parseLink(Link(message)).link.substringAfter("album/")
+                                                .substringBefore("?")
                                         }"
                                     )
                                 }
@@ -686,28 +835,36 @@ class ChatReader(
                                 for (line in nowPlaying) {
                                     when (line.substringAfter("xesam:").split("\\s+".toRegex())[0]) {
                                         "album" -> lines.add(
-                                            "Album:\t${line.substringAfter(
-                                                line.substringAfter("xesam:")
-                                                    .split("\\s+".toRegex())[0]
-                                            )}"
+                                            "Album:\t${
+                                                line.substringAfter(
+                                                    line.substringAfter("xesam:")
+                                                        .split("\\s+".toRegex())[0]
+                                                )
+                                            }"
                                         )
                                         "artist" -> lines.add(
-                                            "Artist:   \t${line.substringAfter(
-                                                line.substringAfter("xesam:")
-                                                    .split("\\s+".toRegex())[0]
-                                            )}"
+                                            "Artist:   \t${
+                                                line.substringAfter(
+                                                    line.substringAfter("xesam:")
+                                                        .split("\\s+".toRegex())[0]
+                                                )
+                                            }"
                                         )
                                         "title" -> lines.add(
-                                            "Title:    \t${line.substringAfter(
-                                                line.substringAfter("xesam:")
-                                                    .split("\\s+".toRegex())[0]
-                                            )}"
+                                            "Title:    \t${
+                                                line.substringAfter(
+                                                    line.substringAfter("xesam:")
+                                                        .split("\\s+".toRegex())[0]
+                                                )
+                                            }"
                                         )
                                         "url" -> lines.add(
-                                            "Link:  \t${line.substringAfter(
-                                                line.substringAfter("xesam:")
-                                                    .split("\\s+".toRegex())[0]
-                                            )}"
+                                            "Link:  \t${
+                                                line.substringAfter(
+                                                    line.substringAfter("xesam:")
+                                                        .split("\\s+".toRegex())[0]
+                                                )
+                                            }"
                                         )
                                     }
                                 }
@@ -740,8 +897,8 @@ class ChatReader(
                                                         && searchedLines[line].replace(" ", "").toLowerCase()
                                                     .contains(
                                                         "Owner:${
-                                                        msg.substringAfter("&owner=")
-                                                            .substringBefore("&")
+                                                            msg.substringAfter("&owner=")
+                                                                .substringBefore("&")
                                                         }".toLowerCase().toRegex()
                                                     ) -> {
                                                     lines.addAll(
@@ -762,9 +919,10 @@ class ChatReader(
                                         if (lines.size == 1 && lines[0] == "") {
                                             lines.add(
                                                 "No search results with \"${
-                                                message.substringAfter(
-                                                    "${message.split(" ".toRegex())[1]} "
-                                                )}\"!"
+                                                    message.substringAfter(
+                                                        "${message.split(" ".toRegex())[1]} "
+                                                    )
+                                                }\"!"
                                             )
                                         }
 
@@ -851,7 +1009,7 @@ class ChatReader(
                                 }
                             }
                             //%sp-info command
-                            commandString.contains("%sp-info(\\s+((\\[URL])?http(s)?://open\\.)?spotify(:|\\.com/)(album|track|playlist|artist)[:/]\\S+\$)?".toRegex()) -> {
+                            commandString.contains("%sp-info(\\s+((\\[URL])?http(s)?://open\\.)?spotify(:|\\.com/)(album|track|playlist|artist|show|episode)[:/]\\S+\$)?".toRegex()) -> {
                                 val link = parseLink(Link(commandString.substringAfter("%sp-info ")))
                                 when {
                                     link.link.contains("track".toRegex()) -> {
@@ -859,6 +1017,7 @@ class ChatReader(
                                         printToChat(
                                             userName, track.toString().lines(), apikey
                                         )
+                                        commandListener.onCommandExecuted(commandString, track.toString(), track)
                                         return true
                                     }
                                     link.link.contains("album".toRegex()) -> {
@@ -906,6 +1065,38 @@ class ChatReader(
                                                 lines.add(line)
                                                 printToChat(userName, lines, apikey)
                                                 lines.clear()
+                                            }
+                                        }
+                                        lines.add(0, "")
+                                        printToChat(userName, lines, apikey)
+                                        return true
+                                    }
+                                    link.link.contains("show".toRegex()) -> {
+                                        val show = spotify.getShow(link)
+                                        val lines = ArrayList<String>()
+                                        for (line in show.toString().lines()) {
+                                            if (lines.size <= 14) {
+                                                lines.add(line)
+                                            } else {
+                                                lines.add(0, "")
+                                                lines.add(line)
+                                                printToChat(userName, lines, apikey)
+                                            }
+                                        }
+                                        lines.add(0, "")
+                                        printToChat(userName, lines, apikey)
+                                        return true
+                                    }
+                                    link.link.contains("episode".toRegex()) -> {
+                                        val episode = spotify.getEpisode(link)
+                                        val lines = ArrayList<String>()
+                                        for (line in episode.toString().lines()) {
+                                            if (lines.size <= 14) {
+                                                lines.add(line)
+                                            } else {
+                                                lines.add(0, "")
+                                                lines.add(line)
+                                                printToChat(userName, lines, apikey)
                                             }
                                         }
                                         lines.add(0, "")
@@ -1133,29 +1324,33 @@ class ChatReader(
                 val distro = commandRunner.runCommand("cat /etc/issue", printOutput = false)
                 val command = when {
                     distro.contains("Ubuntu".toRegex()) -> {
-                        "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${stringBuilder.toString()
-                            .replace(" ", "\\\\\\s")
-                            .replace("\n", "\\\\\\n")
-                            .replace("/", "\\/")
-                            .replace("|", "\\\\p")
-                            .replace("'", "\\\\'")
-                            .replace("\"", "\\\"")
-                            .replace("`", "\\`")
-                            .replace("&quot;", "\\\"")
-                            .replace("$", "\\\\$")}\"; echo quit) | nc localhost 25639"
+                        "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${
+                            stringBuilder.toString()
+                                .replace(" ", "\\\\\\s")
+                                .replace("\n", "\\\\\\n")
+                                .replace("/", "\\/")
+                                .replace("|", "\\\\p")
+                                .replace("'", "\\\\'")
+                                .replace("\"", "\\\"")
+                                .replace("`", "\\`")
+                                .replace("&quot;", "\\\"")
+                                .replace("$", "\\\\$")
+                        }\"; echo quit) | nc localhost 25639"
                     }
 
                     else -> {
-                        "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${stringBuilder.toString()
-                            .replace(" ", "\\s")
-                            .replace("\n", "\\n")
-                            .replace("/", "\\/")
-                            .replace("|", "\\p")
-                            .replace("'", "\\'")
-                            .replace("\"", "\\\"")
-                            .replace("`", "\\`")
-                            .replace("&quot;", "\\\"")
-                            .replace("$", "\\$")}\"; echo quit) | nc localhost 25639"
+                        "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${
+                            stringBuilder.toString()
+                                .replace(" ", "\\s")
+                                .replace("\n", "\\n")
+                                .replace("/", "\\/")
+                                .replace("|", "\\p")
+                                .replace("'", "\\'")
+                                .replace("\"", "\\\"")
+                                .replace("`", "\\`")
+                                .replace("&quot;", "\\\"")
+                                .replace("$", "\\$")
+                        }\"; echo quit) | nc localhost 25639"
                     }
                 }
                 commandRunner.runCommand(command, printOutput = false)
@@ -1248,4 +1443,8 @@ class ChatUpdate(val userName: String, val time: Time, val message: String)
 
 interface ChatUpdateListener {
     fun onChatUpdated(update: ChatUpdate)
+}
+
+interface CommandListener {
+    fun onCommandExecuted(command: String, output: String, extra: Any? = null)
 }

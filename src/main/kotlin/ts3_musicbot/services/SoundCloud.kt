@@ -10,7 +10,7 @@ import java.time.format.DateTimeFormatter
 
 class SoundCloud {
     private val commandRunner = CommandRunner()
-    private var clientId = "dp8jYbqmo9I3kJhH02V2UjpLbmMgwbN5"
+    private var clientId = "iJfdb4eX2yiDdAlPzFtDnd26wDofArGy"
     private val api2URL = URL("https://api-v2.soundcloud.com")
     private val apiURL = URL("https://api.soundcloud.com")
 

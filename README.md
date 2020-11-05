@@ -1,6 +1,6 @@
 TS3 MusicBot lets you control your music from a TeamSpeak server's channel via the chat.<br>
 <br>
-TS3 MusicBot can play music from Spotify, YouTube and SoundCloud support and other services possibly coming in the future.<br>
+TS3 MusicBot can play music from Spotify, YouTube and SoundCloud. Support for other services possibly coming in the future.<br>
 TS3 MusicBot doesn't require you to be an admin on the server you are using the bot on, you only need permission to speak in the desired channel and use the chat.<br>
 <br>
 <h4>Requirements:</h4>

@@ -220,6 +220,7 @@ class Spotify(private val market: String = "") {
                 .substringBefore("?si=")
                 .substringAfterLast("/")
         )
+        urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=US")
         return sendHttpRequest(
             URL(urlBuilder.toString()),
             RequestMethod("GET"),
@@ -296,6 +297,9 @@ class Spotify(private val market: String = "") {
                     listUrlBuilder.append("&offset=$listOffset")
                     if (market.isNotEmpty())
                         listUrlBuilder.append("&market=$market")
+                    else
+                        listUrlBuilder.append("&market=$market")
+
                     val listUrl = URL(listUrlBuilder.toString())
                     return sendHttpRequest(
                         listUrl,
@@ -315,8 +319,10 @@ class Spotify(private val market: String = "") {
                                                 .getString("album_type") == "single"
                                         ) {
                                             Name(
-                                                "${item.getJSONObject("track").getJSONObject("album")
-                                                    .getString("name")} (Single)"
+                                                "${
+                                                    item.getJSONObject("track").getJSONObject("album")
+                                                        .getString("name")
+                                                } (Single)"
                                             )
                                         } else {
                                             Name(item.getJSONObject("track").getJSONObject("album").getString("name"))
@@ -387,7 +393,16 @@ class Spotify(private val market: String = "") {
                                         } else {
                                             true
                                         }
-                                        trackItems.add(Track(album, artists, title, link, Playability(isPlayable), LinkType.SPOTIFY))
+                                        trackItems.add(
+                                            Track(
+                                                album,
+                                                artists,
+                                                title,
+                                                link,
+                                                Playability(isPlayable),
+                                                LinkType.SPOTIFY
+                                            )
+                                        )
                                     } else {
                                         playlistLength -= 1
                                     }
@@ -477,6 +492,8 @@ class Spotify(private val market: String = "") {
                 .substringBefore("?si=")
                 .substringAfterLast("/")
         )
+        urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=US")
+
         return sendHttpRequest(
             URL(urlBuilder.toString()),
             RequestMethod("GET"),
@@ -743,8 +760,7 @@ class Spotify(private val market: String = "") {
                     .substringBefore("?si=")
                     .substringAfterLast("/")
             )
-            if (market.isNotEmpty())
-                urlBuilder.append("?market=$market")
+            urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=US")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
                 RequestMethod("GET"),
@@ -862,8 +878,7 @@ class Spotify(private val market: String = "") {
                     .substringBefore("?si=")
                     .substringAfterLast("/")
             )
-            if (market.isNotEmpty())
-                urlBuilder.append("?market=$market")
+            urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=US")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
                 RequestMethod("GET"),
@@ -1048,6 +1063,10 @@ class Spotify(private val market: String = "") {
                         //wait for given time before next request.
                         delay(artistData.second.data.toLong() * 1000 + 500)
                     }
+
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        updateToken()
+                    }
                     else -> println("HTTP ERROR! CODE: ${artistData.first.code}")
                 }
             }
@@ -1065,6 +1084,7 @@ class Spotify(private val market: String = "") {
                     .substringBefore("?si=")
                     .substringAfterLast("/")
             )
+            urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=US")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
                 RequestMethod("GET"),
@@ -1112,4 +1132,287 @@ class Spotify(private val market: String = "") {
         }
         return user
     }
+
+    private fun getShowData(showLink: Link): Pair<ResponseCode, ResponseData> {
+        val urlBuilder = StringBuilder()
+        urlBuilder.append("$apiURL/shows/")
+        urlBuilder.append(
+            showLink.link.substringAfterLast(":")
+                .substringBefore("?si=")
+                .substringAfterLast("/")
+        )
+        urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=US")
+        return sendHttpRequest(
+            URL(urlBuilder.toString()),
+            RequestMethod("GET"),
+            ExtraProperties(listOf("Authorization: Bearer $accessToken"))
+        )
+    }
+
+    suspend fun getShow(showLink: Link): Show {
+        lateinit var show: Show
+
+        suspend fun getShowEpisodes(showLink: Link, totalItems: Int): EpisodeList {
+            lateinit var episodeList: EpisodeList
+
+            fun getEpisodesData(offset: Int = 0): Pair<ResponseCode, ResponseData> {
+                val urlBuilder = StringBuilder()
+                urlBuilder.append("$apiURL/shows/")
+                urlBuilder.append(
+                    showLink.link.substringAfterLast(":")
+                        .substringBefore("?si=")
+                        .substringAfterLast("/")
+                )
+                urlBuilder.append("/episodes")
+                urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=US")
+                urlBuilder.append("&limit=50")
+                urlBuilder.append("&offset=$offset")
+                return sendHttpRequest(
+                    URL(urlBuilder.toString()),
+                    RequestMethod("GET"),
+                    ExtraProperties(listOf("Authorization: Bearer $accessToken"))
+                )
+            }
+
+            suspend fun parseEpisodesData(episodesData: JSONObject): EpisodeList {
+                val episodes = ArrayList<Episode>()
+                var items = episodesData.getJSONArray("items")
+                var offset = 0
+                while (episodes.size < totalItems) {
+                    for (item in items) {
+                        item as JSONObject
+                        episodes.add(
+                            Episode(
+                                Name(item.getString("name")),
+                                Description(item.getString("description")),
+                                ReleaseDate(
+                                    when (item.getString("release_date_precision")) {
+                                        "day" -> {
+                                            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                                            LocalDate.parse(item.getString("release_date"), formatter)
+                                        }
+                                        "month" -> {
+                                            val formatter = DateTimeFormatterBuilder()
+                                                .appendPattern("yyyy-MM")
+                                                .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                                                .toFormatter()
+                                            LocalDate.parse(item.getString("release_date"), formatter)
+                                        }
+                                        else -> {
+                                            val formatter = DateTimeFormatterBuilder()
+                                                .appendPattern("yyyy")
+                                                .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+                                                .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                                                .toFormatter()
+                                            LocalDate.now().withYear(2)
+                                            LocalDate.parse(item.getString("release_date"), formatter)
+                                        }
+                                    }
+                                ),
+                                Link(item.getJSONObject("external_urls").getString("spotify")),
+                                Playability(item.getBoolean("is_playable"))
+                            )
+                        )
+                        if (!episodesData.isNull("next")){
+                            offset += 50
+                            val episodesJob = Job()
+                            withContext(episodesJob + IO) {
+                                while (true) {
+                                    val data = getEpisodesData(offset)
+
+                                    when (data.first.code){
+                                        HttpURLConnection.HTTP_OK -> {
+                                            try{
+                                                val episodeData = JSONObject(data.second.data)
+                                                items = episodeData.getJSONArray("items")
+                                                return@withContext
+                                            }catch (e: JSONException){
+                                                //JSON broken, try getting the data again
+                                                println("Failed JSON:\n${data.second.data}\n")
+                                                println("Failed to get data from JSON, trying again...")
+                                            }
+                                        }
+
+                                        HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                                            updateToken()
+                                        }
+
+                                        HTTP_TOO_MANY_REQUESTS -> {
+                                            println("Too many requests! Waiting for ${data.second.data} seconds.")
+                                            //wait for given time before next request.
+                                            delay(data.second.data.toLong() * 1000 + 500)
+                                        }
+
+                                        else -> println("HTTP ERROR! CODE: ${data.first.code}")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                return EpisodeList(episodes)
+            }
+
+            val episodeJob = Job()
+            withContext(IO + episodeJob) {
+                while (true) {
+                    val episodesData = getEpisodesData()
+                    when (episodesData.first.code) {
+                        HttpURLConnection.HTTP_OK -> {
+                            try {
+                                val data = JSONObject(episodesData.second.data)
+                                episodeList = parseEpisodesData(data)
+                                return@withContext
+                            } catch (e: JSONException) {
+                                //JSON broken, try getting the data again
+                                println("Failed JSON:\n${episodesData.second.data}\n")
+                                println("Failed to get data from JSON, trying again...")
+                            }
+                        }
+
+                        HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                            updateToken()
+                        }
+
+                        HTTP_TOO_MANY_REQUESTS -> {
+                            println("Too many requests! Waiting for ${episodesData.second.data} seconds.")
+                            //wait for given time before next request.
+                            delay(episodesData.second.data.toLong() * 1000 + 500)
+                        }
+                        else -> println("HTTP ERROR! CODE: ${episodesData.first.code}")
+                    }
+                }
+            }
+            return EpisodeList(episodeList.episodes.reversed())
+        }
+
+        suspend fun parseShowData(showData: JSONObject): Show {
+            val episodes = getShowEpisodes(showLink, showData.getInt("total_episodes"))
+            return Show(
+                Name(showData.getString("name")),
+                Publisher(Name(showData.getString("publisher"))),
+                Description(showData.getString("description")),
+                episodes,
+                showLink
+            )
+        }
+
+        val showJob = Job()
+        withContext(IO + showJob) {
+            while (true) {
+                val showData = getShowData(showLink)
+                when (showData.first.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val data = JSONObject(showData.second.data)
+                            show = parseShowData(data)
+                            return@withContext
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${showData.second.data}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
+                    }
+
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        updateToken()
+                    }
+
+                    HTTP_TOO_MANY_REQUESTS -> {
+                        println("Too many requests! Waiting for ${showData.second.data} seconds.")
+                        //wait for given time before next request.
+                        delay(showData.second.data.toLong() * 1000 + 500)
+                    }
+                    else -> println("HTTP ERROR! CODE: ${showData.first.code}")
+                }
+            }
+        }
+        return show
+    }
+
+    suspend fun getEpisode(episodeLink: Link): Episode {
+        lateinit var episode: Episode
+
+        fun getEpisodeData(): Pair<ResponseCode, ResponseData> {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$apiURL/episodes/")
+            urlBuilder.append(
+                episodeLink.link.substringAfterLast(":")
+                .substringBefore("?si=")
+                .substringAfterLast("/")
+            )
+            urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=US")
+            return sendHttpRequest(
+                URL(urlBuilder.toString()),
+                RequestMethod("GET"),
+                ExtraProperties(listOf("Authorization: Bearer $accessToken"))
+            )
+        }
+
+        fun parseEpisodeData(episodeData: JSONObject): Episode {
+            return Episode(
+                Name(episodeData.getString("name")),
+                Description(episodeData.getString("description")),
+                ReleaseDate(
+                    when (episodeData.getString("release_date_precision")) {
+                        "day" -> {
+                            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                            LocalDate.parse(episodeData.getString("release_date"), formatter)
+                        }
+                        "month" -> {
+                            val formatter = DateTimeFormatterBuilder()
+                            .appendPattern("yyyy-MM")
+                            .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                            .toFormatter()
+                            LocalDate.parse(episodeData.getString("release_date"), formatter)
+                        }
+                        else -> {
+                            val formatter = DateTimeFormatterBuilder()
+                            .appendPattern("yyyy")
+                            .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+                            .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                            .toFormatter()
+                            LocalDate.now().withYear(2)
+                            LocalDate.parse(episodeData.getString("release_date"), formatter)
+                        }
+                    }
+                ),
+                Link(episodeData.getJSONObject("external_urls").getString("spotify")),
+                Playability(episodeData.getBoolean("is_playable"))
+            )
+        }
+
+        val episodeJob = Job()
+        withContext(IO + episodeJob) {
+            while (true) {
+                val episodeData = getEpisodeData()
+                when (episodeData.first.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val data = JSONObject(episodeData.second.data)
+                            episode = parseEpisodeData(data)
+                            return@withContext
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${episodeData.second.data}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
+                    }
+
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        updateToken()
+                    }
+
+                    HTTP_TOO_MANY_REQUESTS -> {
+                        println("Too many requests! Waiting for ${episodeData.second.data} seconds.")
+                        //wait for given time before next request.
+                        delay(episodeData.second.data.toLong() * 1000 + 500)
+                    }
+                    else -> println("HTTP ERROR! CODE: ${episodeData.first.code}")
+                }
+            }
+        }
+        return episode
+    }
+
 }

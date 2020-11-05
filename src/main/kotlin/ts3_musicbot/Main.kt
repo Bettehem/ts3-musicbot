@@ -12,6 +12,7 @@ import javafx.stage.Stage
 import ts3_musicbot.chat.ChatReader
 import ts3_musicbot.chat.ChatUpdate
 import ts3_musicbot.chat.ChatUpdateListener
+import ts3_musicbot.chat.CommandListener
 import ts3_musicbot.util.BotSettings
 import ts3_musicbot.util.CommandRunner
 import ts3_musicbot.util.CommandList.commandList
@@ -28,7 +29,7 @@ private var statusTextView = TextArea()
 private val commandRunner = CommandRunner()
 private var spotifyPlayer = "spotify"
 
-class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
+class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, CommandListener {
     private lateinit var scene: Scene
 
     private var layout: VBox = VBox()
@@ -228,9 +229,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     for (dir in chatDir.list()!!) {
                         println("Checking in $dir")
                         val serverFile = File("${System.getProperty("user.home")}/.ts3client/chats/$dir/server.html")
-                        val lines =
-                            commandRunner.runCommand("cat ${serverFile.absolutePath}", printOutput = false)
-                                .split("\n".toRegex())
+                        val lines = serverFile.readLines()
                         for (line in lines) {
                             if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
                                 //compare serverName to the one in server.html
@@ -260,6 +259,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                         override fun onChatUpdated(update: ChatUpdate) {
                             if (update.message.startsWith("%"))
                                 print("\nUser ${update.userName} issued command \"${update.message}\"\nCommand: ")
+                        }
+                    }, object : CommandListener {
+                        override fun onCommandExecuted(command: String, output: String, extra: Any?) {
+                            print("\nCommand \"$command\" has been executed.\nOutput:\n$output\n\nCommand: ")
                         }
                     }, apiKey, market, spotifyPlayer, channelName, nickname)
                     chatReader.startReading()
@@ -743,7 +746,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
                     //start reading chat
                     chatReader = ChatReader(
                         getChannelFile(settings),
-                        this,
+                        this, this,
                         settings.apiKey,
                         market = settings.market,
                         spotifyPlayer = settings.spotifyPlayer,
@@ -799,5 +802,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener {
             statusScrollPane.layout()
             statusScrollPane.vvalue = 1.0
         }
+    }
+
+    override fun onCommandExecuted(command: String, output: String, extra: Any?) {
+        //TODO Not yet implemented
     }
 }

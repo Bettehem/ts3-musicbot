@@ -25,6 +25,29 @@ data class Track(
     }
 }
 
+data class Episode(
+    val name: Name = Name(),
+    val description: Description = Description(),
+    val releaseDate: ReleaseDate = ReleaseDate(),
+    val link: Link = Link(),
+    val playability: Playability = Playability()
+) {
+    fun toTrack(): Track {
+        return Track(
+            title = name,
+            link = link,
+            playability = playability
+        )
+    }
+
+    override fun toString(): String {
+        return "Episode Name: $name\n" +
+                "Release Date: ${releaseDate.date}\n" +
+                "Description:\n$description\n" +
+                "Link: $link"
+    }
+}
+
 data class SearchType(val type: String) {
     override fun toString(): String {
         return type
@@ -58,7 +81,7 @@ data class Link(val link: String = "") {
     }
 }
 
-data class Description(val text: String) {
+data class Description(val text: String = "") {
     override fun toString(): String {
         return text
     }
@@ -68,6 +91,7 @@ data class Publicity(val isPublic: Boolean?)
 data class Collaboration(val isCollaborative: Boolean)
 data class Playability(val isPlayable: Boolean = false)
 data class Followers(val amount: Int)
+data class Publisher(val name: Name)
 
 data class Artists(val artists: List<Artist> = emptyList()) {
     override fun toString(): String {
@@ -92,6 +116,18 @@ data class TrackList(val trackList: List<Track> = emptyList()) {
             }
         }
         return strBuilder.toString()
+    }
+}
+
+data class EpisodeList(val episodes: List<Episode> = emptyList()) {
+    fun toTrackList(): TrackList {
+        return TrackList(episodes.map {
+            Track(
+                title = it.name,
+                link =  it.link,
+                playability = it.playability
+            )
+        })
     }
 }
 
@@ -173,5 +209,21 @@ data class Playlist(
                 "Is Public:   \t\t${publicity.isPublic}\n" +
                 "Is Collaborative: \t\t${collaboration.isCollaborative}\n" +
                 "Link:    \t\t\t${link.link}"
+    }
+}
+
+data class Show(
+    val name: Name,
+    val publisher: Publisher,
+    val description: Description,
+    val episodes: EpisodeList,
+    val link: Link
+) {
+    override fun toString(): String {
+        return  "Show Name:  \t\t\t\t$name\n" +
+                "Publisher:  \t\t\t\t$publisher\n" +
+                "Description:\n$description\n\n" +
+                "This podcast has ${episodes.episodes.size} episodes.\n" +
+                "Link:       \t\t\t\t$link"
     }
 }
