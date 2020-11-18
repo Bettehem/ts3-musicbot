@@ -15,7 +15,7 @@ import kotlin.test.*
 
 class SpotifyTest {
     //Set to your own country
-    private val spotifyMarket = "FI"
+    private val spotifyMarket = "US"
     private val spotify = Spotify(spotifyMarket).also { runBlocking(IO) { it.updateToken() } }
 
     @Test
@@ -120,26 +120,6 @@ class SpotifyTest {
                         "Tom Wallisch slides into the studio with Simon in order to quickly go over the past and look forward to the future of skiing.",
                 episode.description.text
             )
-        }
-    }
-
-    @Test
-    fun testGettingTrackInfo() {
-        runBlocking(IO) {
-            //Spotify link to track: SikTh - Peep Show
-            val trackLink = Link("https://open.spotify.com/track/19gtYiBXEhSyTCOe1GyKDB")
-            val track = spotify.getTrack(trackLink)
-            ChatReader(File(""), object : ChatUpdateListener {
-                override fun onChatUpdated(update: ChatUpdate) {
-                    //chat updated
-                }
-            }, object : CommandListener {
-                override fun onCommandExecuted(command: String, output: String, extra: Any?) {
-                    if (extra is Track) {
-                        assertEquals(track, extra)
-                    }
-                }
-            }, "", spotifyMarket, "", "", "").parseLine("test", "%sp-info ${trackLink.link}")
         }
     }
 }
