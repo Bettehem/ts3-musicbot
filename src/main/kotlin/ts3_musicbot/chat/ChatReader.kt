@@ -1542,7 +1542,7 @@ class ChatReader(
             "spotify", "ncspot" -> {
                 CoroutineScope(Default).launch {
                     parseLine("", "%queue-nowplaying")
-                    println("Playing ${track.artists} - ${track.title}")
+                    println("Now playing:\n$track")
                 }
             }
             "mpv" -> {

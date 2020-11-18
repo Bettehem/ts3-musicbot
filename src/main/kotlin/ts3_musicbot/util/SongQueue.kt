@@ -95,13 +95,12 @@ class SongQueue(
 
     fun skipSong() {
         when (getState()) {
-            State.QUEUE_PLAYING, State.QUEUE_PAUSED -> {
-                trackPlayer.stopTrack()
-                setCurrent(Track())
-                playNext()
-            }
-            else -> {
-                println("Track cannot be skipped.")
+            State.QUEUE_PLAYING, State.QUEUE_PAUSED, State.QUEUE_STOPPED -> {
+                if (getQueue().isNotEmpty()) {
+                    trackPlayer.stopTrack()
+                    setCurrent(Track())
+                    playNext()
+                } else println("Track cannot be skipped.")
             }
         }
     }
@@ -138,9 +137,13 @@ class SongQueue(
         }
         synchronized(songQueue) {
             if (songQueue.isNotEmpty()) {
+                if (songQueue[0].linkType == LinkType.SPOTIFY && songQueue[0].link.link == trackPlayer.currentUrl()){
+                    CommandRunner().runCommand("killall ${trackPlayer.spotifyPlayer}; sleep 2")
+                }
                 playTrack(songQueue[0])
             } else {
                 println("Song queue is empty!")
+                stopQueue()
             }
         }
     }
@@ -209,6 +212,11 @@ class SongQueue(
             else -> ""
         }
 
+        fun currentUrl() = commandRunner.runCommand(
+            "playerctl -p ${getPlayer()} metadata --format '{{ xesam:url }}'",
+            printOutput = false,
+            printErrors = false
+        )
 
         fun startTrack() {
             trackPosition = 0
@@ -264,11 +272,6 @@ class SongQueue(
             //starts playing the track
             suspend fun openTrack() {
                 withContext(IO + trackJob) {
-                    fun currentUrl() = commandRunner.runCommand(
-                        "playerctl -p ${getPlayer()} metadata --format '{{ xesam:url }}'",
-                        printOutput = false,
-                        printErrors = false
-                    )
                     while (currentUrl() != track.link.link) {
                         //wait for track to start
                         when (track.linkType) {
@@ -336,7 +339,7 @@ class SongQueue(
 
                     var trackLength = getTrackLength()
                     var wasPaused = false
-                    while (currentUrl() == track.link.link || currentUrl().startsWith("https://open.spotify.com/ad/")) {
+                    loop@ while (currentUrl() == track.link.link || currentUrl().startsWith("https://open.spotify.com/ad/")) {
                         when (playerStatus()) {
                             "Playing" -> {
                                 while (currentUrl().startsWith("https://open.spotify.com/ad/")) {
@@ -358,7 +361,8 @@ class SongQueue(
                             "Paused" -> {
                                 if (trackPosition >= trackLength - 10) {
                                     //songEnded
-                                    trackJob.complete().also { listener.onTrackEnded(getPlayer(), track) }
+                                    listener.onTrackEnded(getPlayer(), track).also { trackJob.complete() }
+                                    break@loop
                                 } else {
                                     if (!wasPaused) {
                                         listener.onTrackPaused(getPlayer(), track)
@@ -368,12 +372,14 @@ class SongQueue(
                             }
                             "Stopped" -> {
                                 if (trackPosition > 1) {
-                                    trackJob.complete().also { listener.onTrackEnded(getPlayer(), track) }
+                                    listener.onTrackEnded(getPlayer(), track).also { trackJob.complete() }
+                                    break@loop
                                 }
                             }
                             "No players found" -> println("No players found")
                             else -> {
                                 trackJob.completeExceptionally(Throwable("Unhandled Player Status"))
+                                break@loop
                             }
                         }
                     }
@@ -385,7 +391,7 @@ class SongQueue(
                                 ).isEmpty()
                             ) {
                                 if (trackPosition >= trackLength - 20) {
-                                    trackJob.complete().also { listener.onTrackEnded(getPlayer(), track) }
+                                    listener.onTrackEnded(getPlayer(), track).also { trackJob.complete() }
                                 }
                             }
                         }
@@ -415,30 +421,24 @@ class SongQueue(
         }
 
         fun pauseTrack() {
-            CoroutineScope(IO).launch {
-                if (track.isNotEmpty())
-                    commandRunner.runCommand("playerctl -p ${getPlayer()} pause")
-            }
+            if (track.isNotEmpty())
+                commandRunner.runCommand("playerctl -p ${getPlayer()} pause")
         }
 
         fun resumeTrack() {
-            CoroutineScope(IO).launch {
-                if (track.isNotEmpty())
-                    commandRunner.runCommand("playerctl -p ${getPlayer()} play", ignoreOutput = true)
-            }
+            if (track.isNotEmpty())
+                commandRunner.runCommand("playerctl -p ${getPlayer()} play", ignoreOutput = true)
         }
 
         fun stopTrack() {
-            trackJob.cancel().also {
-                commandRunner.runCommand(
-                    "playerctl -p " +
-                            when (getPlayer()) {
-                                "spotify" -> "spotify pause"
-                                else -> "${getPlayer()} stop"
-                            },
-                    printErrors = false, ignoreOutput = true
-                )
-            }
+            commandRunner.runCommand(
+                "playerctl -p " +
+                        when (getPlayer()) {
+                            "spotify" -> "spotify pause"
+                            else -> "${getPlayer()} stop"
+                        },
+                printErrors = false
+            ).also { trackJob.cancel() }
         }
     }
 }
