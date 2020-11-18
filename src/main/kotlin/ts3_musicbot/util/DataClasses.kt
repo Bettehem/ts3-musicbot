@@ -23,6 +23,9 @@ data class Track(
                 "Title:      \t\t\t\t$title\n" +
                 "Link:       \t\t\t\t$link\n"
     }
+
+    fun isEmpty() = album.isEmpty() && artists.isEmpty() && title.isEmpty() && link.isEmpty()
+    fun isNotEmpty() = album.isNotEmpty() && artists.isNotEmpty() && title.isNotEmpty() && link.isNotEmpty()
 }
 
 data class Episode(
@@ -41,29 +44,41 @@ data class Episode(
     }
 
     override fun toString(): String {
-        return "Episode Name: $name\n" +
-                "Release Date: ${releaseDate.date}\n" +
+        return "Episode Name: \t$name\n" +
+                "Release Date: \t\t${releaseDate.date}\n" +
                 "Description:\n$description\n" +
-                "Link: $link"
+                "Link:         \t\t$link"
     }
+
+    fun isEmpty() = name.isEmpty() && description.isEmpty() && link.isEmpty()
+    fun isNotEmpty() = name.isNotEmpty() && description.isNotEmpty() && link.isNotEmpty()
 }
 
 data class SearchType(val type: String) {
     override fun toString(): String {
         return type
     }
+
+    fun isEmpty() = type.isEmpty()
+    fun isNotEmpty() = type.isNotEmpty()
 }
 
 data class SearchQuery(val query: String) {
     override fun toString(): String {
         return query
     }
+
+    fun isEmpty() = query.isEmpty()
+    fun isNotEmpty() = query.isNotEmpty()
 }
 
 data class Name(val name: String = "") {
     override fun toString(): String {
         return name
     }
+
+    fun isEmpty() = name.isEmpty()
+    fun isNotEmpty() = name.isNotEmpty()
 }
 
 data class Link(val link: String = "") {
@@ -79,19 +94,33 @@ data class Link(val link: String = "") {
     override fun toString(): String {
         return link
     }
+
+    fun isEmpty() = link.isEmpty()
+    fun isNotEmpty() = link.isNotEmpty()
 }
 
 data class Description(val text: String = "") {
     override fun toString(): String {
         return text
     }
+
+    fun isEmpty() = text.isEmpty()
+    fun isNotEmpty() = text.isNotEmpty()
 }
 
 data class Publicity(val isPublic: Boolean?)
 data class Collaboration(val isCollaborative: Boolean)
 data class Playability(val isPlayable: Boolean = false)
-data class Followers(val amount: Int)
-data class Publisher(val name: Name)
+data class Followers(val amount: Int = -1) {
+    fun isEmpty() = amount == -1
+    fun isNotEmpty() = amount != -1
+}
+
+data class Publisher(val name: Name = Name()) {
+    override fun toString() = name.name
+    fun isEmpty() = name.isEmpty()
+    fun isNotEmpty() = name.isNotEmpty()
+}
 
 data class Artists(val artists: List<Artist> = emptyList()) {
     override fun toString(): String {
@@ -99,6 +128,9 @@ data class Artists(val artists: List<Artist> = emptyList()) {
         artists.forEach { "${strBuilder.appendln(it)}" }
         return strBuilder.toString()
     }
+
+    fun isEmpty() = artists.isEmpty()
+    fun isNotEmpty() = artists.isNotEmpty()
 }
 
 data class TrackList(val trackList: List<Track> = emptyList()) {
@@ -106,17 +138,20 @@ data class TrackList(val trackList: List<Track> = emptyList()) {
         val strBuilder = StringBuilder()
         if (trackList.isNotEmpty()) {
             trackList.forEach {
-                for (artist in it.artists.artists){
+                for (artist in it.artists.artists) {
                     strBuilder.append("${artist.name}, ")
                 }
                 if (it.artists.artists.isNotEmpty()) {
-                    strBuilder.delete(strBuilder.length-2, strBuilder.length-1)
+                    strBuilder.delete(strBuilder.length - 2, strBuilder.length - 1)
                     strBuilder.appendln(" - ${it.title} : ${it.link}")
                 }
             }
         }
         return strBuilder.toString()
     }
+
+    fun isEmpty() = trackList.isEmpty()
+    fun isNotEmpty() = trackList.isNotEmpty()
 }
 
 data class EpisodeList(val episodes: List<Episode> = emptyList()) {
@@ -124,20 +159,37 @@ data class EpisodeList(val episodes: List<Episode> = emptyList()) {
         return TrackList(episodes.map {
             Track(
                 title = it.name,
-                link =  it.link,
+                link = it.link,
                 playability = it.playability
             )
         })
     }
+
+    override fun toString(): String {
+        val strBuilder = StringBuilder()
+        if (episodes.isNotEmpty()) {
+            episodes.forEach {
+                strBuilder.appendln("Episode Name: ${it.name} : ${it.link}")
+            }
+        }
+        return strBuilder.toString()
+    }
+
+    fun isEmpty() = episodes.isEmpty()
+    fun isNotEmpty() = episodes.isNotEmpty()
 }
 
 data class ReleaseDate(val date: LocalDate = LocalDate.now())
+
 data class Genres(val genres: List<String> = emptyList()) {
     override fun toString(): String {
         val strBuilder = StringBuilder()
         genres.forEach { strBuilder.append("$it, ") }
         return strBuilder.toString().substringBeforeLast(",")
     }
+
+    fun isEmpty() = genres.isEmpty()
+    fun isNotEmpty() = genres.isNotEmpty()
 }
 
 data class Artist(
@@ -146,7 +198,7 @@ data class Artist(
 ) {
     override fun toString(): String {
         return "Artist:     \t\t\t\t$name\n" +
-                "Link:       \t\t\t\t$link\n" +
+                "Link:        \t\t\t\t$link\n" +
                 if (genres.genres.isNotEmpty()) "Genres:  \t\t\t\t$genres\n" else {
                     ""
                 } +
@@ -176,6 +228,10 @@ data class Album(
                 "Album Artists:\n$artists\n" +
                 if (tracks.trackList.isNotEmpty()) "Tracks:\n$tracks" else ""
     }
+
+    fun isEmpty() = name.isEmpty() && artists.isEmpty() && tracks.isEmpty() && link.isEmpty() && genres.isEmpty()
+    fun isNotEmpty() =
+        name.isNotEmpty() && artists.isNotEmpty() && tracks.isNotEmpty() && link.isNotEmpty() && genres.isNotEmpty()
 }
 
 data class User(
@@ -185,11 +241,14 @@ data class User(
     val link: Link
 ) {
     override fun toString(): String {
-        return "Name:  \t\t\t${name.name}\n" +
+        return "Name:  \t\t\t\t${name.name}\n" +
                 "Username: \t\t${userName.name}\n" +
                 "Followers:  \t\t${followers.amount}\n" +
-                "Link:    \t\t\t${link.link}"
+                "Link:    \t\t\t\t${link.link}"
     }
+
+    fun isEmpty() = name.isEmpty() && userName.isEmpty() && followers.isEmpty() && link.isEmpty()
+    fun isNotEmpty() = name.isNotEmpty() && userName.isNotEmpty() && followers.isNotEmpty() && link.isNotEmpty()
 }
 
 data class Playlist(
@@ -202,14 +261,18 @@ data class Playlist(
     val link: Link
 ) {
     override fun toString(): String {
-        return "Playlist Name: \t${name.name}\n" +
-                "Owner:    \t\t\t${owner.name}\n" +
+        return "Playlist Name: \t\t${name.name}\n" +
+                "Owner:       \t\t\t\t${owner.name}\n" +
                 "Description:\n${description.text}\n" +
-                "Followers: \t\t${followers.amount}\n" +
-                "Is Public:   \t\t${publicity.isPublic}\n" +
+                "Followers: \t\t\t\t${followers.amount}\n" +
+                "Is Public:   \t\t\t\t${publicity.isPublic}\n" +
                 "Is Collaborative: \t\t${collaboration.isCollaborative}\n" +
-                "Link:    \t\t\t${link.link}"
+                "Link:    \t\t\t\t\t\t${link.link}"
     }
+
+    fun isEmpty() = name.isEmpty() && owner.isEmpty() && description.isEmpty() && followers.isEmpty() && link.isEmpty()
+    fun isNotEmpty() =
+        name.isNotEmpty() && owner.isNotEmpty() && description.isNotEmpty() && followers.isNotEmpty() && link.isNotEmpty()
 }
 
 data class Show(
@@ -220,10 +283,25 @@ data class Show(
     val link: Link
 ) {
     override fun toString(): String {
-        return  "Show Name:  \t\t\t\t$name\n" +
-                "Publisher:  \t\t\t\t$publisher\n" +
+        return "Show Name:  \t\t\t\t$name\n" +
+                "Publisher:    \t\t\t\t\t${publisher.name}\n" +
                 "Description:\n$description\n\n" +
-                "This podcast has ${episodes.episodes.size} episodes.\n" +
-                "Link:       \t\t\t\t$link"
+                "This podcast has  ${episodes.episodes.size}  episodes.\n" +
+                "${if (episodes.episodes.size > 10) "First 10 " else ""} Episodes:\n" +
+                "${
+                    EpisodeList(
+                        episodes.episodes.subList(
+                            0,
+                            if (episodes.episodes.size > 10) 10 else episodes.episodes.size - 1
+                        )
+                    )
+                }\n" +
+                "Show Link:       \t\t\t\t\t$link"
     }
+
+    fun isEmpty() =
+        name.isEmpty() && publisher.isEmpty() && description.isEmpty() && episodes.isEmpty() && link.isEmpty()
+
+    fun isNotEmpty() =
+        name.isNotEmpty() && publisher.isNotEmpty() && description.isNotEmpty() && episodes.isNotEmpty() && link.isNotEmpty()
 }

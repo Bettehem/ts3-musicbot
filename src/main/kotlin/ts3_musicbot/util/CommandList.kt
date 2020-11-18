@@ -102,6 +102,7 @@ object CommandList {
             "%queue-add", "\n" +
                     "Showing help for %queue-add command:\n" +
                     "%queue-add lets you add songs, albums and playlists to the end of the song queue.\n" +
+                    "You can also pass in a link to an artist, which will result in the artist's top tracks getting added to the queue.\n" +
                     "Counting starts from 0, so the first song is at position 0, second is at 1 and so on.\n" +
                     "You can add options either before or after song link(s).\n" +
                     "Available options:\n" +
@@ -114,6 +115,7 @@ object CommandList {
             "%queue-playnext", "\n" +
                     "Showing help for %queue-playnext command:\n" +
                     "%queue-playnext lets you add songs, albums and playlists to the start of the song queue.\n" +
+                    "You can also pass in a link to an artist, which will result in the artist's top tracks getting added to the queue.\n" +
                     "Counting starts from 0, so the first song is at position 0, second is at 1 and so on.\n" +
                     "You can add options either before or after song link(s).\n" +
                     "Available options:\n" +
@@ -253,7 +255,7 @@ object CommandList {
         Pair(
             "%sp-search", "\n" +
                     "Showing help for %sp-search command:\n" +
-                    "%sp-search can be used to search for tracks, albums and playlists on Spotify.\n" +
+                    "%sp-search can be used to search for tracks, albums, playlists, artists, shows and episodes on Spotify.\n" +
                     "To perform a search, you need to provide a search type followed by keywords.\n" +
                     "Example - Search for a Spotify track with the keywords \"Tesseract Exile\":\n" +
                     "%sp-search track Tesseract Exile\n" +
@@ -263,7 +265,7 @@ object CommandList {
         Pair(
             "%sp-info", "\n" +
                     "Showing help for %sp-info command:\n" +
-                    "%sp-info shows information on a given track.\n" +
+                    "%sp-info shows information on a given spotify link.\n" +
                     "Example - Get info on spotify track link:\n" +
                     "%sp-info https://open.spotify.com/track/2igwFfvr1OAGX9SKDCPBwO\n" +
                     "Example - Get info on spotify URI:\n" +

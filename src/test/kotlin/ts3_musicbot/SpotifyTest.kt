@@ -114,9 +114,12 @@ class SpotifyTest {
             val episodeLink = Link("https://open.spotify.com/episode/3tR0C41CUqAZfA7f0eek9L")
             val episode = spotify.getEpisode(episodeLink)
             assertEquals("Ep. 1 Tom Wallisch", episode.name.name)
-            assertEquals("Fresh off of their \"Resurrection\" edit reboot, the God-Fathers of ski style return. " +
-                    "Simon Dumont is launching his new show and bringing the crew along with him. " +
-                    "Tom Wallisch slides into the studio with Simon in order to quickly go over the past and look forward to the future of skiing.", episode.description.text)
+            assertEquals(
+                "Fresh off of their \"Resurrection\" edit reboot, the God-Fathers of ski style return. " +
+                        "Simon Dumont is launching his new show and bringing the crew along with him. " +
+                        "Tom Wallisch slides into the studio with Simon in order to quickly go over the past and look forward to the future of skiing.",
+                episode.description.text
+            )
         }
     }
 
@@ -132,7 +135,7 @@ class SpotifyTest {
                 }
             }, object : CommandListener {
                 override fun onCommandExecuted(command: String, output: String, extra: Any?) {
-                    if (extra is Track){
+                    if (extra is Track) {
                         assertEquals(track, extra)
                     }
                 }

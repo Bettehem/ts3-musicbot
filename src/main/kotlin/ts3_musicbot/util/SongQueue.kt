@@ -196,7 +196,7 @@ class SongQueue(
         @Volatile
         var trackPosition = 0
 
-        lateinit var track: Track
+        var track = Track()
         private val commandRunner = CommandRunner()
         fun getPlayer() = when (track.linkType) {
             LinkType.SPOTIFY -> spotifyPlayer
@@ -234,19 +234,23 @@ class SongQueue(
                         //do nothing
                     }
                     delay(5000)
-                    if (track.link.link.contains("/track/")){
+                    if (track.link.link.contains("/track/")) {
                         commandRunner.runCommand(
-                            "playerctl -p $spotifyPlayer open spotify:track:${track.link.link.substringAfter("spotify.com/track/")
-                                .substringBefore(
-                                    "?"
-                                )} &", ignoreOutput = true
+                            "playerctl -p $spotifyPlayer open spotify:track:${
+                                track.link.link.substringAfter("spotify.com/track/")
+                                    .substringBefore(
+                                        "?"
+                                    )
+                            } &", ignoreOutput = true
                         )
-                    }else {
+                    } else {
                         commandRunner.runCommand(
-                            "playerctl -p $spotifyPlayer open spotify:episode:${track.link.link.substringAfter("spotify.com/episode/")
-                                .substringBefore(
-                                    "?"
-                                )} &", ignoreOutput = true
+                            "playerctl -p $spotifyPlayer open spotify:episode:${
+                                track.link.link.substringAfter("spotify.com/episode/")
+                                    .substringBefore(
+                                        "?"
+                                    )
+                            } &", ignoreOutput = true
                         )
                     }
                 }
@@ -265,8 +269,10 @@ class SongQueue(
                         when (track.linkType) {
                             LinkType.SPOTIFY -> {
                                 commandRunner.runCommand(
-                                    "playerctl -p ${getPlayer()} open spotify:track:${track.link.link.substringAfter("spotify.com/track/")
-                                        .substringBefore("?")}", ignoreOutput = true
+                                    "playerctl -p ${getPlayer()} open spotify:track:${
+                                        track.link.link.substringAfter("spotify.com/track/")
+                                            .substringBefore("?")
+                                    }", ignoreOutput = true
                                 )
                                 while (commandRunner.runCommand(
                                         "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${getPlayer()}(.+)?\" | grep -v \"grep\"",
@@ -373,7 +379,7 @@ class SongQueue(
                                     printOutput = false
                                 ).isEmpty()
                             ) {
-                                if (trackPosition >= trackLength - 20){
+                                if (trackPosition >= trackLength - 20) {
                                     trackJob.complete().also { listener.onTrackEnded(getPlayer(), track) }
                                 }
                             }
@@ -405,13 +411,15 @@ class SongQueue(
 
         fun pauseTrack() {
             CoroutineScope(IO).launch {
-                commandRunner.runCommand("playerctl -p ${getPlayer()} pause")
+                if (track.isNotEmpty())
+                    commandRunner.runCommand("playerctl -p ${getPlayer()} pause")
             }
         }
 
         fun resumeTrack() {
             CoroutineScope(IO).launch {
-                commandRunner.runCommand("playerctl -p ${getPlayer()} play")
+                if (track.isNotEmpty())
+                    commandRunner.runCommand("playerctl -p ${getPlayer()} play", ignoreOutput = true)
             }
         }
 

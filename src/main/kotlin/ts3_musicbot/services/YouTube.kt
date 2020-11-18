@@ -130,7 +130,7 @@ class YouTube {
                 var key = apiKey1
                 val getPageJob = Job()
                 var pageData = data
-                withContext(IO + getPageJob){
+                withContext(IO + getPageJob) {
                     while (listItems.size < totalItems) {
                         while (true) {
                             val result = sendRequest(
@@ -149,9 +149,11 @@ class YouTube {
                                         try {
                                             val title = item.getJSONObject("snippet").getString("title")
                                             val videoLink =
-                                                "https://youtu.be/${item.getJSONObject("snippet")
-                                                    .getJSONObject("resourceId")
-                                                    .getString("videoId")}"
+                                                "https://youtu.be/${
+                                                    item.getJSONObject("snippet")
+                                                        .getJSONObject("resourceId")
+                                                        .getString("videoId")
+                                                }"
                                             val isPlayable =
                                                 when (item.getJSONObject("status").getString("privacyStatus")) {
                                                     "public", "unlisted" -> true
@@ -211,9 +213,11 @@ class YouTube {
                                     try {
                                         val title = item.getJSONObject("snippet").getString("title")
                                         val videoLink =
-                                            "https://youtu.be/${item.getJSONObject("snippet")
-                                                .getJSONObject("resourceId")
-                                                .getString("videoId")}"
+                                            "https://youtu.be/${
+                                                item.getJSONObject("snippet")
+                                                    .getJSONObject("resourceId")
+                                                    .getString("videoId")
+                                            }"
                                         val isPlayable =
                                             when (item.getJSONObject("status").getString("privacyStatus")) {
                                                 "public", "unlisted" -> true
@@ -348,8 +352,10 @@ class YouTube {
                                         val listTitle = resultData.getJSONObject("snippet").getString("title")
                                         val listCreator = resultData.getJSONObject("snippet").getString("channelTitle")
                                         val listLink =
-                                            "https://www.youtube.com/playlist?list=${resultData.getJSONObject("id")
-                                                .getString("playlistId")}"
+                                            "https://www.youtube.com/playlist?list=${
+                                                resultData.getJSONObject("id")
+                                                    .getString("playlistId")
+                                            }"
 
                                         searchResult.appendln(
                                             "Playlist: $listTitle\n" +
