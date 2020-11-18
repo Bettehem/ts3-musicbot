@@ -501,7 +501,7 @@ class ChatReader(
                             //%queue-play command
                             commandString.contains("^%queue-play$".toRegex()) -> {
                                 if (songQueue.getQueue().isNotEmpty()) {
-                                    if (songQueue.queueState != SongQueue.State.QUEUE_STOPPED) {
+                                    if (songQueue.getState() != SongQueue.State.QUEUE_STOPPED) {
                                         printToChat(
                                             userName, listOf(
                                                 "Queue is already active!",
@@ -519,7 +519,7 @@ class ChatReader(
                             }
                             //%queue-list command
                             commandString.contains("^%queue-list(.+)?".toRegex()) -> {
-                                if (songQueue.queueState != SongQueue.State.QUEUE_STOPPED) {
+                                if (songQueue.getState() != SongQueue.State.QUEUE_STOPPED) {
                                     printToChat(
                                         userName,
                                         listOf("Currently playing:\n${songQueue.nowPlaying().link}"),
@@ -728,7 +728,7 @@ class ChatReader(
                             }
                             //%queue-status command
                             commandString.contains("^%queue-status$".toRegex()) -> {
-                                if (songQueue.queueState != SongQueue.State.QUEUE_STOPPED) {
+                                if (songQueue.getState() != SongQueue.State.QUEUE_STOPPED) {
                                     printToChat(userName, listOf("Queue Status: Active"), apikey)
                                 } else {
                                     printToChat(userName, listOf("Queue Status: Not active"), apikey)

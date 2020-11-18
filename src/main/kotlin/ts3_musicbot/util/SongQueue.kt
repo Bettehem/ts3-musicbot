@@ -5,8 +5,8 @@ import kotlinx.coroutines.Dispatchers.IO
 import java.util.*
 import kotlin.collections.ArrayList
 
-@Volatile
 private var songQueue = Collections.synchronizedList(ArrayList<Track>())
+private var queueState = SongQueue.State.QUEUE_STOPPED
 
 class SongQueue(
     spotifyPlayer: String = "spotify",
@@ -18,13 +18,18 @@ class SongQueue(
         QUEUE_STOPPED
     }
 
-    @Volatile
-    var queueState = State.QUEUE_STOPPED
+    private fun setState(state: State) {
+        synchronized(queueState) {
+            queueState = state
+        }
+    }
+    fun getState() = synchronized(queueState) { queueState }
 
     private val trackPlayer = TrackPlayer(spotifyPlayer, this)
 
-    @Volatile
     private var currentTrack = Track(Album(), Artists(), Name(), Link(), Playability())
+    private fun setCurrent(track: Track) = synchronized(currentTrack) { currentTrack = track }
+    private fun getCurrent() = synchronized(currentTrack) { currentTrack }
 
     /**
      * Adds track to queue
@@ -79,7 +84,7 @@ class SongQueue(
     fun getQueue(): ArrayList<Track> = synchronized(songQueue) { songQueue }.toMutableList() as ArrayList<Track>
 
     fun nowPlaying(): Track {
-        return currentTrack
+        return getCurrent()
     }
 
     fun shuffleQueue() {
@@ -89,10 +94,10 @@ class SongQueue(
     }
 
     fun skipSong() {
-        when (queueState) {
+        when (getState()) {
             State.QUEUE_PLAYING, State.QUEUE_PAUSED -> {
                 trackPlayer.stopTrack()
-                currentTrack = Track()
+                setCurrent(Track())
                 playNext()
             }
             else -> {
@@ -103,7 +108,7 @@ class SongQueue(
 
     //starts playing song queue
     fun startQueue() {
-        if (queueState == State.QUEUE_STOPPED) {
+        if (getState() == State.QUEUE_STOPPED) {
             println("Starting queue.")
             playNext()
         } else {
@@ -121,8 +126,8 @@ class SongQueue(
 
     fun stopQueue() {
         trackPlayer.stopTrack()
-        currentTrack = Track()
-        queueState = State.QUEUE_STOPPED
+        setCurrent(Track())
+        setState(State.QUEUE_STOPPED)
     }
 
 
@@ -147,20 +152,20 @@ class SongQueue(
     }
 
     override fun onTrackPaused(player: String, track: Track) {
-        queueState = State.QUEUE_PAUSED
+        setState(State.QUEUE_PAUSED)
         println("Queue paused.")
         playStateListener.onTrackPaused(player, track)
     }
 
     override fun onTrackResumed(player: String, track: Track) {
-        queueState = State.QUEUE_PLAYING
+        setState(State.QUEUE_PLAYING)
         println("Queue resumed.")
         playStateListener.onTrackResumed(player, track)
     }
 
     override fun onTrackStarted(player: String, track: Track) {
-        queueState = State.QUEUE_PLAYING
-        currentTrack = track
+        setState(State.QUEUE_PLAYING)
+        setCurrent(track)
         synchronized(songQueue) {
             songQueue.remove(track)
         }
