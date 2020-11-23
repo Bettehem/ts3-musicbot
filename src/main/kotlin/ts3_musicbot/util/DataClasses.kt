@@ -263,10 +263,14 @@ data class Playlist(
     override fun toString(): String {
         return "Playlist Name: \t\t${name.name}\n" +
                 "Owner:       \t\t\t\t${owner.name}\n" +
-                "Description:\n${description.text}\n" +
-                "Followers: \t\t\t\t${followers.amount}\n" +
+                if (description.isNotEmpty()) {
+                    "Description:\n${description.text}\n"
+                } else {
+                    ""
+                } +
+                "Followers:\t\t\t\t${followers.amount}\n" +
                 "Is Public:   \t\t\t\t${publicity.isPublic}\n" +
-                "Is Collaborative: \t\t${collaboration.isCollaborative}\n" +
+                "Is Collaborative: \t${collaboration.isCollaborative}\n" +
                 "Link:    \t\t\t\t\t\t${link.link}"
     }
 

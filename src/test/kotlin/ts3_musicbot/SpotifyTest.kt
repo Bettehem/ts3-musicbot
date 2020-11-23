@@ -49,7 +49,7 @@ class SpotifyTest {
             val playlistTracks = spotify.getPlaylistTracks(playlistLink)
             assertEquals("Altered State", playlistTracks.trackList[2].album.name.name)
             assertEquals("TesseracT", playlistTracks.trackList[2].artists.artists[0].name.name)
-            assertEquals("Of Matter - Resist", playlistTracks.trackList[2].title.name)
+            assertEquals("Of Matter – Resist", playlistTracks.trackList[2].title.name)
         }
     }
 

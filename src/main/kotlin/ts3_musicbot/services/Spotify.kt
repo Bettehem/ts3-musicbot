@@ -162,12 +162,14 @@ class Spotify(private val market: String = "") {
                         } else {
                             "N/A"
                         }
+                        val trackAmount = listData.getJSONObject("tracks").getInt("total")
                         val listLink = listData.getJSONObject("external_urls").getString("spotify")
 
                         searchResult.appendln(
                             "" +
                                     "Playlist:  \t$listName\n" +
                                     "Owner:    \t$listOwner\n" +
+                                    "Tracks:   \t$trackAmount\n" +
                                     "Link:     \t\t$listLink\n"
                         )
                     }
@@ -378,11 +380,6 @@ class Spotify(private val market: String = "") {
                     )
                     listUrlBuilder.append("/tracks?limit=100")
                     listUrlBuilder.append("&offset=$listOffset")
-                    if (market.isNotEmpty())
-                        listUrlBuilder.append("&market=$market")
-                    else
-                        listUrlBuilder.append("&market=$defaultMarket")
-
                     val listUrl = URL(listUrlBuilder.toString())
                     return sendHttpRequest(
                         listUrl,
@@ -471,11 +468,12 @@ class Spotify(private val market: String = "") {
                                             item.getJSONObject("track").getJSONObject("external_urls")
                                                 .getString("spotify")
                                         )
-                                        val isPlayable = if (market.isNotEmpty()) {
-                                            item.getJSONObject("track").getBoolean("is_playable")
-                                        } else {
-                                            true
-                                        }
+                                        val availableMarkets =
+                                            item.getJSONObject("track").getJSONArray("available_markets")
+                                        val isPlayable = (
+                                                availableMarkets.contains(market) ||
+                                                        availableMarkets.contains(defaultMarket)
+                                                )
                                         trackItems.add(
                                             Track(
                                                 album,
@@ -862,7 +860,6 @@ class Spotify(private val market: String = "") {
                     .substringBefore("?si=")
                     .substringAfterLast("/")
             )
-            urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
                 RequestMethod("GET"),
@@ -930,11 +927,7 @@ class Spotify(private val market: String = "") {
                 )
             })
             val title = Name(trackData.getString("name"))
-            val isPlayable = if (market.isNotEmpty()) {
-                trackData.getBoolean("is_playable")
-            } else {
-                true
-            }
+            val isPlayable = trackData.getJSONArray("available_markets").contains(market)
             return Track(album, artists, title, trackLink, Playability(isPlayable))
         }
 

@@ -73,9 +73,9 @@ class ChatReader(
             CoroutineScope(IO).launch {
                 var currentLine = ""
                 while (shouldRead) {
-                    val lines = chatFile.readLines()
-                    if (currentLine != lines.last()) {
-                        currentLine = lines.last()
+                    val last = chatFile.readLines().last()
+                    if (last != currentLine) {
+                        currentLine = last
                         chatUpdated(currentLine)
                     }
                     delay(500)
@@ -113,6 +113,7 @@ class ChatReader(
                                 if (commandString.substringAfter("%help").contains("%?help".toRegex())) {
                                     //print normal help message
                                     printToChat(userName, helpMessages["%help"]?.split("\n".toRegex()), apikey)
+                                    commandJob.complete()
                                     return true
                                 } else {
                                     //get extra arguments
@@ -121,15 +122,19 @@ class ChatReader(
                                         args = "%$args"
 
                                     //check if command exists
-                                    if (commandList.any { it.contains(args.toRegex()) }) {
+                                    return if (commandList.any { it.contains(args.toRegex()) }) {
                                         //print help for command
                                         printToChat(userName, helpMessages[args]?.split("\n".toRegex()), apikey)
+                                        commandJob.complete()
+                                        true
                                     } else {
                                         printToChat(
                                             userName,
                                             listOf("Command doesn't exist! See %help for available commands."),
                                             apikey
                                         )
+                                        commandJob.complete()
+                                        false
                                     }
                                 }
                             }
@@ -491,9 +496,11 @@ class ChatReader(
                                 }
                                 return if (commandSuccessful) {
                                     printToChat(userName, listOf("Added tracks to queue."), apikey)
+                                    commandJob.complete()
                                     true
                                 } else {
                                     printToChat(userName, listOf("One or more tracks could not be added :/"), apikey)
+                                    commandJob.complete()
                                     false
                                 }
                             }
@@ -508,14 +515,19 @@ class ChatReader(
                                                 "Did you mean to type %queue-resume instead?"
                                             ), apikey
                                         )
+                                        commandJob.complete()
+                                        return false
                                     } else {
                                         printToChat(userName, listOf("Playing Queue."), apikey)
                                         songQueue.startQueue()
+                                        commandJob.complete()
+                                        return true
                                     }
                                 } else {
                                     printToChat(userName, listOf("Queue is empty!"), apikey)
+                                    commandJob.complete()
+                                    return false
                                 }
-                                return true
                             }
                             //%queue-list command
                             commandString.contains("^%queue-list(.+)?".toRegex()) -> {
@@ -555,9 +567,16 @@ class ChatReader(
                                                     strBuilder.append("${it.name}, ")
                                                 }
                                                 queueList.add(
-                                                    "${
-                                                        strBuilder.toString().substringBeforeLast(",")
-                                                    } - ${track.title} : ${track.link.link}"
+                                                    if (track.linkType == LinkType.YOUTUBE) {
+                                                        "${track.title} : ${track.link.link}"
+                                                    } else {
+                                                        "${
+                                                            strBuilder.toString().substringBeforeLast(",")
+                                                        } - ${track.title}" +
+                                                                " : ${track.link.link}"
+                                                    }
+
+
                                                 )
                                                 queue.removeAt(0)
                                             } else {
@@ -580,11 +599,13 @@ class ChatReader(
                                     queueList.toString(),
                                     TrackList(songQueue.getQueue())
                                 )
+                                commandJob.complete()
                                 return true
                             }
                             //%queue-clear command
                             commandString.contains("^%queue-clear$".toRegex()) -> {
                                 songQueue.clearQueue()
+                                commandJob.complete()
                                 return if (songQueue.getQueue().isEmpty()) {
                                     printToChat(userName, listOf("Cleared the queue."), apikey)
                                     commandListener.onCommandExecuted(commandString, "Cleared the queue.")
@@ -595,11 +616,13 @@ class ChatReader(
                             commandString.contains("^%queue-shuffle$".toRegex()) -> {
                                 songQueue.shuffleQueue()
                                 printToChat(userName, listOf("Shuffled the queue."), apikey)
+                                commandJob.complete()
                                 return true
                             }
                             //%queue-skip command
                             commandString.contains("^%queue-skip$".toRegex()) -> {
                                 songQueue.skipSong()
+                                commandJob.complete()
                                 return true
                             }
                             //%queue-voteskip command
@@ -702,6 +725,7 @@ class ChatReader(
                                             listOf("lol u think arrays start at 1?"),
                                             apikey
                                         )
+                                        commandJob.complete()
                                         return false
                                     }
 
@@ -711,11 +735,13 @@ class ChatReader(
                                             listOf("What were you thinking?", "You can't do that."),
                                             apikey
                                         )
+                                        commandJob.complete()
                                         return false
                                     }
 
                                     else -> {
                                         songQueue.moveTrack(Track(link = link), position)
+                                        commandJob.complete()
                                         return true
                                     }
                                 }
@@ -724,6 +750,7 @@ class ChatReader(
                             commandString.contains("^%queue-stop$".toRegex()) -> {
                                 songQueue.stopQueue()
                                 printToChat(userName, listOf("Stopped the queue."), apikey)
+                                commandJob.complete()
                                 return true
                             }
                             //%queue-status command
@@ -733,6 +760,7 @@ class ChatReader(
                                 } else {
                                     printToChat(userName, listOf("Queue Status: Not active"), apikey)
                                 }
+                                commandJob.complete()
                                 return true
                             }
                             //%queue-nowplaying command
@@ -745,11 +773,11 @@ class ChatReader(
                                         messageLines.add("Album Name:  \t${currentTrack.album.name}")
                                     if (currentTrack.album.link.link.isNotEmpty())
                                         messageLines.add("Album Link:  \t\t${currentTrack.album.link}")
-                                    if (currentTrack.link.link.contains("(youtube|youtu.be|soundcloud)".toRegex())) {
+                                    if (currentTrack.link.link.contains("(youtube|youtu.be|soundcloud)".toRegex()))
                                         messageLines.add("Upload Date:   \t${currentTrack.album.releaseDate.date}")
-                                    } else {
+                                    else
                                         messageLines.add("Release:     \t\t\t${currentTrack.album.releaseDate.date}")
-                                    }
+
                                     if (currentTrack.artists.artists.isNotEmpty()) {
                                         if (currentTrack.link.link.contains("soundcloud.com".toRegex()))
                                             messageLines.add("Uploader: \t\t\t${currentTrack.artists.artists[0].name}")
@@ -762,16 +790,19 @@ class ChatReader(
                                 } else {
                                     printToChat(userName, listOf("No song playing!"), apikey)
                                 }
+                                commandJob.complete()
                                 return true
                             }
                             //%queue-pause command
                             commandString.contains("^%queue-pause$".toRegex()) -> {
                                 songQueue.pausePlayback()
+                                commandJob.complete()
                                 return true
                             }
                             //%queue-resume command
                             commandString.contains("^%queue-resume$".toRegex()) -> {
                                 songQueue.resumePlayback()
+                                commandJob.complete()
                                 return true
                             }
 
@@ -779,21 +810,25 @@ class ChatReader(
                             //%sp-pause command
                             commandString.contains("^%sp-pause$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p $spotifyPlayer pause && sleep 1")
+                                commandJob.complete()
                                 return true
                             }
                             //%sp-resume & %sp-play command
                             commandString.contains("^%sp-(resume|play)$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p $spotifyPlayer play && sleep 1")
+                                commandJob.complete()
                                 return true
                             }
                             //%sp-skip & %sp-next command
                             commandString.contains("^%sp-(skip|next)$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p $spotifyPlayer next && sleep 1")
+                                commandJob.complete()
                                 return true
                             }
                             //%sp-prev command
                             commandString.contains("^%sp-prev$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p $spotifyPlayer previous && sleep 0.1 & playerctl -p $spotifyPlayer previous")
+                                commandJob.complete()
                                 return true
                             }
                             //%sp-playsong command
@@ -816,9 +851,11 @@ class ChatReader(
                                             }"
                                         )
                                     }
+                                    commandJob.complete()
                                     return true
                                 } else {
                                     printToChat(userName, listOf("Error! Please provide a song to play!"), apikey)
+                                    commandJob.complete()
                                     return false
                                 }
                             }
@@ -850,6 +887,7 @@ class ChatReader(
                                         }"
                                     )
                                 }
+                                commandJob.complete()
                                 return true
                             }
                             //%sp-playalbum command
@@ -868,6 +906,7 @@ class ChatReader(
                                         }"
                                     )
                                 }
+                                commandJob.complete()
                                 return true
                             }
                             //%sp-nowplaying command
@@ -913,6 +952,7 @@ class ChatReader(
                                     }
                                 }
                                 printToChat(userName, lines, apikey)
+                                commandJob.complete()
                                 return true
                             }
                             //%sp-search command
@@ -1018,7 +1058,7 @@ class ChatReader(
                                             }
 
                                             "playlist" -> {
-                                                if (lines.size <= 12) {
+                                                if (lines.size <= 13) {
                                                     lines.add(0, "Search results:")
                                                     printToChat(userName, lines, apikey)
                                                 } else {
@@ -1027,7 +1067,7 @@ class ChatReader(
                                                     printToChat(userName, resultLines, apikey)
                                                     resultLines.clear()
                                                     for (line in lines) {
-                                                        if (resultLines.size < 11) {
+                                                        if (resultLines.size < 12) {
                                                             resultLines.add(line)
                                                         } else {
                                                             resultLines.add(0, "")
@@ -1113,12 +1153,14 @@ class ChatReader(
                                                 }
                                             }
                                         }
+                                        commandJob.complete()
                                         return true
                                     }
                                     else -> {
                                         val lines = ArrayList<String>()
                                         lines.add("Error! \"${message.split(" ".toRegex())[1]}\" is not a valid search type! See %help sp-info for more information on this command.")
                                         printToChat(userName, lines, apikey)
+                                        commandJob.complete()
                                         return false
                                     }
                                 }
@@ -1133,6 +1175,7 @@ class ChatReader(
                                             userName, track.toString().lines(), apikey
                                         )
                                         commandListener.onCommandExecuted(commandString, track.toString(), track)
+                                        commandJob.complete()
                                         return true
                                     }
                                     link.link.contains("album".toRegex()) -> {
@@ -1150,6 +1193,7 @@ class ChatReader(
                                         }
                                         lines.add(0, "")
                                         printToChat(userName, lines, apikey)
+                                        commandJob.complete()
                                         return true
                                     }
                                     link.link.contains("playlist".toRegex()) -> {
@@ -1167,6 +1211,7 @@ class ChatReader(
                                         }
                                         lines.add(0, "")
                                         printToChat(userName, lines, apikey)
+                                        commandJob.complete()
                                         return true
                                     }
                                     link.link.contains("artist".toRegex()) -> {
@@ -1184,6 +1229,7 @@ class ChatReader(
                                         }
                                         lines.add(0, "")
                                         printToChat(userName, lines, apikey)
+                                        commandJob.complete()
                                         return true
                                     }
                                     link.link.contains("show".toRegex()) -> {
@@ -1200,6 +1246,7 @@ class ChatReader(
                                         }
                                         lines.add(0, "")
                                         printToChat(userName, lines, apikey)
+                                        commandJob.complete()
                                         return true
                                     }
                                     link.link.contains("episode".toRegex()) -> {
@@ -1216,6 +1263,7 @@ class ChatReader(
                                         }
                                         lines.add(0, "")
                                         printToChat(userName, lines, apikey)
+                                        commandJob.complete()
                                         return true
                                     }
                                     link.link.contains("user".toRegex()) -> {
@@ -1239,6 +1287,7 @@ class ChatReader(
                                             listOf("You have to provide a Spotify link or URI to a track!"),
                                             apikey
                                         )
+                                        commandJob.complete()
                                         return false
                                     }
                                 }
@@ -1248,21 +1297,25 @@ class ChatReader(
                             //%yt-pause command
                             commandString.contains("^%yt-pause$".toRegex()) -> {
                                 commandRunner.runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                                commandJob.complete()
                                 return true
                             }
                             //%yt-resume command
                             commandString.contains("^%yt-resume$".toRegex()) -> {
                                 commandRunner.runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                                commandJob.complete()
                                 return true
                             }
                             //%yt-play command
                             commandString.contains("^%yt-play$".toRegex()) -> {
                                 commandRunner.runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                                commandJob.complete()
                                 return true
                             }
                             //%yt-stop command
                             commandString.contains("^%yt-stop$".toRegex()) -> {
                                 commandRunner.runCommand("echo \"stop\" | socat - /tmp/mpvsocket")
+                                commandJob.complete()
                                 return true
                             }
                             //%yt-playsong command
@@ -1281,6 +1334,7 @@ class ChatReader(
                                         }.run()
                                     }.start()
                                 }
+                                commandJob.complete()
                                 return true
                             }
                             //%yt-nowplaying command
@@ -1292,6 +1346,7 @@ class ChatReader(
                                         "Link: $ytLink"
                                     ), apikey
                                 )
+                                commandJob.complete()
                                 return true
                             }
                             //%yt-search command
@@ -1329,6 +1384,7 @@ class ChatReader(
                                             }
                                             printToChat(userName, resultLines, apikey)
                                         }
+                                        commandJob.complete()
                                         return true
                                     }
                                     else -> {
@@ -1341,6 +1397,7 @@ class ChatReader(
                                                 "See %help for more info"
                                             ), apikey
                                         )
+                                        commandJob.complete()
                                         return false
                                     }
                                 }
@@ -1349,21 +1406,25 @@ class ChatReader(
                             //%sc-pause command
                             commandString.contains("^%sc-pause$".toRegex()) -> {
                                 commandRunner.runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                                commandJob.complete()
                                 return true
                             }
                             //%sc-resume command
                             commandString.contains("^%sc-resume$".toRegex()) -> {
                                 commandRunner.runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                                commandJob.complete()
                                 return true
                             }
                             //%sc-play command
                             commandString.contains("^%sc-play$".toRegex()) -> {
                                 commandRunner.runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                                commandJob.complete()
                                 return true
                             }
                             //%sc-stop command
                             commandString.contains("^%sc-stop$".toRegex()) -> {
                                 commandRunner.runCommand("echo \"stop\" | socat - /tmp/mpvsocket")
+                                commandJob.complete()
                                 return true
                             }
                             //%sc-playsong command
@@ -1383,9 +1444,12 @@ class ChatReader(
                                         }.run()
                                     }.start()
                                 }
+                                commandJob.complete()
                                 return true
                             }
                             else -> {
+                                commandJob.complete()
+                                return false
                             }
 
                         }
@@ -1396,6 +1460,7 @@ class ChatReader(
                                 //send a message to the chat
                                 message.contains("^%say(\\s+\\S+)+$".toRegex()) -> {
                                     printToChat("", message.substringAfter("%say ").lines(), apikey)
+                                    commandJob.complete()
                                     return true
                                 }
                             }
@@ -1403,10 +1468,12 @@ class ChatReader(
                             val lines = ArrayList<String>()
                             lines.add("Command not found! Try %help to see available commands.")
                             printToChat(userName, lines, apikey)
+                            commandJob.complete()
                             return false
                         }
                     }
 
+                    commandJob.complete()
                     return false
                 }
 
@@ -1439,6 +1506,8 @@ class ChatReader(
                         }
                     }
                 }
+
+                commandJob.join()
             }
         }
     }
