@@ -1,11 +1,8 @@
 package ts3_musicbot.services
 
-import kotlinx.coroutines.CompletableJob
+import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.Dispatchers.IO
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 import org.json.*
 import ts3_musicbot.util.*
 import java.net.HttpURLConnection
@@ -388,7 +385,7 @@ class Spotify(private val market: String = "") {
                     )
                 }
 
-                fun parseItems(items: JSONArray) {
+                suspend fun parseItems(items: JSONArray) {
                     for (item in items) {
                         item as JSONObject
                         try {
@@ -470,10 +467,14 @@ class Spotify(private val market: String = "") {
                                         )
                                         val availableMarkets =
                                             item.getJSONObject("track").getJSONArray("available_markets")
-                                        val isPlayable = (
+                                        val isPlayable = if (
                                                 availableMarkets.contains(market) ||
                                                         availableMarkets.contains(defaultMarket)
-                                                )
+                                                ) true else {
+                                                    if (availableMarkets.isEmpty){
+                                                        getTrack(link).playability.isPlayable
+                                                    } else false
+                                                }
                                         trackItems.add(
                                             Track(
                                                 album,
@@ -852,14 +853,16 @@ class Spotify(private val market: String = "") {
     }
 
     suspend fun getTrack(trackLink: Link): Track {
-        fun getTrackData(): Pair<ResponseCode, ResponseData> {
+        fun getTrackData(link: Link, spMarket: String = ""): Pair<ResponseCode, ResponseData> {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/tracks/")
             urlBuilder.append(
-                trackLink.link.substringAfterLast(":")
+                link.link.substringAfterLast(":")
                     .substringBefore("?si=")
                     .substringAfterLast("/")
             )
+            if (spMarket.isNotEmpty())
+                urlBuilder.append("?market=$spMarket")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
                 RequestMethod("GET"),
@@ -867,7 +870,7 @@ class Spotify(private val market: String = "") {
             )
         }
 
-        fun parseData(trackData: JSONObject): Track {
+        suspend fun parseData(trackData: JSONObject): Track {
             val albumName = if (trackData.getJSONObject("album").getString("album_type") == "single") {
                 Name("${trackData.getJSONObject("album").getString("name")} (Single)")
             } else {
@@ -927,7 +930,85 @@ class Spotify(private val market: String = "") {
                 )
             })
             val title = Name(trackData.getString("name"))
-            val isPlayable = trackData.getJSONArray("available_markets").contains(market)
+            val isPlayable = if (trackData.getJSONArray("available_markets").contains(market)) true else {
+                val trackJob = Job()
+                var playable: Boolean
+                withContext(IO + trackJob) {
+                    while (true) {
+                        val trackData2 = getTrackData(trackLink, if (market.isNotEmpty()) market else defaultMarket)
+                        when (trackData2.first.code) {
+                            HttpURLConnection.HTTP_OK -> {
+                                try {
+                                    val data = JSONObject(trackData2.second.data)
+                                    val id = data.getString("id")
+                                    if (id != trackLink.link.substringAfterLast(":")
+                                            .substringBefore("?si=")
+                                            .substringAfterLast("/")) {
+                                        while (true) {
+                                            val newLink = Link("https://open.spotify.com/track/$id")
+                                            val trackData3 = getTrackData(newLink)
+                                            when (trackData3.first.code) {
+                                                HttpURLConnection.HTTP_OK -> {
+                                                    try {
+                                                        val data2 = JSONObject(trackData3.second.data)
+                                                        playable = data2.getJSONArray("available_markets").contains(market)
+                                                        trackJob.complete()
+                                                        return@withContext
+                                                    } catch (e: JSONException) {
+                                                        //JSON broken, try getting the data again
+                                                        println("Failed JSON:\n${trackData2.second.data}\n")
+                                                        println("Failed to get data from JSON, trying again...")
+                                                    }
+                                                }
+                                                HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                                                    updateToken()
+                                                }
+                                                HttpURLConnection.HTTP_NOT_FOUND -> {
+                                                    println("Error 404! $trackLink not found!")
+                                                    playable = false
+                                                    trackJob.complete()
+                                                    return@withContext
+                                                }
+                                                HTTP_TOO_MANY_REQUESTS -> {
+                                                    println("Too many requests! Waiting for ${trackData3.second.data} seconds.")
+                                                    //wait for given time before next request.
+                                                    delay(trackData3.second.data.toLong() * 1000 + 500)
+                                                }
+                                                else -> println("HTTP ERROR! CODE: ${trackData3.first.code}")
+                                            }
+                                        }
+                                    }else {
+                                        playable = data.getBoolean("is_playable")
+                                    }
+                                    trackJob.complete()
+                                    return@withContext
+                                } catch (e: JSONException) {
+                                    //JSON broken, try getting the data again
+                                    println("Failed JSON:\n${trackData2.second.data}\n")
+                                    println("Failed to get data from JSON, trying again...")
+                                }
+                            }
+                            HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                                updateToken()
+                            }
+                            HttpURLConnection.HTTP_NOT_FOUND -> {
+                                println("Error 404! $trackLink not found!")
+                                playable = false
+                                trackJob.complete()
+                                return@withContext
+                            }
+                            HTTP_TOO_MANY_REQUESTS -> {
+                                println("Too many requests! Waiting for ${trackData2.second.data} seconds.")
+                                //wait for given time before next request.
+                                delay(trackData2.second.data.toLong() * 1000 + 500)
+                            }
+                            else -> println("HTTP ERROR! CODE: ${trackData2.first.code}")
+                        }
+                    }
+                }
+                trackJob.join()
+                playable
+            }
             return Track(album, artists, title, trackLink, Playability(isPlayable))
         }
 
@@ -935,13 +1016,14 @@ class Spotify(private val market: String = "") {
         val trackJob = Job()
         withContext(IO + trackJob) {
             while (true) {
-                val trackData = getTrackData()
+                val trackData = getTrackData(trackLink)
                 when (trackData.first.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
                             withContext(Default) {
                                 track = parseData(JSONObject(trackData.second.data))
                             }
+                            trackJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
@@ -955,6 +1037,7 @@ class Spotify(private val market: String = "") {
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $trackLink not found!")
                         track = Track()
+                        trackJob.complete()
                         return@withContext
                     }
                     HTTP_TOO_MANY_REQUESTS -> {
