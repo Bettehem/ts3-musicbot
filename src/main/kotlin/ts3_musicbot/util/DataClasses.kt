@@ -1,5 +1,6 @@
 package ts3_musicbot.util
 
+import ts3_musicbot.services.SoundCloud
 import java.time.LocalDate
 
 enum class LinkType {
@@ -17,12 +18,10 @@ data class Track(
     val playability: Playability = Playability(),
     val linkType: LinkType = link.linkType()
 ) {
-    override fun toString(): String {
-        return "$album\n" +
-                "Track Artists:\n$artists\n" +
-                "Title:      \t\t\t\t$title\n" +
-                "Link:       \t\t\t\t$link\n"
-    }
+    override fun toString() = "$album\n" +
+            "Track Artists:\n$artists\n" +
+            "Title:      \t\t\t\t$title\n" +
+            "Link:       \t\t\t\t$link\n"
 
     fun isEmpty() = album.isEmpty() && artists.isEmpty() && title.isEmpty() && link.isEmpty()
     fun isNotEmpty() = album.isNotEmpty() || artists.isNotEmpty() || title.isNotEmpty() || link.isNotEmpty()
@@ -35,74 +34,72 @@ data class Episode(
     val link: Link = Link(),
     val playability: Playability = Playability()
 ) {
-    fun toTrack(): Track {
-        return Track(
-            title = name,
-            link = link,
-            playability = playability
-        )
-    }
+    fun toTrack() = Track(
+        title = name,
+        link = link,
+        playability = playability
+    )
 
-    override fun toString(): String {
-        return "Episode Name: \t$name\n" +
-                "Release Date: \t\t${releaseDate.date}\n" +
-                "Description:\n$description\n" +
-                "Link:         \t\t$link"
-    }
+    override fun toString() = "Episode Name: \t$name\n" +
+            "Release Date: \t\t${releaseDate.date}\n" +
+            "Description:\n$description\n" +
+            "Link:         \t\t$link"
 
     fun isEmpty() = name.isEmpty() && description.isEmpty() && link.isEmpty()
     fun isNotEmpty() = name.isNotEmpty() || description.isNotEmpty() || link.isNotEmpty()
 }
 
 data class SearchType(val type: String) {
-    override fun toString(): String {
-        return type
-    }
+    override fun toString() = type
 
     fun isEmpty() = type.isEmpty()
     fun isNotEmpty() = type.isNotEmpty()
 }
 
 data class SearchQuery(val query: String) {
-    override fun toString(): String {
-        return query
-    }
+    override fun toString() = query
 
     fun isEmpty() = query.isEmpty()
     fun isNotEmpty() = query.isNotEmpty()
 }
 
 data class Name(val name: String = "") {
-    override fun toString(): String {
-        return name
-    }
+    override fun toString() = name
 
     fun isEmpty() = name.isEmpty()
     fun isNotEmpty() = name.isNotEmpty()
 }
 
 data class Link(val link: String = "") {
-    fun linkType(): LinkType {
-        return when {
-            link.contains("\\S+spotify\\S+".toRegex()) -> LinkType.SPOTIFY
-            link.contains("(\\S+youtube\\S+|\\S+youtu.be\\S+)".toRegex()) -> LinkType.YOUTUBE
-            link.contains("\\S+soundcloud\\S+".toRegex()) -> LinkType.SOUNDCLOUD
-            else -> LinkType.OTHER
-        }
+    fun linkType() = when {
+        link.contains("spotify") -> LinkType.SPOTIFY
+        link.contains("(\\S+youtube\\S+|\\S+youtu.be\\S+)".toRegex()) -> LinkType.YOUTUBE
+        link.contains("\\S+soundcloud\\S+".toRegex()) -> LinkType.SOUNDCLOUD
+        else -> LinkType.OTHER
     }
 
-    override fun toString(): String {
-        return link
+    fun getId() = when (linkType()) {
+        LinkType.SPOTIFY -> {
+            link.substringAfterLast(":").substringBefore("?si=")
+                .substringAfterLast("/")
+        }
+        LinkType.YOUTUBE -> {
+            link.substringAfterLast("/").substringAfter("?v=").substringBefore("&")
+        }
+        LinkType.SOUNDCLOUD -> {
+            SoundCloud().resolveId(Link(link))
+        }
+        LinkType.OTHER -> ""
     }
+
+    override fun toString() = link
 
     fun isEmpty() = link.isEmpty()
     fun isNotEmpty() = link.isNotEmpty()
 }
 
 data class Description(val text: String = "") {
-    override fun toString(): String {
-        return text
-    }
+    override fun toString() = text
 
     fun isEmpty() = text.isEmpty()
     fun isNotEmpty() = text.isNotEmpty()
@@ -155,15 +152,13 @@ data class TrackList(val trackList: List<Track> = emptyList()) {
 }
 
 data class EpisodeList(val episodes: List<Episode> = emptyList()) {
-    fun toTrackList(): TrackList {
-        return TrackList(episodes.map {
-            Track(
-                title = it.name,
-                link = it.link,
-                playability = it.playability
-            )
-        })
-    }
+    fun toTrackList() = TrackList(episodes.map {
+        Track(
+            title = it.name,
+            link = it.link,
+            playability = it.playability
+        )
+    })
 
     override fun toString(): String {
         val strBuilder = StringBuilder()
@@ -196,17 +191,15 @@ data class Artist(
     val name: Name, val link: Link, val topTracks: TrackList = TrackList(emptyList()),
     val relatedArtists: Artists = Artists(ArrayList()), val genres: Genres = Genres(emptyList())
 ) {
-    override fun toString(): String {
-        return "Artist:     \t\t\t\t$name\n" +
-                "Link:        \t\t\t\t$link\n" +
-                if (genres.genres.isNotEmpty()) "Genres:  \t\t\t\t$genres\n" else {
-                    ""
-                } +
-                if (topTracks.trackList.isNotEmpty()) "Top tracks:\n$topTracks\n" else {
-                    ""
-                } +
-                if (relatedArtists.artists.isNotEmpty()) "Related artists:\n$relatedArtists" else ""
-    }
+    override fun toString() = "Artist:     \t\t\t\t$name\n" +
+            "Link:        \t\t\t\t$link\n" +
+            if (genres.genres.isNotEmpty()) "Genres:  \t\t\t\t$genres\n" else {
+                ""
+            } +
+            if (topTracks.trackList.isNotEmpty()) "Top tracks:\n$topTracks\n" else {
+                ""
+            } +
+            if (relatedArtists.artists.isNotEmpty()) "Related artists:\n$relatedArtists" else ""
 }
 
 data class Album(
@@ -217,17 +210,15 @@ data class Album(
     val link: Link = Link(),
     val genres: Genres = Genres()
 ) {
-    override fun toString(): String {
-        return "Album Name:  \t${name.name}\n" +
-                when {
-                    link.link.contains("(youtube|youtu.be|soundcloud)".toRegex()) -> "Upload Date:  \t\t${releaseDate.date}\n"
-                    link.link.contains("spotify".toRegex()) -> "Release:    \t\t\t${releaseDate.date}\n"
-                    else -> ""
-                } +
-                "Album Link:  \t\t$link\n\n" +
-                "Album Artists:\n$artists\n" +
-                if (tracks.trackList.isNotEmpty()) "Tracks:\n$tracks" else ""
-    }
+    override fun toString() = "Album Name:  \t${name.name}\n" +
+            when {
+                link.link.contains("(youtube|youtu.be|soundcloud)".toRegex()) -> "Upload Date:  \t\t${releaseDate.date}\n"
+                link.link.contains("spotify".toRegex()) -> "Release:    \t\t\t${releaseDate.date}\n"
+                else -> ""
+            } +
+            "Album Link:  \t\t$link\n\n" +
+            "Album Artists:\n$artists\n" +
+            if (tracks.trackList.isNotEmpty()) "Tracks:\n$tracks" else ""
 
     fun isEmpty() = name.isEmpty() && artists.isEmpty() && tracks.isEmpty() && link.isEmpty() && genres.isEmpty()
     fun isNotEmpty() =
@@ -240,12 +231,10 @@ data class User(
     val followers: Followers,
     val link: Link
 ) {
-    override fun toString(): String {
-        return "Name:  \t\t\t\t${name.name}\n" +
-                "Username: \t\t${userName.name}\n" +
-                "Followers:  \t\t${followers.amount}\n" +
-                "Link:    \t\t\t\t${link.link}"
-    }
+    override fun toString() = "Name:  \t\t\t\t${name.name}\n" +
+            "Username: \t\t${userName.name}\n" +
+            "Followers:  \t\t${followers.amount}\n" +
+            "Link:    \t\t\t\t${link.link}"
 
     fun isEmpty() = name.isEmpty() && userName.isEmpty() && followers.isEmpty() && link.isEmpty()
     fun isNotEmpty() = name.isNotEmpty() || userName.isNotEmpty() || followers.isNotEmpty() || link.isNotEmpty()
@@ -260,19 +249,17 @@ data class Playlist(
     val collaboration: Collaboration,
     val link: Link
 ) {
-    override fun toString(): String {
-        return "Playlist Name: \t\t${name.name}\n" +
-                "Owner:       \t\t\t\t${owner.name}\n" +
-                if (description.isNotEmpty()) {
-                    "Description:\n${description.text}\n"
-                } else {
-                    ""
-                } +
-                "Followers:\t\t\t\t${followers.amount}\n" +
-                "Is Public:   \t\t\t\t${publicity.isPublic}\n" +
-                "Is Collaborative: \t${collaboration.isCollaborative}\n" +
-                "Link:    \t\t\t\t\t\t${link.link}"
-    }
+    override fun toString() = "Playlist Name: \t\t${name.name}\n" +
+            "Owner:       \t\t\t\t${owner.name}\n" +
+            if (description.isNotEmpty()) {
+                "Description:\n${description.text}\n"
+            } else {
+                ""
+            } +
+            "Followers:\t\t\t\t${followers.amount}\n" +
+            "Is Public:   \t\t\t\t${publicity.isPublic}\n" +
+            "Is Collaborative: \t${collaboration.isCollaborative}\n" +
+            "Link:    \t\t\t\t\t\t${link.link}"
 
     fun isEmpty() = name.isEmpty() && owner.isEmpty() && description.isEmpty() && followers.isEmpty() && link.isEmpty()
     fun isNotEmpty() =
@@ -286,22 +273,20 @@ data class Show(
     val episodes: EpisodeList,
     val link: Link
 ) {
-    override fun toString(): String {
-        return "Show Name:  \t\t\t\t$name\n" +
-                "Publisher:    \t\t\t\t\t${publisher.name}\n" +
-                "Description:\n$description\n\n" +
-                "This podcast has  ${episodes.episodes.size}  episodes.\n" +
-                "${if (episodes.episodes.size > 10) "First 10 " else ""} Episodes:\n" +
-                "${
-                    EpisodeList(
-                        episodes.episodes.subList(
-                            0,
-                            if (episodes.episodes.size > 10) 10 else episodes.episodes.size - 1
-                        )
+    override fun toString() = "Show Name:  \t\t\t\t$name\n" +
+            "Publisher:    \t\t\t\t\t${publisher.name}\n" +
+            "Description:\n$description\n\n" +
+            "This podcast has  ${episodes.episodes.size}  episodes.\n" +
+            "${if (episodes.episodes.size > 10) "First 10 " else ""} Episodes:\n" +
+            "${
+                EpisodeList(
+                    episodes.episodes.subList(
+                        0,
+                        if (episodes.episodes.size > 10) 10 else episodes.episodes.size - 1
                     )
-                }\n" +
-                "Show Link:       \t\t\t\t\t$link"
-    }
+                )
+            }\n" +
+            "Show Link:       \t\t\t\t\t$link"
 
     fun isEmpty() =
         name.isEmpty() && publisher.isEmpty() && description.isEmpty() && episodes.isEmpty() && link.isEmpty()

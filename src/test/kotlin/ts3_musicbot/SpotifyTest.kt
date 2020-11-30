@@ -2,15 +2,9 @@ package ts3_musicbot
 
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.runBlocking
-import ts3_musicbot.chat.ChatReader
-import ts3_musicbot.chat.ChatUpdate
-import ts3_musicbot.chat.ChatUpdateListener
-import ts3_musicbot.chat.CommandListener
 import ts3_musicbot.services.*
 import ts3_musicbot.util.Link
 import ts3_musicbot.util.Name
-import ts3_musicbot.util.Track
-import java.io.File
 import kotlin.test.*
 
 class SpotifyTest {
@@ -49,7 +43,10 @@ class SpotifyTest {
             val playlistTracks = spotify.getPlaylistTracks(playlistLink)
             assertEquals("Altered State", playlistTracks.trackList[2].album.name.name)
             assertEquals("TesseracT", playlistTracks.trackList[2].artists.artists[0].name.name)
-            assertEquals("Of Matter – Resist", playlistTracks.trackList[2].title.name)
+            assert(
+                playlistTracks.trackList[2].title.name.startsWith("Of Matter")
+                        && playlistTracks.trackList[2].title.name.endsWith("Resist")
+            )
         }
     }
 

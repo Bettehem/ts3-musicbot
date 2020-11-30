@@ -21,11 +21,11 @@ class Spotify(private val market: String = "") {
     suspend fun updateToken() {
         println("Updating Spotify access token...")
         withContext(IO) {
-            accessToken = getSpotifyToken()
+            accessToken = fetchSpotifyToken()
         }
     }
 
-    private suspend fun getSpotifyToken(): String {
+    private suspend fun fetchSpotifyToken(): String {
         fun getData(): Pair<ResponseCode, ResponseData> {
             val auth = "ZGUzZGFlNGUxZTE3NGRkNGFjYjY0YWYyMjcxMWEwYmI6ODk5OGQxMmJjZDBlNDAzM2E2Mzg2ZTg4Y2ZjZTk2NDg="
             return sendHttpRequest(
@@ -276,14 +276,9 @@ class Spotify(private val market: String = "") {
     }
 
     private fun getPlaylistData(playlistLink: Link): Pair<ResponseCode, ResponseData> {
-        //First get the playlist length
         val urlBuilder = StringBuilder()
         urlBuilder.append("$apiURL/playlists/")
-        urlBuilder.append(
-            playlistLink.link.substringAfterLast(":")
-                .substringBefore("?si=")
-                .substringAfterLast("/")
-        )
+        urlBuilder.append(playlistLink.getId())
         urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
         return sendHttpRequest(
             URL(urlBuilder.toString()),
@@ -370,11 +365,7 @@ class Spotify(private val market: String = "") {
                 fun getItemData(): Pair<ResponseCode, ResponseData> {
                     val listUrlBuilder = StringBuilder()
                     listUrlBuilder.append("https://api.spotify.com/v1/playlists/")
-                    listUrlBuilder.append(
-                        playlistLink.link.substringAfterLast(":")
-                            .substringBefore("?si=")
-                            .substringAfterLast("/")
-                    )
+                    listUrlBuilder.append(playlistLink.getId())
                     listUrlBuilder.append("/tracks?limit=100")
                     listUrlBuilder.append("&offset=$listOffset")
                     val listUrl = URL(listUrlBuilder.toString())
@@ -468,13 +459,13 @@ class Spotify(private val market: String = "") {
                                         val availableMarkets =
                                             item.getJSONObject("track").getJSONArray("available_markets")
                                         val isPlayable = if (
-                                                availableMarkets.contains(market) ||
-                                                        availableMarkets.contains(defaultMarket)
-                                                ) true else {
-                                                    if (availableMarkets.isEmpty){
-                                                        getTrack(link).playability.isPlayable
-                                                    } else false
-                                                }
+                                            availableMarkets.contains(market) ||
+                                            availableMarkets.contains(defaultMarket)
+                                        ) true else {
+                                            if (availableMarkets.isEmpty) {
+                                                getTrack(link).playability.isPlayable
+                                            } else false
+                                        }
                                         trackItems.add(
                                             Track(
                                                 album,
@@ -573,11 +564,7 @@ class Spotify(private val market: String = "") {
     private fun getAlbumData(albumLink: Link): Pair<ResponseCode, ResponseData> {
         val urlBuilder = StringBuilder()
         urlBuilder.append("$apiURL/albums/")
-        urlBuilder.append(
-            albumLink.link.substringAfterLast(":")
-                .substringBefore("?si=")
-                .substringAfterLast("/")
-        )
+        urlBuilder.append(albumLink.getId())
         urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
 
         return sendHttpRequest(
@@ -696,9 +683,7 @@ class Spotify(private val market: String = "") {
                 "day" -> {
                     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
                     ReleaseDate(
-                        LocalDate.parse(
-                            albumData.getString("release_date"), formatter
-                        )
+                        LocalDate.parse(albumData.getString("release_date"), formatter)
                     )
                 }
                 "month" -> {
@@ -706,9 +691,7 @@ class Spotify(private val market: String = "") {
                         .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
                         .toFormatter()
                     ReleaseDate(
-                        LocalDate.parse(
-                            albumData.getString("release_date"), formatter
-                        )
+                        LocalDate.parse(albumData.getString("release_date"), formatter)
                     )
                 }
                 else -> {
@@ -717,9 +700,7 @@ class Spotify(private val market: String = "") {
                         .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
                         .toFormatter()
                     ReleaseDate(
-                        LocalDate.parse(
-                            albumData.getString("release_date"), formatter
-                        )
+                        LocalDate.parse(albumData.getString("release_date"), formatter)
                     )
                 }
             }
@@ -741,11 +722,7 @@ class Spotify(private val market: String = "") {
                 fun getAlbumTrackData(): Pair<ResponseCode, ResponseData> {
                     val albumUrlBuilder = StringBuilder()
                     albumUrlBuilder.append("$apiURL/albums/")
-                    albumUrlBuilder.append(
-                        albumLink.link.substringAfterLast(":")
-                            .substringBefore("?si=")
-                            .substringAfterLast("/")
-                    )
+                    albumUrlBuilder.append(albumLink.getId())
                     albumUrlBuilder.append("/tracks?limit=20")
                     albumUrlBuilder.append("&offset=$listOffset")
                     if (market.isNotEmpty())
@@ -856,11 +833,7 @@ class Spotify(private val market: String = "") {
         fun getTrackData(link: Link, spMarket: String = ""): Pair<ResponseCode, ResponseData> {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/tracks/")
-            urlBuilder.append(
-                link.link.substringAfterLast(":")
-                    .substringBefore("?si=")
-                    .substringAfterLast("/")
-            )
+            urlBuilder.append(link.getId())
             if (spMarket.isNotEmpty())
                 urlBuilder.append("?market=$spMarket")
             return sendHttpRequest(
@@ -941,9 +914,7 @@ class Spotify(private val market: String = "") {
                                 try {
                                     val data = JSONObject(trackData2.second.data)
                                     val id = data.getString("id")
-                                    if (id != trackLink.link.substringAfterLast(":")
-                                            .substringBefore("?si=")
-                                            .substringAfterLast("/")) {
+                                    if (id != trackLink.getId()) {
                                         while (true) {
                                             val newLink = Link("https://open.spotify.com/track/$id")
                                             val trackData3 = getTrackData(newLink)
@@ -951,12 +922,13 @@ class Spotify(private val market: String = "") {
                                                 HttpURLConnection.HTTP_OK -> {
                                                     try {
                                                         val data2 = JSONObject(trackData3.second.data)
-                                                        playable = data2.getJSONArray("available_markets").contains(market)
+                                                        playable =
+                                                            data2.getJSONArray("available_markets").contains(market)
                                                         trackJob.complete()
                                                         return@withContext
                                                     } catch (e: JSONException) {
                                                         //JSON broken, try getting the data again
-                                                        println("Failed JSON:\n${trackData2.second.data}\n")
+                                                        println("Failed JSON:\n${trackData3.second.data}\n")
                                                         println("Failed to get data from JSON, trying again...")
                                                     }
                                                 }
@@ -977,7 +949,7 @@ class Spotify(private val market: String = "") {
                                                 else -> println("HTTP ERROR! CODE: ${trackData3.first.code}")
                                             }
                                         }
-                                    }else {
+                                    } else {
                                         playable = data.getBoolean("is_playable")
                                     }
                                     trackJob.complete()
@@ -1056,11 +1028,7 @@ class Spotify(private val market: String = "") {
         fun getArtistData(): Pair<ResponseCode, ResponseData> {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/artists/")
-            urlBuilder.append(
-                artistLink.link.substringAfterLast(":")
-                    .substringBefore("?si=")
-                    .substringAfterLast("/")
-            )
+            urlBuilder.append(artistLink.getId())
             urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
@@ -1072,11 +1040,7 @@ class Spotify(private val market: String = "") {
         fun getTopTracks(): Pair<ResponseCode, ResponseData> {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/artists/")
-            urlBuilder.append(
-                artistLink.link.substringAfterLast(":")
-                    .substringBefore("?si=")
-                    .substringAfterLast("/")
-            )
+            urlBuilder.append(artistLink.getId())
             urlBuilder.append("/top-tracks")
             urlBuilder.append("?country=${if (market.isNotEmpty()) market else defaultMarket}")
             return sendHttpRequest(
@@ -1089,11 +1053,7 @@ class Spotify(private val market: String = "") {
         fun getRelatedArtists(): Pair<ResponseCode, ResponseData> {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/artists/")
-            urlBuilder.append(
-                artistLink.link.substringAfterLast(":")
-                    .substringBefore("?si=")
-                    .substringAfterLast("/")
-            )
+            urlBuilder.append(artistLink.getId())
             urlBuilder.append("/related-artists")
             if (market.isNotEmpty())
                 urlBuilder.append("?country=$market")
@@ -1272,11 +1232,7 @@ class Spotify(private val market: String = "") {
         fun getUserData(): Pair<ResponseCode, ResponseData> {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/users/")
-            urlBuilder.append(
-                userLink.link.substringAfterLast(":")
-                    .substringBefore("?si=")
-                    .substringAfterLast("/")
-            )
+            urlBuilder.append(userLink.getId())
             urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
@@ -1338,11 +1294,7 @@ class Spotify(private val market: String = "") {
     private fun getShowData(showLink: Link): Pair<ResponseCode, ResponseData> {
         val urlBuilder = StringBuilder()
         urlBuilder.append("$apiURL/shows/")
-        urlBuilder.append(
-            showLink.link.substringAfterLast(":")
-                .substringBefore("?si=")
-                .substringAfterLast("/")
-        )
+        urlBuilder.append(showLink.getId())
         urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
         return sendHttpRequest(
             URL(urlBuilder.toString()),
@@ -1360,11 +1312,7 @@ class Spotify(private val market: String = "") {
             fun getEpisodesData(offset: Int = 0): Pair<ResponseCode, ResponseData> {
                 val urlBuilder = StringBuilder()
                 urlBuilder.append("$apiURL/shows/")
-                urlBuilder.append(
-                    showLink.link.substringAfterLast(":")
-                        .substringBefore("?si=")
-                        .substringAfterLast("/")
-                )
+                urlBuilder.append(showLink.getId())
                 urlBuilder.append("/episodes")
                 urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
                 urlBuilder.append("&limit=50")
@@ -1549,11 +1497,7 @@ class Spotify(private val market: String = "") {
         fun getEpisodeData(): Pair<ResponseCode, ResponseData> {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/episodes/")
-            urlBuilder.append(
-                episodeLink.link.substringAfterLast(":")
-                    .substringBefore("?si=")
-                    .substringAfterLast("/")
-            )
+            urlBuilder.append(episodeLink.getId())
             urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),

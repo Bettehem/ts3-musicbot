@@ -163,7 +163,7 @@ class SoundCloud {
      * @param link link to resolve
      * @return returns the corresponding id for the given link as a String
      */
-    private fun resolveId(link: Link): String {
+    fun resolveId(link: Link): String {
         fun getId(): Pair<ResponseCode, ResponseData> {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$api2URL/resolve?")

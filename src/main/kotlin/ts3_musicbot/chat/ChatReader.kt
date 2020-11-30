@@ -532,9 +532,23 @@ class ChatReader(
                             //%queue-list command
                             commandString.contains("^%queue-list(.+)?".toRegex()) -> {
                                 if (songQueue.getState() != SongQueue.State.QUEUE_STOPPED) {
+                                    val track = songQueue.nowPlaying()
+                                    val strBuilder = StringBuilder()
+                                    track.artists.artists.forEach {
+                                        strBuilder.append("${it.name}, ")
+                                    }
                                     printToChat(
                                         userName,
-                                        listOf("Currently playing:\n${songQueue.nowPlaying().link}"),
+                                        listOf(
+                                            if (track.linkType == LinkType.YOUTUBE) {
+                                                "Currently playing:\n${track.title} : ${track.link.link}"
+                                            } else {
+                                                "Currently playing:\n${
+                                                    strBuilder.toString().substringBeforeLast(",")
+                                                } - ${track.title}" +
+                                                        " : ${track.link.link}"
+                                            }
+                                        ),
                                         apikey
                                     )
                                 }
@@ -741,8 +755,14 @@ class ChatReader(
 
                                     else -> {
                                         songQueue.moveTrack(Track(link = link), position)
-                                        commandJob.complete()
-                                        return true
+                                    return if (songQueue.getQueue()[position].link == link){
+                                            commandListener.onCommandExecuted(commandString, "Moved track to new position.")
+                                            commandJob.complete()
+                                            true
+                                        } else {
+                                            commandJob.complete()
+                                            false
+                                        }
                                     }
                                 }
                             }
