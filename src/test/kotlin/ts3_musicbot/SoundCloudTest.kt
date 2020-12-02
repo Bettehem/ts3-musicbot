@@ -1,12 +1,36 @@
 package ts3_musicbot
 
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.runBlocking
 import ts3_musicbot.services.SoundCloud
 import ts3_musicbot.util.Link
+import ts3_musicbot.util.SearchQuery
+import ts3_musicbot.util.SearchType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class SoundCloudTest {
     private val soundCloud = SoundCloud()
+
+    @Test
+    fun testUpdatingId() {
+        val currentId = soundCloud.clientId
+        val newId = soundCloud.updateClientId()
+        assert(currentId == newId || newId.contains("^[a-zA-Z0-9]+$".toRegex()))
+    }
+
+    @Test
+    fun testSearchingTrack() {
+        runBlocking(IO) {
+            //SoundCloud link to track: i am leeya - something worth dreaming of (leeyas mashup)
+            val testLink = Link("https://soundcloud.com/iamleeya/something-worth-dreaming-of")
+            val result =
+                soundCloud.searchSoundCloud(SearchType("track"), SearchQuery("leeya something worth dreaming of"))
+                    .toString()
+            assert(result.contains("Track Link:    \t\t$testLink"))
+        }
+
+    }
 
     @Test
     fun testGettingTrack() {

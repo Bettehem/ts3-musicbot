@@ -68,14 +68,15 @@ class Spotify(private val market: String = "") {
         return token
     }
 
-    suspend fun searchSpotify(type: SearchType, searchQuery: SearchQuery): String {
-        val searchResult = StringBuilder()
+    suspend fun searchSpotify(type: SearchType, searchQuery: SearchQuery): SearchResults {
+        val searchResults = ArrayList<SearchResult>()
 
         fun searchData(): Pair<ResponseCode, ResponseData> {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/search?")
             urlBuilder.append("q=${URLEncoder.encode(searchQuery.query, Charsets.UTF_8.toString())}")
             urlBuilder.append("&type=${type.type}")
+            urlBuilder.append("&limit=10")
             if (market.isNotEmpty())
                 urlBuilder.append("&market=$market")
             return sendHttpRequest(
@@ -110,12 +111,13 @@ class Spotify(private val market: String = "") {
 
                         val songLink = trackData.getJSONObject("external_urls").getString("spotify")
 
-                        searchResult.appendln(
-                            "" +
-                                    "${artists.toString().substringBeforeLast(",")}\n" +
-                                    "Album:  \t$albumName\n" +
-                                    "Title:  \t\t$songName\n" +
-                                    "Link:   \t\t$songLink\n"
+                        searchResults.add(
+                            SearchResult(
+                                "${artists.toString().substringBeforeLast(",")}\n" +
+                                        "Album:  \t$albumName\n" +
+                                        "Title:  \t\t$songName\n" +
+                                        "Link:   \t\t$songLink\n"
+                            )
                         )
                     }
                 }
@@ -130,21 +132,20 @@ class Spotify(private val market: String = "") {
                             val artist = artistData as JSONObject
                             artists.append("${artist.getString("name")}, ")
                         }
-
-
-                        val albumName = if (album.getString("album_type") == "single") {
+                        val albumName = if (album.getString("album_type") == "single")
                             "${album.getString("name")} (Single)"
-                        } else {
+                        else
                             album.getString("name")
-                        }
+
 
                         val albumLink = album.getJSONObject("external_urls").getString("spotify")
 
-                        searchResult.appendln(
-                            "" +
-                                    "${artists.toString().substringBeforeLast(",")}\n" +
-                                    "Album:  \t$albumName\n" +
-                                    "Link:   \t\t$albumLink\n"
+                        searchResults.add(
+                            SearchResult(
+                                "${artists.toString().substringBeforeLast(",")}\n" +
+                                        "Album:  \t$albumName\n" +
+                                        "Link:   \t\t$albumLink\n"
+                            )
                         )
                     }
                 }
@@ -154,20 +155,21 @@ class Spotify(private val market: String = "") {
                         listData as JSONObject
 
                         val listName = listData.getString("name")
-                        val listOwner = if (listData.getJSONObject("owner").get("display_name") != null) {
+                        val listOwner = if (listData.getJSONObject("owner").get("display_name") != null)
                             listData.getJSONObject("owner").get("display_name")
-                        } else {
+                        else
                             "N/A"
-                        }
+
                         val trackAmount = listData.getJSONObject("tracks").getInt("total")
                         val listLink = listData.getJSONObject("external_urls").getString("spotify")
 
-                        searchResult.appendln(
-                            "" +
-                                    "Playlist:  \t$listName\n" +
-                                    "Owner:    \t$listOwner\n" +
-                                    "Tracks:   \t$trackAmount\n" +
-                                    "Link:     \t\t$listLink\n"
+                        searchResults.add(
+                            SearchResult(
+                                "Playlist:  \t$listName\n" +
+                                        "Owner:    \t$listOwner\n" +
+                                        "Tracks:   \t$trackAmount\n" +
+                                        "Link:     \t\t$listLink\n"
+                            )
                         )
                     }
                 }
@@ -183,12 +185,13 @@ class Spotify(private val market: String = "") {
                         genres = genres.substringBeforeLast(",")
                         val artistLink = artistData.getJSONObject("external_urls").getString("spotify")
 
-                        searchResult.appendln(
-                            "" +
-                                    "Artist:    \t\t\t$artistName\n" +
-                                    "Followers:  \t$followers\n" +
-                                    "Genres:    \t\t$genres\n" +
-                                    "Link:      \t\t\t$artistLink\n"
+                        searchResults.add(
+                            SearchResult(
+                                "Artist:    \t\t\t$artistName\n" +
+                                        "Followers:  \t$followers\n" +
+                                        "Genres:    \t\t$genres\n" +
+                                        "Link:      \t\t\t$artistLink\n"
+                            )
                         )
                     }
                 }
@@ -203,13 +206,14 @@ class Spotify(private val market: String = "") {
                         val description = showData.getString("description")
                         val showLink = showData.getJSONObject("external_urls").getString("spotify")
 
-                        searchResult.appendln(
-                            "" +
-                                    "Show:     \t\t$showName\n" +
-                                    "Publisher: \t$publisher\n" +
-                                    "Episodes:  \t$episodes\n" +
-                                    "Description:\n$description\n" +
-                                    "Link:      \t\t$showLink\n"
+                        searchResults.add(
+                            SearchResult(
+                                "Show:     \t\t$showName\n" +
+                                        "Publisher: \t$publisher\n" +
+                                        "Episodes:  \t$episodes\n" +
+                                        "Description:\n$description\n" +
+                                        "Link:      \t\t$showLink\n"
+                            )
                         )
                     }
                 }
@@ -222,18 +226,19 @@ class Spotify(private val market: String = "") {
                         val description = episodeData.getString("description")
                         val episodeLink = episodeData.getJSONObject("external_urls").getString("spotify")
 
-                        searchResult.appendln(
-                            "" +
-                                    "Episode Name: \t$episodeName\n" +
-                                    "Description:\n$description\n" +
-                                    "Link          \t\t\t\t$episodeLink\n"
+                        searchResults.add(
+                            SearchResult(
+                                "Episode Name: \t$episodeName\n" +
+                                        "Description:\n$description\n" +
+                                        "Link          \t\t\t\t$episodeLink\n"
+                            )
                         )
                     }
                 }
             }
         }
 
-        println("Searching for \"${searchQuery}\" on Spotify...")
+        println("Searching for \"$searchQuery\" on Spotify...")
         val searchJob = Job()
         withContext(IO + searchJob) {
             while (true) {
@@ -246,6 +251,7 @@ class Spotify(private val market: String = "") {
                             withContext(Default + searchJob) {
                                 parseResults(resultData)
                             }
+                            searchJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
@@ -258,6 +264,7 @@ class Spotify(private val market: String = "") {
 
                     HttpURLConnection.HTTP_BAD_REQUEST -> {
                         println("Error ${searchData.first.code}! Bad request!!")
+                        searchJob.complete()
                         return@withContext
                     }
 
@@ -272,7 +279,7 @@ class Spotify(private val market: String = "") {
                 }
             }
         }
-        return searchResult.toString().substringBeforeLast("\n")
+        return SearchResults(searchResults)
     }
 
     private fun getPlaylistData(playlistLink: Link): Pair<ResponseCode, ResponseData> {

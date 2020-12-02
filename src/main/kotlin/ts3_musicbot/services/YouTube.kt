@@ -16,7 +16,6 @@ class YouTube {
     private val apiUrl = "https://www.googleapis.com/youtube/v3"
     private val apiKey1 = "AIzaSyB_FpJTYVMuQ2I_DxaidXUd7z4Q-ScMv6Y"
     private val apiKey2 = "AIzaSyCQBDN5QIpKCub2nNMR7WJiZY7_LYiZImA"
-    private val commandRunner = CommandRunner()
 
     /**
      * Get the title of a YouTube video
@@ -305,7 +304,7 @@ class YouTube {
      * @param searchQuery search keywords
      * @return returns top 10 results from the search
      */
-    suspend fun searchYoutube(searchType: SearchType, searchQuery: SearchQuery): String {
+    suspend fun searchYoutube(searchType: SearchType, searchQuery: SearchQuery): SearchResults {
         fun searchData(apiKey: String = apiKey1): Pair<ResponseCode, ResponseData> {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiUrl/search?")
@@ -317,7 +316,7 @@ class YouTube {
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
 
-        val searchResult = StringBuilder()
+        val searchResults = ArrayList<SearchResult>()
         val searchJob = Job()
         var key = apiKey1
         withContext(IO + searchJob) {
@@ -338,9 +337,11 @@ class YouTube {
                                         val videoLink =
                                             "https://youtu.be/${resultData.getJSONObject("id").getString("videoId")}"
 
-                                        searchResult.appendln(
-                                            "Title:  $videoTitle\n" +
-                                                    "Link:   $videoLink\n"
+                                        searchResults.add(
+                                            SearchResult(
+                                                "Title:  $videoTitle\n" +
+                                                        "Link:   $videoLink\n"
+                                            )
                                         )
                                     }
                                 }
@@ -357,10 +358,12 @@ class YouTube {
                                                     .getString("playlistId")
                                             }"
 
-                                        searchResult.appendln(
-                                            "Playlist: $listTitle\n" +
-                                                    "Creator:    $listCreator\n" +
-                                                    "Link:     $listLink\n"
+                                        searchResults.add(
+                                            SearchResult(
+                                                "Playlist: $listTitle\n" +
+                                                        "Creator:    $listCreator\n" +
+                                                        "Link:     $listLink\n"
+                                            )
                                         )
                                     }
                                 }
@@ -389,7 +392,7 @@ class YouTube {
             }
         }
 
-        return searchResult.toString().substringBeforeLast("\n")
+        return SearchResults(searchResults)
     }
 }
 

@@ -42,7 +42,8 @@ object CommandList {
             "%sc-play",
             "%sc-stop",
             "%sc-playsong",
-            "%sc-nowplaying"
+            "%sc-nowplaying",
+            "%sc-search"
         )
 
     val helpMessages = mapOf(
@@ -96,7 +97,8 @@ object CommandList {
                     "%sc-play                     -Resumes the SoundCloud playback\n" +
                     "%sc-stop                     -Stops the SoundCloud playback\n" +
                     "%sc-playsong <link>          -Plays a SoundCloud song based on link\n" +
-                    "%sc-nowplaying               -Shows information on currently playing track\n"
+                    "%sc-nowplaying               -Shows information on currently playing track\n" +
+                    "%sc-search <type> <text>     -Search on SoundCloud. Shows 10 first results. <type> can be track or playlist\n"
         ),
         Pair(
             "%queue-add", "\n" +
@@ -353,6 +355,19 @@ object CommandList {
             "%sc-nowplaying", "\n" +
                     "Showing help for %sc-nowplaying command:\n" +
                     "%sc-playsong returns information on the currently playing SoundCloud track."
+        ),
+        Pair(
+            "%sc-search", "\n" +
+                    "Showing help for %sc-search command:\n" +
+                    "%sc-search can be used to search for tracks and playlists on SoundCloud.\n" +
+                    "When searching, you need to specify what type of search you are doing.\n" +
+                    "Available search types:\n" +
+                    "track    \t\tSearch for a SoundCloud track.\n" +
+                    "playlist    \tSearch for a SoundCloud playlist.\n" +
+                    "Example - Search on SoundCloud for a track with the name \"leeya - something worth dreaming of\":\n" +
+                    "%sc-search track leeya something worth dreaming of\n" +
+                    "Example 2 - Search on SoundCloud for a playlist with the name \"jeesjees\":\n" +
+                    "%sc-search playlist jeesjees"
         )
     )
 

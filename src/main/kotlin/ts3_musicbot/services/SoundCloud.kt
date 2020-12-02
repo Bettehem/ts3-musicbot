@@ -1,41 +1,158 @@
 package ts3_musicbot.services
 
+import kotlinx.coroutines.Dispatchers.Default
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
+import org.json.JSONException
 import org.json.JSONObject
 import ts3_musicbot.util.*
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class SoundCloud {
+    var clientId = "iJfdb4eX2yiDdAlPzFtDnd26wDofArGy"
     private val commandRunner = CommandRunner()
-    private var clientId = "iJfdb4eX2yiDdAlPzFtDnd26wDofArGy"
     private val api2URL = URL("https://api-v2.soundcloud.com")
     private val apiURL = URL("https://api.soundcloud.com")
 
     /**
      * Updates the clientId
+     * @return returns the new id
      */
-    private fun updateId() {
+    fun updateClientId(): String {
         println("Updating SoundCloud ClientId")
         val lines = commandRunner.runCommand(
             "curl https://soundcloud.com 2> /dev/null | grep -E \"<script crossorigin src=\\\"https:\\/\\/\\S*\\.js\\\"></script>\"",
             printOutput = false
-        ).split("\n")
+        ).first.outputText.lines()
         for (line in lines) {
             val url = line.substringAfter("\"").substringBefore("\"")
             val data = commandRunner.runCommand(
                 "curl $url 2> /dev/null | grep \"client_id=\"",
                 printOutput = false,
                 printErrors = false
-            )
+            ).first.outputText
             if (data.isNotEmpty()) {
                 val id = data.substringAfter("client_id=").substringBefore("&")
                 clientId = id
                 break
             }
         }
+        return clientId
+    }
+
+    suspend fun searchSoundCloud(searchType: SearchType, searchQuery: SearchQuery): SearchResults {
+        val searchResults = ArrayList<SearchResult>()
+        fun searchData(): Pair<ResponseCode, ResponseData> {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$api2URL/search/")
+            urlBuilder.append("${searchType}s?")
+            urlBuilder.append("q=${URLEncoder.encode(searchQuery.query, Charsets.UTF_8.toString())}")
+            urlBuilder.append("&limit=10")
+            urlBuilder.append("&client_id=$clientId")
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        }
+
+        fun parseResults(searchData: JSONObject) {
+            when (searchType.type) {
+                "track" -> {
+                    val tracks = searchData.getJSONArray("collection")
+                    for (trackData in tracks) {
+                        trackData as JSONObject
+
+                        val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
+                        val releaseDate = ReleaseDate(LocalDate.parse(trackData.getString("created_at"), formatter))
+                        val track = Track(
+                            Album(releaseDate = releaseDate),
+                            Artists(
+                                listOf(
+                                    Artist(
+                                        Name(trackData.getJSONObject("user").getString("username")),
+                                        Link(trackData.getJSONObject("user").getString("permalink_url"))
+                                    )
+                                )
+                            ),
+                            Name(trackData.getString("title")),
+                            Link(trackData.getString("permalink_url")),
+                            Playability(trackData.getBoolean("streamable"))
+                        )
+                        searchResults.add(
+                            SearchResult(
+                                "Upload Date:   \t${track.album.releaseDate.date}\n" +
+                                        "Uploader: \t\t\t${track.artists.toShortString()}\n" +
+                                        "Track Title:   \t\t${track.title}\n" +
+                                        "Track Link:    \t\t${track.link}\n"
+                            )
+                        )
+                    }
+                }
+                "playlist" -> {
+                    val playlists = searchData.getJSONArray("collection")
+                    for (playlistData in playlists) {
+                        playlistData as JSONObject
+
+                        val playlist = Playlist(
+                            Name(playlistData.getString("title")),
+                            User(
+                                Name(playlistData.getJSONObject("user").getString("username")),
+                                Name(playlistData.getJSONObject("user").getString("permalink")),
+                                Followers(playlistData.getJSONObject("user").getInt("followers_count")),
+                                Link(playlistData.getJSONObject("user").getString("permalink_url"))
+                            ),
+                            Description(if (!playlistData.isNull("description")) playlistData.getString("description") else ""),
+                            Followers(playlistData.getInt("likes_count")),
+                            Publicity(playlistData.getString("sharing") == "public"),
+                            Collaboration(false),
+                            Link(playlistData.getString("permalink_url"))
+                        )
+                        val trackAmount = playlistData.getInt("track_count")
+                        searchResults.add(
+                            SearchResult(
+                                "Playlist:   \t${playlist.name}\n" +
+                                        "Owner:    \t${playlist.owner.name}\n" +
+                                        "Tracks:    \t$trackAmount\n" +
+                                        "Link:     \t\t${playlist.link}\n"
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        println("Searching for \"$searchQuery\"")
+        val searchJob = Job()
+        withContext(IO + searchJob) {
+            while (true) {
+                val searchData = searchData()
+                when (searchData.first.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val resultData = JSONObject(searchData.second.data)
+                            withContext(Default + searchJob) {
+                                parseResults(resultData)
+                            }
+                            searchJob.complete()
+                            return@withContext
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${searchData.second.data}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
+                    }
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> updateClientId()
+                    else -> {
+                        println("Error: code ${searchData.first.code}")
+                    }
+                }
+            }
+        }
+
+        return SearchResults(searchResults)
     }
 
     /**
@@ -92,7 +209,7 @@ class SoundCloud {
                     }
                 }
                 HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                    updateId()
+                    updateClientId()
                 }
                 else -> {
                 }
@@ -122,13 +239,7 @@ class SoundCloud {
             val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
             val releaseDate = ReleaseDate(LocalDate.parse(response.getString("created_at"), formatter))
             Track(
-                Album(
-                    Name(""),
-                    Artists(emptyList()),
-                    releaseDate,
-                    TrackList(emptyList()),
-                    Link("")
-                ),
+                Album(releaseDate = releaseDate),
                 Artists(
                     listOf(
                         Artist(
@@ -182,7 +293,7 @@ class SoundCloud {
                     gettingData = false
                 }
                 HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                    updateId()
+                    updateClientId()
                 }
                 else -> {
                     println("Error: code ${idData.first.code}")

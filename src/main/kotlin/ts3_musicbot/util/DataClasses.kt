@@ -63,6 +63,21 @@ data class SearchQuery(val query: String) {
     fun isNotEmpty() = query.isNotEmpty()
 }
 
+data class SearchResult(val resultText: String) {
+    override fun toString() = resultText
+}
+
+data class SearchResults(val results: List<SearchResult>) {
+    override fun toString(): String {
+        val strBuilder = StringBuilder()
+        results.forEach { strBuilder.appendln(it) }
+        return strBuilder.toString()
+    }
+
+    fun isEmpty() = results.isEmpty()
+    fun isNotEmpty() = results.isNotEmpty()
+}
+
 data class Name(val name: String = "") {
     override fun toString() = name
 
@@ -124,6 +139,12 @@ data class Artists(val artists: List<Artist> = emptyList()) {
         val strBuilder = StringBuilder()
         artists.forEach { "${strBuilder.appendln(it)}" }
         return strBuilder.toString()
+    }
+
+    fun toShortString(): String {
+        val strBuilder = StringBuilder()
+        artists.forEach { strBuilder.append("${it.name}, ") }
+        return strBuilder.toString().substringBeforeLast(",")
     }
 
     fun isEmpty() = artists.isEmpty()

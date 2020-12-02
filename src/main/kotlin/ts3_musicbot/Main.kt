@@ -156,8 +156,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 }
 
                 if (configFile.isNotEmpty()) {
-                    val settings: BotSettings? = loadSettings(File(configFile))
-                    apiKey = settings?.apiKey!!
+                    val settings: BotSettings = loadSettings(File(configFile))
+                    apiKey = settings.apiKey
                     serverAddress = settings.serverAddress
                     serverPort = settings.serverPort
                     nickname = settings.nickname
@@ -198,7 +198,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     )
                     Thread.sleep(1000)
                     while (!commandRunner.runCommand("ps aux | grep ts3client | grep -v grep", printOutput = false)
-                            .contains("ts3client_linux".toRegex())
+                            .first.outputText.contains("ts3client_linux".toRegex())
                     ) {
                         //do nothing
                     }
@@ -211,7 +211,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 val virtualserver_name = commandRunner.runCommand(
                     "(echo auth apikey=$apiKey; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
                     printOutput = false
-                ).split("\n".toRegex())
+                ).first.outputText.lines()
                 var serverName = ""
                 for (line in virtualserver_name) {
                     if (line.contains("virtualserver_name") && line.contains("=")) {
@@ -389,7 +389,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 Thread.sleep(1000)
                 //wait for teamspeak to start
                 while (!commandRunner.runCommand("ps aux | grep ts3client | grep -v grep", printOutput = false)
-                        .contains("ts3client_linux".toRegex())
+                        .first.outputText.contains("ts3client_linux".toRegex())
                 ) {
                     //do nothing
                 }
@@ -410,7 +410,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 val virtualserverName = commandRunner.runCommand(
                     "(echo auth apikey=${settings.apiKey}; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
                     printOutput = false
-                ).split("\n".toRegex())
+                ).first.outputText.lines()
                 var serverName = ""
                 println("Getting server name...")
                 for (line in virtualserverName) {

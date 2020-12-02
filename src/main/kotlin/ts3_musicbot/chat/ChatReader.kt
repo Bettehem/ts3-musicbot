@@ -26,6 +26,7 @@ class ChatReader(
 
     private var shouldRead = false
     private var ytLink = Link("")
+    private var scLink = Link("")
     private val commandRunner = CommandRunner()
     private val spotify = Spotify(market)
     private val youTube = YouTube()
@@ -504,7 +505,6 @@ class ChatReader(
                                     false
                                 }
                             }
-
                             //%queue-play command
                             commandString.contains("^%queue-play$".toRegex()) -> {
                                 if (songQueue.getQueue().isNotEmpty()) {
@@ -647,7 +647,7 @@ class ChatReader(
                                 val tsChannelListData = commandRunner.runCommand(
                                     "(echo auth apikey=$apikey; echo \"channellist\"; echo quit) | nc localhost 25639",
                                     printOutput = false
-                                ).split("\n".toRegex())
+                                ).first.outputText.lines()
                                 for (line in tsChannelListData) {
                                     if (line.contains("cid=".toRegex())) {
                                         val channelDataList = line.split("\\|".toRegex())
@@ -669,7 +669,7 @@ class ChatReader(
                                     if (channel.first == channelName.substringAfterLast("/")) {
                                         val tsUserListData =
                                             commandRunner.runCommand("(echo auth apikey=$apikey; echo \"clientlist\"; echo quit) | nc localhost 25639")
-                                                .split("\n".toRegex())
+                                                .first.outputText.lines()
                                         for (line in tsUserListData) {
                                             if (line.contains("clid=".toRegex())) {
                                                 val clientDataList = line.split("\\|".toRegex())
@@ -755,8 +755,11 @@ class ChatReader(
 
                                     else -> {
                                         songQueue.moveTrack(Track(link = link), position)
-                                    return if (songQueue.getQueue()[position].link == link){
-                                            commandListener.onCommandExecuted(commandString, "Moved track to new position.")
+                                        return if (songQueue.getQueue()[position].link == link) {
+                                            commandListener.onCommandExecuted(
+                                                commandString,
+                                                "Moved track to new position."
+                                            )
                                             commandJob.complete()
                                             true
                                         } else {
@@ -793,13 +796,13 @@ class ChatReader(
                                         messageLines.add("Album Name:  \t${currentTrack.album.name}")
                                     if (currentTrack.album.link.link.isNotEmpty())
                                         messageLines.add("Album Link:  \t\t${currentTrack.album.link}")
-                                    if (currentTrack.link.link.contains("(youtube|youtu.be|soundcloud)".toRegex()))
+                                    if (currentTrack.link.link.contains("(youtube|youtu\\.be|soundcloud)".toRegex()))
                                         messageLines.add("Upload Date:   \t${currentTrack.album.releaseDate.date}")
                                     else
                                         messageLines.add("Release:     \t\t\t${currentTrack.album.releaseDate.date}")
 
                                     if (currentTrack.artists.artists.isNotEmpty()) {
-                                        if (currentTrack.link.link.contains("soundcloud.com".toRegex()))
+                                        if (currentTrack.link.link.contains("soundcloud\\.com".toRegex()))
                                             messageLines.add("Uploader: \t\t\t${currentTrack.artists.artists[0].name}")
                                         else
                                             messageLines.add("Artists:\n${currentTrack.artists}")
@@ -934,7 +937,7 @@ class ChatReader(
                                 val lines = ArrayList<String>()
                                 lines.add("Now playing on Spotify:")
                                 val nowPlaying = commandRunner.runCommand("playerctl -p $spotifyPlayer metadata")
-                                    .split("\n".toRegex())
+                                    .first.outputText.lines()
                                 for (line in nowPlaying) {
                                     when (line.substringAfter("xesam:").split("\\s+".toRegex())[0]) {
                                         "album" -> lines.add(
@@ -977,212 +980,41 @@ class ChatReader(
                             }
                             //%sp-search command
                             commandString.contains("^%sp-search\\s+".toRegex()) -> {
-                                when (message.split(" ".toRegex())[1].toLowerCase()) {
-                                    "track", "playlist", "album", "artist", "show", "episode" -> {
+                                val searchType =
+                                    SearchType(message.substringAfter("%sp-search ").split(" ".toRegex())[0])
+                                val searchQuery = SearchQuery(message.substringAfter("$searchType "))
 
-                                        val lines = ArrayList<String>()
-                                        lines.add("Searching, please wait...")
-                                        printToChat(userName, lines, apikey)
-                                        lines.clear()
-                                        val searchedLines = ArrayList<String>()
-                                        searchedLines.addAll(
-                                            spotify.searchSpotify(
-                                                SearchType(message.split(" ".toRegex())[1].toLowerCase()),
-                                                SearchQuery(
-                                                    message.substringAfter(message.split(" ".toRegex())[1] + " ")
-                                                        .replace("&owner=\\w+", "")
-                                                )
-                                            ).split("\n".toRegex())
-                                        )
-                                        for (line in searchedLines.indices) {
-                                            val msg = message.substringAfter(message.split(" ".toRegex())[1])
-                                            when {
-                                                msg.contains("&owner=")
-                                                        && searchedLines[line].replace(" ", "").toLowerCase()
-                                                    .contains(
-                                                        "Owner:${
-                                                            msg.substringAfter("&owner=")
-                                                                .substringBefore("&")
-                                                        }".toLowerCase().toRegex()
-                                                    ) -> {
-                                                    lines.addAll(
-                                                        listOf(
-                                                            searchedLines[line - 1],
-                                                            searchedLines[line],
-                                                            searchedLines[line + 1],
-                                                            searchedLines[line + 2]
-                                                        )
-                                                    )
-                                                }
-
-                                                !msg.contains("&owner=".toRegex()) -> lines.add(searchedLines[line])
-                                            }
-
-                                        }
-
-                                        if (lines.size == 1 && lines[0] == "") {
-                                            lines.add(
-                                                "No search results with \"${
-                                                    message.substringAfter(
-                                                        "${message.split(" ".toRegex())[1]} "
-                                                    )
-                                                }\"!"
+                                printToChat(userName, listOf("Searching, please wait..."), apikey)
+                                val results = spotify.searchSpotify(searchType, searchQuery)
+                                if (results.isNotEmpty()) {
+                                    val searchResults = ArrayList<SearchResult>()
+                                    for (result in results.results) {
+                                        if (searchResults.size < 3) {
+                                            searchResults.add(result)
+                                        } else {
+                                            printToChat(
+                                                userName, listOf(
+                                                    "",
+                                                    SearchResults(searchResults).toString()
+                                                ), apikey
                                             )
+                                            searchResults.clear()
                                         }
-
-                                        when (message.split(" ".toRegex())[1]) {
-                                            "track" -> {
-                                                if (lines.size <= 15) {
-                                                    lines.add(0, "Search results:")
-                                                    printToChat(userName, lines, apikey)
-                                                } else {
-                                                    val resultLines = ArrayList<String>()
-                                                    resultLines.add("Search results:")
-                                                    printToChat(userName, resultLines, apikey)
-                                                    resultLines.clear()
-                                                    for (line in lines) {
-                                                        if (resultLines.size < 14) {
-                                                            resultLines.add(line)
-                                                        } else {
-                                                            resultLines.add(0, "")
-                                                            printToChat(userName, resultLines, apikey)
-                                                            resultLines.clear()
-                                                        }
-                                                    }
-                                                    resultLines.add(0, "")
-                                                    printToChat(userName, resultLines, apikey)
-                                                }
-                                            }
-
-                                            "album" -> {
-                                                if (lines.size <= 12) {
-                                                    lines.add(0, "Search results:")
-                                                    printToChat(userName, lines, apikey)
-                                                } else {
-                                                    val resultLines = ArrayList<String>()
-                                                    resultLines.add("Search results:")
-                                                    printToChat(userName, resultLines, apikey)
-                                                    resultLines.clear()
-                                                    for (line in lines) {
-                                                        if (resultLines.size < 11) {
-                                                            resultLines.add(line)
-                                                        } else {
-                                                            resultLines.add(0, "")
-                                                            printToChat(userName, resultLines, apikey)
-                                                            resultLines.clear()
-                                                        }
-                                                    }
-                                                    resultLines.add(0, "")
-                                                    printToChat(userName, resultLines, apikey)
-                                                }
-                                            }
-
-                                            "playlist" -> {
-                                                if (lines.size <= 13) {
-                                                    lines.add(0, "Search results:")
-                                                    printToChat(userName, lines, apikey)
-                                                } else {
-                                                    val resultLines = ArrayList<String>()
-                                                    resultLines.add("Search results:")
-                                                    printToChat(userName, resultLines, apikey)
-                                                    resultLines.clear()
-                                                    for (line in lines) {
-                                                        if (resultLines.size < 12) {
-                                                            resultLines.add(line)
-                                                        } else {
-                                                            resultLines.add(0, "")
-                                                            printToChat(userName, resultLines, apikey)
-                                                            resultLines.clear()
-                                                        }
-
-                                                    }
-                                                    resultLines.add(0, "")
-                                                    printToChat(userName, resultLines, apikey)
-                                                }
-                                            }
-
-                                            "artist" -> {
-                                                if (lines.size <= 15) {
-                                                    lines.add(0, "Search results:")
-                                                    printToChat(userName, lines, apikey)
-                                                } else {
-                                                    val resultLines = ArrayList<String>()
-                                                    resultLines.add("Search results:")
-                                                    printToChat(userName, resultLines, apikey)
-                                                    resultLines.clear()
-                                                    for (line in lines) {
-                                                        if (resultLines.size < 14) {
-                                                            resultLines.add(line)
-                                                        } else {
-                                                            resultLines.add(0, "")
-                                                            printToChat(userName, resultLines, apikey)
-                                                            resultLines.clear()
-                                                        }
-
-                                                    }
-                                                    resultLines.add(0, "")
-                                                    printToChat(userName, resultLines, apikey)
-                                                }
-                                            }
-
-                                            "show" -> {
-                                                if (lines.size <= 16) {
-                                                    lines.add(0, "Search results:")
-                                                    printToChat(userName, lines, apikey)
-                                                } else {
-                                                    val resultLines = ArrayList<String>()
-                                                    resultLines.add("Search results:")
-                                                    printToChat(userName, resultLines, apikey)
-                                                    resultLines.clear()
-                                                    for (line in lines) {
-                                                        if (resultLines.size < 15) {
-                                                            resultLines.add(line)
-                                                        } else {
-                                                            resultLines.add(0, "")
-                                                            printToChat(userName, resultLines, apikey)
-                                                            resultLines.clear()
-                                                        }
-
-                                                    }
-                                                    resultLines.add(0, "")
-                                                    printToChat(userName, resultLines, apikey)
-                                                }
-                                            }
-
-                                            "episode" -> {
-                                                if (lines.size <= 12) {
-                                                    lines.add(0, "Search results:")
-                                                    printToChat(userName, lines, apikey)
-                                                } else {
-                                                    val resultLines = ArrayList<String>()
-                                                    resultLines.add("Search results:")
-                                                    printToChat(userName, resultLines, apikey)
-                                                    resultLines.clear()
-                                                    for (line in lines) {
-                                                        if (resultLines.size < 11) {
-                                                            resultLines.add(line)
-                                                        } else {
-                                                            resultLines.add(0, "")
-                                                            printToChat(userName, resultLines, apikey)
-                                                            resultLines.clear()
-                                                        }
-
-                                                    }
-                                                    resultLines.add(0, "")
-                                                    printToChat(userName, resultLines, apikey)
-                                                }
-                                            }
-                                        }
-                                        commandJob.complete()
-                                        return true
                                     }
-                                    else -> {
-                                        val lines = ArrayList<String>()
-                                        lines.add("Error! \"${message.split(" ".toRegex())[1]}\" is not a valid search type! See %help sp-info for more information on this command.")
-                                        printToChat(userName, lines, apikey)
-                                        commandJob.complete()
-                                        return false
-                                    }
+                                    printToChat(
+                                        userName, listOf(
+                                            "",
+                                            SearchResults(searchResults).toString()
+                                        ), apikey
+                                    )
+                                    commandListener.onCommandExecuted(commandString, results.toString(), results)
+                                    commandJob.complete()
+                                    return true
+                                } else {
+                                    printToChat(userName, listOf("No results found!"), apikey)
+                                    commandListener.onCommandExecuted(commandString, results.toString(), results)
+                                    commandJob.complete()
+                                    return false
                                 }
                             }
                             //%sp-info command
@@ -1346,7 +1178,10 @@ class ChatReader(
                                         Runnable {
                                             run {
                                                 commandRunner.runCommand(
-                                                    "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $ytLink",
+                                                    "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket" +
+                                                            "--ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0," +
+                                                            "cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" +
+                                                            " --ytdl \"$ytLink\"",
                                                     inheritIO = true,
                                                     ignoreOutput = true
                                                 )
@@ -1371,55 +1206,47 @@ class ChatReader(
                             }
                             //%yt-search command
                             commandString.contains("^%yt-search\\s+".toRegex()) -> {
-                                val searchType = message.substringAfter("%yt-search ").split(" ".toRegex())[0]
-                                val searchQuery = message.substringAfter("$searchType ")
+                                val searchType = SearchType(
+                                    message.substringAfter("%yt-search ")
+                                        .split(" ".toRegex())[0].replace("track", "video")
+                                )
+                                val searchQuery = SearchQuery(message.substringAfter("$searchType "))
 
-                                when (searchType) {
-                                    "video", "track", "playlist" -> {
-                                        printToChat(userName, listOf("Searching, please wait..."), apikey)
-                                        val results =
-                                            youTube.searchYoutube(
-                                                SearchType(searchType.replace("track", "video")),
-                                                SearchQuery(searchQuery)
+                                printToChat(userName, listOf("Searching, please wait..."), apikey)
+                                val results = youTube.searchYoutube(
+                                    searchType,
+                                    searchQuery
+                                )
+                                if (results.isNotEmpty()) {
+                                    printToChat(userName, listOf("YouTube search results:"), apikey)
+                                    val searchResults = ArrayList<SearchResult>()
+                                    for (result in results.results) {
+                                        if (searchResults.size < 5)
+                                            searchResults.add(result)
+                                        else {
+                                            printToChat(
+                                                userName, listOf(
+                                                    "",
+                                                    SearchResults(searchResults).toString()
+                                                ), apikey
                                             )
-                                        val lines = ArrayList<String>()
-                                        lines.addAll(results.split("\n".toRegex()))
-                                        if (lines.size <= 12) {
-                                            lines.add(0, "YouTube search results:")
-                                            printToChat(userName, lines, apikey)
-                                        } else {
-                                            val resultLines = ArrayList<String>()
-                                            resultLines.add("YouTube search results:")
-                                            printToChat(userName, resultLines, apikey)
-                                            resultLines.clear()
-                                            for (line in lines) {
-                                                if (resultLines.size < 11) {
-                                                    resultLines.add(line)
-                                                } else {
-                                                    resultLines.add(0, "")
-                                                    printToChat(userName, resultLines, apikey)
-                                                    resultLines.clear()
-                                                }
-
-                                            }
-                                            printToChat(userName, resultLines, apikey)
+                                            searchResults.clear()
                                         }
-                                        commandJob.complete()
-                                        return true
                                     }
-                                    else -> {
-                                        printToChat(
-                                            userName,
-                                            listOf(
-                                                "",
-                                                "$searchType is not a valid search type!",
-                                                "Accepted values are: track, video, playlist",
-                                                "See %help for more info"
-                                            ), apikey
-                                        )
-                                        commandJob.complete()
-                                        return false
-                                    }
+                                    printToChat(
+                                        userName, listOf(
+                                            "",
+                                            SearchResults(searchResults).toString()
+                                        ), apikey
+                                    )
+                                    commandListener.onCommandExecuted(commandString, results.toString(), results)
+                                    commandJob.complete()
+                                    return true
+                                } else {
+                                    printToChat(userName, listOf("No results found!"), apikey)
+                                    commandListener.onCommandExecuted(commandString, results.toString(), results)
+                                    commandJob.complete()
+                                    return false
                                 }
                             }
 
@@ -1449,14 +1276,13 @@ class ChatReader(
                             }
                             //%sc-playsong command
                             commandString.contains("^%sc-playsong\\s+".toRegex()) -> {
-                                val scLink = parseLink(Link(message))
-                                //Runtime.getRuntime().exec(arrayOf("sh", "-c", "youtube-dl -o - \"$scLink\" | mpv --no-terminal --no-video --input-ipc-server=/tmp/mpvsocket - &"))
+                                scLink = parseLink(Link(message))
                                 if (scLink.link.isNotEmpty()) {
                                     Thread {
                                         Runnable {
                                             run {
                                                 commandRunner.runCommand(
-                                                    "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl $scLink",
+                                                    "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl \"$scLink\"",
                                                     inheritIO = true,
                                                     ignoreOutput = true
                                                 )
@@ -1466,6 +1292,58 @@ class ChatReader(
                                 }
                                 commandJob.complete()
                                 return true
+                            }
+                            //%sc-nowplaying command
+                            commandString.contains("^%sc-nowplaying$".toRegex()) -> {
+                                printToChat(
+                                    userName, listOf(
+                                        "Now playing on SoundCloud:",
+                                        "${soundCloud.getTrack(scLink).title}",
+                                        "Link: $scLink"
+                                    ), apikey
+                                )
+                                commandJob.complete()
+                                return true
+                            }
+                            //%sc-search command
+                            commandString.contains("^%sc-search\\s+".toRegex()) -> {
+                                val searchType =
+                                    SearchType(message.substringAfter("%sc-search ").split(" ".toRegex())[0])
+                                val searchQuery = SearchQuery(message.substringAfter("$searchType "))
+
+                                printToChat(userName, listOf("Searching, please wait..."), apikey)
+                                val results = soundCloud.searchSoundCloud(searchType, searchQuery)
+                                if (results.isNotEmpty()) {
+                                    printToChat(userName, listOf("SoundCloud search results:"), apikey)
+                                    val searchResults = ArrayList<SearchResult>()
+                                    for (result in results.results) {
+                                        if (searchResults.size < 3)
+                                            searchResults.add(result)
+                                        else {
+                                            printToChat(
+                                                userName, listOf(
+                                                    "",
+                                                    SearchResults(searchResults).toString()
+                                                ), apikey
+                                            )
+                                            searchResults.clear()
+                                        }
+                                    }
+                                    printToChat(
+                                        userName, listOf(
+                                            "",
+                                            SearchResults(searchResults).toString()
+                                        ), apikey
+                                    )
+                                    commandListener.onCommandExecuted(commandString, results.toString(), results)
+                                    commandJob.complete()
+                                    return true
+                                } else {
+                                    printToChat(userName, listOf("No results found!"), apikey)
+                                    commandListener.onCommandExecuted(commandString, results.toString(), results)
+                                    commandJob.complete()
+                                    return false
+                                }
                             }
                             else -> {
                                 commandJob.complete()
@@ -1540,7 +1418,7 @@ class ChatReader(
             if (apikey.isNotEmpty()) {
                 val stringBuilder = StringBuilder()
                 messageLines?.forEach { stringBuilder.appendln(it) }
-                val distro = commandRunner.runCommand("cat /etc/issue", printOutput = false)
+                val distro = commandRunner.runCommand("cat /etc/issue", printOutput = false).first.outputText
                 val command = when {
                     distro.contains("Ubuntu".toRegex()) -> {
                         "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${
