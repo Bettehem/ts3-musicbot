@@ -141,7 +141,7 @@ class ChatReader(
                             }
 
                             //%queue-add and %queue-playnext command
-                            commandString.contains("^%queue-(add|playnext)(\\s+-(s|(p\\s+[0-9]+)))*(\\s*(\\[URL])?((spotify:(user:\\S+:)?(track|album|playlist|show|episode):\\S+)|(https?://\\S+))(\\[/URL])?\\s*,?\\s*)+(\\s+-(s|(p\\s+[0-9]+)))*\$".toRegex()) -> {
+                            commandString.contains("^%queue-(add|playnext)(\\s+-(s|(p\\s+[0-9]+)))*(\\s*(\\[URL])?((spotify:(user:\\S+:)?(track|album|playlist|show|episode|artist):\\S+)|(https?://\\S+))(\\[/URL])?\\s*,?\\s*)+(\\s+-(s|(p\\s+[0-9]+)))*\$".toRegex()) -> {
                                 var commandSuccessful = false
                                 val shouldPlayNext = commandString.contains("^%queue-playnext".toRegex())
                                 var shouldShuffle = false
@@ -169,7 +169,7 @@ class ChatReader(
                                             }
                                         }
 
-                                        args[i].contains("((\\[URL])?(https?://(open\\.spotify\\.com|soundcloud\\.com|youtu\\.be|(m|www)\\.youtube\\.com))(\\[/URL])?.+)|(spotify:(track|album|playlist|show|episode):.+)".toRegex()) -> {
+                                        args[i].contains("((\\[URL])?(https?://(open\\.spotify\\.com|soundcloud\\.com|youtu\\.be|(m|www)\\.youtube\\.com))(\\[/URL])?.+)|(spotify:(track|album|playlist|show|episode|artist):.+)".toRegex()) -> {
                                             //add links to ArrayList
                                             if (args[i].contains(",\\s*".toRegex()))
                                                 links.addAll(args[i].split(",\\s*".toRegex()).map { Link(it) })
@@ -181,9 +181,9 @@ class ChatReader(
                                 if (shouldPlayNext || hasCustomPosition)
                                     links.reverse()
 
-                                println("Getting tracks...")
+                                println("Fetching data...")
                                 println("Total number of links: ${links.size}")
-                                printToChat(userName, listOf("Please wait, getting tracks..."), apikey)
+                                printToChat(userName, listOf("Please wait, fetching data..."), apikey)
                                 //add links to queue
                                 for (link in links) {
                                     when {
@@ -508,7 +508,7 @@ class ChatReader(
                             //%queue-play command
                             commandString.contains("^%queue-play$".toRegex()) -> {
                                 if (songQueue.getQueue().isNotEmpty()) {
-                                    if (songQueue.getState() != SongQueue.State.QUEUE_STOPPED) {
+                                    return if (songQueue.getState() != SongQueue.State.QUEUE_STOPPED) {
                                         printToChat(
                                             userName, listOf(
                                                 "Queue is already active!",
@@ -516,12 +516,12 @@ class ChatReader(
                                             ), apikey
                                         )
                                         commandJob.complete()
-                                        return false
+                                        false
                                     } else {
                                         printToChat(userName, listOf("Playing Queue."), apikey)
                                         songQueue.startQueue()
                                         commandJob.complete()
-                                        return true
+                                        true
                                     }
                                 } else {
                                     printToChat(userName, listOf("Queue is empty!"), apikey)
