@@ -25,7 +25,7 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
     private val spotifyLink = Link("https://open.spotify.com/track/19gtYiBXEhSyTCOe1GyKDB")
     private val spotifyAlbumLink =
         Link("https://open.spotify.com/album/1syoohGc0fQAoJWy57XZUF?si=ATPp0MnORemSb2BPgar5EA")
-    private val spotifyPlaylistLink = Link("https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt")
+    private val spotifyPlaylistLink = Link("https://open.spotify.com/user/bettehem/playlist/1V28nRUSl217OYNiXBJXHE")
     private val youTubeLink = Link("https://youtu.be/IKZnGWxJN3I")
     private val youTubePlaylistLink = Link("https://www.youtube.com/playlist?list=PLVzaRVhV8Ebb5m6IIEpOJeOIBMKk4AVwm")
     private val soundCloudLink = Link("https://soundcloud.com/iamleeya/something-worth-dreaming-of")
