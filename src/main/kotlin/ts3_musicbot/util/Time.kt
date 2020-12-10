@@ -14,8 +14,7 @@ package ts3_musicbot.util
     along with this program.  If not, see http://www.gnu.org/licenses/.
  */
 
-import java.util.Calendar
-import java.util.Date
+import java.util.*
 
 class Time : Comparable<Time> {
     private lateinit var year: String

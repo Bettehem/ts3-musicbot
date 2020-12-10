@@ -4,7 +4,9 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Dispatchers.Main
-import ts3_musicbot.services.*
+import ts3_musicbot.services.SoundCloud
+import ts3_musicbot.services.Spotify
+import ts3_musicbot.services.YouTube
 import ts3_musicbot.util.*
 import ts3_musicbot.util.CommandList.commandList
 import ts3_musicbot.util.CommandList.helpMessages
@@ -1417,7 +1419,7 @@ class ChatReader(
         } else {
             if (apikey.isNotEmpty()) {
                 val stringBuilder = StringBuilder()
-                messageLines?.forEach { stringBuilder.appendln(it) }
+                messageLines?.forEach { stringBuilder.appendLine(it) }
                 val distro = commandRunner.runCommand("cat /etc/issue", printOutput = false).first.outputText
                 val command = when {
                     distro.contains("Ubuntu".toRegex()) -> {

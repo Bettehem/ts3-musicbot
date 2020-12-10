@@ -341,6 +341,7 @@ class Spotify(private val market: String = "") {
                             User(
                                 Name(),
                                 Name(),
+                                Description(),
                                 Followers(),
                                 Link()
                             ),
@@ -1252,6 +1253,7 @@ class Spotify(private val market: String = "") {
             return User(
                 Name(userData.getString("display_name")),
                 Name(userData.getString("id")),
+                Description(),
                 Followers(userData.getJSONObject("followers").getInt("total")),
                 Link(userData.getJSONObject("external_urls").getString("spotify"))
             )
@@ -1282,6 +1284,7 @@ class Spotify(private val market: String = "") {
                         user = User(
                             Name(),
                             Name(),
+                            Description(),
                             Followers(),
                             Link()
                         )

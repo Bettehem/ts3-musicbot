@@ -21,7 +21,7 @@ while true; do
     echo "Waiting for changes in project..."
     inotifywait -q -e modify,create,delete,move -r "$(pwd)"
         if ./gradlew assemble; then
-            echo "Building succesful. Pushing file to remote..."
+            echo "Building successful. Pushing file to remote..."
             if scp -P $SCP_PORT "$JAR_FILE" "$HOST_ADDR"; then
                 echo "File pushed."
             else

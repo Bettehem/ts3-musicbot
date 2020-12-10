@@ -2,10 +2,11 @@ package ts3_musicbot
 
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.runBlocking
-import ts3_musicbot.services.*
+import ts3_musicbot.services.Spotify
 import ts3_musicbot.util.Link
 import ts3_musicbot.util.Name
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class SpotifyTest {
     //Set to your own country

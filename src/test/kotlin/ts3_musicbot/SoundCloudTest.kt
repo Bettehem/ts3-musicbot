@@ -33,6 +33,15 @@ class SoundCloudTest {
     }
 
     @Test
+    fun testSearchingPlaylist() {
+        runBlocking(IO) {
+            val testLink = Link("https://soundcloud.com/bettehem/sets/jeesjees")
+            val result = soundCloud.searchSoundCloud(SearchType("playlist"), SearchQuery("jeesjees")).toString()
+            assert(result.contains("Link:     \t\t$testLink"))
+        }
+    }
+
+    @Test
     fun testGettingTrack() {
         //SoundCloud link to track: i am leeya - something worth dreaming of (leeyas mashup)
         val testLink = Link("https://soundcloud.com/iamleeya/something-worth-dreaming-of")

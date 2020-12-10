@@ -70,7 +70,7 @@ data class SearchResult(val resultText: String) {
 data class SearchResults(val results: List<SearchResult>) {
     override fun toString(): String {
         val strBuilder = StringBuilder()
-        results.forEach { strBuilder.appendln(it) }
+        results.forEach { strBuilder.appendLine(it) }
         return strBuilder.toString()
     }
 
@@ -137,7 +137,7 @@ data class Publisher(val name: Name = Name()) {
 data class Artists(val artists: List<Artist> = emptyList()) {
     override fun toString(): String {
         val strBuilder = StringBuilder()
-        artists.forEach { "${strBuilder.appendln(it)}" }
+        artists.forEach { "${strBuilder.appendLine(it)}" }
         return strBuilder.toString()
     }
 
@@ -161,7 +161,7 @@ data class TrackList(val trackList: List<Track> = emptyList()) {
                 }
                 if (it.artists.artists.isNotEmpty()) {
                     strBuilder.delete(strBuilder.length - 2, strBuilder.length - 1)
-                    strBuilder.appendln(" - ${it.title} : ${it.link}")
+                    strBuilder.appendLine(" - ${it.title} : ${it.link}")
                 }
             }
         }
@@ -185,7 +185,7 @@ data class EpisodeList(val episodes: List<Episode> = emptyList()) {
         val strBuilder = StringBuilder()
         if (episodes.isNotEmpty()) {
             episodes.forEach {
-                strBuilder.appendln("Episode Name: ${it.name} : ${it.link}")
+                strBuilder.appendLine("Episode Name: ${it.name} : ${it.link}")
             }
         }
         return strBuilder.toString()
@@ -249,12 +249,18 @@ data class Album(
 data class User(
     val name: Name,
     val userName: Name,
+    val description: Description,
     val followers: Followers,
     val link: Link
 ) {
     override fun toString() = "Name:  \t\t\t\t${name.name}\n" +
             "Username: \t\t${userName.name}\n" +
-            "Followers:  \t\t${followers.amount}\n" +
+            if (description.isNotEmpty()) {
+                "Description:\n$description\n"
+            } else {
+                ""
+            } +
+            "Followers: \t\t${followers.amount}\n" +
             "Link:    \t\t\t\t${link.link}"
 
     fun isEmpty() = name.isEmpty() && userName.isEmpty() && followers.isEmpty() && link.isEmpty()

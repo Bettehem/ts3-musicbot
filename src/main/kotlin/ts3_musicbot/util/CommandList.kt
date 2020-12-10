@@ -359,15 +359,18 @@ object CommandList {
         Pair(
             "%sc-search", "\n" +
                     "Showing help for %sc-search command:\n" +
-                    "%sc-search can be used to search for tracks and playlists on SoundCloud.\n" +
+                    "%sc-search can be used to search for tracks, playlists and users on SoundCloud.\n" +
                     "When searching, you need to specify what type of search you are doing.\n" +
                     "Available search types:\n" +
                     "track    \t\tSearch for a SoundCloud track.\n" +
                     "playlist    \tSearch for a SoundCloud playlist.\n" +
+                    "user     \t\tSearch for a SoundCloud user.\n" +
                     "Example - Search on SoundCloud for a track with the name \"leeya - something worth dreaming of\":\n" +
                     "%sc-search track leeya something worth dreaming of\n" +
                     "Example 2 - Search on SoundCloud for a playlist with the name \"jeesjees\":\n" +
-                    "%sc-search playlist jeesjees"
+                    "%sc-search playlist jeesjees\n" +
+                    "Example 3 - Search on SoundCloud for a user with the name \"bettehem\":\n" +
+                    "%sc-search user bettehem"
         )
     )
 

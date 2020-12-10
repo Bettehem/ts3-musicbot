@@ -5,8 +5,8 @@ import javafx.event.ActionEvent
 import javafx.event.EventHandler
 import javafx.scene.Scene
 import javafx.scene.control.*
-import javafx.scene.layout.VBox
 import javafx.scene.layout.Priority
+import javafx.scene.layout.VBox
 import javafx.stage.FileChooser
 import javafx.stage.Stage
 import ts3_musicbot.chat.ChatReader
@@ -14,13 +14,12 @@ import ts3_musicbot.chat.ChatUpdate
 import ts3_musicbot.chat.ChatUpdateListener
 import ts3_musicbot.chat.CommandListener
 import ts3_musicbot.util.BotSettings
-import ts3_musicbot.util.CommandRunner
 import ts3_musicbot.util.CommandList.commandList
+import ts3_musicbot.util.CommandRunner
 import ts3_musicbot.util.Console
 import ts3_musicbot.util.ConsoleUpdateListener
 import java.io.File
 import java.io.PrintWriter
-import java.lang.Exception
 import kotlin.system.exitProcess
 
 var inputFilePath = ""
@@ -208,12 +207,12 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 }
                 Thread.sleep(5000)
                 //get the server's name
-                val virtualserver_name = commandRunner.runCommand(
+                val virtualserverName = commandRunner.runCommand(
                     "(echo auth apikey=$apiKey; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
                     printOutput = false
                 ).first.outputText.lines()
                 var serverName = ""
-                for (line in virtualserver_name) {
+                for (line in virtualserverName) {
                     if (line.contains("virtualserver_name") && line.contains("=")) {
                         serverName = line.split("=".toRegex())[1].replace("\\s", " ")
                         println("Server name: $serverName")

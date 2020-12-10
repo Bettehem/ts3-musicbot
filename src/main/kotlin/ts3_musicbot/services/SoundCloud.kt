@@ -101,6 +101,12 @@ class SoundCloud {
                             User(
                                 Name(playlistData.getJSONObject("user").getString("username")),
                                 Name(playlistData.getJSONObject("user").getString("permalink")),
+                                Description(
+                                    if (!playlistData.getJSONObject("user").isNull("description"))
+                                        playlistData.getJSONObject("user").getString("description")
+                                    else
+                                        ""
+                                ),
                                 Followers(playlistData.getJSONObject("user").getInt("followers_count")),
                                 Link(playlistData.getJSONObject("user").getString("permalink_url"))
                             ),
@@ -119,6 +125,22 @@ class SoundCloud {
                                         "Link:     \t\t${playlist.link}\n"
                             )
                         )
+                    }
+                }
+
+                "user" -> {
+                    val users = searchData.getJSONArray("collection")
+                    for (userData in users) {
+                        userData as JSONObject
+
+                        val user = User(
+                            Name(userData.getString("username")),
+                            Name(userData.getString("permalink")),
+                            Description(userData.getString("description")),
+                            Followers(userData.getInt("followers_count")),
+                            Link(userData.getString("permalink_url"))
+                        )
+                        searchResults.add(SearchResult(user.toString()))
                     }
                 }
             }

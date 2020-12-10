@@ -142,15 +142,10 @@ class SongQueue(
         }
         synchronized(songQueue) {
             if (songQueue.isNotEmpty()) {
-                when {
-                    songQueue[0].linkType == LinkType.SPOTIFY && songQueue[0].link.link == synchronized(trackPlayer) { trackPlayer.currentUrl() } -> {
-                        CommandRunner().runCommand("pkill -9 ${
-                            synchronized(trackPlayer) { trackPlayer.spotifyPlayer }
-                        }; sleep 4")
-                    }
-                    songQueue[0].linkType == LinkType.YOUTUBE -> {
+                when (songQueue[0].linkType) {
+                    LinkType.YOUTUBE -> {
                         //check if youtube-dl is able to play the track
-                        while (songQueue.isNotEmpty() && CommandRunner().runCommand(
+                        while (songQueue.isNotEmpty() && songQueue[0].linkType == LinkType.YOUTUBE && CommandRunner().runCommand(
                                 "youtube-dl -s \"${songQueue[0].link}\"",
                                 printOutput = false,
                                 printErrors = false
@@ -273,72 +268,89 @@ class SongQueue(
                 ) {
                     //do nothing
                     println("Waiting for $spotifyPlayer to start")
+                    delay(10)
                 }
                 delay(7000)
             }
 
             //starts playing the track
             suspend fun openTrack() {
-                while (currentUrl() != track.link.link) {
-                    //wait for track to start
-                    when (track.linkType) {
-                        LinkType.SPOTIFY -> {
-                            //check active processes and wait for the spotify player to start
-                            while (commandRunner.runCommand(
-                                    "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${getPlayer()}(.+)?\" | grep -v \"grep\"",
-                                    printOutput = false
-                                ).first.outputText.isEmpty()
-                            ) {
-                                //do nothing
-                                println("Waiting for ${getPlayer()} to start.")
-                            }
-                            delay(500)
-                            if (track.link.link.contains("/track/")) {
-                                commandRunner.runCommand(
-                                    "playerctl -p $spotifyPlayer open spotify:track:${
-                                        track.link.getId()
-                                    } &"
-                                )
-                            } else {
-                                commandRunner.runCommand(
-                                    "playerctl -p $spotifyPlayer open spotify:episode:${
-                                        track.link.getId()
-                                    } &"
-                                )
-                            }
-                        }
-                        LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> {
-                            Thread {
-                                Runnable {
+                if (track.linkType == LinkType.SPOTIFY && currentUrl() == track.link.link) {
+                    if (track.link.link.contains("/track/")) {
+                        commandRunner.runCommand(
+                            "playerctl -p $spotifyPlayer open spotify:track:${
+                                track.link.getId()
+                            } &"
+                        )
+                    } else {
+                        commandRunner.runCommand(
+                            "playerctl -p $spotifyPlayer open spotify:episode:${
+                                track.link.getId()
+                            } &"
+                        )
+                    }
+                } else {
+                    while (currentUrl() != track.link.link) {
+                        //wait for track to start
+                        when (track.linkType) {
+                            LinkType.SPOTIFY -> {
+                                //check active processes and wait for the spotify player to start
+                                while (commandRunner.runCommand(
+                                        "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${getPlayer()}(.+)?\" | grep -v \"grep\"",
+                                        printOutput = false
+                                    ).first.outputText.isEmpty()
+                                ) {
+                                    //do nothing
+                                    println("Waiting for ${getPlayer()} to start.")
+                                    delay(10)
+                                }
+                                if (track.link.link.contains("/track/")) {
                                     commandRunner.runCommand(
-                                        "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket " +
-                                                "--ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0," +
-                                                (if (track.linkType == LinkType.YOUTUBE) "cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" else "") +
-                                                " --ytdl \"${track.link}\"",
-                                        inheritIO = true,
-                                        ignoreOutput = true
+                                        "playerctl -p $spotifyPlayer open spotify:track:${
+                                            track.link.getId()
+                                        } &"
                                     )
-                                }.run()
-                            }.start()
-                            delay(5000)
-                            while (commandRunner.runCommand(
-                                    "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${getPlayer()}(.+)?\" | grep -v \"grep\"",
-                                    printOutput = false
-                                ).first.outputText.isEmpty()
-                            ) {
-                                //do nothing
-                                println("Waiting for ${getPlayer()} to start.")
+                                } else {
+                                    commandRunner.runCommand(
+                                        "playerctl -p $spotifyPlayer open spotify:episode:${
+                                            track.link.getId()
+                                        } &"
+                                    )
+                                }
                             }
+                            LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> {
+                                Thread {
+                                    Runnable {
+                                        commandRunner.runCommand(
+                                            "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket " +
+                                                    "--ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0" +
+                                                    (if (track.linkType == LinkType.YOUTUBE) ",cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" else "") +
+                                                    " --ytdl \"${track.link}\"",
+                                            inheritIO = true,
+                                            ignoreOutput = true
+                                        )
+                                    }.run()
+                                }.start()
+                                delay(5000)
+                                while (commandRunner.runCommand(
+                                        "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${getPlayer()}(.+)?\" | grep -v \"grep\"",
+                                        printOutput = false
+                                    ).first.outputText.isEmpty()
+                                ) {
+                                    //do nothing
+                                    println("Waiting for ${getPlayer()} to start.")
+                                }
 
-                        }
-                        else -> {
-                            println("Error: ${track.link} is not a supported link type!")
-                            synchronized(SongQueue::javaClass) {
-                                println("Removing track from queue.")
-                                songQueue.remove(track)
                             }
-                            listener.onTrackEnded(getPlayer(), track)
-                                .also { synchronized(trackJob) { trackJob }.complete() }
+                            else -> {
+                                println("Error: ${track.link} is not a supported link type!")
+                                synchronized(SongQueue::javaClass) {
+                                    println("Removing track from queue.")
+                                    songQueue.remove(track)
+                                }
+                                listener.onTrackEnded(getPlayer(), track)
+                                    .also { synchronized(trackJob) { trackJob }.complete() }
+                            }
                         }
                     }
                 }
@@ -466,14 +478,17 @@ class SongQueue(
         }
 
         fun stopTrack() {
-            commandRunner.runCommand(
-                "playerctl -p " +
-                        when (getPlayer()) {
-                            "spotify" -> "spotify pause"
-                            else -> "${getPlayer()} stop"
-                        },
-                printErrors = false
-            ).also { synchronized(trackJob) { trackJob.cancel() } }
+            for (i in 1..2) {
+                commandRunner.runCommand(
+                    "playerctl -p " +
+                            when (getPlayer()) {
+                                "spotify" -> "spotify pause"
+                                else -> "${getPlayer()} stop"
+                            },
+                    printErrors = false
+                )
+            }
+            synchronized(trackJob) { trackJob.cancel() }
         }
     }
 }

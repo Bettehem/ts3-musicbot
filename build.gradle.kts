@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     application
-    kotlin("jvm") version "1.3.72"
+    kotlin("jvm") version "1.4.20"
 }
 
 repositories {
@@ -16,8 +16,8 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
 
-    implementation("org.json:json:+")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.3.7")
+    implementation("org.json:json:20201115")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.4.2")
 }
 
 application {
