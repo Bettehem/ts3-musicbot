@@ -1,5 +1,6 @@
 package ts3_musicbot.util
 
+import kotlinx.coroutines.runBlocking
 import ts3_musicbot.services.SoundCloud
 import java.time.LocalDate
 
@@ -50,8 +51,28 @@ data class Episode(
 }
 
 data class SearchType(val type: String) {
-    override fun toString() = type
+    enum class Type {
+        TRACK, VIDEO, EPISODE,
+        ALBUM, PLAYLIST,
+        ARTIST,
+        USER,
+        SHOW,
+        OTHER;
+    }
 
+    fun getType() = when (type.toLowerCase()) {
+        "track" -> Type.TRACK
+        "video" -> Type.VIDEO
+        "episode" -> Type.EPISODE
+        "album" -> Type.ALBUM
+        "playlist" -> Type.PLAYLIST
+        "artist" -> Type.ARTIST
+        "user" -> Type.USER
+        "show", "podcast" -> Type.SHOW
+        else -> Type.OTHER
+    }
+
+    override fun toString() = type
     fun isEmpty() = type.isEmpty()
     fun isNotEmpty() = type.isNotEmpty()
 }
@@ -85,7 +106,7 @@ data class Name(val name: String = "") {
     fun isNotEmpty() = name.isNotEmpty()
 }
 
-data class Link(val link: String = "") {
+data class Link(val link: String = "", val linkId: String = "") {
     fun linkType() = when {
         link.contains("spotify") -> LinkType.SPOTIFY
         link.contains("(\\S+youtube\\S+|\\S+youtu.be\\S+)".toRegex()) -> LinkType.YOUTUBE
@@ -95,14 +116,32 @@ data class Link(val link: String = "") {
 
     fun getId() = when (linkType()) {
         LinkType.SPOTIFY -> {
-            link.substringAfterLast(":").substringBefore("?si=")
-                .substringAfterLast("/")
+            if (linkId.isNotEmpty()) {
+                linkId
+            } else {
+                link.substringAfterLast(":").substringBefore("?si=")
+                    .substringAfterLast("/")
+            }
         }
         LinkType.YOUTUBE -> {
-            link.substringAfterLast("/").substringAfter("?v=").substringBefore("&")
+            if (linkId.isNotEmpty()) {
+                linkId
+            } else {
+                link.substringAfterLast("/").substringAfter("?v=").substringBefore("&")
+            }
         }
         LinkType.SOUNDCLOUD -> {
-            SoundCloud().resolveId(Link(link))
+            runBlocking {
+                if (linkId.isNotEmpty()) {
+                    linkId
+                } else {
+                    val soundCloud = SoundCloud()
+                    if (link.startsWith("${soundCloud.apiURL}/"))
+                        link.substringAfterLast("/")
+                    else
+                        soundCloud.resolveId(Link(link))
+                }
+            }
         }
         LinkType.OTHER -> ""
     }
@@ -209,7 +248,7 @@ data class Genres(val genres: List<String> = emptyList()) {
 }
 
 data class Artist(
-    val name: Name, val link: Link, val topTracks: TrackList = TrackList(emptyList()),
+    val name: Name = Name(), val link: Link = Link(), val topTracks: TrackList = TrackList(emptyList()),
     val relatedArtists: Artists = Artists(ArrayList()), val genres: Genres = Genres(emptyList())
 ) {
     override fun toString() = "Artist:     \t\t\t\t$name\n" +
@@ -247,11 +286,11 @@ data class Album(
 }
 
 data class User(
-    val name: Name,
-    val userName: Name,
-    val description: Description,
-    val followers: Followers,
-    val link: Link
+    val name: Name = Name(),
+    val userName: Name = Name(),
+    val description: Description = Description(),
+    val followers: Followers = Followers(),
+    val link: Link = Link()
 ) {
     override fun toString() = "Name:  \t\t\t\t${name.name}\n" +
             "Username: \t\t${userName.name}\n" +
@@ -294,11 +333,11 @@ data class Playlist(
 }
 
 data class Show(
-    val name: Name,
-    val publisher: Publisher,
-    val description: Description,
-    val episodes: EpisodeList,
-    val link: Link
+    val name: Name = Name(),
+    val publisher: Publisher = Publisher(),
+    val description: Description = Description(),
+    val episodes: EpisodeList = EpisodeList(),
+    val link: Link = Link()
 ) {
     override fun toString() = "Show Name:  \t\t\t\t$name\n" +
             "Publisher:    \t\t\t\t\t${publisher.name}\n" +

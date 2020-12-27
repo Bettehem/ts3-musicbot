@@ -17,6 +17,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
 
     implementation("org.json:json:20201115")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.4.2")
 }
 

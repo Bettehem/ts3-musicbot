@@ -17,6 +17,14 @@ class Spotify(private val market: String = "") {
     private val defaultMarket = "US"
     private val apiURL = URL("https://api.spotify.com/v1")
     private var accessToken = ""
+    val supportedSearchTypes = listOf(
+        SearchType.Type.TRACK,
+        SearchType.Type.PLAYLIST,
+        SearchType.Type.ALBUM,
+        SearchType.Type.ARTIST,
+        SearchType.Type.SHOW,
+        SearchType.Type.EPISODE
+    )
 
     suspend fun updateToken() {
         println("Updating Spotify access token...")
@@ -26,7 +34,7 @@ class Spotify(private val market: String = "") {
     }
 
     private suspend fun fetchSpotifyToken(): String {
-        fun getData(): Pair<ResponseCode, ResponseData> {
+        fun getData(): Response {
             val auth = "ZGUzZGFlNGUxZTE3NGRkNGFjYjY0YWYyMjcxMWEwYmI6ODk5OGQxMmJjZDBlNDAzM2E2Mzg2ZTg4Y2ZjZTk2NDg="
             return sendHttpRequest(
                 URL("https://accounts.spotify.com/api/token"),
@@ -42,26 +50,26 @@ class Spotify(private val market: String = "") {
             while (true) {
                 val data = getData()
                 //check http return code
-                when (data.first.code) {
+                when (data.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val tokenData = JSONObject(data.second.data)
+                            val tokenData = JSONObject(data.data.data)
                             token = tokenData.getString("access_token")
+                            tokenJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${data.second.data}\n")
+                            println("Failed JSON:\n${data.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
                     HTTP_TOO_MANY_REQUESTS -> {
-                        println("Too many requests! Waiting for ${data.second.data} seconds.")
+                        println("Too many requests! Waiting for ${data.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(data.second.data.toLong() * 1000 + 500)
+                        delay(data.data.data.toLong() * 1000 + 500)
                     }
-                    else -> {
-                        println("HTTP ERROR! CODE: ${data.first.code}")
-                    }
+                    else -> println("HTTP ERROR! CODE: ${data.code}")
+
                 }
             }
         }
@@ -71,7 +79,7 @@ class Spotify(private val market: String = "") {
     suspend fun searchSpotify(type: SearchType, searchQuery: SearchQuery): SearchResults {
         val searchResults = ArrayList<SearchResult>()
 
-        fun searchData(): Pair<ResponseCode, ResponseData> {
+        fun searchData(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/search?")
             urlBuilder.append("q=${URLEncoder.encode(searchQuery.query, Charsets.UTF_8.toString())}")
@@ -244,10 +252,10 @@ class Spotify(private val market: String = "") {
             while (true) {
                 val searchData = searchData()
                 //check http return code
-                when (searchData.first.code) {
+                when (searchData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val resultData = JSONObject(searchData.second.data)
+                            val resultData = JSONObject(searchData.data.data)
                             withContext(Default + searchJob) {
                                 parseResults(resultData)
                             }
@@ -255,7 +263,7 @@ class Spotify(private val market: String = "") {
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${searchData.second.data}\n")
+                            println("Failed JSON:\n${searchData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -263,18 +271,18 @@ class Spotify(private val market: String = "") {
                     HttpURLConnection.HTTP_UNAUTHORIZED -> updateToken() //token expired, update it.
 
                     HttpURLConnection.HTTP_BAD_REQUEST -> {
-                        println("Error ${searchData.first.code}! Bad request!!")
+                        println("Error ${searchData.code}! Bad request!!")
                         searchJob.complete()
                         return@withContext
                     }
 
                     HTTP_TOO_MANY_REQUESTS -> {
-                        println("Too many requests! Waiting for ${searchData.second.data} seconds.")
+                        println("Too many requests! Waiting for ${searchData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(searchData.second.data.toLong() * 1000 + 500)
+                        delay(searchData.data.data.toLong() * 1000 + 500)
                     }
 
-                    else -> println("HTTP ERROR! CODE: ${searchData.first.code}")
+                    else -> println("HTTP ERROR! CODE: ${searchData.code}")
 
                 }
             }
@@ -282,7 +290,7 @@ class Spotify(private val market: String = "") {
         return SearchResults(searchResults)
     }
 
-    private fun getPlaylistData(playlistLink: Link): Pair<ResponseCode, ResponseData> {
+    private fun getPlaylistData(playlistLink: Link): Response {
         val urlBuilder = StringBuilder()
         urlBuilder.append("$apiURL/playlists/")
         urlBuilder.append(playlistLink.getId())
@@ -313,15 +321,16 @@ class Spotify(private val market: String = "") {
             while (true) {
                 val playlistData = getPlaylistData(playlistLink)
                 //check http return code
-                when (playlistData.first.code) {
+                when (playlistData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val data = JSONObject(playlistData.second.data)
+                            val data = JSONObject(playlistData.data.data)
                             playlist = parsePlaylistData(data)
+                            playlistJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${playlistData.second.data}\n")
+                            println("Failed JSON:\n${playlistData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -330,9 +339,9 @@ class Spotify(private val market: String = "") {
                         updateToken()
                     }
                     HTTP_TOO_MANY_REQUESTS -> {
-                        println("Too many requests! Waiting for ${playlistData.second.data} seconds.")
+                        println("Too many requests! Waiting for ${playlistData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(playlistData.second.data.toLong() * 1000 + 500)
+                        delay(playlistData.data.data.toLong() * 1000 + 500)
                     }
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $playlistLink not found!")
@@ -351,9 +360,10 @@ class Spotify(private val market: String = "") {
                             Collaboration(false),
                             playlistLink
                         )
+                        playlistJob.complete()
                         return@withContext
                     }
-                    else -> println("HTTP ERROR! CODE ${playlistData.first.code}")
+                    else -> println("HTTP ERROR! CODE ${playlistData.code}")
                 }
             }
         }
@@ -370,7 +380,7 @@ class Spotify(private val market: String = "") {
             var listOffset = 0
             while (trackItems.size < playlistLength) {
 
-                fun getItemData(): Pair<ResponseCode, ResponseData> {
+                fun getItemData(): Response {
                     val listUrlBuilder = StringBuilder()
                     listUrlBuilder.append("https://api.spotify.com/v1/playlists/")
                     listUrlBuilder.append(playlistLink.getId())
@@ -385,112 +395,117 @@ class Spotify(private val market: String = "") {
                 }
 
                 suspend fun parseItems(items: JSONArray) {
-                    for (item in items) {
-                        item as JSONObject
-                        try {
-                            if (item.get("track") != null) {
-                                if (item.getJSONObject("track").get("id") != null) {
-                                    if (!item.getJSONObject("track").getBoolean("is_local")) {
-                                        val albumName = if (item.getJSONObject("track").getJSONObject("album")
-                                                .getString("album_type") == "single"
-                                        ) {
-                                            Name(
-                                                "${
-                                                    item.getJSONObject("track").getJSONObject("album")
-                                                        .getString("name")
-                                                } (Single)"
-                                            )
-                                        } else {
-                                            Name(item.getJSONObject("track").getJSONObject("album").getString("name"))
-                                        }
-                                        val artistsData = item.getJSONObject("track").getJSONArray("artists")
-                                        val artists = Artists(
-                                            artistsData.map {
-                                                it as JSONObject
-                                                Artist(
-                                                    Name(it.getString("name")),
-                                                    Link(it.getJSONObject("external_urls").getString("spotify")),
-                                                    TrackList(emptyList()),
-                                                    Artists(emptyList())
+                    withContext(Default) {
+                        for (item in items) {
+                            item as JSONObject
+                            try {
+                                if (item.get("track") != null) {
+                                    if (item.getJSONObject("track").get("id") != null) {
+                                        if (!item.getJSONObject("track").getBoolean("is_local")) {
+                                            val albumName = if (item.getJSONObject("track").getJSONObject("album")
+                                                    .getString("album_type") == "single"
+                                            ) {
+                                                Name(
+                                                    "${
+                                                        item.getJSONObject("track").getJSONObject("album")
+                                                            .getString("name")
+                                                    } (Single)"
+                                                )
+                                            } else {
+                                                Name(
+                                                    item.getJSONObject("track").getJSONObject("album").getString("name")
                                                 )
                                             }
-                                        )
-                                        val album = Album(
-                                            albumName,
-                                            artists,
-                                            when (item.getJSONObject("track").getJSONObject("album")
-                                                .getString("release_date_precision")) {
-                                                "day" -> {
-                                                    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                                                    ReleaseDate(
-                                                        LocalDate.parse(
-                                                            item.getJSONObject("track").getJSONObject("album")
-                                                                .getString("release_date"), formatter
-                                                        )
+                                            val artistsData = item.getJSONObject("track").getJSONArray("artists")
+                                            val artists = Artists(
+                                                artistsData.map {
+                                                    it as JSONObject
+                                                    Artist(
+                                                        Name(it.getString("name")),
+                                                        Link(it.getJSONObject("external_urls").getString("spotify")),
+                                                        TrackList(emptyList()),
+                                                        Artists(emptyList())
                                                     )
                                                 }
-                                                "month" -> {
-                                                    val formatter = DateTimeFormatterBuilder().appendPattern("yyyy-MM")
-                                                        .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                                        .toFormatter()
-                                                    ReleaseDate(
-                                                        LocalDate.parse(
-                                                            item.getJSONObject("track").getJSONObject("album")
-                                                                .getString("release_date"), formatter
-                                                        )
-                                                    )
-                                                }
-                                                else -> {
-                                                    val formatter = DateTimeFormatterBuilder().appendPattern("yyyy")
-                                                        .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
-                                                        .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                                        .toFormatter()
-                                                    ReleaseDate(
-                                                        LocalDate.parse(
-                                                            item.getJSONObject("track").getJSONObject("album")
-                                                                .getString("release_date"), formatter
-                                                        )
-                                                    )
-                                                }
-                                            },
-                                            TrackList(emptyList()),
-                                            Link(
-                                                item.getJSONObject("track").getJSONObject("album")
-                                                    .getJSONObject("external_urls").getString("spotify")
                                             )
-                                        )
-                                        val title = Name(item.getJSONObject("track").getString("name"))
-                                        val link = Link(
-                                            item.getJSONObject("track").getJSONObject("external_urls")
-                                                .getString("spotify")
-                                        )
-                                        val availableMarkets =
-                                            item.getJSONObject("track").getJSONArray("available_markets")
-                                        val isPlayable = if (
-                                            availableMarkets.contains(market) ||
-                                            availableMarkets.contains(defaultMarket)
-                                        ) true else {
-                                            if (availableMarkets.isEmpty) {
-                                                getTrack(link).playability.isPlayable
-                                            } else false
-                                        }
-                                        trackItems.add(
-                                            Track(
-                                                album,
+                                            val album = Album(
+                                                albumName,
                                                 artists,
-                                                title,
-                                                link,
-                                                Playability(isPlayable),
-                                                LinkType.SPOTIFY
+                                                when (item.getJSONObject("track").getJSONObject("album")
+                                                    .getString("release_date_precision")) {
+                                                    "day" -> {
+                                                        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                                                        ReleaseDate(
+                                                            LocalDate.parse(
+                                                                item.getJSONObject("track").getJSONObject("album")
+                                                                    .getString("release_date"), formatter
+                                                            )
+                                                        )
+                                                    }
+                                                    "month" -> {
+                                                        val formatter =
+                                                            DateTimeFormatterBuilder().appendPattern("yyyy-MM")
+                                                                .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                                                                .toFormatter()
+                                                        ReleaseDate(
+                                                            LocalDate.parse(
+                                                                item.getJSONObject("track").getJSONObject("album")
+                                                                    .getString("release_date"), formatter
+                                                            )
+                                                        )
+                                                    }
+                                                    else -> {
+                                                        val formatter = DateTimeFormatterBuilder().appendPattern("yyyy")
+                                                            .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+                                                            .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                                                            .toFormatter()
+                                                        ReleaseDate(
+                                                            LocalDate.parse(
+                                                                item.getJSONObject("track").getJSONObject("album")
+                                                                    .getString("release_date"), formatter
+                                                            )
+                                                        )
+                                                    }
+                                                },
+                                                TrackList(emptyList()),
+                                                Link(
+                                                    item.getJSONObject("track").getJSONObject("album")
+                                                        .getJSONObject("external_urls").getString("spotify")
+                                                )
                                             )
-                                        )
-                                    } else {
-                                        playlistLength -= 1
+                                            val title = Name(item.getJSONObject("track").getString("name"))
+                                            val link = Link(
+                                                item.getJSONObject("track").getJSONObject("external_urls")
+                                                    .getString("spotify")
+                                            )
+                                            val availableMarkets =
+                                                item.getJSONObject("track").getJSONArray("available_markets")
+                                            val isPlayable = if (
+                                                availableMarkets.contains(market) ||
+                                                availableMarkets.contains(defaultMarket)
+                                            ) true else {
+                                                if (availableMarkets.isEmpty) {
+                                                    getTrack(link).playability.isPlayable
+                                                } else false
+                                            }
+                                            trackItems.add(
+                                                Track(
+                                                    album,
+                                                    artists,
+                                                    title,
+                                                    link,
+                                                    Playability(isPlayable),
+                                                    LinkType.SPOTIFY
+                                                )
+                                            )
+                                        } else {
+                                            playlistLength -= 1
+                                        }
                                     }
                                 }
+                            } catch (e: JSONException) {
+                                playlistLength -= 1
                             }
-                        } catch (e: JSONException) {
-                            playlistLength -= 1
                         }
                     }
                 }
@@ -499,18 +514,19 @@ class Spotify(private val market: String = "") {
                 withContext(IO + itemJob) {
                     while (true) {
                         val itemData = getItemData()
-                        when (itemData.first.code) {
+                        when (itemData.code.code) {
                             HttpURLConnection.HTTP_OK -> {
                                 try {
-                                    val item = JSONObject(itemData.second.data)
+                                    val item = JSONObject(itemData.data.data)
                                     withContext(Default) {
                                         parseItems(item.getJSONArray("items"))
                                     }
                                     listOffset += 100
+                                    itemJob.complete()
                                     return@withContext
                                 } catch (e: JSONException) {
                                     //JSON broken, try getting the data again
-                                    println("Failed JSON:\n${itemData.second.data}\n")
+                                    println("Failed JSON:\n${itemData.data}\n")
                                     println("Failed to get data from JSON, trying again...")
                                 }
                             }
@@ -519,33 +535,32 @@ class Spotify(private val market: String = "") {
                                 updateToken()
                             }
                             HTTP_TOO_MANY_REQUESTS -> {
-                                println("Too many requests! Waiting for ${itemData.second.data} seconds.")
+                                println("Too many requests! Waiting for ${itemData.data.data} seconds.")
                                 //wait for given time before next request.
-                                delay(itemData.second.data.toLong() * 1000 + 500)
+                                delay(itemData.data.data.toLong() * 1000 + 500)
                             }
-                            else -> {
-                                println("HTTP ERROR! CODE: ${itemData.first.code}")
-                            }
+                            else -> println("HTTP ERROR! CODE: ${itemData.code}")
                         }
                     }
                 }
             }
         }
 
-        val playlistJob: CompletableJob = Job()
+        val playlistJob = Job()
         withContext(IO + playlistJob) {
             while (true) {
                 val playlistData = getPlaylistData(playlistLink)
                 //check http return code
-                when (playlistData.first.code) {
+                when (playlistData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val playlist = JSONObject(playlistData.second.data)
+                            val playlist = JSONObject(playlistData.data.data)
                             parsePlaylistData(playlist)
+                            playlistJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${playlistData.second.data}\n")
+                            println("Failed JSON:\n${playlistData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -555,26 +570,26 @@ class Spotify(private val market: String = "") {
                     }
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $playlistLink not found!")
+                        playlistJob.complete()
                         return@withContext
                     }
                     HTTP_TOO_MANY_REQUESTS -> {
-                        println("Too many requests! Waiting for ${playlistData.second.data} seconds.")
+                        println("Too many requests! Waiting for ${playlistData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(playlistData.second.data.toLong() * 1000 + 500)
+                        delay(playlistData.data.data.toLong() * 1000 + 500)
                     }
-                    else -> println("HTTP ERROR! CODE: ${playlistData.first.code}")
+                    else -> println("HTTP ERROR! CODE: ${playlistData.code}")
                 }
             }
         }
         return TrackList(trackItems)
     }
 
-    private fun getAlbumData(albumLink: Link): Pair<ResponseCode, ResponseData> {
+    private fun getAlbumData(albumLink: Link): Response {
         val urlBuilder = StringBuilder()
         urlBuilder.append("$apiURL/albums/")
         urlBuilder.append(albumLink.getId())
         urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
-
         return sendHttpRequest(
             URL(urlBuilder.toString()),
             RequestMethod("GET"),
@@ -637,15 +652,16 @@ class Spotify(private val market: String = "") {
             while (true) {
                 val albumData = getAlbumData(albumLink)
                 //check http return code
-                when (albumData.first.code) {
+                when (albumData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val data = JSONObject(albumData.second.data)
+                            val data = JSONObject(albumData.data.data)
                             album = parseAlbumData(data)
+                            albumJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${albumData.second.data}\n")
+                            println("Failed JSON:\n${albumData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -655,22 +671,16 @@ class Spotify(private val market: String = "") {
                     }
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $albumLink not found!")
-                        album = Album(
-                            Name(),
-                            Artists(),
-                            ReleaseDate(),
-                            TrackList(),
-                            Link(),
-                            Genres()
-                        )
+                        album = Album()
+                        albumJob.complete()
                         return@withContext
                     }
                     HTTP_TOO_MANY_REQUESTS -> {
-                        println("Too many requests! Waiting for ${albumData.second.data} seconds.")
+                        println("Too many requests! Waiting for ${albumData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(albumData.second.data.toLong() * 1000 + 500)
+                        delay(albumData.data.data.toLong() * 1000 + 500)
                     }
-                    else -> println("HTTP ERROR! CODE ${albumData.first.code}")
+                    else -> println("HTTP ERROR! CODE ${albumData.code}")
                 }
             }
         }
@@ -727,7 +737,7 @@ class Spotify(private val market: String = "") {
             var listOffset = 0
             while (trackItems.size < trackItemsLength) {
 
-                fun getAlbumTrackData(): Pair<ResponseCode, ResponseData> {
+                fun getAlbumTrackData(): Response {
                     val albumUrlBuilder = StringBuilder()
                     albumUrlBuilder.append("$apiURL/albums/")
                     albumUrlBuilder.append(albumLink.getId())
@@ -767,34 +777,37 @@ class Spotify(private val market: String = "") {
                     }
                 }
 
-                var gettingData = true
-                while (gettingData) {
-                    val albumTrackData = getAlbumTrackData()
-                    when (albumTrackData.first.code) {
-                        HttpURLConnection.HTTP_OK -> {
-                            try {
-                                val tracks = JSONObject(albumTrackData.second.data)
-                                withContext(Default) {
-                                    parseItems(tracks.getJSONArray("items"))
+                val albumTrackJob = Job()
+                withContext(IO + albumTrackJob) {
+                    while (true) {
+                        val albumTrackData = getAlbumTrackData()
+                        when (albumTrackData.code.code) {
+                            HttpURLConnection.HTTP_OK -> {
+                                try {
+                                    val tracks = JSONObject(albumTrackData.data.data)
+                                    withContext(Default) {
+                                        parseItems(tracks.getJSONArray("items"))
+                                    }
+                                    listOffset += 20
+                                    albumTrackJob.complete()
+                                    return@withContext
+                                } catch (e: JSONException) {
+                                    //JSON broken, try getting the data again
+                                    println("Failed JSON:\n${albumTrackData.data}\n")
+                                    println("Failed to get data from JSON, trying again...")
                                 }
-                                listOffset += 20
-                                gettingData = false
-                            } catch (e: JSONException) {
-                                //JSON broken, try getting the data again
-                                println("Failed JSON:\n${albumTrackData.second.data}\n")
-                                println("Failed to get data from JSON, trying again...")
                             }
+                            HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                                //token expired, update it
+                                updateToken()
+                            }
+                            HTTP_TOO_MANY_REQUESTS -> {
+                                println("Too many requests! Waiting for ${albumTrackData.data.data} seconds.")
+                                //wait for given time before next request.
+                                delay(albumTrackData.data.data.toLong() * 1000)
+                            }
+                            else -> println("HTTP ERROR! CODE ${albumTrackData.code}")
                         }
-                        HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                            //token expired, update it
-                            updateToken()
-                        }
-                        HTTP_TOO_MANY_REQUESTS -> {
-                            println("Too many requests! Waiting for ${albumTrackData.second.data} seconds.")
-                            //wait for given time before next request.
-                            delay(albumTrackData.second.data.toLong() * 1000)
-                        }
-                        else -> println("HTTP ERROR! CODE ${albumTrackData.first.code}")
                     }
                 }
             }
@@ -805,15 +818,16 @@ class Spotify(private val market: String = "") {
             while (true) {
                 val albumData = getAlbumData(albumLink)
                 //check http return code
-                when (albumData.first.code) {
+                when (albumData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val data = JSONObject(albumData.second.data)
+                            val data = JSONObject(albumData.data.data)
                             parseAlbumData(data)
+                            albumJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${albumData.second.data}\n")
+                            println("Failed JSON:\n${albumData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -823,14 +837,15 @@ class Spotify(private val market: String = "") {
                     }
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $albumLink not found!")
+                        albumJob.complete()
                         return@withContext
                     }
                     HTTP_TOO_MANY_REQUESTS -> {
-                        println("Too many requests! Waiting for ${albumData.second.data} seconds.")
+                        println("Too many requests! Waiting for ${albumData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(albumData.second.data.toLong() * 1000 + 500)
+                        delay(albumData.data.data.toLong() * 1000 + 500)
                     }
-                    else -> println("HTTP ERROR! CODE ${albumData.first.code}")
+                    else -> println("HTTP ERROR! CODE ${albumData.code}")
                 }
             }
         }
@@ -838,7 +853,7 @@ class Spotify(private val market: String = "") {
     }
 
     suspend fun getTrack(trackLink: Link): Track {
-        fun getTrackData(link: Link, spMarket: String = ""): Pair<ResponseCode, ResponseData> {
+        fun getTrackData(link: Link, spMarket: String = ""): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/tracks/")
             urlBuilder.append(link.getId())
@@ -911,32 +926,34 @@ class Spotify(private val market: String = "") {
                 )
             })
             val title = Name(trackData.getString("name"))
-            val isPlayable = if (trackData.getJSONArray("available_markets").contains(market)) true else {
+            val isPlayable = if (trackData.getJSONArray("available_markets").contains(market) ||
+                trackData.getJSONArray("available_markets").contains(defaultMarket)
+            ) true else {
                 val trackJob = Job()
                 var playable: Boolean
                 withContext(IO + trackJob) {
                     while (true) {
                         val trackData2 = getTrackData(trackLink, if (market.isNotEmpty()) market else defaultMarket)
-                        when (trackData2.first.code) {
+                        when (trackData2.code.code) {
                             HttpURLConnection.HTTP_OK -> {
                                 try {
-                                    val data = JSONObject(trackData2.second.data)
+                                    val data = JSONObject(trackData2.data.data)
                                     val id = data.getString("id")
-                                    if (id != trackLink.getId()) {
+                                    if (!data.getBoolean("is_playable") && id != trackLink.getId()) {
                                         while (true) {
                                             val newLink = Link("https://open.spotify.com/track/$id")
                                             val trackData3 = getTrackData(newLink)
-                                            when (trackData3.first.code) {
+                                            when (trackData3.code.code) {
                                                 HttpURLConnection.HTTP_OK -> {
                                                     try {
-                                                        val data2 = JSONObject(trackData3.second.data)
+                                                        val data2 = JSONObject(trackData3.data.data)
                                                         playable =
                                                             data2.getJSONArray("available_markets").contains(market)
                                                         trackJob.complete()
                                                         return@withContext
                                                     } catch (e: JSONException) {
                                                         //JSON broken, try getting the data again
-                                                        println("Failed JSON:\n${trackData3.second.data}\n")
+                                                        println("Failed JSON:\n${trackData3.data}\n")
                                                         println("Failed to get data from JSON, trying again...")
                                                     }
                                                 }
@@ -950,11 +967,11 @@ class Spotify(private val market: String = "") {
                                                     return@withContext
                                                 }
                                                 HTTP_TOO_MANY_REQUESTS -> {
-                                                    println("Too many requests! Waiting for ${trackData3.second.data} seconds.")
+                                                    println("Too many requests! Waiting for ${trackData3.data.data} seconds.")
                                                     //wait for given time before next request.
-                                                    delay(trackData3.second.data.toLong() * 1000 + 500)
+                                                    delay(trackData3.data.data.toLong() * 1000 + 500)
                                                 }
-                                                else -> println("HTTP ERROR! CODE: ${trackData3.first.code}")
+                                                else -> println("HTTP ERROR! CODE: ${trackData3.code}")
                                             }
                                         }
                                     } else {
@@ -964,7 +981,7 @@ class Spotify(private val market: String = "") {
                                     return@withContext
                                 } catch (e: JSONException) {
                                     //JSON broken, try getting the data again
-                                    println("Failed JSON:\n${trackData2.second.data}\n")
+                                    println("Failed JSON:\n${trackData2.data}\n")
                                     println("Failed to get data from JSON, trying again...")
                                 }
                             }
@@ -978,11 +995,11 @@ class Spotify(private val market: String = "") {
                                 return@withContext
                             }
                             HTTP_TOO_MANY_REQUESTS -> {
-                                println("Too many requests! Waiting for ${trackData2.second.data} seconds.")
+                                println("Too many requests! Waiting for ${trackData2.data.data} seconds.")
                                 //wait for given time before next request.
-                                delay(trackData2.second.data.toLong() * 1000 + 500)
+                                delay(trackData2.data.data.toLong() * 1000 + 500)
                             }
-                            else -> println("HTTP ERROR! CODE: ${trackData2.first.code}")
+                            else -> println("HTTP ERROR! CODE: ${trackData2.code}")
                         }
                     }
                 }
@@ -997,17 +1014,17 @@ class Spotify(private val market: String = "") {
         withContext(IO + trackJob) {
             while (true) {
                 val trackData = getTrackData(trackLink)
-                when (trackData.first.code) {
+                when (trackData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
                             withContext(Default) {
-                                track = parseData(JSONObject(trackData.second.data))
+                                track = parseData(JSONObject(trackData.data.data))
                             }
                             trackJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${trackData.second.data}\n")
+                            println("Failed JSON:\n${trackData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -1021,11 +1038,11 @@ class Spotify(private val market: String = "") {
                         return@withContext
                     }
                     HTTP_TOO_MANY_REQUESTS -> {
-                        println("Too many requests! Waiting for ${trackData.second.data} seconds.")
+                        println("Too many requests! Waiting for ${trackData.data.data} seconds.")
                         //wait for given time before next request. 
-                        delay(trackData.second.data.toLong() * 1000 + 500)
+                        delay(trackData.data.data.toLong() * 1000 + 500)
                     }
-                    else -> println("HTTP ERROR! CODE: ${trackData.first.code}")
+                    else -> println("HTTP ERROR! CODE: ${trackData.code}")
                 }
             }
         }
@@ -1033,7 +1050,7 @@ class Spotify(private val market: String = "") {
     }
 
     suspend fun getArtist(artistLink: Link): Artist {
-        fun getArtistData(): Pair<ResponseCode, ResponseData> {
+        fun getArtistData(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/artists/")
             urlBuilder.append(artistLink.getId())
@@ -1045,7 +1062,7 @@ class Spotify(private val market: String = "") {
             )
         }
 
-        fun getTopTracks(): Pair<ResponseCode, ResponseData> {
+        fun getTopTracks(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/artists/")
             urlBuilder.append(artistLink.getId())
@@ -1058,7 +1075,7 @@ class Spotify(private val market: String = "") {
             )
         }
 
-        fun getRelatedArtists(): Pair<ResponseCode, ResponseData> {
+        fun getRelatedArtists(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/artists/")
             urlBuilder.append(artistLink.getId())
@@ -1150,85 +1167,88 @@ class Spotify(private val market: String = "") {
         withContext(IO + artistJob) {
             while (true) {
                 val artistData = getArtistData()
-                when (artistData.first.code) {
+                when (artistData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
                             lateinit var topTracks: JSONObject
                             topTracks@ while (true) {
                                 val topTracksData = getTopTracks()
-                                when (topTracksData.first.code) {
+                                when (topTracksData.code.code) {
                                     HttpURLConnection.HTTP_OK -> {
                                         try {
                                             withContext(Default) {
-                                                topTracks = JSONObject(topTracksData.second.data)
+                                                topTracks = JSONObject(topTracksData.data.data)
                                             }
                                             break@topTracks
                                         } catch (e: JSONException) {
                                             //JSON broken, try getting the data again
-                                            println("Failed JSON:\n${topTracksData.second.data}\n")
+                                            println("Failed JSON:\n${topTracksData.data.data}\n")
                                             println("Failed to get data from JSON, trying again...")
                                         }
                                     }
-                                    HTTP_TOO_MANY_REQUESTS -> {
-                                        println("Too many requests! Waiting for ${topTracksData.second.data} seconds.")
-                                        //wait for given time before next request.
-                                        delay(topTracksData.second.data.toLong() * 1000 + 500)
+                                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                                        updateToken()
                                     }
-                                    else -> println("HTTP ERROR! CODE: ${topTracksData.first.code}")
+                                    HTTP_TOO_MANY_REQUESTS -> {
+                                        println("Too many requests! Waiting for ${topTracksData.data.data} seconds.")
+                                        //wait for given time before next request.
+                                        delay(topTracksData.data.data.toLong() * 1000 + 500)
+                                    }
+                                    else -> println("HTTP ERROR! CODE: ${topTracksData.code.code}")
                                 }
                             }
                             lateinit var relatedArtists: JSONObject
                             relatedArtists@ while (true) {
                                 val relatedArtistsData = getRelatedArtists()
-                                when (relatedArtistsData.first.code) {
+                                when (relatedArtistsData.code.code) {
                                     HttpURLConnection.HTTP_OK -> {
                                         try {
                                             withContext(Default) {
-                                                relatedArtists = JSONObject(relatedArtistsData.second.data)
+                                                relatedArtists = JSONObject(relatedArtistsData.data.data)
                                             }
                                             break@relatedArtists
                                         } catch (e: JSONException) {
                                             //JSON broken, try getting the data again
-                                            println("Failed JSON:\n${relatedArtistsData.second.data}\n")
+                                            println("Failed JSON:\n${relatedArtistsData.data}\n")
                                             println("Failed to get data from JSON, trying again...")
                                         }
                                     }
-                                    HTTP_TOO_MANY_REQUESTS -> {
-                                        println("Too many requests! Waiting for ${relatedArtistsData.second.data} seconds.")
-                                        //wait for given time before next request.
-                                        delay(relatedArtistsData.second.data.toLong() * 1000 + 500)
+                                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                                        updateToken()
                                     }
-                                    else -> println("HTTP ERROR! CODE: ${relatedArtistsData.first.code}")
+                                    HTTP_TOO_MANY_REQUESTS -> {
+                                        println("Too many requests! Waiting for ${relatedArtistsData.data.data} seconds.")
+                                        //wait for given time before next request.
+                                        delay(relatedArtistsData.data.data.toLong() * 1000 + 500)
+                                    }
+                                    else -> println("HTTP ERROR! CODE: ${relatedArtistsData.code.code}")
                                 }
                             }
-                            artist = parseData(JSONObject(artistData.second.data), topTracks, relatedArtists)
+                            artist = parseData(JSONObject(artistData.data.data), topTracks, relatedArtists)
+                            artistJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${artistData.second.data}\n")
+                            println("Failed JSON:\n${artistData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $artistLink not found!")
-                        artist = Artist(
-                            Name(),
-                            Link(),
-                            TrackList(),
-                            Artists(),
-                            Genres()
-                        )
+                        artist = Artist()
+                        artistJob.complete()
+                        return@withContext
                     }
                     HTTP_TOO_MANY_REQUESTS -> {
-                        println("Too many requests! Waiting for ${artistData.second.data} seconds.")
+                        println("Too many requests! Waiting for ${artistData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(artistData.second.data.toLong() * 1000 + 500)
+                        delay(artistData.data.data.toLong() * 1000 + 500)
                     }
 
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateToken()
                     }
-                    else -> println("HTTP ERROR! CODE: ${artistData.first.code}")
+                    else -> println("HTTP ERROR! CODE: ${artistData.code}")
                 }
             }
         }
@@ -1237,7 +1257,7 @@ class Spotify(private val market: String = "") {
 
     suspend fun getUser(userLink: Link): User {
         lateinit var user: User
-        fun getUserData(): Pair<ResponseCode, ResponseData> {
+        fun getUserData(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/users/")
             urlBuilder.append(userLink.getId())
@@ -1264,15 +1284,16 @@ class Spotify(private val market: String = "") {
             while (true) {
                 val userData = getUserData()
                 //check response code
-                when (userData.first.code) {
+                when (userData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val data = JSONObject(userData.second.data)
+                            val data = JSONObject(userData.data.data)
                             user = parseUserData(data)
+                            userJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${userData.second.data}\n")
+                            println("Failed JSON:\n${userData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -1281,27 +1302,21 @@ class Spotify(private val market: String = "") {
                     }
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $userLink not found!")
-                        user = User(
-                            Name(),
-                            Name(),
-                            Description(),
-                            Followers(),
-                            Link()
-                        )
+                        user = User()
                     }
                     HTTP_TOO_MANY_REQUESTS -> {
-                        println("Too many requests! Waiting for ${userData.second.data} seconds.")
+                        println("Too many requests! Waiting for ${userData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(userData.second.data.toLong() * 1000 + 500)
+                        delay(userData.data.data.toLong() * 1000 + 500)
                     }
-                    else -> println("HTTP ERROR! CODE: ${userData.first.code}")
+                    else -> println("HTTP ERROR! CODE: ${userData.code}")
                 }
             }
         }
         return user
     }
 
-    private fun getShowData(showLink: Link): Pair<ResponseCode, ResponseData> {
+    private fun getShowData(showLink: Link): Response {
         val urlBuilder = StringBuilder()
         urlBuilder.append("$apiURL/shows/")
         urlBuilder.append(showLink.getId())
@@ -1319,7 +1334,7 @@ class Spotify(private val market: String = "") {
         suspend fun getShowEpisodes(showLink: Link, totalItems: Int): EpisodeList {
             lateinit var episodeList: EpisodeList
 
-            fun getEpisodesData(offset: Int = 0): Pair<ResponseCode, ResponseData> {
+            fun getEpisodesData(offset: Int = 0): Response {
                 val urlBuilder = StringBuilder()
                 urlBuilder.append("$apiURL/shows/")
                 urlBuilder.append(showLink.getId())
@@ -1380,15 +1395,16 @@ class Spotify(private val market: String = "") {
                                 while (true) {
                                     val data = getEpisodesData(offset)
 
-                                    when (data.first.code) {
+                                    when (data.code.code) {
                                         HttpURLConnection.HTTP_OK -> {
                                             try {
-                                                val episodeData = JSONObject(data.second.data)
+                                                val episodeData = JSONObject(data.data.data)
                                                 items = episodeData.getJSONArray("items")
+                                                episodesJob.complete()
                                                 return@withContext
                                             } catch (e: JSONException) {
                                                 //JSON broken, try getting the data again
-                                                println("Failed JSON:\n${data.second.data}\n")
+                                                println("Failed JSON:\n${data.data}\n")
                                                 println("Failed to get data from JSON, trying again...")
                                             }
                                         }
@@ -1398,12 +1414,12 @@ class Spotify(private val market: String = "") {
                                         }
 
                                         HTTP_TOO_MANY_REQUESTS -> {
-                                            println("Too many requests! Waiting for ${data.second.data} seconds.")
+                                            println("Too many requests! Waiting for ${data.data.data} seconds.")
                                             //wait for given time before next request.
-                                            delay(data.second.data.toLong() * 1000 + 500)
+                                            delay(data.data.data.toLong() * 1000 + 500)
                                         }
 
-                                        else -> println("HTTP ERROR! CODE: ${data.first.code}")
+                                        else -> println("HTTP ERROR! CODE: ${data.code}")
                                     }
                                 }
                             }
@@ -1417,15 +1433,16 @@ class Spotify(private val market: String = "") {
             withContext(IO + episodeJob) {
                 while (true) {
                     val episodesData = getEpisodesData()
-                    when (episodesData.first.code) {
+                    when (episodesData.code.code) {
                         HttpURLConnection.HTTP_OK -> {
                             try {
-                                val data = JSONObject(episodesData.second.data)
+                                val data = JSONObject(episodesData.data.data)
                                 episodeList = parseEpisodesData(data)
+                                episodeJob.complete()
                                 return@withContext
                             } catch (e: JSONException) {
                                 //JSON broken, try getting the data again
-                                println("Failed JSON:\n${episodesData.second.data}\n")
+                                println("Failed JSON:\n${episodesData.data}\n")
                                 println("Failed to get data from JSON, trying again...")
                             }
                         }
@@ -1435,11 +1452,11 @@ class Spotify(private val market: String = "") {
                         }
 
                         HTTP_TOO_MANY_REQUESTS -> {
-                            println("Too many requests! Waiting for ${episodesData.second.data} seconds.")
+                            println("Too many requests! Waiting for ${episodesData.data.data} seconds.")
                             //wait for given time before next request.
-                            delay(episodesData.second.data.toLong() * 1000 + 500)
+                            delay(episodesData.data.data.toLong() * 1000 + 500)
                         }
-                        else -> println("HTTP ERROR! CODE: ${episodesData.first.code}")
+                        else -> println("HTTP ERROR! CODE: ${episodesData.code.code}")
                     }
                 }
             }
@@ -1461,15 +1478,16 @@ class Spotify(private val market: String = "") {
         withContext(IO + showJob) {
             while (true) {
                 val showData = getShowData(showLink)
-                when (showData.first.code) {
+                when (showData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val data = JSONObject(showData.second.data)
+                            val data = JSONObject(showData.data.data)
                             show = parseShowData(data)
+                            showJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${showData.second.data}\n")
+                            println("Failed JSON:\n${showData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -1480,21 +1498,17 @@ class Spotify(private val market: String = "") {
 
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $showLink not found!")
-                        show = Show(
-                            Name(),
-                            Publisher(),
-                            Description(),
-                            EpisodeList(),
-                            Link()
-                        )
+                        show = Show()
+                        showJob.complete()
+                        return@withContext
                     }
 
                     HTTP_TOO_MANY_REQUESTS -> {
-                        println("Too many requests! Waiting for ${showData.second.data} seconds.")
+                        println("Too many requests! Waiting for ${showData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(showData.second.data.toLong() * 1000 + 500)
+                        delay(showData.data.data.toLong() * 1000 + 500)
                     }
-                    else -> println("HTTP ERROR! CODE: ${showData.first.code}")
+                    else -> println("HTTP ERROR! CODE: ${showData.code}")
                 }
             }
         }
@@ -1504,7 +1518,7 @@ class Spotify(private val market: String = "") {
     suspend fun getEpisode(episodeLink: Link): Episode {
         lateinit var episode: Episode
 
-        fun getEpisodeData(): Pair<ResponseCode, ResponseData> {
+        fun getEpisodeData(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/episodes/")
             urlBuilder.append(episodeLink.getId())
@@ -1553,15 +1567,16 @@ class Spotify(private val market: String = "") {
         withContext(IO + episodeJob) {
             while (true) {
                 val episodeData = getEpisodeData()
-                when (episodeData.first.code) {
+                when (episodeData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val data = JSONObject(episodeData.second.data)
+                            val data = JSONObject(episodeData.data.data)
                             episode = parseEpisodeData(data)
+                            episodeJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${episodeData.second.data}\n")
+                            println("Failed JSON:\n${episodeData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -1573,15 +1588,16 @@ class Spotify(private val market: String = "") {
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $episodeLink not found!")
                         episode = Episode()
+                        episodeJob.complete()
                         return@withContext
                     }
 
                     HTTP_TOO_MANY_REQUESTS -> {
-                        println("Too many requests! Waiting for ${episodeData.second.data} seconds.")
+                        println("Too many requests! Waiting for ${episodeData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(episodeData.second.data.toLong() * 1000 + 500)
+                        delay(episodeData.data.data.toLong() * 1000 + 500)
                     }
-                    else -> println("HTTP ERROR! CODE: ${episodeData.first.code}")
+                    else -> println("HTTP ERROR! CODE: ${episodeData.code}")
                 }
             }
         }

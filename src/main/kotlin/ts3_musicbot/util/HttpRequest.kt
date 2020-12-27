@@ -11,6 +11,7 @@ data class ExtraProperties(val properties: List<String>)
 data class PostData(val data: List<String>)
 data class ResponseCode(val code: Int)
 data class ResponseData(val data: String)
+data class Response(val code: ResponseCode, val data: ResponseData)
 
 const val HTTP_TOO_MANY_REQUESTS = 429
 
@@ -35,7 +36,7 @@ fun sendHttpRequest(
             "User-Agent: Mozilla/5.0"
         )
     )
-): Pair<ResponseCode, ResponseData> {
+): Response{
     val connection = url.openConnection() as HttpURLConnection
     connection.requestMethod = requestMethod.method
     for (property in defaultProperties.properties) {
@@ -55,7 +56,7 @@ fun sendHttpRequest(
         outputStream.flush()
         outputStream.close()
     }
-    return Pair(
+    return Response(
         ResponseCode(connection.responseCode), ResponseData(
             when (connection.responseCode) {
                 HttpURLConnection.HTTP_OK -> {

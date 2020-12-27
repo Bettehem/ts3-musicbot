@@ -1,9 +1,9 @@
 package ts3_musicbot.services
 
+import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.Dispatchers.IO
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import ts3_musicbot.util.*
@@ -13,12 +13,20 @@ import java.net.URLEncoder
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatterBuilder
+import java.time.temporal.ChronoField
 
 class SoundCloud {
-    var clientId = "iJfdb4eX2yiDdAlPzFtDnd26wDofArGy"
+    var clientId = "NpVHurnc1OKS80l6zlXrEVN4VEXrbZG4"
     private val commandRunner = CommandRunner()
     private val api2URL = URL("https://api-v2.soundcloud.com")
-    private val apiURL = URL("https://api.soundcloud.com")
+    val apiURL = URL("https://api.soundcloud.com")
+    val supportedSearchTypes = listOf(
+        SearchType.Type.TRACK,
+        SearchType.Type.PLAYLIST,
+        SearchType.Type.ALBUM,
+        SearchType.Type.USER
+    )
 
     /**
      * Updates the clientId
@@ -48,7 +56,7 @@ class SoundCloud {
 
     suspend fun searchSoundCloud(searchType: SearchType, searchQuery: SearchQuery): SearchResults {
         val searchResults = ArrayList<SearchResult>()
-        fun searchData(): Pair<ResponseCode, ResponseData> {
+        fun searchData(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$api2URL/search/")
             urlBuilder.append("${searchType}s?")
@@ -128,6 +136,49 @@ class SoundCloud {
                     }
                 }
 
+                "album" -> {
+                    val albums = searchData.getJSONArray("collection")
+                    for (albumData in albums) {
+                        albumData as JSONObject
+
+                        val album = Album(
+                            Name(albumData.getString("title")),
+                            Artists(
+                                listOf(
+                                    Artist(
+                                        Name(albumData.getJSONObject("user").getString("username")),
+                                        Link(
+                                            albumData.getJSONObject("user").getString("permalink_url"),
+                                            albumData.getJSONObject("user").getInt("id").toString()
+                                        )
+                                    )
+                                )
+                            ),
+                            ReleaseDate(
+                                LocalDate.parse(
+                                    albumData.getString("published_at"),
+                                    DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
+                                )
+                            ),
+                            TrackList(albumData.getJSONArray("tracks").map {
+                                it as JSONObject
+                                Track(link = Link(linkId = it.getInt("id").toString()))
+                            }),
+                            Link(albumData.getString("permalink_url"), albumData.getInt("id").toString()),
+                            Genres(listOf(albumData.getString("genre")))
+                        )
+
+                        searchResults.add(
+                            SearchResult(
+                                "Album:   \t${album.name}\n" +
+                                        "Artist:     \t${album.artists.toShortString()}\n" +
+                                        "Tracks:    \t${album.tracks.trackList.size}\n" +
+                                        "Link:     \t\t${album.link}\n"
+                            )
+                        )
+                    }
+                }
+
                 "user" -> {
                     val users = searchData.getJSONArray("collection")
                     for (userData in users) {
@@ -151,10 +202,10 @@ class SoundCloud {
         withContext(IO + searchJob) {
             while (true) {
                 val searchData = searchData()
-                when (searchData.first.code) {
+                when (searchData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val resultData = JSONObject(searchData.second.data)
+                            val resultData = JSONObject(searchData.data.data)
                             withContext(Default + searchJob) {
                                 parseResults(resultData)
                             }
@@ -162,14 +213,12 @@ class SoundCloud {
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${searchData.second.data}\n")
+                            println("Failed JSON:\n${searchData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
                     HttpURLConnection.HTTP_UNAUTHORIZED -> updateClientId()
-                    else -> {
-                        println("Error: code ${searchData.first.code}")
-                    }
+                    else -> println("HTTP ERROR! CODE ${searchData.code}")
                 }
             }
         }
@@ -182,62 +231,64 @@ class SoundCloud {
      * @param link SoundCloud playlist link
      * @return returns an ArrayList containing the playlist's tracks as Track objects
      */
-    fun getPlaylistTracks(link: Link): ArrayList<Track> {
-        fun getTracks(): Pair<ResponseCode, ResponseData> {
+    suspend fun getPlaylistTracks(link: Link): TrackList {
+        suspend fun getTracks(): Response {
             val id = resolveId(link)
             val urlBuilder = StringBuilder()
-            urlBuilder.append("$api2URL/playlists/")
+            urlBuilder.append("$api2URL/${if (id.startsWith("soundcloud:system-playlists")) "system-playlists" else "playlists"}/")
             urlBuilder.append(id)
             urlBuilder.append("?client_id=$clientId")
+            @Suppress("BlockingMethodInNonBlockingContext")
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
 
         val trackList = ArrayList<Track>()
-        var gettingData = true
-        while (gettingData) {
-            val trackData = getTracks()
-            when (trackData.first.code) {
-                HttpURLConnection.HTTP_OK -> {
-                    gettingData = false
-                    try {
-                        val tracks = JSONObject(trackData.second.data).getJSONArray("tracks")
-                        if (tracks.length() > 50) {
-                            println("This playlist has ${tracks.length()} tracks. Please wait...")
-                        }
-                        for (item in tracks) {
-                            item as JSONObject
-                            try {
-                                trackList.add(getTrack(Link("$apiURL/tracks/${item.getInt("id")}")))
-                            } catch (e: Exception) {
-                                trackList.add(
-                                    Track(
-                                        Album(
-                                            Name(""),
-                                            Artists(emptyList()),
-                                            ReleaseDate(LocalDate.now()),
-                                            TrackList(emptyList()),
-                                            Link("")
-                                        ),
-                                        Artists(emptyList()),
-                                        Name(""),
-                                        Link(""),
-                                        Playability(false)
-                                    )
-                                )
+        val playlistJob = Job()
+        withContext(IO + playlistJob) {
+            while (true) {
+                val trackData = getTracks()
+                when (trackData.code.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val tracksJSON = JSONObject(trackData.data.data).getJSONArray("tracks")
+                            if (tracksJSON.length() > 50) {
+                                println("This playlist has ${tracksJSON.length()} tracks. Please wait...")
                             }
+                            val apiLinks = tracksJSON.map {
+                                it as JSONObject
+                                Link("$apiURL/tracks/${it.getInt("id")}", it.getInt("id").toString())
+                            }
+                            val tracks = getMultipleTracks(apiLinks)
+                            val sortedList = async {
+                                val newList = ArrayList<Track>()
+                                val idList = apiLinks.map { it.getId() }
+                                for (originalId in idList) {
+                                    for (track in tracks.trackList) {
+                                        if (track.link.getId() == originalId) {
+                                            newList.add(track)
+                                            break
+                                        }
+                                    }
+                                }
+                                newList
+                            }
+                            trackList.addAll(sortedList.await())
+                            playlistJob.complete()
+                            return@withContext
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${trackData.data}\n")
+                            println("Failed to get data from JSON, trying again...")
                         }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
                     }
-                }
-                HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                    updateClientId()
-                }
-                else -> {
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        updateClientId()
+                    }
+                    else -> println("HTTP ERROR! CODE ${trackData.code}")
                 }
             }
         }
-        return trackList
+        return TrackList(trackList)
     }
 
     /**
@@ -245,50 +296,224 @@ class SoundCloud {
      * @param link link to the song
      * @return returns a Track object with uploader, title and link
      */
-    fun getTrack(link: Link): Track {
-        return try {
+    suspend fun getTrack(link: Link): Track {
+        lateinit var track: Track
+
+        suspend fun fetchTrackData(): Response {
             val id = if (link.link.startsWith("$apiURL/tracks/"))
                 link.link.substringAfterLast("/")
             else
                 resolveId(link)
 
             val urlBuilder = StringBuilder()
-            urlBuilder.append("$api2URL/resolve?url=")
-            urlBuilder.append("$apiURL/tracks/$id")
-            urlBuilder.append("&client_id=$clientId")
-            val rawResponse = sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
-            val response = JSONObject(rawResponse.second.data)
+            urlBuilder.append("$api2URL/tracks/$id")
+            urlBuilder.append("?client_id=$clientId")
+            @Suppress("BlockingMethodInNonBlockingContext")
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        }
+
+        fun parseTrackData(trackData: JSONObject): Track {
             val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
-            val releaseDate = ReleaseDate(LocalDate.parse(response.getString("created_at"), formatter))
-            Track(
+            val releaseDate = ReleaseDate(LocalDate.parse(trackData.getString("created_at"), formatter))
+            return Track(
                 Album(releaseDate = releaseDate),
                 Artists(
                     listOf(
                         Artist(
-                            Name(response.getJSONObject("user").getString("username")),
-                            Link(response.getJSONObject("user").getString("permalink_url"))
+                            Name(trackData.getJSONObject("user").getString("username")),
+                            Link(trackData.getJSONObject("user").getString("permalink_url"))
                         )
                     )
                 ),
-                Name(response.getString("title")),
-                Link(response.getString("permalink_url")),
-                Playability(response.getBoolean("streamable"))
-            )
-        } catch (e: Exception) {
-            Track(
-                Album(
-                    Name(""),
-                    Artists(emptyList()),
-                    ReleaseDate(LocalDate.now()),
-                    TrackList(emptyList()),
-                    Link("")
-                ),
-                Artists(emptyList()),
-                Name(""),
-                Link(""),
-                Playability(false)
+                Name(trackData.getString("title")),
+                Link(trackData.getString("permalink_url"), trackData.getInt("id").toString()),
+                Playability(trackData.getBoolean("streamable"))
             )
         }
+
+        val trackJob = Job()
+        withContext(IO + trackJob) {
+            while (true) {
+                val trackData = fetchTrackData()
+                when (trackData.code.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val data = JSONObject(trackData.data.data)
+                            track = parseTrackData(data)
+                            trackJob.complete()
+                            return@withContext
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${trackData.data}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
+                    }
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        updateClientId()
+                    }
+                    HttpURLConnection.HTTP_NOT_FOUND -> {
+                        println("Error 404! $link not found!")
+                        track = Track()
+                        trackJob.complete()
+                        return@withContext
+                    }
+                    else -> println("HTTP ERROR! CODE ${trackData.code}")
+                }
+            }
+        }
+        return track
+    }
+
+    suspend fun getMultipleTracks(links: List<Link>): TrackList {
+        @Suppress("BlockingMethodInNonBlockingContext")
+        suspend fun fetchTracksData(trackLinks: List<Link>): Response {
+            val idsBuilder = StringBuilder()
+            for (link in trackLinks) {
+                idsBuilder.append(
+                    if (link.link.startsWith("$apiURL/tracks/")) {
+                        link.link.substringAfterLast("/")
+                    } else {
+                        resolveId(link)
+                    } + ","
+                )
+            }
+            val ids = URLEncoder.encode(idsBuilder.toString().substringBeforeLast(","), Charsets.UTF_8.toString())
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$api2URL/tracks?ids=$ids")
+            urlBuilder.append("&client_id=$clientId")
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        }
+
+        fun parseTracksData(tracksData: JSONArray): TrackList {
+            val trackList = ArrayList<Track>()
+            for (trackData in tracksData) {
+                trackData as JSONObject
+                val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
+                val releaseDate = ReleaseDate(LocalDate.parse(trackData.getString("created_at"), formatter))
+                trackList.add(
+                    Track(
+                        Album(releaseDate = releaseDate),
+                        Artists(
+                            listOf(
+                                Artist(
+                                    Name(trackData.getJSONObject("user").getString("username")),
+                                    Link(trackData.getJSONObject("user").getString("permalink_url"))
+                                )
+                            )
+                        ),
+                        Name(trackData.getString("title")),
+                        Link(trackData.getString("permalink_url"), trackData.getInt("id").toString()),
+                        Playability(trackData.getBoolean("streamable"))
+                    )
+                )
+            }
+            return TrackList(trackList)
+        }
+
+        val tracksJob = Job()
+        val tracks = CoroutineScope(IO + tracksJob).async {
+            val trackList = ArrayList<Track>()
+            withContext(IO + tracksJob) {
+                val linksToFetch = ArrayList<List<Link>>()
+                var list = ArrayList<Link>()
+                for (link in links) {
+                    //create lists of 50 links, because SoundCloud limits searching to 50 items at a time
+                    if (list.size < 50)
+                        list.add(link)
+                    else {
+                        linksToFetch.add(list)
+                        list = ArrayList()
+                        list.add(link)
+                    }
+                }
+                linksToFetch.add(list)
+                for (linksList in linksToFetch) {
+                    launch {
+                        while (true) {
+                            val tracksData = fetchTracksData(linksList)
+                            when (tracksData.code.code) {
+                                HttpURLConnection.HTTP_OK -> {
+                                    try {
+                                        val data = JSONArray(tracksData.data.data)
+                                        synchronized(trackList) {
+                                            trackList.addAll(parseTracksData(data).trackList)
+                                        }
+                                        return@launch
+                                    } catch (e: JSONException) {
+                                        //JSON broken, try getting the data again
+                                        println("Failed JSON:\n${tracksData.data}\n")
+                                        println("Failed to get data from JSON, trying again...")
+                                    }
+                                }
+                                HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                                    updateClientId()
+                                }
+                                HttpURLConnection.HTTP_NOT_FOUND -> {
+                                    println("Error 404! Link not found!")
+                                    return@launch
+                                }
+                                else -> println("HTTP ERROR! CODE ${tracksData.code}")
+                            }
+                        }
+                    }
+                }
+            }
+            TrackList(trackList)
+        }
+        return tracks.await()
+    }
+
+    suspend fun getUser(link: Link): User {
+        lateinit var user: User
+        suspend fun fetchUserData(): Response {
+            val id = if (link.link.startsWith("$apiURL/users/"))
+                link.link.substringAfterLast("/")
+            else
+                resolveId(link)
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$api2URL/users/$id")
+            urlBuilder.append("?client_id=$clientId")
+            @Suppress("BlockingMethodInNonBlockingContext")
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        }
+
+        fun parseUserData(userData: JSONObject): User {
+            return User(
+                Name(userData.getString("username")),
+                Name(userData.getString("permalink")),
+                Description(userData.getString("description")),
+                Followers(userData.getInt("followers_count")),
+                Link(userData.getString("permalink_url"))
+            )
+        }
+
+        val userJob = Job()
+        withContext(IO + userJob) {
+            while (true) {
+                val userData = fetchUserData()
+                when (userData.code.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val data = JSONObject(userData.data.data)
+                            user = parseUserData(data)
+                            userJob.complete()
+                            return@withContext
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${userData.data}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
+                    }
+
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        updateClientId()
+                    }
+
+                    else -> println("HTTP ERROR! CODE: ${userData.code}")
+                }
+            }
+        }
+        return user
     }
 
     /**
@@ -296,8 +521,8 @@ class SoundCloud {
      * @param link link to resolve
      * @return returns the corresponding id for the given link as a String
      */
-    fun resolveId(link: Link): String {
-        fun getId(): Pair<ResponseCode, ResponseData> {
+    suspend fun resolveId(link: Link): String {
+        fun fetchIdData(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$api2URL/resolve?")
             urlBuilder.append("client_id=$clientId")
@@ -305,23 +530,41 @@ class SoundCloud {
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
 
-        lateinit var id: String
-        var gettingData = true
-        while (gettingData) {
-            val idData = getId()
-            when (idData.first.code) {
-                HttpURLConnection.HTTP_OK -> {
-                    id = JSONObject(idData.second.data).getInt("id").toString()
-                    gettingData = false
-                }
-                HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                    updateClientId()
-                }
-                else -> {
-                    println("Error: code ${idData.first.code}")
+        val resolveJob = Job()
+        val deferredId = CoroutineScope(IO + resolveJob).async {
+            lateinit var id: String
+            while (true) {
+                val idData = fetchIdData()
+                when (idData.code.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val data = JSONObject(idData.data.data)
+                            when (data.get("id")) {
+                                is String -> id = data.getString("id")
+                                is Int -> id = data.getInt("id").toString()
+                            }
+                            break
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${idData.data}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
+                    }
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        updateClientId()
+                    }
+                    HttpURLConnection.HTTP_NOT_FOUND -> {
+                        println("Error 404! $idData not found!")
+                        id = ""
+                        break
+                    }
+                    else -> println("HTTP ERROR! CODE ${idData.code}")
                 }
             }
+            resolveJob.complete()
+            id
+
         }
-        return id
+        return deferredId.await()
     }
 }

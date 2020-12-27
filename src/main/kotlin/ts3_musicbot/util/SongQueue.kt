@@ -441,6 +441,7 @@ class SongQueue(
                                 delay(1000)
                             }
                             println("Waiting for ${getPlayer()} to close.")
+                            delay(50)
                         }
                     }
                     else -> {

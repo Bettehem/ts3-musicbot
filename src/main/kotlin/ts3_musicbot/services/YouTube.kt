@@ -16,6 +16,11 @@ class YouTube {
     private val apiUrl = "https://www.googleapis.com/youtube/v3"
     private val apiKey1 = "AIzaSyB_FpJTYVMuQ2I_DxaidXUd7z4Q-ScMv6Y"
     private val apiKey2 = "AIzaSyCQBDN5QIpKCub2nNMR7WJiZY7_LYiZImA"
+    val supportedSearchTypes = listOf(
+        SearchType.Type.TRACK,
+        SearchType.Type.VIDEO,
+        SearchType.Type.PLAYLIST,
+    )
 
     /**
      * Get the title of a YouTube video
@@ -30,9 +35,9 @@ class YouTube {
         /**
          * Send a request to YouTube API to get playlist items
          * @param part tells the API what type of information to return
-         * @return returns a JSONObject containing the response from the request
+         * @return returns a Response
          */
-        fun sendRequest(part: String = "snippet,status", key: String = apiKey1): Pair<ResponseCode, ResponseData> {
+        fun sendRequest(part: String = "snippet,status", key: String = apiKey1): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiUrl/videos?")
             urlBuilder.append("id=${videoLink.link.substringAfterLast("/").substringAfter("?v=").substringBefore("&")}")
@@ -48,10 +53,10 @@ class YouTube {
         withContext(IO + ytJob) {
             while (true) {
                 val response = sendRequest(key = key)
-                when (response.first.code) {
+                when (response.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val itemData = JSONObject(response.second.data).getJSONArray("items")[0]
+                            val itemData = JSONObject(response.data.data).getJSONArray("items")[0]
                             itemData as JSONObject
                             val releaseDate = ReleaseDate(
                                 LocalDate.parse(itemData.getJSONObject("snippet").getString("publishedAt"), formatter)
@@ -67,6 +72,7 @@ class YouTube {
                                 Link("https://youtu.be/${itemData.getString("id")}"),
                                 Playability(isPlayable)
                             )
+                            ytJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
                             println("broken JSON, trying again")
@@ -77,12 +83,14 @@ class YouTube {
                             //try with another api key
                             key = apiKey2
                         } else {
-                            println("HTTP ERROR! CODE: ${response.first.code}")
+                            println("HTTP ERROR! CODE: ${response.code}")
+                            ytJob.complete()
                             return@withContext
                         }
                     }
                     else -> {
-                        println("HTTP ERROR! CODE: ${response.first.code}")
+                        println("HTTP ERROR! CODE: ${response.code}")
+                        ytJob.complete()
                         return@withContext
                     }
                 }
@@ -102,14 +110,14 @@ class YouTube {
          * @param maxResults max results to receive. 50 is the maximum per request
          * @param pageToken token to get a specific page of results, if for example there are more than 50 items.
          * @param part tells the API what type of information to return
-         * @return returns a JSONObject containing the response from the request
+         * @return returns a Response
          */
         fun sendRequest(
             maxResults: Int = 50,
             pageToken: String = "",
             part: String = "snippet,status",
             apiKey: String = apiKey1
-        ): Pair<ResponseCode, ResponseData> {
+        ): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiUrl/playlistItems?")
             urlBuilder.append("playlistId=${link.link.substringAfter("list=")}")
@@ -139,9 +147,9 @@ class YouTube {
                                     ""
                                 }, apiKey = key
                             )
-                            when (result.first.code) {
+                            when (result.code.code) {
                                 HttpURLConnection.HTTP_OK -> {
-                                    pageData = JSONObject(result.second.data)
+                                    pageData = JSONObject(result.data.data)
                                     for (item in pageData.getJSONArray("items")) {
                                         item as JSONObject
 
@@ -177,19 +185,23 @@ class YouTube {
                                             totalItems -= 1
                                         }
                                     }
-                                    if (!pageData.has("nextPageToken"))
+                                    if (!pageData.has("nextPageToken")) {
+                                        getPageJob.complete()
                                         return@withContext
+                                    }
                                 }
                                 HttpURLConnection.HTTP_FORBIDDEN -> {
                                     if (key == apiKey1)
                                         key = apiKey2
                                     else {
-                                        println("HTTP ERROR! CODE: ${result.first.code}")
+                                        println("HTTP ERROR! CODE: ${result.code}")
+                                        getPageJob.complete()
                                         return@withContext
                                     }
                                 }
                                 else -> {
-                                    println("HTTP ERROR! CODE: ${result.first.code}")
+                                    println("HTTP ERROR! CODE: ${result.code}")
+                                    getPageJob.complete()
                                     return@withContext
                                 }
                             }
@@ -203,9 +215,9 @@ class YouTube {
                 withContext(IO + playlistJob) {
                     while (true) {
                         val result = sendRequest(apiKey = key)
-                        when (result.first.code) {
+                        when (result.code.code) {
                             HttpURLConnection.HTTP_OK -> {
-                                itemData = JSONObject(result.second.data)
+                                itemData = JSONObject(result.data.data)
                                 for (item in itemData.getJSONArray("items")) {
                                     item as JSONObject
 
@@ -241,18 +253,21 @@ class YouTube {
                                         totalItems -= 1
                                     }
                                 }
+                                playlistJob.complete()
                                 return@withContext
                             }
                             HttpURLConnection.HTTP_FORBIDDEN -> {
                                 if (key == apiKey1)
                                     key = apiKey2
                                 else {
-                                    println("HTTP ERROR! CODE: ${result.first.code}")
+                                    println("HTTP ERROR! CODE: ${result.code}")
+                                    playlistJob.complete()
                                     return@withContext
                                 }
                             }
                             else -> {
-                                println("HTTP ERROR! CODE: ${result.first.code}")
+                                println("HTTP ERROR! CODE: ${result.code}")
+                                playlistJob.complete()
                                 return@withContext
                             }
                         }
@@ -268,11 +283,12 @@ class YouTube {
         withContext(IO + playlistJob) {
             while (true) {
                 val response = sendRequest(part = "id", apiKey = key)
-                when (response.first.code) {
+                when (response.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val data = JSONObject(response.second.data)
+                            val data = JSONObject(response.data.data)
                             trackList = parseItems(data)
+                            playlistJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
                             e.printStackTrace()
@@ -283,12 +299,14 @@ class YouTube {
                         if (key == apiKey1)
                             key = apiKey2
                         else {
-                            println("HTTP ERROR! CODE: ${response.first.code}")
+                            println("HTTP ERROR! CODE: ${response.code}")
+                            playlistJob.complete()
                             return@withContext
                         }
                     }
                     else -> {
-                        println("HTTP ERROR! CODE: ${response.first.code}")
+                        println("HTTP ERROR! CODE: ${response.code}")
+                        playlistJob.complete()
                         return@withContext
                     }
                 }
@@ -305,11 +323,11 @@ class YouTube {
      * @return returns top 10 results from the search
      */
     suspend fun searchYoutube(searchType: SearchType, searchQuery: SearchQuery): SearchResults {
-        fun searchData(apiKey: String = apiKey1): Pair<ResponseCode, ResponseData> {
+        fun searchData(apiKey: String = apiKey1): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiUrl/search?")
             urlBuilder.append("q=${searchQuery.query.replace(" ", "%20").replace("\"", "%22")}")
-            urlBuilder.append("&type=$searchType")
+            urlBuilder.append("&type=${searchType.type.replace("track", "video")}")
             urlBuilder.append("&maxResults=10")
             urlBuilder.append("&part=snippet")
             urlBuilder.append("&key=$apiKey")
@@ -322,10 +340,10 @@ class YouTube {
         withContext(IO + searchJob) {
             while (true) {
                 val result = searchData(key)
-                when (result.first.code) {
+                when (result.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val responseData = JSONObject(result.second.data)
+                            val responseData = JSONObject(result.data.data)
                             when (searchType.type) {
                                 "track", "video" -> {
                                     val results = responseData.getJSONArray("items")
@@ -368,10 +386,12 @@ class YouTube {
                                     }
                                 }
                             }
+                            searchJob.complete()
                             return@withContext
                         } catch (e: Exception) {
                             e.printStackTrace()
                             println("Error! JSON Broken!")
+                            searchJob.complete()
                             return@withContext
                         }
 
@@ -380,20 +400,20 @@ class YouTube {
                         if (key == apiKey1)
                             key = apiKey2
                         else {
-                            println("HTTP ERROR! CODE: ${result.first.code}")
+                            println("HTTP ERROR! CODE: ${result.code}")
+                            searchJob.complete()
                             return@withContext
                         }
                     }
                     else -> {
-                        println("HTTP ERROR! CODE: ${result.first.code}")
+                        println("HTTP ERROR! CODE: ${result.code}")
+                        searchJob.complete()
                         return@withContext
                     }
                 }
             }
         }
-
         return SearchResults(searchResults)
     }
 }
-
 

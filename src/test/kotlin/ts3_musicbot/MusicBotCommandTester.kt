@@ -182,7 +182,7 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
         }).also { Thread.sleep(5000) }
         runBlocking(Default) {
             val soundCloud = SoundCloud()
-            list = soundCloud.getPlaylistTracks(soundCloudPlaylistLink).filter { it.playability.isPlayable }
+            list = soundCloud.getPlaylistTracks(soundCloudPlaylistLink).trackList.filter { it.playability.isPlayable }
         }
         assertEquals(list, extraList.trackList)
         runCommand(chatReader, "%queue-clear")

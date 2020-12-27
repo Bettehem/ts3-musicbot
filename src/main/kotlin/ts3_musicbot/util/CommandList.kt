@@ -79,7 +79,7 @@ object CommandList {
                     "%sp-playlist <playlist>      -Plays a Spotify playlist. <playlist> should be your playlist's link or Spotify URI\n" +
                     "%sp-playalbum <album>        -Plays a Spotify album <album> should be your album's link or Spotify URI\n" +
                     "%sp-nowplaying               -Shows information on currently playing track\n" +
-                    "%sp-search <type> <text>     -Search on Spotify. <type> can be track, album or playlist\n" +
+                    "%sp-search <type> <text>     -Search on Spotify. <type> can be track, album, playlist, artist, show or episode.\n" +
                     "%sp-info <link>              -Shows info on the given link. <link> can be a Spotify track link or Spotify URI\n" +
                     "\n" +
                     "YouTube commands:\n" +
@@ -98,7 +98,7 @@ object CommandList {
                     "%sc-stop                     -Stops the SoundCloud playback\n" +
                     "%sc-playsong <link>          -Plays a SoundCloud song based on link\n" +
                     "%sc-nowplaying               -Shows information on currently playing track\n" +
-                    "%sc-search <type> <text>     -Search on SoundCloud. Shows 10 first results. <type> can be track or playlist\n"
+                    "%sc-search <type> <text>     -Search on SoundCloud. Shows 10 first results. <type> can be track, playlist, album or user\n"
         ),
         Pair(
             "%queue-add", "\n" +
@@ -365,6 +365,7 @@ object CommandList {
                     "track    \t\tSearch for a SoundCloud track.\n" +
                     "playlist    \tSearch for a SoundCloud playlist.\n" +
                     "user     \t\tSearch for a SoundCloud user.\n" +
+                    "album    \t\tSearch for a SoundCloud album.\n" +
                     "Example - Search on SoundCloud for a track with the name \"leeya - something worth dreaming of\":\n" +
                     "%sc-search track leeya something worth dreaming of\n" +
                     "Example 2 - Search on SoundCloud for a playlist with the name \"jeesjees\":\n" +
