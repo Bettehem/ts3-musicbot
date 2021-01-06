@@ -386,6 +386,7 @@ class Spotify(private val market: String = "") {
                     listUrlBuilder.append(playlistLink.getId())
                     listUrlBuilder.append("/tracks?limit=100")
                     listUrlBuilder.append("&offset=$listOffset")
+                    listUrlBuilder.append("&market=${if (market.isNotEmpty()) market else defaultMarket}")
                     val listUrl = URL(listUrlBuilder.toString())
                     return sendHttpRequest(
                         listUrl,
@@ -395,9 +396,11 @@ class Spotify(private val market: String = "") {
                 }
 
                 suspend fun parseItems(items: JSONArray) {
-                    withContext(Default) {
-                        for (item in items) {
-                            item as JSONObject
+                    println("Parsing items... (${items.length()})")
+                    for (item in items) {
+                        item as JSONObject
+                        val itemJob = Job()
+                        withContext(Default + itemJob) {
                             try {
                                 if (item.get("track") != null) {
                                     if (item.getJSONObject("track").get("id") != null) {
@@ -413,7 +416,8 @@ class Spotify(private val market: String = "") {
                                                 )
                                             } else {
                                                 Name(
-                                                    item.getJSONObject("track").getJSONObject("album").getString("name")
+                                                    item.getJSONObject("track").getJSONObject("album")
+                                                        .getString("name")
                                                 )
                                             }
                                             val artistsData = item.getJSONObject("track").getJSONArray("artists")
@@ -422,7 +426,9 @@ class Spotify(private val market: String = "") {
                                                     it as JSONObject
                                                     Artist(
                                                         Name(it.getString("name")),
-                                                        Link(it.getJSONObject("external_urls").getString("spotify")),
+                                                        Link(
+                                                            it.getJSONObject("external_urls").getString("spotify")
+                                                        ),
                                                         TrackList(emptyList()),
                                                         Artists(emptyList())
                                                     )
@@ -455,10 +461,11 @@ class Spotify(private val market: String = "") {
                                                         )
                                                     }
                                                     else -> {
-                                                        val formatter = DateTimeFormatterBuilder().appendPattern("yyyy")
-                                                            .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
-                                                            .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                                            .toFormatter()
+                                                        val formatter =
+                                                            DateTimeFormatterBuilder().appendPattern("yyyy")
+                                                                .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+                                                                .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                                                                .toFormatter()
                                                         ReleaseDate(
                                                             LocalDate.parse(
                                                                 item.getJSONObject("track").getJSONObject("album")
@@ -478,15 +485,11 @@ class Spotify(private val market: String = "") {
                                                 item.getJSONObject("track").getJSONObject("external_urls")
                                                     .getString("spotify")
                                             )
-                                            val availableMarkets =
-                                                item.getJSONObject("track").getJSONArray("available_markets")
-                                            val isPlayable = if (
-                                                availableMarkets.contains(market) ||
-                                                availableMarkets.contains(defaultMarket)
-                                            ) true else {
-                                                if (availableMarkets.isEmpty) {
-                                                    getTrack(link).playability.isPlayable
-                                                } else false
+                                            val isPlayable = if (item.getJSONObject("track").getBoolean("is_playable"))
+                                                true
+                                            else {
+                                                println("Track playability not certain! Doing extra checks...")
+                                                getTrack(link).playability.isPlayable
                                             }
                                             trackItems.add(
                                                 Track(
@@ -498,13 +501,26 @@ class Spotify(private val market: String = "") {
                                                     LinkType.SPOTIFY
                                                 )
                                             )
+                                            itemJob.complete()
                                         } else {
+                                            println("This is a local track. Skipping...")
                                             playlistLength -= 1
+                                            itemJob.complete()
                                         }
+                                    } else {
+                                        println("Track id is null. Skipping...")
+                                        playlistLength -= 1
+                                        itemJob.complete()
                                     }
+                                } else {
+                                    println("Track data null. Skipping...")
+                                    playlistLength -= 1
+                                    itemJob.complete()
                                 }
                             } catch (e: JSONException) {
+                                println("Track couldn't be parsed due to JSONException. Skipping...")
                                 playlistLength -= 1
+                                itemJob.complete()
                             }
                         }
                     }
@@ -518,9 +534,7 @@ class Spotify(private val market: String = "") {
                             HttpURLConnection.HTTP_OK -> {
                                 try {
                                     val item = JSONObject(itemData.data.data)
-                                    withContext(Default) {
-                                        parseItems(item.getJSONArray("items"))
-                                    }
+                                    parseItems(item.getJSONArray("items"))
                                     listOffset += 100
                                     itemJob.complete()
                                     return@withContext
@@ -926,57 +940,28 @@ class Spotify(private val market: String = "") {
                 )
             })
             val title = Name(trackData.getString("name"))
-            val isPlayable = if (trackData.getJSONArray("available_markets").contains(market) ||
-                trackData.getJSONArray("available_markets").contains(defaultMarket)
-            ) true else {
+            println("Checking playability...")
+            val isPlayable = if (trackData.getBoolean("is_playable")) {
+                true
+            } else {
                 val trackJob = Job()
                 var playable: Boolean
                 withContext(IO + trackJob) {
                     while (true) {
-                        val trackData2 = getTrackData(trackLink, if (market.isNotEmpty()) market else defaultMarket)
+                        val id = trackData.getString("id")
+                        val trackData2 = if (id != trackLink.getId()) {
+                            val newLink = Link("https://open.spotify.com/track/$id")
+                            getTrackData(newLink)
+                        } else {
+                            getTrackData(trackLink)
+                        }
                         when (trackData2.code.code) {
                             HttpURLConnection.HTTP_OK -> {
                                 try {
                                     val data = JSONObject(trackData2.data.data)
-                                    val id = data.getString("id")
-                                    if (!data.getBoolean("is_playable") && id != trackLink.getId()) {
-                                        while (true) {
-                                            val newLink = Link("https://open.spotify.com/track/$id")
-                                            val trackData3 = getTrackData(newLink)
-                                            when (trackData3.code.code) {
-                                                HttpURLConnection.HTTP_OK -> {
-                                                    try {
-                                                        val data2 = JSONObject(trackData3.data.data)
-                                                        playable =
-                                                            data2.getJSONArray("available_markets").contains(market)
-                                                        trackJob.complete()
-                                                        return@withContext
-                                                    } catch (e: JSONException) {
-                                                        //JSON broken, try getting the data again
-                                                        println("Failed JSON:\n${trackData3.data}\n")
-                                                        println("Failed to get data from JSON, trying again...")
-                                                    }
-                                                }
-                                                HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                                                    updateToken()
-                                                }
-                                                HttpURLConnection.HTTP_NOT_FOUND -> {
-                                                    println("Error 404! $trackLink not found!")
-                                                    playable = false
-                                                    trackJob.complete()
-                                                    return@withContext
-                                                }
-                                                HTTP_TOO_MANY_REQUESTS -> {
-                                                    println("Too many requests! Waiting for ${trackData3.data.data} seconds.")
-                                                    //wait for given time before next request.
-                                                    delay(trackData3.data.data.toLong() * 1000 + 500)
-                                                }
-                                                else -> println("HTTP ERROR! CODE: ${trackData3.code}")
-                                            }
-                                        }
-                                    } else {
-                                        playable = data.getBoolean("is_playable")
-                                    }
+                                    val availableMarkets = data.getJSONArray("available_markets")
+                                    playable = availableMarkets.contains(market)
+                                            || availableMarkets.contains(defaultMarket)
                                     trackJob.complete()
                                     return@withContext
                                 } catch (e: JSONException) {
@@ -1006,6 +991,10 @@ class Spotify(private val market: String = "") {
                 trackJob.join()
                 playable
             }
+            if (isPlayable)
+                println("Track is playable.")
+            else
+                println("Track isn't playable.")
             return Track(album, artists, title, trackLink, Playability(isPlayable))
         }
 
@@ -1013,7 +1002,7 @@ class Spotify(private val market: String = "") {
         val trackJob = Job()
         withContext(IO + trackJob) {
             while (true) {
-                val trackData = getTrackData(trackLink)
+                val trackData = getTrackData(trackLink, if (market.isNotEmpty()) market else defaultMarket)
                 when (trackData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {

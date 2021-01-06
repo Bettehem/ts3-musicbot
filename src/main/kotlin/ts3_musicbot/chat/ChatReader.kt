@@ -104,7 +104,7 @@ class ChatReader(
         if (message.startsWith("%") && message.length > 1) {
 
             val commandJob: CompletableJob = Job()
-            CoroutineScope(Default + commandJob).launch {
+            CoroutineScope(IO + commandJob).launch {
                 suspend fun executeCommand(commandString: String): Boolean {
                     //parse and execute commands
                     if (commandList.any { commandString.startsWith(it) }) {
@@ -581,18 +581,17 @@ class ChatReader(
                                                 val track = queue[0]
                                                 val strBuilder = StringBuilder()
                                                 strBuilder.append("${queueIndex++}: ")
-                                                track.artists.artists.forEach {
-                                                    strBuilder.append("${it.name}, ")
-                                                }
+                                                if (track.link.linkType() != LinkType.YOUTUBE)
+                                                    track.artists.artists.forEach { strBuilder.append("${it.name}, ") }
+                                                else
+                                                    strBuilder.append("${track.title},")
                                                 queueList.add(
-                                                    if (track.linkType == LinkType.YOUTUBE) {
-                                                        "${track.title} : ${track.link.link}"
-                                                    } else {
-                                                        "${
-                                                            strBuilder.toString().substringBeforeLast(",")
-                                                        } - ${track.title}" +
-                                                                " : ${track.link.link}"
-                                                    }
+                                                    "${strBuilder.toString().substringBeforeLast(",")} " +
+                                                            if (track.link.linkType() != LinkType.YOUTUBE) {
+                                                                "- ${track.title} "
+                                                            } else {
+                                                                ""
+                                                            } + ": ${track.link.link}"
                                                 )
                                                 queue.removeAt(0)
                                             } else {
