@@ -252,7 +252,7 @@ class SongQueue(
 
             suspend fun startSpotifyPlayer() {
                 when (spotifyPlayer) {
-                    "spotify" -> commandRunner.runCommand("$spotifyPlayer &", printOutput = false)
+                    "spotify" -> commandRunner.runCommand("$spotifyPlayer &", printOutput = false, inheritIO = true)
                     "ncspot" -> {
                         commandRunner.runCommand("killall ncspot; sleep 2")
                         commandRunner.runCommand("\$TERMINAL -e ncspot", ignoreOutput = true)
