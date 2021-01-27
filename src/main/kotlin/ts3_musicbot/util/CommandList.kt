@@ -37,13 +37,15 @@ object CommandList {
             "%yt-playsong",
             "%yt-nowplaying",
             "%yt-search",
+            "%yt-info",
             "%sc-pause",
             "%sc-resume",
             "%sc-play",
             "%sc-stop",
             "%sc-playsong",
             "%sc-nowplaying",
-            "%sc-search"
+            "%sc-search",
+            "%sc-info"
         )
 
     val helpMessages = mapOf(
@@ -65,8 +67,14 @@ object CommandList {
                     "%queue-nowplaying            -Returns information on the currently playing track\n" +
                     "%queue-pause                 -Pauses playback\n" +
                     "%queue-resume                -Resumes playback\n" +
+                    "%sp-search <type> <text>     -Search on Spotify. <type> can be track, album, playlist, artist, show or episode.\n" +
+                    "%yt-search <type> <text>     -Search on YouTube. Shows 10 first results. <type> can be track, video or playlist\n" +
+                    "%sc-search <type> <text>     -Search on SoundCloud. Shows 10 first results. <type> can be track, playlist, album, artist or user\n" +
+                    "%sp-info <link>              -Shows info on the given link. <link> can be a Spotify link or a Spotify URI\n" +
+                    "%sc-info <link>              -Shows info on the given link. <link> can be a SoundCloud link\n" +
                     "\n\n" +
                     "Player specific commands:\n" +
+                    "(These aren't normally needed. Using the commands above is recommended instead)\n" +
                     "\n" +
                     "Spotify commands:\n" +
                     "%sp-pause                    -Pauses the Spotify playback\n" +
@@ -79,8 +87,6 @@ object CommandList {
                     "%sp-playlist <playlist>      -Plays a Spotify playlist. <playlist> should be your playlist's link or Spotify URI\n" +
                     "%sp-playalbum <album>        -Plays a Spotify album <album> should be your album's link or Spotify URI\n" +
                     "%sp-nowplaying               -Shows information on currently playing track\n" +
-                    "%sp-search <type> <text>     -Search on Spotify. <type> can be track, album, playlist, artist, show or episode.\n" +
-                    "%sp-info <link>              -Shows info on the given link. <link> can be a Spotify track link or Spotify URI\n" +
                     "\n" +
                     "YouTube commands:\n" +
                     "%yt-pause                    -Pauses the YouTube playback\n" +
@@ -89,7 +95,6 @@ object CommandList {
                     "%yt-stop                     -Stops the YouTube playback\n" +
                     "%yt-playsong <link>          -Plays a YouTube song based on link\n" +
                     "%yt-nowplaying               -Shows information on currently playing track\n" +
-                    "%yt-search <type> <text>     -Search on YouTube. Shows 10 first results. <type> can be track, video or playlist\n" +
                     "\n" +
                     "SoundCloud commands:\n" +
                     "%sc-pause                    -Pauses SoundCloud playback\n" +
@@ -97,8 +102,7 @@ object CommandList {
                     "%sc-play                     -Resumes the SoundCloud playback\n" +
                     "%sc-stop                     -Stops the SoundCloud playback\n" +
                     "%sc-playsong <link>          -Plays a SoundCloud song based on link\n" +
-                    "%sc-nowplaying               -Shows information on currently playing track\n" +
-                    "%sc-search <type> <text>     -Search on SoundCloud. Shows 10 first results. <type> can be track, playlist, album or user\n"
+                    "%sc-nowplaying               -Shows information on currently playing track\n"
         ),
         Pair(
             "%queue-add", "\n" +
@@ -198,6 +202,64 @@ object CommandList {
                     "%queue-resume resumes playback if the song queue is paused."
         ),
         Pair(
+            "%sp-search", "\n" +
+                    "Showing help for %sp-search command:\n" +
+                    "%sp-search can be used to search for tracks, albums, playlists, artists, shows and episodes on Spotify.\n" +
+                    "To perform a search, you need to provide a search type followed by keywords.\n" +
+                    "Example - Search for a Spotify track with the keywords \"Tesseract Exile\":\n" +
+                    "%sp-search track Tesseract Exile\n" +
+                    "Example - Search for a Spotify album with the keywords \"The Algorithm Brute Force\":\n" +
+                    "%sp-search album The Algorithm Brute Force"
+        ),
+        Pair(
+            "%yt-search", "\n" +
+                    "Showing help for %yt-search command:\n" +
+                    "%yt-search can be used to search for tracks/videos and playlists on YouTube.\n" +
+                    "When searching, you need to specify what type of search you are doing.\n" +
+                    "Available search types:\n" +
+                    "video    \tSearch for a YouTube video.\n" +
+                    "track    \tSame as video.\n" +
+                    "playlist    \tSearch for a YouTube playlist.\n" +
+                    "Example - Search on YouTube for a video with the name \"Jinjer Pisces\":\n" +
+                    "%yt-search track Jinjer Pisces\n" +
+                    "Example 2:\n" +
+                    "%yt-search video Jinjer Pisces"
+        ),
+        Pair(
+            "%sc-search", "\n" +
+                    "Showing help for %sc-search command:\n" +
+                    "%sc-search can be used to search for tracks, playlists and users on SoundCloud.\n" +
+                    "When searching, you need to specify what type of search you are doing.\n" +
+                    "Available search types:\n" +
+                    "track    \t\tSearch for a SoundCloud track.\n" +
+                    "playlist    \tSearch for a SoundCloud playlist.\n" +
+                    "user     \t\tSearch for a SoundCloud user.\n" +
+                    "album    \t\tSearch for a SoundCloud album.\n" +
+                    "artist   \t\tSearch for a SoundCloud artist.\n" +
+                    "Example - Search on SoundCloud for a track with the name \"leeya - something worth dreaming of\":\n" +
+                    "%sc-search track leeya something worth dreaming of\n" +
+                    "Example 2 - Search on SoundCloud for a playlist with the name \"jeesjees\":\n" +
+                    "%sc-search playlist jeesjees\n" +
+                    "Example 3 - Search on SoundCloud for a user with the name \"bettehem\":\n" +
+                    "%sc-search user bettehem"
+        ),
+        Pair(
+            "%sp-info", "\n" +
+                    "Showing help for %sp-info command:\n" +
+                    "%sp-info shows information on a given Spotify link.\n" +
+                    "Example - Get info on Spotify track link:\n" +
+                    "%sp-info https://open.spotify.com/track/2igwFfvr1OAGX9SKDCPBwO\n" +
+                    "Example - Get info on Spotify URI:\n" +
+                    "%sp-info spotify:track:2igwFfvr1OAGX9SKDCPBwO"
+        ),
+        Pair(
+            "%sc-info", "\n" +
+                    "Showing help for %sc-info command:\n" +
+                    "%sp-info shows information on a given SoundCloud link.\n" +
+                    "Example - Get info on SoundCloud track link:\n" +
+                    "%sp-info https://soundcloud.com/iamleeya/something-worth-dreaming-of\n"
+        ),
+        Pair(
             "%sp-pause", "\n" +
                     "Showing help for %sp-pause command:\n" +
                     "%sp-pause pauses Spotify playback."
@@ -255,25 +317,6 @@ object CommandList {
                     "%sp-nowplaying returns details on the currently playing track on Spotify."
         ),
         Pair(
-            "%sp-search", "\n" +
-                    "Showing help for %sp-search command:\n" +
-                    "%sp-search can be used to search for tracks, albums, playlists, artists, shows and episodes on Spotify.\n" +
-                    "To perform a search, you need to provide a search type followed by keywords.\n" +
-                    "Example - Search for a Spotify track with the keywords \"Tesseract Exile\":\n" +
-                    "%sp-search track Tesseract Exile\n" +
-                    "Example - Search for a Spotify album with the keywords \"The Algorithm Brute Force\":\n" +
-                    "%sp-search album The Algorithm Brute Force"
-        ),
-        Pair(
-            "%sp-info", "\n" +
-                    "Showing help for %sp-info command:\n" +
-                    "%sp-info shows information on a given spotify link.\n" +
-                    "Example - Get info on spotify track link:\n" +
-                    "%sp-info https://open.spotify.com/track/2igwFfvr1OAGX9SKDCPBwO\n" +
-                    "Example - Get info on spotify URI:\n" +
-                    "%sp-info spotify:track:2igwFfvr1OAGX9SKDCPBwO"
-        ),
-        Pair(
             "%yt-pause", "\n" +
                     "Showing help for %yt-pause command:\n" +
                     "%yt-pause pauses YouTube playback."
@@ -310,20 +353,6 @@ object CommandList {
                     "%yt-nowplaying returns information on the currently playing YouTube track."
         ),
         Pair(
-            "%yt-search", "\n" +
-                    "Showing help for %yt-search command:\n" +
-                    "%yt-search can be used to search for tracks/videos and playlists on YouTube.\n" +
-                    "When searching, you need to specify what type of search you are doing.\n" +
-                    "Available search types:\n" +
-                    "video    \tSearch for a YouTube video.\n" +
-                    "track    \tSame as video.\n" +
-                    "playlist    \tSearch for a YouTube playlist.\n" +
-                    "Example - Search on YouTube for a video with the name \"Jinjer Pisces\":\n" +
-                    "%yt-search track Jinjer Pisces\n" +
-                    "Example 2:\n" +
-                    "%yt-search video Jinjer Pisces"
-        ),
-        Pair(
             "%sc-pause", "\n" +
                     "Showing help for %sc-pause command:\n" +
                     "%sc-pause pauses SoundCloud playback."
@@ -355,23 +384,6 @@ object CommandList {
             "%sc-nowplaying", "\n" +
                     "Showing help for %sc-nowplaying command:\n" +
                     "%sc-playsong returns information on the currently playing SoundCloud track."
-        ),
-        Pair(
-            "%sc-search", "\n" +
-                    "Showing help for %sc-search command:\n" +
-                    "%sc-search can be used to search for tracks, playlists and users on SoundCloud.\n" +
-                    "When searching, you need to specify what type of search you are doing.\n" +
-                    "Available search types:\n" +
-                    "track    \t\tSearch for a SoundCloud track.\n" +
-                    "playlist    \tSearch for a SoundCloud playlist.\n" +
-                    "user     \t\tSearch for a SoundCloud user.\n" +
-                    "album    \t\tSearch for a SoundCloud album.\n" +
-                    "Example - Search on SoundCloud for a track with the name \"leeya - something worth dreaming of\":\n" +
-                    "%sc-search track leeya something worth dreaming of\n" +
-                    "Example 2 - Search on SoundCloud for a playlist with the name \"jeesjees\":\n" +
-                    "%sc-search playlist jeesjees\n" +
-                    "Example 3 - Search on SoundCloud for a user with the name \"bettehem\":\n" +
-                    "%sc-search user bettehem"
         )
     )
 

@@ -17,6 +17,7 @@ data class Track(
     val title: Name = Name(),
     val link: Link = Link(),
     val playability: Playability = Playability(),
+    val likes: Likes = Likes(),
     val linkType: LinkType = link.linkType()
 ) {
     override fun toString() = "$album\n" +
@@ -163,6 +164,13 @@ data class Publicity(val isPublic: Boolean?)
 data class Collaboration(val isCollaborative: Boolean)
 data class Playability(val isPlayable: Boolean = false)
 data class Followers(val amount: Int = -1) {
+    override fun toString() = amount.toString()
+    fun isEmpty() = amount == -1
+    fun isNotEmpty() = amount != -1
+}
+
+data class Likes(val amount: Int = -1) {
+    override fun toString() = amount.toString()
     fun isEmpty() = amount == -1
     fun isNotEmpty() = amount != -1
 }
@@ -249,10 +257,16 @@ data class Genres(val genres: List<String> = emptyList()) {
 
 data class Artist(
     val name: Name = Name(), val link: Link = Link(), val topTracks: TrackList = TrackList(emptyList()),
-    val relatedArtists: Artists = Artists(ArrayList()), val genres: Genres = Genres(emptyList())
+    val relatedArtists: Artists = Artists(ArrayList()), val genres: Genres = Genres(emptyList()),
+    val followers: Followers = Followers(), val description: Description = Description()
 ) {
     override fun toString() = "Artist:     \t\t\t\t$name\n" +
             "Link:        \t\t\t\t$link\n" +
+            if (description.isNotEmpty()) {
+                "Description:\n$description\n"
+            } else {
+                ""
+            } +
             if (genres.genres.isNotEmpty()) "Genres:  \t\t\t\t$genres\n" else {
                 ""
             } +
@@ -270,14 +284,27 @@ data class Album(
     val link: Link = Link(),
     val genres: Genres = Genres()
 ) {
-    override fun toString() = "Album Name:  \t${name.name}\n" +
+    override fun toString() = "" +
+            if (name.isNotEmpty()) {
+                "Album Name:  \t${name.name}\n"
+            } else {
+                ""
+            } +
             when {
                 link.link.contains("(youtube|youtu.be|soundcloud)".toRegex()) -> "Upload Date:  \t\t${releaseDate.date}\n"
                 link.link.contains("spotify".toRegex()) -> "Release:    \t\t\t${releaseDate.date}\n"
-                else -> ""
+                else -> "Date:      \t\t\t\t${releaseDate.date}\n"
             } +
-            "Album Link:  \t\t$link\n\n" +
-            "Album Artists:\n$artists\n" +
+            if (link.isNotEmpty()) {
+                "Album Link:  \t\t$link\n\n"
+            } else {
+                ""
+            } +
+            if (artists.isNotEmpty()) {
+                "Album Artists:\n$artists\n"
+            } else {
+                ""
+            } +
             if (tracks.trackList.isNotEmpty()) "Tracks:\n$tracks" else ""
 
     fun isEmpty() = name.isEmpty() && artists.isEmpty() && tracks.isEmpty() && link.isEmpty() && genres.isEmpty()
@@ -290,6 +317,7 @@ data class User(
     val userName: Name = Name(),
     val description: Description = Description(),
     val followers: Followers = Followers(),
+    val playlists: List<Playlist> = emptyList(),
     val link: Link = Link()
 ) {
     override fun toString() = "Name:  \t\t\t\t${name.name}\n" +
@@ -300,6 +328,14 @@ data class User(
                 ""
             } +
             "Followers: \t\t${followers.amount}\n" +
+            if (playlists.isNotEmpty()) {
+                val listsBuilder = StringBuilder()
+                listsBuilder.appendLine("Playlists:")
+                playlists.forEach { listsBuilder.appendLine(it.toString()) }
+                listsBuilder.toString()
+            } else {
+                ""
+            } +
             "Link:    \t\t\t\t${link.link}"
 
     fun isEmpty() = name.isEmpty() && userName.isEmpty() && followers.isEmpty() && link.isEmpty()

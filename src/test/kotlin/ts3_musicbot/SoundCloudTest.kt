@@ -57,9 +57,30 @@ class SoundCloudTest {
         runBlocking(IO) {
             //SoundCloud link to playlist: jeesjees
             val testLink = Link("https://soundcloud.com/bettehem/sets/jeesjees")
+            val playlist = soundCloud.getPlaylist(testLink)
+            assertEquals("jeesjees", playlist.name.name)
+            assertEquals("Just chill out..", playlist.description.text)
+        }
+    }
+
+    @Test
+    fun testGettingPlaylistTracks() {
+        runBlocking(IO) {
+            //SoundCloud link to playlist: jeesjees
+            val testLink = Link("https://soundcloud.com/bettehem/sets/jeesjees")
             val playlist = soundCloud.getPlaylistTracks(testLink)
             assertEquals("Louis The Child", playlist.trackList[1].artists.artists[0].name.name)
             assertEquals("Zella Day - Compass (Louis The Child Remix)", playlist.trackList[1].title.name)
+        }
+    }
+
+    @Test
+    fun testGettingAlbum() {
+        runBlocking(IO) {
+            //SoundCloud link to album: Brute Force
+            val testLink = Link("https://soundcloud.com/the-algorithm/sets/brute-force-1")
+            val album = soundCloud.fetchAlbum(testLink)
+            assertEquals("Brute Force", album.name.name)
         }
     }
 
@@ -68,7 +89,7 @@ class SoundCloudTest {
         runBlocking(IO) {
             //SoundCloud link to user: bettehem
             val testLink = Link("https://soundcloud.com/bettehem")
-            val user = soundCloud.getUser(testLink)
+            val user = soundCloud.fetchUser(testLink)
             assertEquals("bettehem", user.userName.name)
         }
     }

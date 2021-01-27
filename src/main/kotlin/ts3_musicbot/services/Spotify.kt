@@ -197,7 +197,11 @@ class Spotify(private val market: String = "") {
                             SearchResult(
                                 "Artist:    \t\t\t$artistName\n" +
                                         "Followers:  \t$followers\n" +
-                                        "Genres:    \t\t$genres\n" +
+                                        if (genres.isNotEmpty()) {
+                                            "Genres:    \t\t$genres\n"
+                                        } else {
+                                            ""
+                                        } +
                                         "Link:      \t\t\t$artistLink\n"
                             )
                         )
@@ -352,6 +356,7 @@ class Spotify(private val market: String = "") {
                                 Name(),
                                 Description(),
                                 Followers(),
+                                emptyList(),
                                 Link()
                             ),
                             Description(),
@@ -497,8 +502,7 @@ class Spotify(private val market: String = "") {
                                                     artists,
                                                     title,
                                                     link,
-                                                    Playability(isPlayable),
-                                                    LinkType.SPOTIFY
+                                                    Playability(isPlayable)
                                                 )
                                             )
                                             itemJob.complete()
@@ -1258,12 +1262,75 @@ class Spotify(private val market: String = "") {
             )
         }
 
-        fun parseUserData(userData: JSONObject): User {
+        fun getUserPlaylistsData(): Response {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$apiURL/users/${userLink.getId()}/playlists")
+            urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
+            return sendHttpRequest(
+                URL(urlBuilder.toString()),
+                RequestMethod("GET"),
+                ExtraProperties(listOf("Authorization: Bearer $accessToken"))
+            )
+        }
+
+        suspend fun parseUserData(userData: JSONObject): User {
+            val playlists = ArrayList<Playlist>()
+            val userPlaylistsJob = Job()
+            withContext(IO + userPlaylistsJob) {
+                while (true) {
+                    val playlistsData = getUserPlaylistsData()
+                    when (playlistsData.code.code) {
+                        HttpURLConnection.HTTP_OK -> {
+                            try {
+                                val data = JSONObject(playlistsData.data.data)
+                                playlists.addAll(data.getJSONArray("items").map {
+                                    it as JSONObject
+                                    Playlist(
+                                        Name(it.getString("name")),
+                                        User(
+                                            Name(it.getJSONObject("owner").getString("display_name")),
+                                            Name(it.getJSONObject("owner").getString("id")),
+                                            Description(),
+                                            Followers(),
+                                            emptyList(),
+                                            Link(
+                                                it.getJSONObject("owner").getJSONObject("external_urls")
+                                                    .getString("spotify"), it.getJSONObject("owner").getString("id")
+                                            )
+                                        ),
+                                        Description(it.getString("description")),
+                                        Followers(),
+                                        Publicity(it.getBoolean("public")),
+                                        Collaboration(it.getBoolean("collaborative")),
+                                        Link(it.getJSONObject("external_urls").getString("spotify"), it.getString("id"))
+                                    )
+                                    userPlaylistsJob.complete()
+                                    return@withContext
+                                })
+                            } catch (e: JSONException) {
+                                //JSON broken, try getting the data again
+                                println("Failed JSON:\n${playlistsData.data}\n")
+                                println("Failed to get data from JSON, trying again...")
+                            }
+                        }
+                        HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                            updateToken()
+                        }
+                        HTTP_TOO_MANY_REQUESTS -> {
+                            println("Too many requests! Waiting for ${playlistsData.data.data} seconds.")
+                            //wait for given time before next request.
+                            delay(playlistsData.data.data.toLong() * 1000 + 500)
+                        }
+                        else -> println("HTTP ERROR! CODE: ${playlistsData.code.code}")
+                    }
+                }
+            }
             return User(
                 Name(userData.getString("display_name")),
                 Name(userData.getString("id")),
                 Description(),
                 Followers(userData.getJSONObject("followers").getInt("total")),
+                playlists,
                 Link(userData.getJSONObject("external_urls").getString("spotify"))
             )
         }

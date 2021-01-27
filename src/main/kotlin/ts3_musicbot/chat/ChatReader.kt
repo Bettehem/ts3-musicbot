@@ -1006,33 +1006,65 @@ class ChatReader(
                                 commandJob.complete()
                                 return true
                             }
-                            //%sp-info command
-                            commandString.contains("%sp-info(\\s+((\\[URL])?http(s)?://open\\.)?spotify(:|\\.com/)(user([:/])\\S+([:/]))?(album|track|playlist|artist|show|episode)[:/]\\S+\$)?".toRegex()) -> {
-                                val link = parseLink(Link(commandString.substringAfter("%sp-info ")))
-                                val data: Any? = when {
-                                    link.link.contains("track".toRegex()) -> spotify.getTrack(link)
-                                    link.link.contains("album".toRegex()) -> spotify.getAlbum(link)
-                                    link.link.contains("playlist".toRegex()) -> spotify.getPlaylist(link)
-                                    link.link.contains("artist".toRegex()) -> spotify.getArtist(link)
-                                    link.link.contains("show".toRegex()) -> spotify.getShow(link)
-                                    link.link.contains("episode".toRegex()) -> spotify.getEpisode(link)
-                                    link.link.contains("user".toRegex()) -> spotify.getUser(link)
-                                    else -> null
-                                }
-                                if (data != null) {
-                                    printToChat(
-                                        userName, listOf("", data.toString()), apikey
-                                    )
-                                    commandListener.onCommandExecuted(commandString, data.toString(), data)
-                                    commandJob.complete()
-                                    return true
+                            //%sp-info, %yt-info and %sc-info command
+                            commandString.contains("^%[a-z]+-info\\s+".toRegex()) -> {
+                                val supportedServices = listOf("sp", "yt", "sc")
+                                val service = commandString.substringBefore("-").substringAfter("%")
+                                if (supportedServices.contains(service)) {
+                                    val link = parseLink(Link(commandString.substringAfter("-info ")))
+                                    var data: Any? = null
+                                    when (service) {
+                                        "sp" -> {
+                                            data = when {
+                                                link.link.contains("track".toRegex()) -> spotify.getTrack(link)
+                                                link.link.contains("album".toRegex()) -> spotify.getAlbum(link)
+                                                link.link.contains("playlist".toRegex()) -> spotify.getPlaylist(link)
+                                                link.link.contains("artist".toRegex()) -> spotify.getArtist(link)
+                                                link.link.contains("show".toRegex()) -> spotify.getShow(link)
+                                                link.link.contains("episode".toRegex()) -> spotify.getEpisode(link)
+                                                link.link.contains("user".toRegex()) -> spotify.getUser(link)
+                                                else -> null
+                                            }
+                                        }
+                                        "yt" -> {
+                                            data = "yt-info not supported yet!"
+                                        }
+                                        "sc" -> {
+                                            data = when (soundCloud.resolveType(link)){
+                                                "track" -> soundCloud.getTrack(link)
+                                                "album" -> soundCloud.fetchAlbum(link)
+                                                "playlist" -> soundCloud.getPlaylist(link)
+                                                "artist" -> soundCloud.fetchArtist(link)
+                                                "user" -> soundCloud.fetchUser(link)
+                                                else -> null
+                                            }
+                                        }
+                                    }
+                                    if (data != null) {
+                                        printToChat(
+                                            userName, listOf("", data.toString()), apikey
+                                        )
+                                        commandListener.onCommandExecuted(commandString, data.toString(), data)
+                                        commandJob.complete()
+                                        return true
+                                    } else {
+                                        printToChat(
+                                            userName,
+                                            listOf("You have to provide a Spotify link or URI to a track!"),
+                                            apikey
+                                        )
+                                        commandListener.onCommandExecuted(commandString, data.toString(), data)
+                                        commandJob.complete()
+                                        return false
+                                    }
                                 } else {
                                     printToChat(
-                                        userName,
-                                        listOf("You have to provide a Spotify link or URI to a track!"),
-                                        apikey
+                                        userName, listOf(
+                                            "This service isn't supported, available commands are:",
+                                            "${supportedServices.map { "%$service-info" }}"
+                                        ), apikey
                                     )
-                                    commandListener.onCommandExecuted(commandString, data.toString(), data)
+                                    commandListener.onCommandExecuted(commandString, "Not supported")
                                     commandJob.complete()
                                     return false
                                 }
