@@ -422,7 +422,7 @@ class SoundCloud {
             lateinit var album: Album
             while (true) {
                 val albumData = fetchAlbumData(id)
-                when (albumData.code.code){
+                when (albumData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
                             val albumJSON = JSONObject(albumData.data.data)
@@ -447,7 +447,7 @@ class SoundCloud {
                                 ),
                                 fetchAlbumTracks(link),
 
-                            )
+                                )
                             break
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
@@ -775,7 +775,11 @@ class SoundCloud {
                                     Track(
                                         Album(
                                             Name(
-                                                if (!it.getJSONObject("publisher_metadata").isNull("album_title"))
+                                                if (
+                                                    !it.isNull("publisher_metadata") &&
+                                                    it.getJSONObject("publisher_metadata").has("album_title") &&
+                                                    !it.getJSONObject("publisher_metadata").isNull("album_title")
+                                                )
                                                     it.getJSONObject("publisher_metadata").getString("album_title")
                                                 else
                                                     ""
@@ -801,7 +805,7 @@ class SoundCloud {
                                 break
                             } catch (e: JSONException) {
                                 //JSON broken, try getting the data again
-                                println("Failed JSON:\n${tracksData.data}\n")
+                                println("Failed JSON:\n${tracksData.data.data}\n")
                                 println("Failed to get data from JSON, trying again...")
                             }
                         }
@@ -889,7 +893,7 @@ class SoundCloud {
         suspend fun parseArtistData(artistData: JSONObject) {
             fun fetchRelatedArtistsData(): Response {
                 val urlBuilder = StringBuilder()
-                urlBuilder.append("$api2URL/users/$id/featured-profiles")
+                urlBuilder.append("$api2URL/users/$id/relatedartists")
                 urlBuilder.append("?client_id=$clientId")
                 return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
             }
