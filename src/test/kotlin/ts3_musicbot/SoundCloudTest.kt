@@ -81,6 +81,8 @@ class SoundCloudTest {
             val testLink = Link("https://soundcloud.com/the-algorithm/sets/brute-force-1")
             val album = soundCloud.fetchAlbum(testLink)
             assertEquals("Brute Force", album.name.name)
+            assertEquals("boot", album.tracks.trackList.first().title.name)
+            assertEquals("trojans (hard mode)", album.tracks.trackList.last().title.name)
         }
     }
 
