@@ -798,7 +798,8 @@ class SoundCloud {
                                         ),
                                         Name(it.getString("title")),
                                         Link(it.getString("permalink_url"), it.getInt("id").toString()),
-                                        Playability(it.getBoolean("streamable"))
+                                        Playability(it.getBoolean("streamable")),
+                                        Likes(it.getInt("likes_count"))
                                     )
                                 })
                                 tracksJob.complete()
@@ -899,9 +900,13 @@ class SoundCloud {
             }
 
             val artistsTracks = fetchUserTracks(id, artistData.getInt("track_count"))
-            val topTracks = artistsTracks.trackList.sortedByDescending {
+            val topTracks = ArrayList<Track>()
+            artistsTracks.trackList.sortedByDescending {
                 it.likes.amount
-            }.subList(0, 9)
+            }.forEach {
+                if (topTracks.size < 10)
+                    topTracks.add(it)
+            }
             val relatedArtistsJob = Job()
             val relatedArtists = withContext(IO + relatedArtistsJob) {
                 val artists = ArrayList<Artist>()
