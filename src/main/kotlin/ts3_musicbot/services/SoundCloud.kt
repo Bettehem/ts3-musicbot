@@ -845,7 +845,7 @@ class SoundCloud {
             return User(
                 Name(userData.getString("username")),
                 Name(userData.getString("permalink")),
-                Description(userData.getString("description")),
+                Description(if (!userData.isNull("description")) userData.getString("description") else ""),
                 Followers(userData.getInt("followers_count")),
                 fetchUserPlaylists(Link("$apiURL/users/$id")),
                 Link(userData.getString("permalink_url"))
