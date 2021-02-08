@@ -330,14 +330,17 @@ data class User(
     val playlists: List<Playlist> = emptyList(),
     val link: Link = Link()
 ) {
-    override fun toString() = "Name:  \t\t\t\t${name.name}\n" +
-            "Username: \t\t${userName.name}\n" +
+    override fun toString() = "Name: \t\t\t\t\t\t${name.name}\n" +
+            "Username: \t\t\t    ${userName.name}\n" +
             if (description.isNotEmpty()) {
                 "Description:\n$description\n"
             } else {
                 ""
             } +
-            "Followers: \t\t${followers.amount}\n" +
+            if (link.linkType() == LinkType.YOUTUBE) {"Subscribers: \t\t    ${followers.amount}\n"}
+	    else {"Followers: \t\t${followers.amount}\n"} +
+	    if (link.linkType() == LinkType.YOUTUBE) {"Channel Link: \t\t  ${link.link}\n"}
+            else {"Link: \t\t\t\t\t\t${link.link}"} +
             if (playlists.isNotEmpty()) {
                 val listsBuilder = StringBuilder()
                 listsBuilder.appendLine("Playlists:")
@@ -345,8 +348,7 @@ data class User(
                 listsBuilder.toString()
             } else {
                 ""
-            } +
-            "Link:    \t\t\t\t${link.link}"
+            } 
 
     fun isEmpty() = name.isEmpty() && userName.isEmpty() && followers.isEmpty() && link.isEmpty()
     fun isNotEmpty() = name.isNotEmpty() || userName.isNotEmpty() || followers.isNotEmpty() || link.isNotEmpty()
@@ -368,10 +370,12 @@ data class Playlist(
             } else {
                 ""
             } +
-            "Followers:\t\t\t\t${followers.amount}\n" +
-            "Is Public:   \t\t\t\t${publicity.isPublic}\n" +
-            "Is Collaborative: \t${collaboration.isCollaborative}\n" +
-            "Link:    \t\t\t\t\t\t${link.link}"
+            if (link.linkType() == LinkType.YOUTUBE) {""}
+	    else {"Followers:\t\t\t\t${followers.amount}\n"} +
+	    "Is Public:   \t\t\t\t ${publicity.isPublic}\n" +
+            if (link.linkType() == LinkType.YOUTUBE) {""}
+	    else {"Is Collaborative: \t${collaboration.isCollaborative}\n"} +
+            "Link:    \t\t\t\t\t\t${link.link}\n"
 
     fun isEmpty() = name.isEmpty() && owner.isEmpty() && description.isEmpty() && followers.isEmpty() && link.isEmpty()
     fun isNotEmpty() =
