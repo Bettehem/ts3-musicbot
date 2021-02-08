@@ -55,7 +55,7 @@ class YouTube {
                 when (response.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val itemData = JSONObject(response.data.data).getJSONArray("items")[0]
+                            val itemData = JSONObject(response.data.data).getJSONArray("items").first()
                             itemData as JSONObject
                             val releaseDate = ReleaseDate(
                                 LocalDate.parse(itemData.getJSONObject("snippet").getString("publishedAt"), formatter)
@@ -492,7 +492,8 @@ class YouTube {
                 when (channelData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val channelJSON = JSONObject(channelData.data.data)
+                            val channelJSON = JSONObject(channelData.data.data).getJSONArray("items").first()
+                            channelJSON as JSONObject
                             channel = User(
                                 Name(channelJSON.getJSONObject("snippet").getString("title")),
                                 Name(channelJSON.getString("id")),
