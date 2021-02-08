@@ -2,6 +2,7 @@ package ts3_musicbot.util
 
 import kotlinx.coroutines.runBlocking
 import ts3_musicbot.services.SoundCloud
+import ts3_musicbot.services.YouTube
 import java.time.LocalDate
 
 enum class LinkType {
@@ -21,7 +22,11 @@ data class Track(
     val linkType: LinkType = link.linkType()
 ) {
     override fun toString() = "$album\n" +
-            "Track Artists:\n$artists\n" +
+            if (artists.isNotEmpty()) {
+                "Track Artists:\n$artists\n"
+            } else {
+                ""
+            } +
             "Title:      \t\t\t\t$title\n" +
             "Link:       \t\t\t\t$link\n"
 
@@ -128,7 +133,11 @@ data class Link(val link: String = "", val linkId: String = "") {
             if (linkId.isNotEmpty()) {
                 linkId
             } else {
-                link.substringAfterLast("/").substringAfter("?v=").substringBefore("&")
+                if (link.contains("https?://(www\\.)?youtube\\.com/c/\\S+".toRegex())) {
+                    runBlocking{YouTube().resolveChannelId(link.substringAfterLast("/"))}
+                } else {
+                    link.substringAfterLast("/").substringAfter("?v=").substringBefore("&")
+                }
             }
         }
         LinkType.SOUNDCLOUD -> {
@@ -160,8 +169,8 @@ data class Description(val text: String = "") {
     fun isNotEmpty() = text.isNotEmpty()
 }
 
-data class Publicity(val isPublic: Boolean?)
-data class Collaboration(val isCollaborative: Boolean)
+data class Publicity(val isPublic: Boolean? = false)
+data class Collaboration(val isCollaborative: Boolean = false)
 data class Playability(val isPlayable: Boolean = false)
 data class Followers(val amount: Int = -1) {
     override fun toString() = amount.toString()
@@ -293,15 +302,15 @@ data class Album(
             when {
                 link.link.contains("(youtube|youtu.be|soundcloud)".toRegex()) -> "Upload Date:  \t\t${releaseDate.date}\n"
                 link.link.contains("spotify".toRegex()) -> "Release:    \t\t\t${releaseDate.date}\n"
-                else -> "Date:      \t\t\t\t${releaseDate.date}\n"
+                else -> "Date:      \t\t\t\t${releaseDate.date}"
             } +
             if (link.isNotEmpty()) {
-                "Album Link:  \t\t$link\n\n"
+                "\nAlbum Link:  \t\t$link\n\n"
             } else {
                 ""
             } +
             if (artists.isNotEmpty()) {
-                "Album Artists:\n$artists\n"
+                "\nAlbum Artists:\n$artists\n"
             } else {
                 ""
             } +
@@ -343,13 +352,13 @@ data class User(
 }
 
 data class Playlist(
-    val name: Name,
-    val owner: User,
-    val description: Description,
-    val followers: Followers,
-    val publicity: Publicity,
-    val collaboration: Collaboration,
-    val link: Link
+    val name: Name = Name(),
+    val owner: User = User(),
+    val description: Description = Description(),
+    val followers: Followers = Followers(),
+    val publicity: Publicity = Publicity(),
+    val collaboration: Collaboration = Collaboration(),
+    val link: Link = Link()
 ) {
     override fun toString() = "Playlist Name: \t\t${name.name}\n" +
             "Owner:       \t\t\t\t${owner.name}\n" +

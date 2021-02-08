@@ -71,6 +71,7 @@ object CommandList {
                     "%yt-search <type> <text>     -Search on YouTube. Shows 10 first results. <type> can be track, video or playlist\n" +
                     "%sc-search <type> <text>     -Search on SoundCloud. Shows 10 first results. <type> can be track, playlist, album, artist or user\n" +
                     "%sp-info <link>              -Shows info on the given link. <link> can be a Spotify link or a Spotify URI\n" +
+                    "%yt-info <link>              -Shows info on the given link. <link> can be a YouTube link.\n" +
                     "%sc-info <link>              -Shows info on the given link. <link> can be a SoundCloud link\n" +
                     "\n\n" +
                     "Player specific commands:\n" +
@@ -257,7 +258,14 @@ object CommandList {
                     "Showing help for %sc-info command:\n" +
                     "%sp-info shows information on a given SoundCloud link.\n" +
                     "Example - Get info on SoundCloud track link:\n" +
-                    "%sp-info https://soundcloud.com/iamleeya/something-worth-dreaming-of\n"
+                    "%sc-info https://soundcloud.com/iamleeya/something-worth-dreaming-of\n"
+        ),
+        Pair(
+            "%yt-info", "\n" +
+                    "Showing help for %yt-info command:\n" +
+                    "%yt-info shows information on a given YouTube link.\n" +
+                    "Example - Get info on YouTube track link:\n" +
+                    "%yt-info https://youtu.be/IKZnGWxJN3I\n"
         ),
         Pair(
             "%sp-pause", "\n" +

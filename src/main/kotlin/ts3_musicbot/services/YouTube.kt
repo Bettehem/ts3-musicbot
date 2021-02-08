@@ -1,8 +1,7 @@
 package ts3_musicbot.services
 
+import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.IO
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.withContext
 import org.json.JSONException
 import org.json.JSONObject
 import ts3_musicbot.util.*
@@ -97,6 +96,57 @@ class YouTube {
             }
         }
         return track
+    }
+
+    suspend fun fetchPlaylist(playlistLink: Link): Playlist {
+        fun fetchPlaylistData(apiKey: String = apiKey1): Response {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$apiUrl/playlists")
+            urlBuilder.append("?part=snippet%2Cstatus")
+            urlBuilder.append("&id=${playlistLink.getId()}")
+            urlBuilder.append("&key=$apiKey")
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        }
+        val playlistJob = Job()
+        var key = apiKey1
+        return withContext(IO + playlistJob) {
+            var playlist = Playlist()
+            while (true) {
+                val playlistData = fetchPlaylistData(key)
+                when (playlistData.code.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val playlistJSON = JSONObject(playlistData.data.data)
+                            playlist = Playlist(
+                                Name(playlistJSON.getJSONObject("snippet").getString("title")),
+                                User(Name(playlistJSON.getJSONObject("snippet").getString("channelTitle"))),
+                                Description(playlistJSON.getJSONObject("snippet").getString("description")),
+                                publicity = Publicity(playlistJSON.getJSONObject("status").getString("privacyStatus") == "public"),
+                                link = Link("https://youtube.com/playlist?list=${playlistJSON.getString("id")}")
+                            )
+                            break
+                        } catch (e: JSONException) {
+                            println("broken JSON, trying again")
+                        }
+                    }
+                    HttpURLConnection.HTTP_FORBIDDEN -> {
+                        if (key == apiKey1) {
+                            //try with another api key
+                            key = apiKey2
+                        } else {
+                            println("HTTP ERROR! CODE: ${playlistData.code.code}")
+                            break
+                        }
+                    }
+                    else -> {
+                        println("HTTP ERROR! CODE: ${playlistData.code.code}")
+                        break
+                    }
+                }
+            }
+            playlistJob.complete()
+            playlist
+        }
     }
 
     /**
@@ -316,6 +366,167 @@ class YouTube {
         return trackList
     }
 
+    suspend fun fetchChannelPlaylists(channelLink: Link): List<Playlist> {
+        fun fetchPlaylistsData(apiKey: String = apiKey1, pageToken: String = ""): Response {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$apiUrl/playlists")
+            urlBuilder.append("?channelId=${channelLink.getId()}")
+            urlBuilder.append("&part=snippet%2Cstatus&maxResults=50")
+            urlBuilder.append("&key=$apiKey")
+            if (pageToken.isNotEmpty())
+                urlBuilder.append("&pageToken=$pageToken")
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        }
+
+        suspend fun parsePlaylistsData(playlistsData: JSONObject): List<Playlist> {
+            val playlists = ArrayList<Playlist>()
+            var items = playlistsData.getJSONArray("items")
+            while (playlists.size < playlistsData.getJSONObject("pageInfo").getInt("totalResults")) {
+                if (items.isEmpty() && playlistsData.has("nextPageToken")){
+                    val itemsJob = Job()
+                    var key = apiKey1
+                    var pageToken = playlistsData.getString("nextPageToken")
+                    items = withContext(IO + itemsJob) {
+                        lateinit var newItems: JSONObject
+                        while (true) {
+                            val newPageData = fetchPlaylistsData(key, pageToken)
+                            when (newPageData.code.code) {
+                                HttpURLConnection.HTTP_OK -> {
+                                    try {
+                                        val pageJSON = JSONObject(newPageData.data.data)
+                                        if (pageJSON.has("nextPageToken"))
+                                            pageToken = pageJSON.getString("nextPageToken")
+                                        newItems = pageJSON
+                                        break
+                                    } catch (e: JSONException) {
+                                        e.printStackTrace()
+                                        println("Error! JSON Broken!")
+                                        break
+                                    }
+                                }
+                                HttpURLConnection.HTTP_FORBIDDEN -> {
+                                    if (key == apiKey1)
+                                        key = apiKey2
+                                    else {
+                                        println("HTTP ERROR! CODE: ${newPageData.code.code}")
+                                        break
+                                    }
+                                }
+                                else -> {
+                                    println("HTTP ERROR! CODE: ${newPageData.code.code}")
+                                    break
+                                }
+                            }
+                        }
+                        newItems.getJSONArray("items")
+                    }
+                }
+                playlists.addAll(
+                    items.map {
+                        it as JSONObject
+                        val snippet = it.getJSONObject("snippet")
+                        Playlist(
+                            Name(snippet.getString("title")),
+                            User(Name(snippet.getString("channelTitle"))),
+                            Description(snippet.getString("description")),
+                            publicity = Publicity(it.getJSONObject("status").getString("privacyStatus") == "public"),
+                            link = Link("https://www.youtube.com/playlist?list=${it.getString("id")}")
+                        )
+                    }
+                )
+            }
+            return playlists
+        }
+
+        val playlistJob = Job()
+        var key = apiKey1
+        return withContext(IO + playlistJob) {
+            val lists = ArrayList<Playlist>()
+            while (true) {
+                val playlistsData = fetchPlaylistsData(key)
+                when (playlistsData.code.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val playlistsJSON = JSONObject(playlistsData.data.data)
+                            lists.addAll(parsePlaylistsData(playlistsJSON))
+                            break
+                        } catch (e: JSONException) {
+                            e.printStackTrace()
+                            println("Error! JSON Broken!")
+                            break
+                        }
+                    }
+                    HttpURLConnection.HTTP_FORBIDDEN -> {
+                        if (key == apiKey1)
+                            key = apiKey2
+                        else {
+                            println("HTTP ERROR! CODE: ${playlistsData.code.code}")
+                            break
+                        }
+                    }
+                    else -> {
+                        println("HTTP ERROR! CODE: ${playlistsData.code.code}")
+                        break
+                    }
+                }
+            }
+            lists
+        }
+    }
+
+    suspend fun fetchChannel(link: Link): User {
+        fun fetchChannelData(apiKey: String = apiKey1): Response {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$apiUrl/channels")
+            urlBuilder.append("?id=${link.getId()}")
+            urlBuilder.append("&part=snippet%2Cstatistics")
+            urlBuilder.append("&key=$apiKey")
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        }
+        val channelJob = Job()
+        var key = apiKey1
+        return withContext(IO + channelJob) {
+            var channel = User()
+            while (true) {
+                val channelData = fetchChannelData(key)
+                when (channelData.code.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val channelJSON = JSONObject(channelData.data.data)
+                            channel = User(
+                                Name(channelJSON.getJSONObject("snippet").getString("title")),
+                                Name(channelJSON.getString("id")),
+                                Description(channelJSON.getJSONObject("snippet").getString("description")),
+                                Followers(channelJSON.getJSONObject("statistics").getInt("subscriberCount")),
+                                fetchChannelPlaylists(link),
+                                link
+                            )
+                            break
+                        } catch (e: JSONException) {
+                            e.printStackTrace()
+                            println("Error! JSON Broken!")
+                            break
+                        }
+                    }
+                    HttpURLConnection.HTTP_FORBIDDEN -> {
+                        if (key == apiKey1)
+                            key = apiKey2
+                        else {
+                            println("HTTP ERROR! CODE: ${channelData.code.code}")
+                            break
+                        }
+                    }
+                    else -> {
+                        println("HTTP ERROR! CODE: ${channelData.code.code}")
+                        break
+                    }
+                }
+            }
+            channelJob.complete()
+            channel
+        }
+    }
+
     /**
      * Search on YouTube for a video/track or a playlist
      * @param searchType can be "track", "video" or "playlist"
@@ -394,7 +605,6 @@ class YouTube {
                             searchJob.complete()
                             return@withContext
                         }
-
                     }
                     HttpURLConnection.HTTP_FORBIDDEN -> {
                         if (key == apiKey1)
@@ -414,6 +624,113 @@ class YouTube {
             }
         }
         return SearchResults(searchResults)
+    }
+
+    suspend fun resolveType(link: Link): String {
+        fun fetchData(apiKey: String = apiKey1): Response {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$apiUrl/search?")
+            urlBuilder.append("q=${link.getId()}")
+            urlBuilder.append("&part=snippet")
+            urlBuilder.append("&key=$apiKey")
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        }
+
+        val resolveJob = Job()
+        var key = apiKey1
+        return withContext(IO + resolveJob) {
+            var linkType = ""
+            while (true) {
+                val linkData = fetchData(key)
+                when (linkData.code.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val dataJSON = JSONObject(linkData.data.data)
+                            linkType = dataJSON.getJSONArray("items").first { itemData ->
+                                itemData as JSONObject
+                                itemData.getJSONObject("id").getString("kind").substringAfter("#").let {
+                                    itemData.getJSONObject("id").getString("${it}Id")
+                                } == link.getId()
+                            }.let { itemData ->
+                                itemData as JSONObject
+                                itemData.getJSONObject("id").getString("kind").substringAfter("#")
+                            }
+                            break
+                        } catch (e: JSONException) {
+                            e.printStackTrace()
+                            println("Error! Broken JSON!")
+                        }
+                    }
+                    HttpURLConnection.HTTP_FORBIDDEN -> {
+                        if (key == apiKey1)
+                            key = apiKey2
+                        else {
+                            println("HTTP ERROR! CODE: ${linkData.code.code}")
+                            break
+                        }
+                    }
+                    else -> {
+                        println("HTTP ERROR! CODE: ${linkData.code.code}")
+                        break
+                    }
+
+                }
+            }
+            resolveJob.complete()
+            linkType
+        }
+    }
+
+    suspend fun resolveChannelId(channelName: String): String {
+        fun fetchData(apiKey: String = apiKey1): Response {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$apiUrl/search?")
+            urlBuilder.append("q=$channelName")
+            urlBuilder.append("&part=snippet")
+            urlBuilder.append("&key=$apiKey")
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        }
+        val idJob = Job()
+        var key = apiKey1
+        return withContext(IO + idJob) {
+            var id = ""
+            while (true) {
+                val channelData = fetchData(key)
+                when (channelData.code.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val resultsJSON = JSONObject(channelData.data.data)
+                            id = resultsJSON.getJSONArray("items").first {
+                                it as JSONObject
+                                it.getJSONObject("id").getString("kind").substringAfter("#") == "channel"
+                                        && it.getJSONObject("snippet").getString("title") == channelName
+                            }.let {
+                                it as JSONObject
+                                it.getJSONObject("id").getString("channelId")
+                            }
+                            break
+                        } catch (e: JSONException) {
+                            e.printStackTrace()
+                            println("Error! JSON Broken!")
+                            break
+                        }
+                    }
+                    HttpURLConnection.HTTP_FORBIDDEN -> {
+                        if (key == apiKey1)
+                            key = apiKey2
+                        else {
+                            println("HTTP ERROR! CODE: ${channelData.code.code}")
+                            break
+                        }
+                    }
+                    else -> {
+                        println("HTTP ERROR! CODE: ${channelData.code.code}")
+                        break
+                    }
+                }
+            }
+            id
+        }
     }
 }
 

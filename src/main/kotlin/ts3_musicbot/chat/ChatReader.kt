@@ -1027,7 +1027,12 @@ class ChatReader(
                                             }
                                         }
                                         "yt" -> {
-                                            data = "yt-info not supported yet!"
+                                            data = when (youTube.resolveType(link)) {
+                                                "video" -> youTube.getVideo(link)
+                                                "playlist" -> youTube.fetchPlaylist(link)
+                                                "channel" -> youTube.fetchChannel(link)
+                                                else -> null
+                                            }
                                         }
                                         "sc" -> {
                                             data = when (soundCloud.resolveType(link)){

@@ -692,7 +692,7 @@ class SoundCloud {
 
     private suspend fun fetchUserPlaylists(userLink: Link): List<Playlist> {
         suspend fun fetchData(): Response {
-            val id = if (userLink.getId().startsWith("$apiURL/users/"))
+            val id = if (userLink.link.startsWith("$apiURL/users/"))
                 userLink.link.substringAfterLast("/")
             else
                 resolveId(userLink)
