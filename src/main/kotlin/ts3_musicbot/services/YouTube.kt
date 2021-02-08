@@ -107,6 +107,7 @@ class YouTube {
             urlBuilder.append("&key=$apiKey")
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
+
         val playlistJob = Job()
         var key = apiKey1
         return withContext(IO + playlistJob) {
@@ -116,17 +117,22 @@ class YouTube {
                 when (playlistData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val playlistJSON = JSONObject(playlistData.data.data)
+                            val playlistJSON = JSONObject(playlistData.data.data).getJSONArray("items").first()
+                            playlistJSON as JSONObject
                             playlist = Playlist(
                                 Name(playlistJSON.getJSONObject("snippet").getString("title")),
                                 User(Name(playlistJSON.getJSONObject("snippet").getString("channelTitle"))),
                                 Description(playlistJSON.getJSONObject("snippet").getString("description")),
-                                publicity = Publicity(playlistJSON.getJSONObject("status").getString("privacyStatus") == "public"),
+                                publicity = Publicity(
+                                    playlistJSON.getJSONObject("status").getString("privacyStatus") == "public"
+                                ),
                                 link = Link("https://youtube.com/playlist?list=${playlistJSON.getString("id")}")
                             )
                             break
                         } catch (e: JSONException) {
+                            e.printStackTrace()
                             println("broken JSON, trying again")
+                            break
                         }
                     }
                     HttpURLConnection.HTTP_FORBIDDEN -> {
@@ -382,7 +388,7 @@ class YouTube {
             val playlists = ArrayList<Playlist>()
             var items = playlistsData.getJSONArray("items")
             while (playlists.size < playlistsData.getJSONObject("pageInfo").getInt("totalResults")) {
-                if (items.isEmpty() && playlistsData.has("nextPageToken")){
+                if (items.isEmpty && playlistsData.has("nextPageToken")) {
                     val itemsJob = Job()
                     var key = apiKey1
                     var pageToken = playlistsData.getString("nextPageToken")
@@ -483,6 +489,7 @@ class YouTube {
             urlBuilder.append("&key=$apiKey")
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
+
         val channelJob = Job()
         var key = apiKey1
         return withContext(IO + channelJob) {
@@ -639,47 +646,50 @@ class YouTube {
 
         val resolveJob = Job()
         var key = apiKey1
-        return withContext(IO + resolveJob) {
-            var linkType = ""
-            while (true) {
-                val linkData = fetchData(key)
-                when (linkData.code.code) {
-                    HttpURLConnection.HTTP_OK -> {
-                        try {
-                            val dataJSON = JSONObject(linkData.data.data)
-                            linkType = dataJSON.getJSONArray("items").first { itemData ->
-                                itemData as JSONObject
-                                itemData.getJSONObject("id").getString("kind").substringAfter("#").let {
-                                    itemData.getJSONObject("id").getString("${it}Id")
-                                } == link.getId()
-                            }.let { itemData ->
-                                itemData as JSONObject
-                                itemData.getJSONObject("id").getString("kind").substringAfter("#")
+        return if (link.link.contains("\\S+/playlist\\?list=\\S+".toRegex()))
+            "playlist"
+        else
+            withContext(IO + resolveJob) {
+                var linkType = ""
+                while (true) {
+                    val linkData = fetchData(key)
+                    when (linkData.code.code) {
+                        HttpURLConnection.HTTP_OK -> {
+                            try {
+                                val dataJSON = JSONObject(linkData.data.data)
+                                linkType = dataJSON.getJSONArray("items").first { itemData ->
+                                    itemData as JSONObject
+                                    itemData.getJSONObject("id").getString("kind").substringAfter("#").let {
+                                        itemData.getJSONObject("id").getString("${it}Id")
+                                    } == link.getId()
+                                }.let { itemData ->
+                                    itemData as JSONObject
+                                    itemData.getJSONObject("id").getString("kind").substringAfter("#")
+                                }
+                                break
+                            } catch (e: JSONException) {
+                                e.printStackTrace()
+                                println("Error! Broken JSON!")
                             }
-                            break
-                        } catch (e: JSONException) {
-                            e.printStackTrace()
-                            println("Error! Broken JSON!")
                         }
-                    }
-                    HttpURLConnection.HTTP_FORBIDDEN -> {
-                        if (key == apiKey1)
-                            key = apiKey2
-                        else {
+                        HttpURLConnection.HTTP_FORBIDDEN -> {
+                            if (key == apiKey1)
+                                key = apiKey2
+                            else {
+                                println("HTTP ERROR! CODE: ${linkData.code.code}")
+                                break
+                            }
+                        }
+                        else -> {
                             println("HTTP ERROR! CODE: ${linkData.code.code}")
                             break
                         }
-                    }
-                    else -> {
-                        println("HTTP ERROR! CODE: ${linkData.code.code}")
-                        break
-                    }
 
+                    }
                 }
+                resolveJob.complete()
+                linkType
             }
-            resolveJob.complete()
-            linkType
-        }
     }
 
     suspend fun resolveChannelId(channelName: String): String {
@@ -691,6 +701,7 @@ class YouTube {
             urlBuilder.append("&key=$apiKey")
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
+
         val idJob = Job()
         var key = apiKey1
         return withContext(IO + idJob) {

@@ -137,6 +137,7 @@ data class Link(val link: String = "", val linkId: String = "") {
                     runBlocking{YouTube().resolveChannelId(link.substringAfterLast("/"))}
                 } else {
                     link.substringAfterLast("/").substringAfter("?v=").substringBefore("&")
+                        .substringAfter("?list=")
                 }
             }
         }
