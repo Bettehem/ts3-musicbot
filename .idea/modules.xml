@@ -2,6 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/git.ts3-musicbot.iml" filepath="$PROJECT_DIR$/.idea/modules/git.ts3-musicbot.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/git.ts3-musicbot.main.iml" filepath="$PROJECT_DIR$/.idea/modules/git.ts3-musicbot.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/git.ts3-musicbot.test.iml" filepath="$PROJECT_DIR$/.idea/modules/git.ts3-musicbot.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/ts3-musicbot.iml" filepath="$PROJECT_DIR$/.idea/ts3-musicbot.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/ts3-musicbot.main.iml" filepath="$PROJECT_DIR$/.idea/modules/ts3-musicbot.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/ts3-musicbot.test.iml" filepath="$PROJECT_DIR$/.idea/modules/ts3-musicbot.test.iml" />
