@@ -741,6 +741,7 @@ class YouTube {
                     }
                 }
             }
+            idJob.complete()
             id
         }
     }
