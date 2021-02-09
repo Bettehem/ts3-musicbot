@@ -115,7 +115,7 @@ class ChatReader(
                                 //check extra arguments
                                 if (commandString.substringAfter("%help").contains("%?help".toRegex())) {
                                     //print normal help message
-                                    printToChat(userName, helpMessages["%help"]?.split("\n".toRegex()), apikey)
+                                    printToChat(userName, listOf(helpMessages["%help"].orEmpty()), apikey)
                                     commandJob.complete()
                                     return true
                                 } else {
@@ -127,7 +127,7 @@ class ChatReader(
                                     //check if command exists
                                     return if (commandList.any { it.contains(args.toRegex()) }) {
                                         //print help for command
-                                        printToChat(userName, helpMessages[args]?.split("\n".toRegex()), apikey)
+                                        printToChat(userName, listOf(helpMessages[args].orEmpty()), apikey)
                                         commandJob.complete()
                                         true
                                     } else {
@@ -513,7 +513,7 @@ class ChatReader(
                                     return if (songQueue.getState() != SongQueue.State.QUEUE_STOPPED) {
                                         printToChat(
                                             userName, listOf(
-                                                "Queue is already active!",
+                                                "Queue is already active!\n" +
                                                 "Did you mean to type %queue-resume instead?"
                                             ), apikey
                                         )
@@ -555,7 +555,7 @@ class ChatReader(
                                     )
                                 }
                                 printToChat(userName, listOf("Song Queue:"), apikey)
-                                val queueList = ArrayList<String>()
+                                val queueList = StringBuilder()
                                 when {
                                     songQueue.getQueue().isEmpty() -> printToChat(
                                         userName,
@@ -577,7 +577,7 @@ class ChatReader(
                                         }
                                         var queueIndex = 0
                                         while (queue.isNotEmpty()) {
-                                            if (queueList.size < 15) {
+                                            if (queueList.lines().size < 15) {
                                                 val track = queue[0]
                                                 val strBuilder = StringBuilder()
                                                 strBuilder.append("${queueIndex++}: ")
@@ -585,7 +585,7 @@ class ChatReader(
                                                     track.artists.artists.forEach { strBuilder.append("${it.name}, ") }
                                                 else
                                                     strBuilder.append("${track.title},")
-                                                queueList.add(
+                                                queueList.appendLine(
                                                     "${strBuilder.toString().substringBeforeLast(",")} " +
                                                             if (track.link.linkType() != LinkType.YOUTUBE) {
                                                                 "- ${track.title} "
@@ -595,13 +595,13 @@ class ChatReader(
                                                 )
                                                 queue.removeAt(0)
                                             } else {
-                                                queueList.add(0, "")
-                                                printToChat(userName, queueList, apikey)
+                                                queueList.insert(0, "\n")
+                                                printToChat(userName, listOf(queueList.toString()), apikey)
                                                 queueList.clear()
                                             }
                                         }
-                                        queueList.add(0, "")
-                                        printToChat(userName, queueList, apikey)
+                                        queueList.insert(0, "\n")
+                                        printToChat(userName, listOf(queueList.toString()), apikey)
                                     }
                                 }
                                 printToChat(
@@ -818,26 +818,26 @@ class ChatReader(
                             commandString.contains("^%queue-nowplaying$".toRegex()) -> {
                                 if (songQueue.nowPlaying().title.name.isNotEmpty()) {
                                     val currentTrack = songQueue.nowPlaying()
-                                    val messageLines = ArrayList<String>()
-                                    messageLines.add("Now playing:")
+                                    val messageLines = StringBuilder()
+                                    messageLines.appendLine("Now playing:")
                                     if (currentTrack.album.name.name.isNotEmpty())
-                                        messageLines.add("Album Name:  \t${currentTrack.album.name}")
+                                        messageLines.appendLine("Album Name:  \t${currentTrack.album.name}")
                                     if (currentTrack.album.link.link.isNotEmpty())
-                                        messageLines.add("Album Link:  \t\t${currentTrack.album.link}")
+                                        messageLines.appendLine("Album Link:  \t\t${currentTrack.album.link}")
                                     if (currentTrack.link.link.contains("(youtube|youtu\\.be|soundcloud)".toRegex()))
-                                        messageLines.add("Upload Date:   \t${currentTrack.album.releaseDate.date}")
+                                        messageLines.appendLine("Upload Date:   \t${currentTrack.album.releaseDate.date}")
                                     else
-                                        messageLines.add("Release:     \t\t\t${currentTrack.album.releaseDate.date}")
+                                        messageLines.appendLine("Release:     \t\t\t${currentTrack.album.releaseDate.date}")
 
                                     if (currentTrack.artists.artists.isNotEmpty()) {
                                         if (currentTrack.link.link.contains("soundcloud\\.com".toRegex()))
-                                            messageLines.add("Uploader: \t\t\t${currentTrack.artists.artists[0].name}")
+                                            messageLines.appendLine("Uploader: \t\t\t${currentTrack.artists.artists[0].name}")
                                         else
-                                            messageLines.add("Artists:\n${currentTrack.artists}")
+                                            messageLines.appendLine("Artists:\n${currentTrack.artists}")
                                     }
-                                    messageLines.add("Track Title:   \t\t${currentTrack.title}")
-                                    messageLines.add("Track Link:    \t\t${currentTrack.link}")
-                                    printToChat(userName, messageLines, apikey)
+                                    messageLines.appendLine("Track Title:   \t\t${currentTrack.title}")
+                                    messageLines.appendLine("Track Link:    \t\t${currentTrack.link}")
+                                    printToChat(userName, listOf(messageLines.toString()), apikey)
                                 } else {
                                     printToChat(userName, listOf("No song playing!"), apikey)
                                 }
@@ -962,13 +962,13 @@ class ChatReader(
                             }
                             //%sp-nowplaying command
                             commandString.contains("^%sp-nowplaying$".toRegex()) -> {
-                                val lines = ArrayList<String>()
-                                lines.add("Now playing on Spotify:")
+                                val lines = StringBuilder()
+                                lines.appendLine("Now playing on Spotify:")
                                 val nowPlaying = commandRunner.runCommand("playerctl -p $spotifyPlayer metadata")
                                     .first.outputText.lines()
                                 for (line in nowPlaying) {
                                     when (line.substringAfter("xesam:").split("\\s+".toRegex())[0]) {
-                                        "album" -> lines.add(
+                                        "album" -> lines.appendLine(
                                             "Album:\t${
                                                 line.substringAfter(
                                                     line.substringAfter("xesam:")
@@ -976,7 +976,7 @@ class ChatReader(
                                                 )
                                             }"
                                         )
-                                        "artist" -> lines.add(
+                                        "artist" -> lines.appendLine(
                                             "Artist:   \t${
                                                 line.substringAfter(
                                                     line.substringAfter("xesam:")
@@ -984,7 +984,7 @@ class ChatReader(
                                                 )
                                             }"
                                         )
-                                        "title" -> lines.add(
+                                        "title" -> lines.appendLine(
                                             "Title:    \t${
                                                 line.substringAfter(
                                                     line.substringAfter("xesam:")
@@ -992,7 +992,7 @@ class ChatReader(
                                                 )
                                             }"
                                         )
-                                        "url" -> lines.add(
+                                        "url" -> lines.appendLine(
                                             "Link:  \t${
                                                 line.substringAfter(
                                                     line.substringAfter("xesam:")
@@ -1002,7 +1002,7 @@ class ChatReader(
                                         )
                                     }
                                 }
-                                printToChat(userName, lines, apikey)
+                                printToChat(userName, listOf(lines.toString()), apikey)
                                 commandJob.complete()
                                 return true
                             }
@@ -1035,7 +1035,7 @@ class ChatReader(
                                             }
                                         }
                                         "sc" -> {
-                                            data = when (soundCloud.resolveType(link)){
+                                            data = when (soundCloud.resolveType(link)) {
                                                 "track" -> soundCloud.getTrack(link)
                                                 "album" -> soundCloud.fetchAlbum(link)
                                                 "playlist" -> soundCloud.getPlaylist(link)
@@ -1046,9 +1046,7 @@ class ChatReader(
                                         }
                                     }
                                     if (data != null) {
-                                        printToChat(
-                                            userName, listOf("", data.toString()), apikey
-                                        )
+                                        printToChat(userName, listOf("\n$data"), apikey)
                                         commandListener.onCommandExecuted(commandString, data.toString(), data)
                                         commandJob.complete()
                                         return true
@@ -1065,7 +1063,7 @@ class ChatReader(
                                 } else {
                                     printToChat(
                                         userName, listOf(
-                                            "This service isn't supported, available commands are:",
+                                            "This service isn't supported, available commands are:\n" +
                                             "${supportedServices.map { "%$service-info" }}"
                                         ), apikey
                                     )
@@ -1126,9 +1124,9 @@ class ChatReader(
                             commandString.contains("^%yt-nowplaying$".toRegex()) -> {
                                 printToChat(
                                     userName, listOf(
-                                        "Now playing on YouTube:",
-                                        youTube.getVideoTitle(ytLink),
-                                        "Link: $ytLink"
+                                        "Now playing on YouTube:\n" +
+                                        youTube.getVideoTitle(ytLink) +
+                                        "\nLink: $ytLink"
                                     ), apikey
                                 )
                                 commandJob.complete()
@@ -1182,8 +1180,8 @@ class ChatReader(
                             commandString.contains("^%sc-nowplaying$".toRegex()) -> {
                                 printToChat(
                                     userName, listOf(
-                                        "Now playing on SoundCloud:",
-                                        "${soundCloud.getTrack(scLink).title}",
+                                        "Now playing on SoundCloud:\n" +
+                                        "${soundCloud.getTrack(scLink).title}\n" +
                                         "Link: $scLink"
                                     ), apikey
                                 )
@@ -1219,14 +1217,14 @@ class ChatReader(
                                             } else {
                                                 printToChat(
                                                     userName,
-                                                    listOf("", SearchResults(searchResults).toString()),
+                                                    listOf("\n${SearchResults(searchResults)}"),
                                                     apikey
                                                 )
                                                 searchResults.clear()
                                             }
                                         }
                                         printToChat(
-                                            userName, listOf("", SearchResults(searchResults).toString()),
+                                            userName, listOf("\nSearchResults(searchResults)"),
                                             apikey
                                         )
                                         commandListener.onCommandExecuted(commandString, results.toString(), results)
@@ -1261,15 +1259,13 @@ class ChatReader(
                             when {
                                 //send a message to the chat
                                 message.contains("^%say(\\s+\\S+)+$".toRegex()) -> {
-                                    printToChat("", message.substringAfter("%say ").lines(), apikey)
+                                    printToChat("", listOf(message.substringAfter("%say ")), apikey)
                                     commandJob.complete()
                                     return true
                                 }
                             }
                         } else {
-                            val lines = ArrayList<String>()
-                            lines.add("Command not found! Try %help to see available commands.")
-                            printToChat(userName, lines, apikey)
+                            printToChat(userName, listOf("Command not found! Try %help to see available commands."), apikey)
                             commandJob.complete()
                             return false
                         }
@@ -1312,46 +1308,44 @@ class ChatReader(
     }
 
     //use ClientQuery to send message (requires apikey)
-    private fun printToChat(userName: String, messageLines: List<String>?, apikey: String) {
+    private fun printToChat(userName: String, messages: List<String>, apikey: String) {
         if (userName == "__console__") {
-            messageLines?.forEach { println(it) }
+            messages.forEach { println(it) }
         } else {
             if (apikey.isNotEmpty()) {
-                val stringBuilder = StringBuilder()
-                messageLines?.forEach { stringBuilder.appendLine(it) }
-                val distro = commandRunner.runCommand("cat /etc/issue", printOutput = false).first.outputText
-                val command = when {
-                    distro.contains("Ubuntu".toRegex()) -> {
-                        "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${
-                            stringBuilder.toString()
-                                .replace(" ", "\\\\\\s")
-                                .replace("\n", "\\\\\\n")
-                                .replace("/", "\\/")
-                                .replace("|", "\\\\p")
-                                .replace("'", "\\\\'")
-                                .replace("\"", "\\\"")
-                                .replace("`", "\\`")
-                                .replace("&quot;", "\\\"")
-                                .replace("$", "\\\\$")
-                        }\"; echo quit) | nc localhost 25639"
-                    }
+                messages.forEach {
+                    val distro = commandRunner.runCommand("cat /etc/issue", printOutput = false).first.outputText
+                    val command = when {
+                        distro.contains("Ubuntu".toRegex()) -> {
+                            "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${
+                                it.replace(" ", "\\\\\\s")
+                                    .replace("\n", "\\\\\\n")
+                                    .replace("/", "\\/")
+                                    .replace("|", "\\\\p")
+                                    .replace("'", "\\\\'")
+                                    .replace("\"", "\\\"")
+                                    .replace("`", "\\`")
+                                    .replace("&quot;", "\\\"")
+                                    .replace("$", "\\\\$")
+                            }\"; echo quit) | nc localhost 25639"
+                        }
 
-                    else -> {
-                        "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${
-                            stringBuilder.toString()
-                                .replace(" ", "\\s")
-                                .replace("\n", "\\n")
-                                .replace("/", "\\/")
-                                .replace("|", "\\p")
-                                .replace("'", "\\'")
-                                .replace("\"", "\\\"")
-                                .replace("`", "\\`")
-                                .replace("&quot;", "\\\"")
-                                .replace("$", "\\$")
-                        }\"; echo quit) | nc localhost 25639"
+                        else -> {
+                            "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${
+                                it.replace(" ", "\\s")
+                                    .replace("\n", "\\n")
+                                    .replace("/", "\\/")
+                                    .replace("|", "\\p")
+                                    .replace("'", "\\'")
+                                    .replace("\"", "\\\"")
+                                    .replace("`", "\\`")
+                                    .replace("&quot;", "\\\"")
+                                    .replace("$", "\\$")
+                            }\"; echo quit) | nc localhost 25639"
+                        }
                     }
+                    commandRunner.runCommand(command, printOutput = false)
                 }
-                commandRunner.runCommand(command, printOutput = false)
             }
         }
     }
@@ -1432,7 +1426,7 @@ class ChatReader(
     }
 
     override fun onAdPlaying() {
-        printToChat("__song_queue__", listOf("", "Ad playing."), apikey)
+        printToChat("__song_queue__", listOf("\nAd playing."), apikey)
     }
 
 }
