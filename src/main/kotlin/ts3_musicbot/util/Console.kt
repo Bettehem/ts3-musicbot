@@ -51,10 +51,7 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener) {
             val exitTeamSpeak = console.readLine("Close TeamSpeak? [Y/n]: ").toLowerCase()
             if (exitTeamSpeak.contentEquals("y") || exitTeamSpeak.contentEquals("yes") || exitTeamSpeak.contentEquals("")) {
                 confirmed = true
-                commandRunner.runCommand(
-                    "xdotool search \"TeamSpeak 3\" windowactivate --sync key --window 0 --clearmodifiers Ctrl+q",
-                    ignoreOutput = true
-                )
+                commandRunner.runCommand("wmctrl -c TeamSpeak", ignoreOutput = true)
             } else if (exitTeamSpeak.contentEquals("n") || exitTeamSpeak.contentEquals("no")) {
                 break
             }
