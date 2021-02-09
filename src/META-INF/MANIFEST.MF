@@ -1,3 +1,3 @@
 Manifest-Version: 1.0
-Main-Class: src.main.Main
+Main-Class: ts3_musicbot.Main
 

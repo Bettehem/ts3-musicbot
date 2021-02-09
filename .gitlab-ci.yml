@@ -1,0 +1,28 @@
+image: "archlinux"
+
+stages:
+  - build
+  - test
+
+before_script:
+  - pacman -Sy kotlin gradle jdk8-openjdk java8-openjfx --noconfirm --needed
+
+buildTS3MusicBot:
+  stage: build
+  script:
+    - gradle assemble
+
+testCommandRunner:
+  stage: test
+  script:
+    - gradle :test --tests "ts3_musicbot.CommandRunnerTest"
+
+testApis:
+  stage: test
+  before_script:
+    - pacman -Sy youtube-dl kotlin gradle jdk8-openjdk java8-openjfx --noconfirm --needed
+  script:
+    - gradle :test --tests "ts3_musicbot.SpotifyTest"
+    - gradle :test --tests "ts3_musicbot.YouTubeTest"
+    - gradle :test --tests "ts3_musicbot.SoundCloudTest"
+    - gradle :test --tests "ts3_musicbot.MusicBotCommandTester"

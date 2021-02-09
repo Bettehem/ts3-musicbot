@@ -1,4 +1,4 @@
-package src.main.util
+package ts3_musicbot.util
 
 /*
     Copyright 2016  Chris Mustola
@@ -14,18 +14,17 @@ package src.main.util
     along with this program.  If not, see http://www.gnu.org/licenses/.
  */
 
-import java.util.Calendar
-import java.util.Date
+import java.util.*
 
 class Time : Comparable<Time> {
-    lateinit var year: String
-    lateinit var month: String
-    lateinit var date: String
+    private lateinit var year: String
+    private lateinit var month: String
+    private lateinit var date: String
     lateinit var hour: String
     lateinit var minute: String
     lateinit var second: String
 
-    val timeInMillis: Long
+    private val timeInMillis: Long
         get() {
             val calendar = Calendar.getInstance()
             calendar.set(Integer.parseInt(year), Integer.parseInt(month), Integer.parseInt(date), Integer.parseInt(hour), Integer.parseInt(minute), Integer.parseInt(second))
