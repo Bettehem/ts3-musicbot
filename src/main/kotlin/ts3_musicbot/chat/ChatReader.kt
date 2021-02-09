@@ -1043,7 +1043,20 @@ class ChatReader(
                                             data = when (youTube.resolveType(link)) {
                                                 "video" -> youTube.getVideo(link)
                                                 "playlist" -> youTube.fetchPlaylist(link)
-                                                "channel" -> youTube.fetchChannel(link)
+                                                "channel" -> {
+                                                    val channel = youTube.fetchChannel(link)
+                                                    if (channel.playlists.isNotEmpty()) {
+                                                        val split =
+                                                            channel.toString().split("Link:\\s+\\S+\nPlaylists:".toRegex())
+                                                        val start = split.first() + "Link:${
+                                                            channel.toString().substringAfter("Link:")
+                                                        }"
+                                                        val end = "Playlists:" + split.last()
+                                                        listOf(start, end)
+                                                    } else {
+                                                        channel
+                                                    }
+                                                }
                                                 else -> null
                                             }
                                         }
@@ -1053,7 +1066,20 @@ class ChatReader(
                                                 "album" -> soundCloud.fetchAlbum(link)
                                                 "playlist" -> soundCloud.getPlaylist(link)
                                                 "artist" -> soundCloud.fetchArtist(link)
-                                                "user" -> soundCloud.fetchUser(link)
+                                                "user" -> {
+                                                    val user = soundCloud.fetchUser(link)
+                                                    if (user.playlists.isNotEmpty()) {
+                                                        val split =
+                                                            user.toString().split("Link:\\s+\\S+\nPlaylists:".toRegex())
+                                                        val start = split.first() + "Link:${
+                                                            user.toString().substringAfter("Link:")
+                                                        }"
+                                                        val end = "Playlists:" + split.last()
+                                                        listOf(start, end)
+                                                    } else {
+                                                        user
+                                                    }
+                                                }
                                                 else -> null
                                             }
                                         }
