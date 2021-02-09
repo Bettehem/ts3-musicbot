@@ -134,7 +134,7 @@ data class Link(val link: String = "", val linkId: String = "") {
                 linkId
             } else {
                 if (link.contains("https?://(www\\.)?youtube\\.com/c/\\S+".toRegex())) {
-                    runBlocking{YouTube().resolveChannelId(link.substringAfterLast("/"))}
+                    runBlocking { YouTube().resolveChannelId(link.substringAfterLast("/")) }
                 } else {
                     link.substringAfterLast("/").substringAfter("?v=").substringBefore("&")
                         .substringAfter("?list=")
@@ -337,10 +337,16 @@ data class User(
             } else {
                 ""
             } +
-            if (link.linkType() == LinkType.YOUTUBE) {"Subscribers: \t\t    ${followers.amount}\n"}
-	    else {"Followers: \t\t${followers.amount}\n"} +
-	    if (link.linkType() == LinkType.YOUTUBE) {"Channel Link: \t\t  ${link.link}\n"}
-            else {"Link: \t\t\t\t\t\t${link.link}"} +
+            if (link.linkType() == LinkType.YOUTUBE) {
+                "Subscribers: \t\t    ${followers.amount}\n"
+            } else {
+                "Followers: \t\t${followers.amount}\n"
+            } +
+            if (link.linkType() == LinkType.YOUTUBE) {
+                "Channel Link: \t\t  ${link.link}\n"
+            } else {
+                "Link: \t\t\t\t\t\t${link.link}"
+            } +
             if (playlists.isNotEmpty()) {
                 val listsBuilder = StringBuilder()
                 listsBuilder.appendLine("Playlists:")
@@ -348,7 +354,7 @@ data class User(
                 listsBuilder.toString()
             } else {
                 ""
-            } 
+            }
 
     fun isEmpty() = name.isEmpty() && userName.isEmpty() && followers.isEmpty() && link.isEmpty()
     fun isNotEmpty() = name.isNotEmpty() || userName.isNotEmpty() || followers.isNotEmpty() || link.isNotEmpty()
@@ -370,11 +376,17 @@ data class Playlist(
             } else {
                 ""
             } +
-            if (link.linkType() == LinkType.YOUTUBE) {""}
-	    else {"Followers:\t\t\t\t${followers.amount}\n"} +
-	    "Is Public:   \t\t\t\t ${publicity.isPublic}\n" +
-            if (link.linkType() == LinkType.YOUTUBE) {""}
-	    else {"Is Collaborative: \t${collaboration.isCollaborative}\n"} +
+            if (link.linkType() == LinkType.YOUTUBE) {
+                ""
+            } else {
+                "Followers:\t\t\t\t${followers.amount}\n"
+            } +
+            "Is Public:   \t\t\t\t ${publicity.isPublic}\n" +
+            if (link.linkType() == LinkType.YOUTUBE) {
+                ""
+            } else {
+                "Is Collaborative: \t${collaboration.isCollaborative}\n"
+            } +
             "Link:    \t\t\t\t\t\t${link.link}\n"
 
     fun isEmpty() = name.isEmpty() && owner.isEmpty() && description.isEmpty() && followers.isEmpty() && link.isEmpty()

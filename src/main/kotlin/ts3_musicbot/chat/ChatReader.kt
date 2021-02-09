@@ -514,7 +514,7 @@ class ChatReader(
                                         printToChat(
                                             userName, listOf(
                                                 "Queue is already active!\n" +
-                                                "Did you mean to type %queue-resume instead?"
+                                                        "Did you mean to type %queue-resume instead?"
                                             ), apikey
                                         )
                                         commandJob.complete()
@@ -1022,7 +1022,20 @@ class ChatReader(
                                                 link.link.contains("artist".toRegex()) -> spotify.getArtist(link)
                                                 link.link.contains("show".toRegex()) -> spotify.getShow(link)
                                                 link.link.contains("episode".toRegex()) -> spotify.getEpisode(link)
-                                                link.link.contains("user".toRegex()) -> spotify.getUser(link)
+                                                link.link.contains("user".toRegex()) -> {
+                                                    val user = spotify.getUser(link)
+                                                    if (user.playlists.isNotEmpty()) {
+                                                        val split =
+                                                            user.toString().split("Link:\\s+\\S+\nPlaylists:".toRegex())
+                                                        val start = split.first() + "Link:${
+                                                            user.toString().substringAfter("Link:")
+                                                        }"
+                                                        val end = "Playlists:" + split.last()
+                                                        listOf(start, end)
+                                                    } else {
+                                                        user
+                                                    }
+                                                }
                                                 else -> null
                                             }
                                         }
@@ -1046,7 +1059,11 @@ class ChatReader(
                                         }
                                     }
                                     if (data != null) {
-                                        printToChat(userName, listOf("\n$data"), apikey)
+                                        if (data is List<*>) {
+                                            printToChat(userName, data.map { if (it is String) it else "" }, apikey)
+                                        } else {
+                                            printToChat(userName, listOf("\n$data"), apikey)
+                                        }
                                         commandListener.onCommandExecuted(commandString, data.toString(), data)
                                         commandJob.complete()
                                         return true
@@ -1064,7 +1081,7 @@ class ChatReader(
                                     printToChat(
                                         userName, listOf(
                                             "This service isn't supported, available commands are:\n" +
-                                            "${supportedServices.map { "%$service-info" }}"
+                                                    "${supportedServices.map { "%$service-info" }}"
                                         ), apikey
                                     )
                                     commandListener.onCommandExecuted(commandString, "Not supported")
@@ -1125,8 +1142,8 @@ class ChatReader(
                                 printToChat(
                                     userName, listOf(
                                         "Now playing on YouTube:\n" +
-                                        youTube.getVideoTitle(ytLink) +
-                                        "\nLink: $ytLink"
+                                                youTube.getVideoTitle(ytLink) +
+                                                "\nLink: $ytLink"
                                     ), apikey
                                 )
                                 commandJob.complete()
@@ -1181,8 +1198,8 @@ class ChatReader(
                                 printToChat(
                                     userName, listOf(
                                         "Now playing on SoundCloud:\n" +
-                                        "${soundCloud.getTrack(scLink).title}\n" +
-                                        "Link: $scLink"
+                                                "${soundCloud.getTrack(scLink).title}\n" +
+                                                "Link: $scLink"
                                     ), apikey
                                 )
                                 commandJob.complete()
@@ -1265,7 +1282,11 @@ class ChatReader(
                                 }
                             }
                         } else {
-                            printToChat(userName, listOf("Command not found! Try %help to see available commands."), apikey)
+                            printToChat(
+                                userName,
+                                listOf("Command not found! Try %help to see available commands."),
+                                apikey
+                            )
                             commandJob.complete()
                             return false
                         }
