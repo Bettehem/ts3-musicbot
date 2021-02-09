@@ -279,13 +279,11 @@ class Spotify(private val market: String = "") {
                         searchJob.complete()
                         return@withContext
                     }
-
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${searchData.data.data} seconds.")
                         //wait for given time before next request.
                         delay(searchData.data.data.toLong() * 1000 + 500)
                     }
-
                     else -> println("HTTP ERROR! CODE: ${searchData.code}")
 
                 }
@@ -368,6 +366,12 @@ class Spotify(private val market: String = "") {
                         playlistJob.complete()
                         return@withContext
                     }
+		    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                          println("Error ${playlistData.code}! Bad request!!")
+			  playlist = Playlist()
+			  playlistJob.complete()
+                          return@withContext
+		    }
                     else -> println("HTTP ERROR! CODE ${playlistData.code}")
                 }
             }
@@ -693,6 +697,12 @@ class Spotify(private val market: String = "") {
                         albumJob.complete()
                         return@withContext
                     }
+		    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                          println("Error ${albumData.code}! Bad request!!")
+			  album = Album()
+			  albumJob.complete()
+                          return@withContext
+		    }
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${albumData.data.data} seconds.")
                         //wait for given time before next request.
@@ -1030,6 +1040,12 @@ class Spotify(private val market: String = "") {
                         trackJob.complete()
                         return@withContext
                     }
+		    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                          println("Error ${trackData.code}! Bad request!!")
+			  track = Track()
+			  trackJob.complete()
+                          return@withContext
+		    }
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${trackData.data.data} seconds.")
                         //wait for given time before next request. 
@@ -1237,10 +1253,15 @@ class Spotify(private val market: String = "") {
                         //wait for given time before next request.
                         delay(artistData.data.data.toLong() * 1000 + 500)
                     }
-
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateToken()
                     }
+		    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                          println("Error ${artistData.code}! Bad request!!")
+			  artist = Artist()
+			  artistJob.complete()
+                          return@withContext
+		    }
                     else -> println("HTTP ERROR! CODE: ${artistData.code}")
                 }
             }
@@ -1502,11 +1523,9 @@ class Spotify(private val market: String = "") {
                                 println("Failed to get data from JSON, trying again...")
                             }
                         }
-
                         HttpURLConnection.HTTP_UNAUTHORIZED -> {
                             updateToken()
                         }
-
                         HTTP_TOO_MANY_REQUESTS -> {
                             println("Too many requests! Waiting for ${episodesData.data.data} seconds.")
                             //wait for given time before next request.
@@ -1558,7 +1577,12 @@ class Spotify(private val market: String = "") {
                         showJob.complete()
                         return@withContext
                     }
-
+		    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                        println("Error ${showData.code}! Bad request!!")
+                        show = Show()
+                        showJob.complete()
+                        return@withContext
+                    }
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${showData.data.data} seconds.")
                         //wait for given time before next request.
@@ -1647,7 +1671,12 @@ class Spotify(private val market: String = "") {
                         episodeJob.complete()
                         return@withContext
                     }
-
+		    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                        println("Error ${episodeData.code}! Bad request!!")
+                        episode = Episode()
+                        episodeJob.complete()
+                        return@withContext
+                      }
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${episodeData.data.data} seconds.")
                         //wait for given time before next request.
