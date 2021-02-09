@@ -1267,7 +1267,7 @@ class ChatReader(
                                             }
                                         }
                                         printToChat(
-                                            userName, listOf("\nSearchResults(searchResults)"),
+                                            userName, listOf("\n${SearchResults(searchResults)}"),
                                             apikey
                                         )
                                         commandListener.onCommandExecuted(commandString, results.toString(), results)
