@@ -66,7 +66,7 @@ class Spotify(private val market: String = "") {
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${data.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(data.data.data.toLong() * 1000 + 500)
+                        delay(data.data.data.toLong() * 1000)
                     }
                     else -> println("HTTP ERROR! CODE: ${data.code}")
 
@@ -282,7 +282,7 @@ class Spotify(private val market: String = "") {
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${searchData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(searchData.data.data.toLong() * 1000 + 500)
+                        delay(searchData.data.data.toLong() * 1000)
                     }
                     else -> println("HTTP ERROR! CODE: ${searchData.code}")
 
@@ -343,7 +343,7 @@ class Spotify(private val market: String = "") {
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${playlistData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(playlistData.data.data.toLong() * 1000 + 500)
+                        delay(playlistData.data.data.toLong() * 1000)
                     }
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $playlistLink not found!")
@@ -559,7 +559,7 @@ class Spotify(private val market: String = "") {
                             HTTP_TOO_MANY_REQUESTS -> {
                                 println("Too many requests! Waiting for ${itemData.data.data} seconds.")
                                 //wait for given time before next request.
-                                delay(itemData.data.data.toLong() * 1000 + 500)
+                                delay(itemData.data.data.toLong() * 1000)
                             }
                             else -> println("HTTP ERROR! CODE: ${itemData.code}")
                         }
@@ -598,7 +598,7 @@ class Spotify(private val market: String = "") {
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${playlistData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(playlistData.data.data.toLong() * 1000 + 500)
+                        delay(playlistData.data.data.toLong() * 1000)
                     }
                     else -> println("HTTP ERROR! CODE: ${playlistData.code}")
                 }
@@ -706,7 +706,7 @@ class Spotify(private val market: String = "") {
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${albumData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(albumData.data.data.toLong() * 1000 + 500)
+                        delay(albumData.data.data.toLong() * 1000)
                     }
                     else -> println("HTTP ERROR! CODE ${albumData.code}")
                 }
@@ -871,7 +871,7 @@ class Spotify(private val market: String = "") {
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${albumData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(albumData.data.data.toLong() * 1000 + 500)
+                        delay(albumData.data.data.toLong() * 1000)
                     }
                     else -> println("HTTP ERROR! CODE ${albumData.code}")
                 }
@@ -996,7 +996,7 @@ class Spotify(private val market: String = "") {
                             HTTP_TOO_MANY_REQUESTS -> {
                                 println("Too many requests! Waiting for ${trackData2.data.data} seconds.")
                                 //wait for given time before next request.
-                                delay(trackData2.data.data.toLong() * 1000 + 500)
+                                delay(trackData2.data.data.toLong() * 1000)
                             }
                             else -> println("HTTP ERROR! CODE: ${trackData2.code}")
                         }
@@ -1049,7 +1049,7 @@ class Spotify(private val market: String = "") {
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${trackData.data.data} seconds.")
                         //wait for given time before next request. 
-                        delay(trackData.data.data.toLong() * 1000 + 500)
+                        delay(trackData.data.data.toLong() * 1000)
                     }
                     else -> println("HTTP ERROR! CODE: ${trackData.code}")
                 }
@@ -1201,7 +1201,7 @@ class Spotify(private val market: String = "") {
                                     HTTP_TOO_MANY_REQUESTS -> {
                                         println("Too many requests! Waiting for ${topTracksData.data.data} seconds.")
                                         //wait for given time before next request.
-                                        delay(topTracksData.data.data.toLong() * 1000 + 500)
+                                        delay(topTracksData.data.data.toLong() * 1000)
                                     }
                                     else -> println("HTTP ERROR! CODE: ${topTracksData.code.code}")
                                 }
@@ -1228,7 +1228,7 @@ class Spotify(private val market: String = "") {
                                     HTTP_TOO_MANY_REQUESTS -> {
                                         println("Too many requests! Waiting for ${relatedArtistsData.data.data} seconds.")
                                         //wait for given time before next request.
-                                        delay(relatedArtistsData.data.data.toLong() * 1000 + 500)
+                                        delay(relatedArtistsData.data.data.toLong() * 1000)
                                     }
                                     else -> println("HTTP ERROR! CODE: ${relatedArtistsData.code.code}")
                                 }
@@ -1251,7 +1251,7 @@ class Spotify(private val market: String = "") {
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${artistData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(artistData.data.data.toLong() * 1000 + 500)
+                        delay(artistData.data.data.toLong() * 1000)
                     }
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateToken()
@@ -1340,7 +1340,7 @@ class Spotify(private val market: String = "") {
                         HTTP_TOO_MANY_REQUESTS -> {
                             println("Too many requests! Waiting for ${playlistsData.data.data} seconds.")
                             //wait for given time before next request.
-                            delay(playlistsData.data.data.toLong() * 1000 + 500)
+                            delay(playlistsData.data.data.toLong() * 1000)
                         }
                         else -> println("HTTP ERROR! CODE: ${playlistsData.code.code}")
                     }
@@ -1384,7 +1384,7 @@ class Spotify(private val market: String = "") {
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${userData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(userData.data.data.toLong() * 1000 + 500)
+                        delay(userData.data.data.toLong() * 1000)
                     }
                     else -> println("HTTP ERROR! CODE: ${userData.code}")
                 }
@@ -1493,7 +1493,7 @@ class Spotify(private val market: String = "") {
                                         HTTP_TOO_MANY_REQUESTS -> {
                                             println("Too many requests! Waiting for ${data.data.data} seconds.")
                                             //wait for given time before next request.
-                                            delay(data.data.data.toLong() * 1000 + 500)
+                                            delay(data.data.data.toLong() * 1000)
                                         }
 
                                         else -> println("HTTP ERROR! CODE: ${data.code}")
@@ -1529,7 +1529,7 @@ class Spotify(private val market: String = "") {
                         HTTP_TOO_MANY_REQUESTS -> {
                             println("Too many requests! Waiting for ${episodesData.data.data} seconds.")
                             //wait for given time before next request.
-                            delay(episodesData.data.data.toLong() * 1000 + 500)
+                            delay(episodesData.data.data.toLong() * 1000)
                         }
                         else -> println("HTTP ERROR! CODE: ${episodesData.code.code}")
                     }
@@ -1586,7 +1586,7 @@ class Spotify(private val market: String = "") {
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${showData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(showData.data.data.toLong() * 1000 + 500)
+                        delay(showData.data.data.toLong() * 1000)
                     }
                     else -> println("HTTP ERROR! CODE: ${showData.code}")
                 }
@@ -1680,7 +1680,7 @@ class Spotify(private val market: String = "") {
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${episodeData.data.data} seconds.")
                         //wait for given time before next request.
-                        delay(episodeData.data.data.toLong() * 1000 + 500)
+                        delay(episodeData.data.data.toLong() * 1000)
                     }
                     else -> println("HTTP ERROR! CODE: ${episodeData.code}")
                 }

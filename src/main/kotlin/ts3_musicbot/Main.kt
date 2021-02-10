@@ -111,7 +111,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             exitProcess(0)
                         }
                         "-a", "--apikey" -> {
-                            //"if (args.size >= argPos +1)" is a safe check in case a user provides an a flag, but no argument
+                            //"if (args.size >= argPos +1)" is a safe check
+                            //in case a user provides a flag, but no argument
                             if (args.size >= argPos + 1)
                                 apiKey = args[argPos + 1]
                         }
@@ -167,7 +168,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     spotifyPlayer = settings.spotifyPlayer
                 }
 
-                //connect to desired server and channel, after which find the server's channel file and start listening for commands
+                //connect to desired server and channel,
+                //after which find the server's channel file and start listening for commands
                 if (apiKey.isNotEmpty() && serverAddress.isNotEmpty() && nickname.isNotEmpty()) {
                     println("Starting TeamSpeak 3...")
                     println(
@@ -181,7 +183,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
 
                     commandRunner.runCommand(
                         ignoreOutput = true,
-                        command = "teamspeak3 -nosingleinstance \"ts3server://$serverAddress?port=${if (serverPort.isNotEmpty()) {
+                        command = "teamspeak3 -nosingleinstance \"ts3server://$serverAddress" +
+                        "?port=${if (serverPort.isNotEmpty()) {
                             serverPort
                         } else {
                             "9987"
@@ -208,7 +211,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 Thread.sleep(5000)
                 //get the server's name
                 val virtualserverName = commandRunner.runCommand(
-                    "(echo auth apikey=$apiKey; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
+                    "(echo auth apikey=$apiKey; " +
+                    "echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
                     printOutput = false
                 ).first.outputText.lines()
                 var serverName = ""
@@ -371,7 +375,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 //start teamspeak
                 commandRunner.runCommand(
                     ignoreOutput = true,
-                    command = "teamspeak3 -nosingleinstance \"ts3server://${settings.serverAddress}?port=${if (settings.serverPort.isNotEmpty()) {
+                    command = "teamspeak3 -nosingleinstance \"ts3server://${settings.serverAddress}" +
+                    "?port=${if (settings.serverPort.isNotEmpty()) {
                         settings.serverPort
                     } else {
                         "9987"
@@ -407,7 +412,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             if (settings.channelFilePath.isEmpty()) {
                 //get the server's name
                 val virtualserverName = commandRunner.runCommand(
-                    "(echo auth apikey=${settings.apiKey}; echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
+                    "(echo auth apikey=${settings.apiKey}; " +
+                    "echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
                     printOutput = false
                 ).first.outputText.lines()
                 var serverName = ""

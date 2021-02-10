@@ -192,3 +192,4 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
     override fun onChatUpdated(update: ChatUpdate) {}
     override fun onCommandExecuted(command: String, output: String, extra: Any?) {}
 }
+

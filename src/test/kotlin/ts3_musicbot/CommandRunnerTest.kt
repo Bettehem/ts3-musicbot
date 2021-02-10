@@ -14,3 +14,4 @@ class CommandRunnerTest {
         assert(commandRunner.runCommand(testCommand, ignoreOutput = true).first.outputText.isEmpty())
     }
 }
+

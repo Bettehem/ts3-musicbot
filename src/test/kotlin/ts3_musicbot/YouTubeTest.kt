@@ -13,7 +13,7 @@ class YouTubeTest {
 
     @Test
     fun testGettingYouTubeTrackTitle() {
-        runBlocking {
+        runBlocking(IO){
             //YouTube link for track: Phace & Noisia - Non-Responsive
             val testYtLink = Link("https://youtu.be/IKZnGWxJN3I")
             //You need to have youtube-dl installed for the getTitle function to work.
@@ -37,11 +37,33 @@ class YouTubeTest {
 
     @Test
     fun testGettingYouTubePlaylist() {
-        runBlocking {
+        runBlocking(IO) {
             //YouTube link for playlist: prog. The playlist length is 5 tracks.
             val testYtLink = Link("https://www.youtube.com/playlist?list=PLVzaRVhV8Ebb5m6IIEpOJeOIBMKk4AVwm")
-            val playlist = youTube.getPlaylistTracks(testYtLink)
-            assertTrue(playlist.trackList.size == 6 || playlist.trackList.isEmpty())
+            val playlist = youTube.fetchPlaylist(testYtLink)
+            assertEquals("prog", playlist.name.name)
+        }
+    }
+
+    @Test
+    fun testGettingYouTubePlaylistTracks() {
+        runBlocking(IO) {
+            //YouTube link for playlist: prog. The playlist length is 6 tracks.
+            val testYtLink = Link("https://www.youtube.com/playlist?list=PLVzaRVhV8Ebb5m6IIEpOJeOIBMKk4AVwm")
+            val tracks = youTube.getPlaylistTracks(testYtLink)
+            assertTrue(tracks.trackList.size == 6 || tracks.trackList.isEmpty())
+        }
+    }
+
+    @Test
+    fun testGettingYouTubeChannel() {
+        runBlocking(IO) {
+            //YouTube link for channel: SLVSH.
+            val testYtLink = Link("https://www.youtube.com/c/SLVSH")
+            val channel = youTube.fetchChannel(testYtLink)
+            assertEquals("SLVSH", channel.name.name)
+            assertEquals(testYtLink.getId(), channel.userName.name)
         }
     }
 }
+

@@ -145,11 +145,12 @@ class SongQueue(
                 when (songQueue[0].linkType) {
                     LinkType.YOUTUBE -> {
                         //check if youtube-dl is able to play the track
-                        while (songQueue.isNotEmpty() && songQueue[0].linkType == LinkType.YOUTUBE && CommandRunner().runCommand(
-                                "youtube-dl -s \"${songQueue[0].link}\"",
-                                printOutput = false,
-                                printErrors = false
-                            ).second.errorText.isNotEmpty()
+                        while (songQueue.isNotEmpty() && songQueue[0].linkType == LinkType.YOUTUBE
+                                && CommandRunner().runCommand(
+                                       "youtube-dl -s \"${songQueue[0].link}\"",
+                                       printOutput = false,
+                                       printErrors = false
+                                   ).second.errorText.isNotEmpty()
                         ) {
                             println("youtube-dl cannot play this track! Skipping...")
                             songQueue.removeAt(0)
@@ -413,7 +414,9 @@ class SongQueue(
                                 }
                             }
                             else -> {
-                                synchronized(trackJob) { trackJob.completeExceptionally(Throwable("Unhandled Player Status")) }
+                                synchronized(trackJob) {
+                                    trackJob.completeExceptionally(Throwable("Unhandled Player Status"))
+                                }
                                 break@loop
                             }
                         }

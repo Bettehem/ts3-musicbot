@@ -34,7 +34,8 @@ class SoundCloud {
     fun updateClientId(): String {
         println("Updating SoundCloud ClientId")
         val lines = commandRunner.runCommand(
-            "curl https://soundcloud.com 2> /dev/null | grep -E \"<script crossorigin src=\\\"https:\\/\\/\\S*\\.js\\\"></script>\"",
+            "curl https://soundcloud.com 2> /dev/null " +
+            "| grep -E \"<script crossorigin src=\\\"https:\\/\\/\\S*\\.js\\\"></script>\"",
             printOutput = false
         ).first.outputText.lines()
         for (line in lines) {
@@ -287,7 +288,12 @@ class SoundCloud {
     private suspend fun fetchPlaylistData(link: Link): Response {
         val id = resolveId(link)
         val urlBuilder = StringBuilder()
-        urlBuilder.append("$api2URL/${if (id.startsWith("soundcloud:system-playlists")) "system-playlists" else "playlists"}/")
+        urlBuilder.append("$api2URL/${
+            if (id.startsWith("soundcloud:system-playlists"))
+                "system-playlists"
+            else
+                "playlists"
+        }/")
         urlBuilder.append(id)
         urlBuilder.append("?client_id=$clientId")
         @Suppress("BlockingMethodInNonBlockingContext")
@@ -364,9 +370,6 @@ class SoundCloud {
                     HttpURLConnection.HTTP_OK -> {
                         try {
                             val tracksJSON = JSONObject(playlistData.data.data).getJSONArray("tracks")
-                            if (tracksJSON.length() > 50) {
-                                println("This playlist has ${tracksJSON.length()} tracks. Please wait...")
-                            }
                             val apiLinks = tracksJSON.map {
                                 it as JSONObject
                                 Link("$apiURL/tracks/${it.getInt("id")}", it.getInt("id").toString())
@@ -406,7 +409,12 @@ class SoundCloud {
 
     private fun fetchAlbumData(id: String): Response {
         val urlBuilder = StringBuilder()
-        urlBuilder.append("$api2URL/${if (id.startsWith("soundcloud:system-playlists")) "system-playlists" else "playlists"}/")
+        urlBuilder.append("$api2URL/${
+            if (id.startsWith("soundcloud:system-playlists"))
+                "system-playlists"
+            else 
+                "playlists"
+        }/")
         urlBuilder.append(id)
         urlBuilder.append("?client_id=$clientId")
         return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
@@ -747,10 +755,11 @@ class SoundCloud {
     }
 
     /**
-     * Fetch a SoundCloud user's uploaded tracks
-     * @param userId user's id
-     * @param tracksAmount the amount of tracks the user has uploaded. This is used for the `limit=` parameter in the http post
-     * @return returns a TrackList containing the user's tracks
+     * Fetch a SoundCloud user's uploaded tracks.
+     * @param userId user's id.
+     * @param tracksAmount the amount of tracks the user has uploaded.
+     *        This is used for the `limit=` parameter in the http post.
+     * @return returns a TrackList containing the user's tracks.
      */
     private suspend fun fetchUserTracks(userId: String, tracksAmount: Int): TrackList {
         fun fetchTracksData(): Response {
@@ -904,7 +913,9 @@ class SoundCloud {
             artistsTracks.trackList.sortedByDescending {
                 it.likes.amount
             }.forEach {
-                if (topTracks.size < 10)
+                //get top 10 tracks
+                val topTracksAmount = 10
+                if (topTracks.size < topTracksAmount)
                     topTracks.add(it)
             }
             val relatedArtistsJob = Job()
@@ -947,7 +958,12 @@ class SoundCloud {
                 TrackList(topTracks),
                 Artists(relatedArtists),
                 followers = Followers(artistData.getInt("followers_count")),
-                description = Description(if (!artistData.isNull("description")) artistData.getString("description") else "")
+                description = Description(
+                    if (!artistData.isNull("description"))
+                        artistData.getString("description")
+                    else 
+                        ""
+                )
             )
         }
 
