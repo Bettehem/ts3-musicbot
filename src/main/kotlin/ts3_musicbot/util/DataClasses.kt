@@ -405,7 +405,7 @@ data class Show(
             "Publisher:    \t\t\t\t\t${publisher.name}\n" +
             "Description:\n$description\n\n" +
             "This podcast has  ${episodes.episodes.size}  episodes.\n" +
-            "${if (episodes.episodes.size > 10) "First 10 " else ""} Episodes:\n" +
+            if (episodes.episodes.size > 0) {"${if (episodes.episodes.size > 10) "First 10 " else ""} Episodes:\n" +
             "${
                 EpisodeList(
                     episodes.episodes.subList(
@@ -414,7 +414,8 @@ data class Show(
                     )
                 )
             }\n" +
-            "Show Link:       \t\t\t\t\t$link"
+            "Show Link:       \t\t\t\t\t$link"}
+	    else {""}
 
     fun isEmpty() =
         name.isEmpty() && publisher.isEmpty() && description.isEmpty() && episodes.isEmpty() && link.isEmpty()
