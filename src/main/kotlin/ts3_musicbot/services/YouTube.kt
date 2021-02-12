@@ -372,7 +372,7 @@ class YouTube {
         return trackList
     }
 
-    suspend fun fetchChannelPlaylists(channelLink: Link): List<Playlist> {
+    private suspend fun fetchChannelPlaylists(channelLink: Link): List<Playlist> {
         fun fetchPlaylistsData(apiKey: String = apiKey1, pageToken: String = ""): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiUrl/playlists")

@@ -1232,7 +1232,7 @@ class ChatReader(
                                 return true
                             }
 
-                            //%sp-search/yt-search/sc-search command
+                            //%sp-search/%yt-search/%sc-search command
                             commandString.contains("^%[a-z]+-search\\s+".toRegex()) -> {
                                 val service = commandString.substringBefore("-").substringAfter("%")
                                 val searchType =

@@ -83,7 +83,12 @@ class Spotify(private val market: String = "") {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/search?")
             urlBuilder.append("q=${URLEncoder.encode(searchQuery.query, Charsets.UTF_8.toString())}")
-            urlBuilder.append("&type=${type.type}")
+            urlBuilder.append("&type=${
+                if (type.getType() == SearchType.Type.SHOW)
+                    type.type.replace("podcast", "show")
+                else
+                    type.type
+            }")
             urlBuilder.append("&limit=10")
             if (market.isNotEmpty())
                 urlBuilder.append("&market=$market")
@@ -207,7 +212,7 @@ class Spotify(private val market: String = "") {
                         )
                     }
                 }
-                "show" -> {
+                "show", "podcast" -> {
                     val shows = searchData.getJSONObject("shows").getJSONArray("items")
                     for (showData in shows) {
                         showData as JSONObject
@@ -366,12 +371,12 @@ class Spotify(private val market: String = "") {
                         playlistJob.complete()
                         return@withContext
                     }
-		    HttpURLConnection.HTTP_BAD_REQUEST -> {
-                          println("Error ${playlistData.code}! Bad request!!")
-			  playlist = Playlist()
-			  playlistJob.complete()
-                          return@withContext
-		    }
+                    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                        println("Error ${playlistData.code}! Bad request!!")
+                        playlist = Playlist()
+                        playlistJob.complete()
+                        return@withContext
+                    }
                     else -> println("HTTP ERROR! CODE ${playlistData.code}")
                 }
             }
@@ -697,12 +702,12 @@ class Spotify(private val market: String = "") {
                         albumJob.complete()
                         return@withContext
                     }
-		    HttpURLConnection.HTTP_BAD_REQUEST -> {
-                          println("Error ${albumData.code}! Bad request!!")
-			  album = Album()
-			  albumJob.complete()
-                          return@withContext
-		    }
+                    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                        println("Error ${albumData.code}! Bad request!!")
+                        album = Album()
+                        albumJob.complete()
+                        return@withContext
+                    }
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${albumData.data.data} seconds.")
                         //wait for given time before next request.
@@ -1040,12 +1045,12 @@ class Spotify(private val market: String = "") {
                         trackJob.complete()
                         return@withContext
                     }
-		    HttpURLConnection.HTTP_BAD_REQUEST -> {
-                          println("Error ${trackData.code}! Bad request!!")
-			  track = Track()
-			  trackJob.complete()
-                          return@withContext
-		    }
+                    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                        println("Error ${trackData.code}! Bad request!!")
+                        track = Track()
+                        trackJob.complete()
+                        return@withContext
+                    }
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${trackData.data.data} seconds.")
                         //wait for given time before next request. 
@@ -1256,12 +1261,12 @@ class Spotify(private val market: String = "") {
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateToken()
                     }
-		    HttpURLConnection.HTTP_BAD_REQUEST -> {
-                          println("Error ${artistData.code}! Bad request!!")
-			  artist = Artist()
-			  artistJob.complete()
-                          return@withContext
-		    }
+                    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                        println("Error ${artistData.code}! Bad request!!")
+                        artist = Artist()
+                        artistJob.complete()
+                        return@withContext
+                    }
                     else -> println("HTTP ERROR! CODE: ${artistData.code}")
                 }
             }
@@ -1465,39 +1470,38 @@ class Spotify(private val market: String = "") {
                                 Playability(item.getBoolean("is_playable"))
                             )
                         )
-                        if (!episodesData.isNull("next")) {
-                            offset += 50
-                            val episodesJob = Job()
-                            withContext(episodesJob + IO) {
-                                while (true) {
-                                    val data = getEpisodesData(offset)
-
-                                    when (data.code.code) {
-                                        HttpURLConnection.HTTP_OK -> {
-                                            try {
-                                                val episodeData = JSONObject(data.data.data)
-                                                items = episodeData.getJSONArray("items")
-                                                episodesJob.complete()
-                                                return@withContext
-                                            } catch (e: JSONException) {
-                                                //JSON broken, try getting the data again
-                                                println("Failed JSON:\n${data.data}\n")
-                                                println("Failed to get data from JSON, trying again...")
-                                            }
+                    }
+                    if (!episodesData.isNull("next")) {
+                        offset += 50
+                        val episodesJob = Job()
+                        withContext(episodesJob + IO) {
+                            while (true) {
+                                val data = getEpisodesData(offset)
+                                when (data.code.code) {
+                                    HttpURLConnection.HTTP_OK -> {
+                                        try {
+                                            val episodeData = JSONObject(data.data.data)
+                                            items = episodeData.getJSONArray("items")
+                                            episodesJob.complete()
+                                            return@withContext
+                                        } catch (e: JSONException) {
+                                            //JSON broken, try getting the data again
+                                            println("Failed JSON:\n${data.data}\n")
+                                            println("Failed to get data from JSON, trying again...")
                                         }
-
-                                        HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                                            updateToken()
-                                        }
-
-                                        HTTP_TOO_MANY_REQUESTS -> {
-                                            println("Too many requests! Waiting for ${data.data.data} seconds.")
-                                            //wait for given time before next request.
-                                            delay(data.data.data.toLong() * 1000)
-                                        }
-
-                                        else -> println("HTTP ERROR! CODE: ${data.code}")
                                     }
+
+                                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                                        updateToken()
+                                    }
+
+                                    HTTP_TOO_MANY_REQUESTS -> {
+                                        println("Too many requests! Waiting for ${data.data.data} seconds.")
+                                        //wait for given time before next request.
+                                        delay(data.data.data.toLong() * 1000)
+                                    }
+
+                                    else -> println("HTTP ERROR! CODE: ${data.code}")
                                 }
                             }
                         }
@@ -1577,7 +1581,7 @@ class Spotify(private val market: String = "") {
                         showJob.complete()
                         return@withContext
                     }
-		    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                    HttpURLConnection.HTTP_BAD_REQUEST -> {
                         println("Error ${showData.code}! Bad request!!")
                         show = Show()
                         showJob.complete()
@@ -1671,12 +1675,12 @@ class Spotify(private val market: String = "") {
                         episodeJob.complete()
                         return@withContext
                     }
-		    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                    HttpURLConnection.HTTP_BAD_REQUEST -> {
                         println("Error ${episodeData.code}! Bad request!!")
                         episode = Episode()
                         episodeJob.complete()
                         return@withContext
-                      }
+                    }
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${episodeData.data.data} seconds.")
                         //wait for given time before next request.
