@@ -1022,20 +1022,7 @@ class ChatReader(
                                                 link.link.contains("artist".toRegex()) -> spotify.getArtist(link)
                                                 link.link.contains("show".toRegex()) -> spotify.getShow(link)
                                                 link.link.contains("episode".toRegex()) -> spotify.getEpisode(link)
-                                                link.link.contains("user".toRegex()) -> {
-                                                    val user = spotify.getUser(link)
-                                                    if (user.playlists.isNotEmpty()) {
-                                                        val split =
-                                                            user.toString().split("Link:\\s+\\S+\nPlaylists:".toRegex())
-                                                        val start = split.first() + "Link:${
-                                                            user.toString().substringAfter("Link:")
-                                                        }"
-                                                        val end = "Playlists:" + split.last()
-                                                        listOf(start, end)
-                                                    } else {
-                                                        user
-                                                    }
-                                                }
+                                                link.link.contains("user".toRegex()) -> spotify.getUser(link)
                                                 else -> null
                                             }
                                         }
@@ -1043,20 +1030,7 @@ class ChatReader(
                                             data = when (youTube.resolveType(link)) {
                                                 "video" -> youTube.getVideo(link)
                                                 "playlist" -> youTube.fetchPlaylist(link)
-                                                "channel" -> {
-                                                    val channel = youTube.fetchChannel(link)
-                                                    if (channel.playlists.isNotEmpty()) {
-                                                        val split =
-                                                            channel.toString().split("Link:\\s+\\S+\nPlaylists:".toRegex())
-                                                        val start = split.first() + "Link:${
-                                                            channel.toString().substringAfter("Link:")
-                                                        }"
-                                                        val end = "Playlists:" + split.last()
-                                                        listOf(start, end)
-                                                    } else {
-                                                        channel
-                                                    }
-                                                }
+                                                "channel" -> youTube.fetchChannel(link)
                                                 else -> null
                                             }
                                         }
@@ -1066,33 +1040,16 @@ class ChatReader(
                                                 "album" -> soundCloud.fetchAlbum(link)
                                                 "playlist" -> soundCloud.getPlaylist(link)
                                                 "artist" -> soundCloud.fetchArtist(link)
-                                                "user" -> {
-                                                    val user = soundCloud.fetchUser(link)
-                                                    if (user.playlists.isNotEmpty()) {
-                                                        val split =
-                                                            user.toString().split("Link:\\s+\\S+\nPlaylists:".toRegex())
-                                                        val start = split.first() + "Link:${
-                                                            user.toString().substringAfter("Link:")
-                                                        }"
-                                                        val end = "Playlists:" + split.last()
-                                                        listOf(start, end)
-                                                    } else {
-                                                        user
-                                                    }
-                                                }
+                                                "user" -> soundCloud.fetchUser(link)
                                                 else -> null
                                             }
                                         }
                                     }
-                                    if (data != null) {
-                                        if (data is List<*>) {
-                                            printToChat(userName, data.map { if (it is String) it else "" }, apikey)
-                                        } else {
-                                            printToChat(userName, listOf("\n$data"), apikey)
-                                        }
+                                    return if (data != null) {
+                                        printToChat(userName, listOf("\n$data"), apikey)
                                         commandListener.onCommandExecuted(commandString, data.toString(), data)
                                         commandJob.complete()
-                                        return true
+                                        true
                                     } else {
                                         printToChat(
                                             userName,
@@ -1101,7 +1058,7 @@ class ChatReader(
                                         )
                                         commandListener.onCommandExecuted(commandString, data.toString(), data)
                                         commandJob.complete()
-                                        return false
+                                        false
                                     }
                                 } else {
                                     printToChat(

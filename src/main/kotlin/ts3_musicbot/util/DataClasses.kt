@@ -350,7 +350,12 @@ data class User(
             if (playlists.isNotEmpty()) {
                 val listsBuilder = StringBuilder()
                 listsBuilder.appendLine((if (playlists.size > 10) "First 10 " else "") + "Playlists:")
-                playlists.forEach { listsBuilder.appendLine(it.toString()) }
+                val lists = ArrayList<String>()
+                playlists.forEach {
+                    if (lists.size < 10)
+                        lists.add(it.toString())
+                }
+                lists.forEach {listsBuilder.appendLine(it)}
                 listsBuilder.toString()
             } else {
                 ""
