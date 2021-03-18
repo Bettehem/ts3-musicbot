@@ -6,6 +6,8 @@ TS3 MusicBot doesn't require you to be an admin on the server you are using the 
 <h4>Features:</h4>
 
 - Spotify Support! Unlike other bots, this Spotify support is legit!*<br>
+- YouTube Support.<br>
+- SoundCloud Support.<br>
 - Built in Spotify, YouTube and SoundCloud search.<br>
 - You can have tracks from Spotify, YouTube and SoundCloud all in the same queue!<br>
 - Supports adding multiple tracks, albums and playlists etc. to the queue simultaneously.<br>
