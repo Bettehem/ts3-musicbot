@@ -555,7 +555,6 @@ class ChatReader(
                                     )
                                 }
                                 printToChat(userName, listOf("Song Queue:"), apikey)
-                                val queueList = StringBuilder()
                                 when {
                                     songQueue.getQueue().isEmpty() -> printToChat(
                                         userName,
@@ -563,55 +562,45 @@ class ChatReader(
                                         apikey
                                     )
                                     else -> {
-                                        val queue = if (songQueue.getQueue().size <= 15) {
-                                            songQueue.getQueue().toMutableList()
-                                        } else {
-                                            if (commandString.substringAfter("%queue-list")
-                                                    .contains(" -a") || commandString.substringAfter("%queue-list")
-                                                    .contains(" --all")
-                                            ) {
-                                                songQueue.getQueue().toMutableList()
-                                            } else {
-                                                songQueue.getQueue().subList(0, 14).toMutableList()
-                                            }
-                                        }
-                                        var queueIndex = 0
-                                        while (queue.isNotEmpty()) {
-                                            if (queueList.lines().size < 15) {
-                                                val track = queue[0]
+                                        fun formatLines(queue: List<Track>): List<String> {
+                                            return queue.mapIndexed { index, track ->
                                                 val strBuilder = StringBuilder()
-                                                strBuilder.append("${queueIndex++}: ")
-                                                if (track.link.linkType() != LinkType.YOUTUBE)
+                                                strBuilder.append("$index: ")
+                                                if (track.link.linkType() != LinkType.YOUTUBE) {
                                                     track.artists.artists.forEach { strBuilder.append("${it.name}, ") }
-                                                else
+                                                } else {
                                                     strBuilder.append("${track.title},")
-                                                queueList.appendLine(
-                                                    "${strBuilder.toString().substringBeforeLast(",")} " +
-                                                            if (track.link.linkType() != LinkType.YOUTUBE) {
-                                                                "- ${track.title} "
-                                                            } else {
-                                                                ""
-                                                            } + ": ${track.link.link}"
-                                                )
-                                                queue.removeAt(0)
-                                            } else {
-                                                queueList.insert(0, "\n")
-                                                printToChat(userName, listOf(queueList.toString()), apikey)
-                                                queueList.clear()
+                                                }
+                                                "${strBuilder.toString().substringBeforeLast(",")} " +
+                                                        if (track.link.linkType() != LinkType.YOUTUBE) {
+                                                            "- ${track.title} "
+                                                        } else {
+                                                            ""
+                                                        } + ": ${track.link.link}".substringBeforeLast(",")
                                             }
                                         }
-                                        queueList.insert(0, "\n")
-                                        printToChat(userName, listOf(queueList.toString()), apikey)
+
+                                        val msg = StringBuilder()
+                                        if (songQueue.getQueue().size <= 15) {
+                                            formatLines(songQueue.getQueue()).forEach { msg.appendLine(it) }
+                                        } else {
+                                            if ((commandString.substringAfter("%queue-list")
+                                                    .contains(" -a") || commandString.substringAfter("%queue-list")
+                                                    .contains(" --all"))
+                                            ) {
+                                                formatLines(songQueue.getQueue()).forEach { msg.appendLine(it) }
+                                            } else {
+                                                formatLines(songQueue.getQueue()).subList(0, 16)
+                                                    .forEach { msg.appendLine(it) }
+                                            }
+                                        }
+                                        msg.appendLine("Queue Length: ${songQueue.getQueue().size} tracks.")
+                                        printToChat(userName, listOf(msg.toString()), apikey)
                                     }
                                 }
-                                printToChat(
-                                    userName,
-                                    listOf("Queue Length: ${songQueue.getQueue().size} tracks."),
-                                    apikey
-                                )
                                 commandListener.onCommandExecuted(
                                     commandString,
-                                    queueList.toString(),
+                                    TrackList(songQueue.getQueue()).toString(),
                                     TrackList(songQueue.getQueue())
                                 )
                                 commandJob.complete()
@@ -1211,18 +1200,7 @@ class ChatReader(
                                     }
                                     if (results.isNotEmpty()) {
                                         val searchResults = ArrayList<SearchResult>()
-                                        for (result in results.results) {
-                                            if (searchResults.size < 3) {
-                                                searchResults.add(result)
-                                            } else {
-                                                printToChat(
-                                                    userName,
-                                                    listOf("\n${SearchResults(searchResults)}"),
-                                                    apikey
-                                                )
-                                                searchResults.clear()
-                                            }
-                                        }
+                                        results.results.forEach { searchResults.add(it) }
                                         printToChat(
                                             userName, listOf("\n${SearchResults(searchResults)}"),
                                             apikey
@@ -1313,16 +1291,30 @@ class ChatReader(
 
     //use ClientQuery to send message (requires apikey)
     private fun printToChat(userName: String, messages: List<String>, apikey: String) {
+        /**
+         * Send a message to the current TeamSpeak channel's chat
+         * @param message The message that should be sent. Max length is 8192 chars!
+         */
+        fun sendTeamSpeakMessage(message: String) {
+            val command = "(echo auth apikey=$apikey; " +
+                    "echo \"sendtextmessage targetmode=2 msg=$message\"; " +
+                    "echo quit) | nc localhost 25639"
+            commandRunner.runCommand(command, printOutput = false)
+        }
         if (userName == "__console__") {
             messages.forEach { println(it) }
         } else {
             if (apikey.isNotEmpty()) {
-                messages.forEach {
-                    val distro = commandRunner.runCommand("cat /etc/issue", printOutput = false).first.outputText
-                    val command = when {
-                        distro.contains("Ubuntu".toRegex()) -> {
-                            "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${
-                                it.replace(" ", "\\\\\\s")
+                messages.forEach { message ->
+                    //TeamSpeak's character limit is 8192 per message
+                    val tsCharLimit = 8192
+
+                    //adds correct escaping to messages
+                    fun addEscaping(msg: String): String {
+                        val distro = commandRunner.runCommand("cat /etc/issue", printOutput = false).first.outputText
+                        return when {
+                            distro.contains("Ubuntu".toRegex()) -> {
+                                msg.replace(" ", "\\\\\\s")
                                     .replace("\n", "\\\\\\n")
                                     .replace("/", "\\/")
                                     .replace("|", "\\\\p")
@@ -1331,12 +1323,10 @@ class ChatReader(
                                     .replace("`", "\\`")
                                     .replace("&quot;", "\\\"")
                                     .replace("$", "\\\\$")
-                            }\"; echo quit) | nc localhost 25639"
-                        }
+                            }
 
-                        else -> {
-                            "(echo auth apikey=$apikey; echo \"sendtextmessage targetmode=2 msg=${
-                                it.replace(" ", "\\s")
+                            else -> {
+                                msg.replace(" ", "\\s")
                                     .replace("\n", "\\n")
                                     .replace("/", "\\/")
                                     .replace("|", "\\p")
@@ -1345,10 +1335,96 @@ class ChatReader(
                                     .replace("`", "\\`")
                                     .replace("&quot;", "\\\"")
                                     .replace("$", "\\$")
-                            }\"; echo quit) | nc localhost 25639"
+                            }
                         }
                     }
-                    commandRunner.runCommand(command, printOutput = false)
+
+                    //splits the message in to size of tsCharLimit at most
+                    //and then retuns the result as a pair. First item contains the
+                    //correctly sized message, and the second part contains anything that is left over.
+                    fun splitMessage(msg: String): Pair<String, String> {
+                        val escapedLength = addEscaping(
+                            msg.substring(
+                                0,
+                                if (msg.length > tsCharLimit)
+                                    tsCharLimit + 1
+                                else
+                                    msg.lastIndex + 1
+                            )
+                        ).length
+                        val charLimit = if (escapedLength <= tsCharLimit) msg.length else {
+                            //address the extended message length that the escape characters add
+                            val compensation = escapedLength - msg.substring(
+                                0,
+                                if (msg.length > tsCharLimit)
+                                    tsCharLimit
+                                else
+                                    msg.lastIndex
+                            ).length
+                            //first split the message in to a size that fits tsCharLimit
+                            msg.substring(0, tsCharLimit - compensation + 1).let { str ->
+                                //find index where to split the string.
+                                //Only check at most 10 last lines from the message.
+                                str.lastIndexOf(
+                                    "\n\n",
+                                    "\\n".toRegex().findAll(str).map { it.range.first }.toList().let {
+                                        if (it.size < 10 && str.length < tsCharLimit - compensation + 1) 0
+                                        else it.reversed()[9]
+                                    }
+                                ).let { index ->
+                                    if (index == -1) {
+                                        //no empty lines were found so find the last newline character
+                                        //and use that as the index
+                                        str.let { text ->
+                                            text.indexOfLast { it == '\n' }.let { lastNewline ->
+                                                if (lastNewline == -1) {
+                                                    //if no newlines are found, use the last space
+                                                    text.indexOfLast { it == ' ' }.let {
+                                                        if (it == -1) tsCharLimit else it
+                                                    }
+                                                } else lastNewline
+                                            }
+                                        }
+                                    } else {
+                                        index + 1
+                                    }
+                                }
+                            }
+                        }
+                        return Pair(
+                            addEscaping(msg.substring(0, charLimit)),
+                            if (escapedLength > tsCharLimit)
+                                msg.substring(charLimit, msg.lastIndex + 1)
+                            else
+                                ""
+                        )
+                    }
+
+                    var msg = message
+                    while (true) {
+                        //add an empty line to the start of the message if there isn't one already.
+                        if ((msg.count { msg.contains('\n') }) > 1 && !msg.startsWith("\n"))
+                            msg = "\n$msg"
+                        val split = splitMessage(msg)
+                        sendTeamSpeakMessage(split.first)
+                        val escapedLength = addEscaping(
+                            split.second.substring(
+                                0,
+                                if (split.second.length > tsCharLimit)
+                                    tsCharLimit + 1
+                                else
+                                    split.second.lastIndex + 1
+                            )
+                        ).length
+                        if (escapedLength > tsCharLimit) {
+                            msg = split.second
+                        } else {
+                            if (split.second.isNotEmpty()) {
+                                sendTeamSpeakMessage(addEscaping(split.second))
+                            }
+                            break
+                        }
+                    }
                 }
             }
         }

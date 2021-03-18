@@ -715,7 +715,7 @@ class YouTube {
                             id = resultsJSON.getJSONArray("items").first {
                                 it as JSONObject
                                 it.getJSONObject("id").getString("kind").substringAfter("#") == "channel"
-                                        && it.getJSONObject("snippet").getString("title") == channelName
+                                        && it.getJSONObject("snippet").getString("title").replace(" ", "") == channelName
                             }.let {
                                 it as JSONObject
                                 it.getJSONObject("id").getString("channelId")
