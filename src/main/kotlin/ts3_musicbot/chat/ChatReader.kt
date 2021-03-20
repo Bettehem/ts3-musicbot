@@ -368,7 +368,7 @@ class ChatReader(
                                                         if (shouldShuffle) TrackList(topTracks.shuffled()) else TrackList(
                                                             topTracks
                                                         )
-                                                    songQueue.addAllToQueue(trackList)
+                                                    songQueue.addAllToQueue(trackList, customPosition)
                                                     commandSuccessful =
                                                         if (songQueue.getQueue().containsAll(trackList.trackList)) {
                                                             commandListener.onCommandExecuted(
