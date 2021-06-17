@@ -5,7 +5,8 @@ stages:
   - test
 
 before_script:
-  - pacman -Sy kotlin gradle jdk11-openjdk java11-openjfx --noconfirm --needed
+  - pacman -Sy kotlin jdk11-openjdk java11-openjfx gradle --noconfirm --needed
+  - archlinux-java set java-11-openjdk
 
 buildTS3MusicBot:
   stage: build
@@ -20,7 +21,8 @@ testCommandRunner:
 testApis:
   stage: test
   before_script:
-    - pacman -Sy youtube-dl kotlin gradle jdk11-openjdk java11-openjfx --noconfirm --needed
+    - pacman -Sy youtube-dl kotlin jdk11-openjdk java11-openjfx gradle --noconfirm --needed
+    - archlinux-java set java-11-openjdk
   script:
     - gradle :test --tests "ts3_musicbot.SpotifyTest"
     - gradle :test --tests "ts3_musicbot.YouTubeTest"
