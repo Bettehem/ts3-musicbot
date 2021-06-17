@@ -10,6 +10,7 @@
       <element id="extracted-dir" path="$PROJECT_DIR$/lib/kotlinx-coroutines-core-1.4.2.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$PROJECT_DIR$/lib/kotlinx-coroutines-javafx-1.4.2.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$PROJECT_DIR$/lib/json-20201115.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/lib/ts3j-1.0.2.jar" path-in-jar="/" />
     </root>
   </artifact>
 </component>

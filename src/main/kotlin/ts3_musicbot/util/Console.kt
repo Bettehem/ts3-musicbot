@@ -48,7 +48,7 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener) {
         val console = System.console()
         var confirmed = false
         while (!confirmed) {
-            val exitTeamSpeak = console.readLine("Close TeamSpeak? [Y/n]: ").toLowerCase()
+            val exitTeamSpeak = console.readLine("Close TeamSpeak? [Y/n]: ").lowercase()
             if (exitTeamSpeak.contentEquals("y") || exitTeamSpeak.contentEquals("yes") || exitTeamSpeak.contentEquals("")) {
                 confirmed = true
                 commandRunner.runCommand("wmctrl -c TeamSpeak", ignoreOutput = true)
@@ -59,6 +59,7 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener) {
 
         commandRunner.runCommand("killall mpv", ignoreOutput = true)
         commandRunner.runCommand("killall ncspot", ignoreOutput = true)
+        commandRunner.runCommand("playerctl -p spotifyd stop", ignoreOutput = true)
         consoleUpdateListener.onCommandIssued(command)
         exitProcess(0)
     }

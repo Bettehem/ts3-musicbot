@@ -258,7 +258,9 @@ class SongQueue(
                         commandRunner.runCommand("killall ncspot; sleep 2")
                         commandRunner.runCommand("\$TERMINAL -e ncspot", ignoreOutput = true)
                     }
+                    "spotifyd" -> println("Using spotifyd. The service should be started already, so not doing anything now.")
                     else -> {
+                        println("$spotifyPlayer is not a valid spotify player!")
                     }
                 }
                 //wait for the spotify player to start.

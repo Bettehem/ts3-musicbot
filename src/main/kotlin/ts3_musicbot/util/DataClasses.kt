@@ -66,7 +66,7 @@ data class SearchType(val type: String) {
         OTHER;
     }
 
-    fun getType() = when (type.toLowerCase()) {
+    fun getType() = when (type.lowercase()) {
         "track" -> Type.TRACK
         "video" -> Type.VIDEO
         "episode" -> Type.EPISODE

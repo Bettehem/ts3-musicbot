@@ -4,6 +4,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Dispatchers.Main
+import ts3_musicbot.client.TeamSpeak
 import ts3_musicbot.services.SoundCloud
 import ts3_musicbot.services.Spotify
 import ts3_musicbot.services.YouTube
@@ -16,6 +17,7 @@ import java.util.*
 import kotlin.collections.ArrayList
 
 class ChatReader(
+    private val client: Any,
     private var chatFile: File,
     private var onChatUpdateListener: ChatUpdateListener,
     var commandListener: CommandListener,
@@ -71,22 +73,30 @@ class ChatReader(
      * Starts reading the chat
      */
     fun startReading(): Boolean {
-        shouldRead = true
-        return if (chatFile.isFile) {
-            CoroutineScope(IO).launch {
-                var currentLine = ""
-                while (shouldRead) {
-                    val last = chatFile.readLines().last()
-                    if (last != currentLine) {
-                        currentLine = last
-                        chatUpdated(currentLine)
+        return when (client) {
+            is TeamSpeak -> {
+                //client.addListener(this)
+                true
+            }
+            else -> {
+                shouldRead = true
+                return if (chatFile.isFile) {
+                    CoroutineScope(IO).launch {
+                        var currentLine = ""
+                        while (shouldRead) {
+                            val last = chatFile.readLines().last()
+                            if (last != currentLine) {
+                                currentLine = last
+                                chatUpdated(currentLine)
+                            }
+                            delay(500)
+                        }
                     }
-                    delay(500)
+                    true
+                } else {
+                    false
                 }
             }
-            true
-        } else {
-            false
         }
     }
 
@@ -1446,7 +1456,7 @@ class ChatReader(
                 val userMessage = line.split("TextMessage_Text\">".toRegex())[1].split("</span>".toRegex())[0]
                 parseLine(userName, userMessage)
                 withContext(Main) {
-                    onChatUpdateListener.onChatUpdated(ChatUpdate(userName, time, userMessage))
+                    onChatUpdateListener.onChatUpdated(ChatUpdate(userName, userMessage))
                 }
             }
 
@@ -1464,7 +1474,7 @@ class ChatReader(
                     val userMessage = line.substringAfter("$userName: ")
                     parseLine(userName, userMessage)
                     withContext(Main) {
-                        onChatUpdateListener.onChatUpdated(ChatUpdate(userName, time, userMessage))
+                        onChatUpdateListener.onChatUpdated(ChatUpdate(userName, userMessage))
                     }
                 }
             }
@@ -1481,7 +1491,7 @@ class ChatReader(
 
     override fun onTrackStarted(player: String, track: Track) {
         when (player) {
-            "spotify", "ncspot" -> {
+            "spotify", "ncspot", "spotifyd" -> {
                 CoroutineScope(Default).launch {
                     parseLine("", "%queue-nowplaying")
                     println("Now playing:\n$track")
@@ -1511,7 +1521,7 @@ class ChatReader(
 
 }
 
-class ChatUpdate(val userName: String, val time: Time, val message: String)
+class ChatUpdate(val userName: String, val message: String)
 
 interface ChatUpdateListener {
     fun onChatUpdated(update: ChatUpdate)

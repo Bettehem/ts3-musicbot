@@ -13,6 +13,7 @@ import ts3_musicbot.chat.ChatReader
 import ts3_musicbot.chat.ChatUpdate
 import ts3_musicbot.chat.ChatUpdateListener
 import ts3_musicbot.chat.CommandListener
+import ts3_musicbot.client.TeamSpeak
 import ts3_musicbot.util.BotSettings
 import ts3_musicbot.util.CommandList.commandList
 import ts3_musicbot.util.CommandRunner
@@ -21,12 +22,16 @@ import ts3_musicbot.util.ConsoleUpdateListener
 import java.io.File
 import java.io.PrintWriter
 import kotlin.system.exitProcess
+import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers.IO
 
 var inputFilePath = ""
 private lateinit var window: Stage
 private var statusTextView = TextArea()
 private val commandRunner = CommandRunner()
 private var spotifyPlayer = "spotify"
+private var useOfficialTsClient = true
+private lateinit var teamSpeak: TeamSpeak
 
 class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, CommandListener {
     private lateinit var scene: Scene
@@ -61,8 +66,13 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
     private var browseChannelFileButton = Button()
     private var selectSpotifyPlayerTextView = Label()
     private var spotifyPlayerRadioGroup = ToggleGroup()
-    private var ncspotRadioButton = RadioButton()
     private var spotifyRadioButton = RadioButton()
+    private var ncspotRadioButton = RadioButton()
+    private var spotifydRadioButton = RadioButton()
+    private var selectTsClientTextView = Label()
+    private var tsClientRadioGroup = ToggleGroup()
+    private var tsClientInternalRadioButton = RadioButton()
+    private var tsClientOfficialRadioButton = RadioButton()
     private var saveSettingsButton = Button()
     private var loadSettingsButton = Button()
     private var startBotButton = Button()
@@ -89,19 +99,20 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 val helpMessage = "\n" +
                         "TS3 Music Bot help message\n" +
                         "Available options:\n" +
-                        "-h, --help             Show this help message\n" +
-                        "-a, --apikey           ClientQuery api key\n" +
-                        "-s, --serveraddress    Server address to connect to\n" +
-                        "-p, --serverport       Server's port. Usually 9987\n" +
-                        "-P, --serverpassword   Server's password\n" +
-                        "-c, --channelname      The channel's name the bot should connect to after connecting to the server.\n" +
-                        "-C, --channelfile      Provide a path to a channel.html or channel.txt file. You also need to provide the channel name with -c option\n" +
-                        "-n, --nickname         The nickname of the bot\n" +
-                        "-m, --market           Specify a market/country for Spotify.\n" +
-                        "--ncspot               Use ncspot as the Spotify player (Requires Spotify Premium).\n" +
-                        "                       Before starting the bot, you also need to export your terminal app of preference as \$TERMINAL.\n" +
-                        "                       Example: export TERMINAL=xfce4-terminal\n" +
-                        "--config               provide a config file where to read arguments from\n"
+                        "-h, --help               Show this help message\n" +
+                        "-a, --apikey             ClientQuery api key\n" +
+                        "-s, --serveraddress      Server address to connect to\n" +
+                        "-p, --serverport         Server's port. Usually 9987\n" +
+                        "-P, --serverpassword     Server's password\n" +
+                        "-c, --channelname        The channel's name the bot should connect to after connecting to the server.\n" +
+                        "-C, --channelfile        Provide a path to a channel.html or channel.txt file. You also need to provide the channel name with -c option\n" +
+                        "-n, --nickname           The nickname of the bot\n" +
+                        "-m, --market             Specify a market/country for Spotify.\n" +
+                        "--spotify <client>       Specify a spotify client to use. Can be spotify, ncspot or spotifyd." +
+                        "                         If you use ncspot, before starting the bot you also need to export your terminal app of preference as \$TERMINAL.\n" +
+                        "                         Example command: export TERMINAL=xfce4-terminal\n" +
+                        "--config                 Provide a config file where to read arguments from\n" +
+                        "--use-internal-tsclient  Use the internal TeamSpeak client instead of the official one.\n"
 
                 //go through given arguments and save them
                 for (argPos in args.indices) {
@@ -144,13 +155,17 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             if (args.size >= argPos + 1)
                                 market = args[argPos + 1]
                         }
-                        "--ncspot" -> {
+                        "--spotify" -> {
                             if (args.size >= argPos + 1)
-                                spotifyPlayer = "ncspot"
+                                spotifyPlayer = args[argPos + 1]
                         }
                         "--config" -> {
                             if (args.size >= argPos + 1)
                                 configFile = args[argPos + 1]
+                        }
+                        "--use-internal-tsclient" -> {
+                            if (args.size >= argPos + 1)
+                                useOfficialTsClient = false
                         }
                     }
                 }
@@ -166,135 +181,198 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     channelFilename = settings.channelFilePath
                     market = settings.market
                     spotifyPlayer = settings.spotifyPlayer
+                    useOfficialTsClient = settings.useOfficialTsClient
                 }
 
-                //connect to desired server and channel,
-                //after which find the server's channel file and start listening for commands
-                if (apiKey.isNotEmpty() && serverAddress.isNotEmpty() && nickname.isNotEmpty()) {
-                    println("Starting TeamSpeak 3...")
-                    println(
-                        "Connecting to server at: $serverAddress, port ${if (serverPort.isNotEmpty()) {
-                            serverPort
-                        } else {
-                            "9987"
-                        }}."
-                    )
-                    println("Using $nickname as the bot\'s nickname.")
+                if (useOfficialTsClient) {
+                    //connect to desired server and channel,
+                    //after which find the server's channel file and start listening for commands
+                    if (apiKey.isNotEmpty() && serverAddress.isNotEmpty() && nickname.isNotEmpty()) {
+                        println("Starting TeamSpeak 3...")
+                        println(
+                            "Connecting to server at: $serverAddress, port ${
+                                if (serverPort.isNotEmpty()) {
+                                    serverPort
+                                } else {
+                                    "9987"
+                                }
+                            }."
+                        )
+                        println("Using $nickname as the bot\'s nickname.")
 
-                    commandRunner.runCommand(
-                        ignoreOutput = true,
-                        command = "teamspeak3 -nosingleinstance \"ts3server://$serverAddress" +
-                        "?port=${if (serverPort.isNotEmpty()) {
-                            serverPort
-                        } else {
-                            "9987"
-                        }}&nickname=${nickname.replace(" ", "%20")}&${if ((serverPassword.isNotEmpty())) {
-                            "password=$serverPassword"
-                        } else {
-                            ""
-                        }}&${if (channelName.isNotEmpty()) {
-                            "channel=${channelName.replace(" ", "%20")}"
-                        } else {
-                            ""
-                        }} &\""
-                    )
-                    Thread.sleep(1000)
-                    while (!commandRunner.runCommand("ps aux | grep ts3client | grep -v grep", printOutput = false)
-                            .first.outputText.contains("ts3client_linux".toRegex())
-                    ) {
-                        //do nothing
+                        commandRunner.runCommand(
+                            ignoreOutput = true,
+                            command = "teamspeak3 -nosingleinstance \"ts3server://$serverAddress" +
+                                    "?port=${
+                                        if (serverPort.isNotEmpty()) {
+                                            serverPort
+                                        } else {
+                                            "9987"
+                                        }
+                                    }&nickname=${nickname.replace(" ", "%20")}&${
+                                        if ((serverPassword.isNotEmpty())) {
+                                            "password=$serverPassword"
+                                        } else {
+                                            ""
+                                        }
+                                    }&${
+                                        if (channelName.isNotEmpty()) {
+                                            "channel=${channelName.replace(" ", "%20")}"
+                                        } else {
+                                            ""
+                                        }
+                                    } &\""
+                        )
+                        Thread.sleep(1000)
+                        while (!commandRunner.runCommand("ps aux | grep ts3client | grep -v grep", printOutput = false)
+                                .first.outputText.contains("ts3client_linux".toRegex())
+                        ) {
+                            //do nothing
+                        }
+                    } else {
+                        println("Error!\nOptions -a, -s and -n are required. See -h or --help for more information")
+                        exitProcess(0)
+                    }
+                    Thread.sleep(5000)
+                    //get the server's name
+                    val virtualserverName = commandRunner.runCommand(
+                        "(echo auth apikey=$apiKey; " +
+                                "echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
+                        printOutput = false
+                    ).first.outputText.lines()
+                    var serverName = ""
+                    for (line in virtualserverName) {
+                        if (line.contains("virtualserver_name") && line.contains("=")) {
+                            serverName = line.split("=".toRegex())[1].replace("\\s", " ")
+                            println("Server name: $serverName")
+                        }
+                    }
+
+                    //get a path to the channel.txt file
+                    println("\nGetting path to channel.txt file...")
+                    val chatDir = File("${System.getProperty("user.home")}/.ts3client/chats")
+                    println("Looking in \"$chatDir\" for chat files.")
+                    var channelFile = File("")
+                    if (chatDir.exists()) {
+                        for (dir in chatDir.list()!!) {
+                            println("Checking in $dir")
+                            val serverFile =
+                                File("${System.getProperty("user.home")}/.ts3client/chats/$dir/server.html")
+                            val lines = serverFile.readLines()
+                            for (line in lines) {
+                                if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
+                                    //compare serverName to the one in server.html
+                                    val htmlServerName = line.replace(
+                                        "&apos;",
+                                        "'"
+                                    ).split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0].replace(
+                                        "\\s",
+                                        " "
+                                    )
+                                    if (htmlServerName == serverName) {
+                                        channelFile = if (channelFilename.isNotEmpty()) {
+                                            File(channelFilename)
+                                        } else {
+                                            File("${System.getProperty("user.home")}/.ts3client/chats/$dir/channel.txt")
+                                        }
+                                        println("Using channel file at \"$channelFile\"\n\n")
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (channelFile.exists()) {
+                        val chatReader = ChatReader("Official Client", channelFile, object : ChatUpdateListener {
+                            override fun onChatUpdated(update: ChatUpdate) {
+                                if (update.message.startsWith("%"))
+                                    print("\nUser ${update.userName} issued command \"${update.message}\"\nCommand: ")
+                            }
+                        }, object : CommandListener {
+                            override fun onCommandExecuted(command: String, output: String, extra: Any?) {
+                                print("\nCommand \"$command\" has been executed.\nOutput:\n$output\n\nCommand: ")
+                            }
+                        }, apiKey, market, spotifyPlayer, channelName, nickname)
+                        chatReader.startReading()
+                        println("Bot $nickname started listening to the chat in channel $channelName.")
+
+                        val console = Console(object : ConsoleUpdateListener {
+                            override fun onCommandIssued(command: String) {
+                                if (command.startsWith("%"))
+                                    chatReader.parseLine("__console__", command)
+                                else {
+                                    when (command) {
+                                        "save-settings" -> {
+                                            val settings = BotSettings(
+                                                apiKey,
+                                                serverAddress,
+                                                serverPort,
+                                                serverPassword,
+                                                channelName,
+                                                channelFilename,
+                                                nickname,
+                                                market,
+                                                spotifyPlayer,
+                                                useOfficialTsClient
+                                            )
+                                            saveSettings(settings, showGui = false)
+                                        }
+                                    }
+                                }
+                            }
+                        })
+                        console.startConsole()
                     }
                 } else {
-                    println("Error!\nOptions -a, -s and -n are required. See -h or --help for more information")
-                    exitProcess(0)
-                }
-                Thread.sleep(5000)
-                //get the server's name
-                val virtualserverName = commandRunner.runCommand(
-                    "(echo auth apikey=$apiKey; " +
-                    "echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
-                    printOutput = false
-                ).first.outputText.lines()
-                var serverName = ""
-                for (line in virtualserverName) {
-                    if (line.contains("virtualserver_name") && line.contains("=")) {
-                        serverName = line.split("=".toRegex())[1].replace("\\s", " ")
-                        println("Server name: $serverName")
-                    }
-                }
-
-                //get a path to the channel.txt file
-                println("\nGetting path to channel.txt file...")
-                val chatDir = File("${System.getProperty("user.home")}/.ts3client/chats")
-                println("Looking in \"$chatDir\" for chat files.")
-                var channelFile = File("")
-                if (chatDir.exists()) {
-                    for (dir in chatDir.list()!!) {
-                        println("Checking in $dir")
-                        val serverFile = File("${System.getProperty("user.home")}/.ts3client/chats/$dir/server.html")
-                        val lines = serverFile.readLines()
-                        for (line in lines) {
-                            if (line.contains("TextMessage_Connected") && line.contains("channelid://0")) {
-                                //compare serverName to the one in server.html
-                                val htmlServerName = line.replace(
-                                    "&apos;",
-                                    "'"
-                                ).split("channelid://0\">&quot;".toRegex())[1].split("&quot;".toRegex())[0].replace(
-                                    "\\s",
-                                    " "
-                                )
-                                if (htmlServerName == serverName) {
-                                    channelFile = if (channelFilename.isNotEmpty()) {
-                                        File(channelFilename)
-                                    } else {
-                                        File("${System.getProperty("user.home")}/.ts3client/chats/$dir/channel.txt")
-                                    }
-                                    println("Using channel file at \"$channelFile\"\n\n")
-                                    break
-                                }
+                    //use built-in teamspeak client
+                    if (apiKey.isNotEmpty() && serverAddress.isNotEmpty() && nickname.isNotEmpty()) {
+                        teamSpeak = TeamSpeak(
+                            nickname, serverAddress, serverPassword, channelName,
+                            if (serverPort.isNotEmpty()) serverPort.toInt() else 9987
+                        )
+                        val chatReader = ChatReader("Official Client", File(""), object : ChatUpdateListener {
+                            override fun onChatUpdated(update: ChatUpdate) {
+                                if (update.message.startsWith("%"))
+                                    print("\nUser ${update.userName} issued command \"${update.message}\"\nCommand: ")
                             }
-                        }
-                    }
-                }
-
-                if (channelFile.exists()) {
-                    val chatReader = ChatReader(channelFile, object : ChatUpdateListener {
-                        override fun onChatUpdated(update: ChatUpdate) {
-                            if (update.message.startsWith("%"))
-                                print("\nUser ${update.userName} issued command \"${update.message}\"\nCommand: ")
-                        }
-                    }, object : CommandListener {
-                        override fun onCommandExecuted(command: String, output: String, extra: Any?) {
-                            print("\nCommand \"$command\" has been executed.\nOutput:\n$output\n\nCommand: ")
-                        }
-                    }, apiKey, market, spotifyPlayer, channelName, nickname)
-                    chatReader.startReading()
-                    println("Bot $nickname started listening to the chat in channel $channelName.")
-
-                    val console = Console(object : ConsoleUpdateListener {
-                        override fun onCommandIssued(command: String) {
-                            if (command.startsWith("%"))
-                                chatReader.parseLine("__console__", command)
-                            else {
-                                when (command) {
-                                    "save-settings" -> {
-                                        val settings = BotSettings(
-                                            apiKey,
-                                            serverAddress,
-                                            serverPort,
-                                            serverPassword,
-                                            channelName,
-                                            channelFilename,
-                                            nickname,
-                                            market
-                                        )
-                                        saveSettings(settings, showGui = false)
+                        }, object : CommandListener {
+                            override fun onCommandExecuted(command: String, output: String, extra: Any?) {
+                                print("\nCommand \"$command\" has been executed.\nOutput:\n$output\n\nCommand: ")
+                            }
+                        }, apiKey, market, spotifyPlayer, channelName, nickname)
+                        chatReader.startReading()
+                        println("Bot $nickname started listening to the chat in channel $channelName.")
+                        val console = Console(object : ConsoleUpdateListener {
+                            override fun onCommandIssued(command: String) {
+                                if (command.startsWith("%"))
+                                    chatReader.parseLine("__console__", command)
+                                else {
+                                    when (command) {
+                                        "save-settings" -> {
+                                            val settings = BotSettings(
+                                                apiKey,
+                                                serverAddress,
+                                                serverPort,
+                                                serverPassword,
+                                                channelName,
+                                                channelFilename,
+                                                nickname,
+                                                market,
+                                                spotifyPlayer,
+                                                useOfficialTsClient
+                                            )
+                                            saveSettings(settings, showGui = false)
+                                        }
                                     }
                                 }
                             }
-                        }
-                    })
-                    console.startConsole()
+                        })
+                        console.startConsole()
+                    } else {
+                        println("Error!\nOptions -a, -s and -n are required. See -h or --help for more information")
+                        exitProcess(0)
+                    }
                 }
             } else {
                 //launch graphical window
@@ -339,6 +417,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 fileWriter.println("NICKNAME=${botSettings.nickname}")
                 fileWriter.println("MARKET=${botSettings.market}")
                 fileWriter.println("SPOTIFY_PLAYER=${botSettings.spotifyPlayer}")
+                fileWriter.println("USE_OFFICIAL_TSCLIENT=${botSettings.useOfficialTsClient}")
+                fileWriter.println()
                 fileWriter.close()
             }
         }
@@ -358,6 +438,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "NICKNAME" -> settings.nickname = line.substringAfter("=")
                         "MARKET" -> settings.market = line.substringAfter("=")
                         "SPOTIFY_PLAYER" -> settings.spotifyPlayer = line.substringAfter("=")
+                        "USE_OFFICIAL_TSCLIENT" -> settings.useOfficialTsClient = line.substringAfter("=").toBoolean()
                     }
                 }
             }
@@ -372,32 +453,71 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
          */
         private fun startTeamSpeak(settings: BotSettings): Boolean {
             if (settings.apiKey.isNotEmpty() && settings.serverAddress.isNotEmpty() && settings.nickname.isNotEmpty()) {
-                //start teamspeak
-                commandRunner.runCommand(
-                    ignoreOutput = true,
-                    command = "teamspeak3 -nosingleinstance \"ts3server://${settings.serverAddress}" +
-                    "?port=${if (settings.serverPort.isNotEmpty()) {
-                        settings.serverPort
-                    } else {
-                        "9987"
-                    }}&nickname=${settings.nickname.replace(" ", "%20")}&${if ((settings.serverPassword.isNotEmpty())) {
-                        "password=${settings.serverPassword}"
-                    } else {
-                        ""
-                    }}&${if (settings.channelName.isNotEmpty()) {
-                        "channel=${settings.channelName.replace(" ", "%20")}"
-                    } else {
-                        ""
-                    }} &\""
-                )
-                Thread.sleep(1000)
-                //wait for teamspeak to start
-                while (!commandRunner.runCommand("ps aux | grep ts3client | grep -v grep", printOutput = false)
-                        .first.outputText.contains("ts3client_linux".toRegex())
+                if (settings.useOfficialTsClient) {
+                    //start teamspeak
+                    commandRunner.runCommand(
+                        ignoreOutput = true,
+                        command = "teamspeak3 -nosingleinstance \"ts3server://${settings.serverAddress}" +
+                        "?port=${
+                            if (settings.serverPort.isNotEmpty()) {
+                                settings.serverPort
+                            } else {
+                                "9987"
+                            }
+                        }&nickname=${settings.nickname.replace(" ", "%20")}&${
+                            if ((settings.serverPassword.isNotEmpty())) {
+                                "password=${settings.serverPassword}"
+                            } else {
+                                ""
+                            }
+                        }&${
+                            if (settings.channelName.isNotEmpty()) {
+                                "channel=${settings.channelName.replace(" ", "%20")}"
+                            } else {
+                                ""
+                            }
+                        } &\""
+                    )
+                    Thread.sleep(1000)
+                    //wait for teamspeak to start
+                    while (!commandRunner.runCommand("ps aux | grep ts3client | grep -v grep", printOutput = false)
+                    .first.outputText.contains("ts3client_linux".toRegex())
                 ) {
                     //do nothing
                 }
                 Thread.sleep(5000)
+                } else {
+                    teamSpeak = TeamSpeak(
+                        settings.nickname, settings.serverAddress, settings.serverPassword, settings.channelName,
+                        if (settings.serverPort.isNotEmpty()) settings.serverPort.toInt() else 9987
+                    )
+                }
+                val chatReader = ChatReader("Official Client", getChannelFile(settings), object : ChatUpdateListener {
+                    override fun onChatUpdated(update: ChatUpdate) {
+                        if (update.message.startsWith("%"))
+                        print("\nUser ${update.userName} issued command \"${update.message}\"\nCommand: ")
+                    }
+                }, object : CommandListener {
+                    override fun onCommandExecuted(command: String, output: String, extra: Any?) {
+                        print("\nCommand \"$command\" has been executed.\nOutput:\n$output\n\nCommand: ")
+                    }
+                }, settings.apiKey, settings.market, settings.spotifyPlayer, settings.channelName, settings.nickname)
+                chatReader.startReading()
+                println("Bot ${settings.nickname} started listening to the chat in channel ${settings.channelName}")
+                val console = Console(object : ConsoleUpdateListener {
+                    override fun onCommandIssued(command: String) {
+                        if (command.startsWith("%"))
+                        chatReader.parseLine("__console__", command)
+                        else {
+                            when (command) {
+                                "save-settings" -> {
+                                    saveSettings(settings, showGui = false)
+                                }
+                            }
+                        }
+                    }
+                })
+                CoroutineScope(IO).launch{console.startConsole()}
                 return true
             } else {
                 statusTextView.text =
@@ -413,7 +533,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 //get the server's name
                 val virtualserverName = commandRunner.runCommand(
                     "(echo auth apikey=${settings.apiKey}; " +
-                    "echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
+                            "echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
                     printOutput = false
                 ).first.outputText.lines()
                 var serverName = ""
@@ -471,7 +591,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             ui()
             window.show()
         } catch (e: Exception) {
-            println(e.stackTrace)
+            e.printStackTrace()
         }
     }
 
@@ -544,24 +664,31 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
 
         browseChannelFileButton.text = "Browse channel file"
 
-        selectSpotifyPlayerTextView.text = "Select Spotify player (ncspot requires Spotify Premium)"
+        selectSpotifyPlayerTextView.text = "Select Spotify player (ncspot and spotifyd require Spotify Premium)"
         spotifyRadioButton.text = "Spotify"
         spotifyRadioButton.toggleGroup = spotifyPlayerRadioGroup
         spotifyRadioButton.isSelected = true
         ncspotRadioButton.text = "ncspot"
         ncspotRadioButton.toggleGroup = spotifyPlayerRadioGroup
         ncspotRadioButton.isSelected = false
+        spotifydRadioButton.text = "Spotifyd"
+        spotifydRadioButton.toggleGroup = spotifyPlayerRadioGroup
+        spotifydRadioButton.isSelected = false
         spotifyPlayerRadioGroup.selectedToggleProperty().addListener { _, _, _ ->
             when (spotifyPlayerRadioGroup.selectedToggle) {
-                spotifyRadioButton -> {
-                    spotifyPlayer = "spotify"
-                }
-                ncspotRadioButton -> {
-                    spotifyPlayer = "ncspot"
-                }
+                spotifyRadioButton -> spotifyPlayer = "spotify"                  
+                ncspotRadioButton -> spotifyPlayer = "ncspot"
+                spotifydRadioButton -> spotifyPlayer = "spotifyd"
             }
         }
 
+        selectTsClientTextView.text = "Select TeamSpeak client to use"
+        tsClientInternalRadioButton.text = "Internal/Built-in client"
+        tsClientInternalRadioButton.toggleGroup = tsClientRadioGroup
+        tsClientInternalRadioButton.isSelected = !useOfficialTsClient
+        tsClientOfficialRadioButton.text = "Official client"
+        tsClientOfficialRadioButton.toggleGroup = tsClientRadioGroup
+        tsClientOfficialRadioButton.isSelected = useOfficialTsClient
 
         saveSettingsButton.text = "Save settings"
         loadSettingsButton.text = "Load settings"
@@ -606,6 +733,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         selectSpotifyPlayerTextView.isVisible = showAdvanced
         spotifyRadioButton.isVisible = showAdvanced
         ncspotRadioButton.isVisible = showAdvanced
+        spotifydRadioButton.isVisible = showAdvanced
+        selectTsClientTextView.isVisible = showAdvanced
+        tsClientInternalRadioButton.isVisible = showAdvanced
+        tsClientOfficialRadioButton.isVisible = showAdvanced
     }
 
     private fun ui() {
@@ -657,7 +788,11 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             browseChannelFileButton,
             selectSpotifyPlayerTextView,
             spotifyRadioButton,
-            ncspotRadioButton
+            ncspotRadioButton,
+            spotifydRadioButton,
+            selectTsClientTextView,
+            tsClientInternalRadioButton,
+            tsClientOfficialRadioButton
         )
         scrollPane.content = itemLayout
         scrollPane.minHeight = 250.0
@@ -707,7 +842,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     channelFilePath,
                     nickname,
                     market,
-                    spotifyPlayer
+                    spotifyPlayer,
+                    useOfficialTsClient
                 )
                 saveSettings(settings, true)
             }
@@ -733,11 +869,25 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "spotify" -> {
                             spotifyRadioButton.isSelected = true
                             ncspotRadioButton.isSelected = false
+                            spotifydRadioButton.isSelected = false
                         }
                         "ncspot" -> {
-                            ncspotRadioButton.isSelected = true
                             spotifyRadioButton.isSelected = false
+                            ncspotRadioButton.isSelected = true
+                            spotifydRadioButton.isSelected = false
                         }
+                        "spotifyd" -> {
+                            spotifyRadioButton.isSelected = false
+                            ncspotRadioButton.isSelected = false
+                            spotifydRadioButton.isSelected = true
+                        }
+                    }
+                    if (settings.useOfficialTsClient) {
+                        tsClientInternalRadioButton.isSelected = false
+                        tsClientOfficialRadioButton.isSelected = true
+                    } else {
+                        tsClientInternalRadioButton.isSelected = true
+                        tsClientOfficialRadioButton.isSelected = false
                     }
                 } else {
                     println("Could not load file!")
@@ -748,31 +898,16 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 val settings = getSettings()
                 //start teamspeak
                 if (startTeamSpeak(settings)) {
-                    //start reading chat
-                    chatReader = ChatReader(
-                        getChannelFile(settings),
-                        this, this,
-                        settings.apiKey,
-                        market = settings.market,
-                        spotifyPlayer = settings.spotifyPlayer,
-                        channelName = settings.channelName,
-                        botName = settings.nickname
-                    )
-                    if (chatReader.startReading()) {
-                        statusTextView.text = "Status: Connected."
-                        startBotButton.isManaged = false
-                        startBotButton.isVisible = false
-                        stopBotButton.isManaged = true
-                        stopBotButton.isVisible = true
-                    }
+                    statusTextView.text = "Status: Connected."
+                    startBotButton.isManaged = false
+                    startBotButton.isVisible = false
+                    stopBotButton.isManaged = true
+                    stopBotButton.isVisible = true
                 }
             }
 
             stopBotButton -> {
-                commandRunner.runCommand(
-                    "xdotool search \"Teamspeak 3\" windowactivate --sync key --window 0 --clearmodifiers alt+F4",
-                    ignoreOutput = true
-                )
+                commandRunner.runCommand("wmctrl -c TeamSpeak", ignoreOutput = true)
                 chatReader.stopReading()
                 statusTextView.text = "Status: Bot not active."
                 startBotButton.isManaged = true
@@ -796,8 +931,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         when (spotifyPlayerRadioGroup.selectedToggle) {
             spotifyRadioButton -> "spotify"
             ncspotRadioButton -> "ncspot"
+            spotifydRadioButton -> "spotifyd"
             else -> "spotify" //default to spotify
-        }
+        },
+        tsClientRadioGroup.selectedToggle == tsClientOfficialRadioButton
     )
 
 

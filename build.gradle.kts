@@ -2,11 +2,11 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     application
-    kotlin("jvm") version "1.4.20"
+    kotlin("jvm") version "1.5.10"
+    id("org.openjfx.javafxplugin") version "0.0.9"
 }
 
 repositories {
-    jcenter()
     mavenCentral()
 }
 
@@ -17,23 +17,30 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
 
     implementation("org.json:json:20201115")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.4.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.5.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.5.0")
+}
+
+// JavaJX module to include
+javafx {
+    version = "11.0.2"
+    modules = listOf("javafx.controls")
 }
 
 application {
     // Define the main class for the application.
-    mainClassName = "ts3_musicbot.Main"
+    getMainClass().set("ts3_musicbot.Main")
 }
 val compileKotlin: KotlinCompile by tasks
 compileKotlin.kotlinOptions {
-    jvmTarget = "1.8"
+    jvmTarget = "11"
 }
 val compileTestKotlin: KotlinCompile by tasks
 compileTestKotlin.kotlinOptions {
-    jvmTarget = "1.8"
+    jvmTarget = "11"
 }
 tasks.withType<Jar> {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
     manifest {
         attributes(mapOf("Main-Class" to "ts3_musicbot.Main"))
     }
