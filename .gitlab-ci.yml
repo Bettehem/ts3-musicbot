@@ -5,7 +5,7 @@ stages:
   - test
 
 before_script:
-  - pacman -Sy kotlin gradle jdk8-openjdk java8-openjfx --noconfirm --needed
+  - pacman -Sy kotlin gradle jdk11-openjdk java11-openjfx --noconfirm --needed
 
 buildTS3MusicBot:
   stage: build
@@ -20,7 +20,7 @@ testCommandRunner:
 testApis:
   stage: test
   before_script:
-    - pacman -Sy youtube-dl kotlin gradle jdk8-openjdk java8-openjfx --noconfirm --needed
+    - pacman -Sy youtube-dl kotlin gradle jdk11-openjdk java11-openjfx --noconfirm --needed
   script:
     - gradle :test --tests "ts3_musicbot.SpotifyTest"
     - gradle :test --tests "ts3_musicbot.YouTubeTest"
