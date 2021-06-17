@@ -11,11 +11,13 @@ before_script:
 buildTS3MusicBot:
   stage: build
   script:
+    - export JAVA_HOME=/usr/lib/jvm/default
     - gradle assemble
 
 testCommandRunner:
   stage: test
   script:
+    - export JAVA_HOME=/usr/lib/jvm/default
     - gradle :test --tests "ts3_musicbot.CommandRunnerTest"
 
 testApis:
@@ -24,6 +26,7 @@ testApis:
     - pacman -Sy youtube-dl kotlin jdk11-openjdk java11-openjfx gradle --noconfirm --needed
     - archlinux-java set java-11-openjdk
   script:
+    - export JAVA_HOME=/usr/lib/jvm/default
     - gradle :test --tests "ts3_musicbot.SpotifyTest"
     - gradle :test --tests "ts3_musicbot.YouTubeTest"
     - gradle :test --tests "ts3_musicbot.SoundCloudTest"
