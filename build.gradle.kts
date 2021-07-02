@@ -24,7 +24,7 @@ dependencies {
 // JavaJX module to include
 javafx {
     version = "11.0.2"
-    modules = listOf("javafx.base")
+    modules = listOf("javafx.controls")
 }
 
 application {
