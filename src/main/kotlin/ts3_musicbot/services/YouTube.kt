@@ -7,6 +7,8 @@ import org.json.JSONObject
 import ts3_musicbot.util.*
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
+import java.net.URLDecoder
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -542,10 +544,24 @@ class YouTube {
      * @return returns top 10 results from the search
      */
     suspend fun searchYoutube(searchType: SearchType, searchQuery: SearchQuery): SearchResults {
+        fun encode(text: String) = runBlocking {
+            URLEncoder.encode(text, Charsets.UTF_8.toString())
+                .replace("'", "&#39;")
+                .replace("&", "&amp;")
+                .replace("/", "&#x2F;")
+        }
+
+        fun decode(text: String) = runBlocking {
+            URLDecoder.decode(text, Charsets.UTF_8.toString())
+                .replace("&#39;", "'")
+                .replace("&amp;", "&")
+                .replace("&x2F;", "/")
+        }
+
         fun searchData(apiKey: String = apiKey1): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiUrl/search?")
-            urlBuilder.append("q=${searchQuery.query.replace(" ", "%20").replace("\"", "%22")}")
+            urlBuilder.append("q=${encode(searchQuery.query)}")
             urlBuilder.append("&type=${searchType.type.replace("track", "video")}")
             urlBuilder.append("&maxResults=10")
             urlBuilder.append("&part=snippet")
@@ -569,8 +585,7 @@ class YouTube {
                                     for (resultData in results) {
                                         resultData as JSONObject
 
-                                        val videoTitle =
-                                            resultData.getJSONObject("snippet").getString("title").replace("&amp;", "&")
+                                        val videoTitle = decode(resultData.getJSONObject("snippet").getString("title"))
                                         val videoLink =
                                             "https://youtu.be/${resultData.getJSONObject("id").getString("videoId")}"
 
@@ -587,7 +602,7 @@ class YouTube {
                                     for (resultData in results) {
                                         resultData as JSONObject
 
-                                        val listTitle = resultData.getJSONObject("snippet").getString("title")
+                                        val listTitle = decode(resultData.getJSONObject("snippet").getString("title"))
                                         val listCreator = resultData.getJSONObject("snippet").getString("channelTitle")
                                         val listLink =
                                             "https://www.youtube.com/playlist?list=${
@@ -715,7 +730,8 @@ class YouTube {
                             id = resultsJSON.getJSONArray("items").first {
                                 it as JSONObject
                                 it.getJSONObject("id").getString("kind").substringAfter("#") == "channel"
-                                        && it.getJSONObject("snippet").getString("title").replace(" ", "") == channelName
+                                        && it.getJSONObject("snippet").getString("title")
+                                    .replace(" ", "") == channelName
                             }.let {
                                 it as JSONObject
                                 it.getJSONObject("id").getString("channelId")

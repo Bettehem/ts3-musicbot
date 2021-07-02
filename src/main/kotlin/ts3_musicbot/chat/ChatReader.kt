@@ -575,7 +575,7 @@ class ChatReader(
                                         fun formatLines(queue: List<Track>): List<String> {
                                             return queue.mapIndexed { index, track ->
                                                 val strBuilder = StringBuilder()
-                                                strBuilder.append("$index: ")
+                                                strBuilder.append("${if (index < 10 ) ": " else ":" } ")
                                                 if (track.link.linkType() != LinkType.YOUTUBE) {
                                                     track.artists.artists.forEach { strBuilder.append("${it.name}, ") }
                                                 } else {
@@ -640,6 +640,7 @@ class ChatReader(
                             }
                             //%queue-skip command
                             commandString.contains("^%queue-skip$".toRegex()) -> {
+                                voteSkipUsers.clear()
                                 songQueue.skipSong()
                                 commandJob.complete()
                                 return true
@@ -1485,7 +1486,9 @@ class ChatReader(
         }
     }
 
-    override fun onTrackEnded(player: String, track: Track) {}
+    override fun onTrackEnded(player: String, track: Track) {
+        voteSkipUsers.clear()
+    }
     override fun onTrackPaused(player: String, track: Track) {}
     override fun onTrackResumed(player: String, track: Track) {}
 

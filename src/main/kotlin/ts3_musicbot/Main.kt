@@ -191,9 +191,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         println("Starting TeamSpeak 3...")
                         println(
                             "Connecting to server at: $serverAddress, port ${
-                                if (serverPort.isNotEmpty()) {
-                                    serverPort
-                                } else {
+                                serverPort.ifEmpty {
                                     "9987"
                                 }
                             }."
@@ -204,9 +202,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             ignoreOutput = true,
                             command = "teamspeak3 -nosingleinstance \"ts3server://$serverAddress" +
                                     "?port=${
-                                        if (serverPort.isNotEmpty()) {
-                                            serverPort
-                                        } else {
+                                        serverPort.ifEmpty {
                                             "9987"
                                         }
                                     }&nickname=${nickname.replace(" ", "%20")}&${
@@ -254,7 +250,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     println("Looking in \"$chatDir\" for chat files.")
                     var channelFile = File("")
                     if (chatDir.exists()) {
-                        for (dir in chatDir.list()!!) {
+                        for (dir in chatDir.list() ?: return) {
                             println("Checking in $dir")
                             val serverFile =
                                 File("${System.getProperty("user.home")}/.ts3client/chats/$dir/server.html")
@@ -459,9 +455,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         ignoreOutput = true,
                         command = "teamspeak3 -nosingleinstance \"ts3server://${settings.serverAddress}" +
                         "?port=${
-                            if (settings.serverPort.isNotEmpty()) {
-                                settings.serverPort
-                            } else {
+                            settings.serverPort.ifEmpty {
                                 "9987"
                             }
                         }&nickname=${settings.nickname.replace(" ", "%20")}&${
@@ -586,7 +580,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
     //everything below this comment is for the gui stuff
     override fun start(p0: Stage?) {
         try {
-            window = p0!!
+            window = (p0 ?: return)
             variables()
             ui()
             window.show()

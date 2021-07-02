@@ -24,12 +24,12 @@ dependencies {
 // JavaJX module to include
 javafx {
     version = "11.0.2"
-    modules = listOf("javafx.controls")
+    modules = listOf("javafx.base")
 }
 
 application {
     // Define the main class for the application.
-    getMainClass().set("ts3_musicbot.Main")
+    mainClass.set("ts3_musicbot.Main")
 }
 val compileKotlin: KotlinCompile by tasks
 compileKotlin.kotlinOptions {

@@ -6,4 +6,4 @@ class TeamSpeak(
     val serverPassword: String = "",
     val channelName: String = "",
     val serverPort: Int = 9987
-) {}
+)

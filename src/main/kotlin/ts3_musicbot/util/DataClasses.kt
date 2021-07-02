@@ -122,17 +122,13 @@ data class Link(val link: String = "", val linkId: String = "") {
 
     fun getId() = when (linkType()) {
         LinkType.SPOTIFY -> {
-            if (linkId.isNotEmpty()) {
-                linkId
-            } else {
+            linkId.ifEmpty {
                 link.substringAfterLast(":").substringBefore("?si=")
                     .substringAfterLast("/")
             }
         }
         LinkType.YOUTUBE -> {
-            if (linkId.isNotEmpty()) {
-                linkId
-            } else {
+            linkId.ifEmpty {
                 if (link.contains("https?://(www\\.)?youtube\\.com/c/\\S+".toRegex())) {
                     runBlocking { YouTube().resolveChannelId(link.substringAfterLast("/")) }
                 } else {
@@ -143,9 +139,7 @@ data class Link(val link: String = "", val linkId: String = "") {
         }
         LinkType.SOUNDCLOUD -> {
             runBlocking {
-                if (linkId.isNotEmpty()) {
-                    linkId
-                } else {
+                linkId.ifEmpty {
                     val soundCloud = SoundCloud()
                     if (link.startsWith("${soundCloud.apiURL}/"))
                         link.substringAfterLast("/")
@@ -410,7 +404,7 @@ data class Show(
             "Publisher:    \t\t\t\t\t${publisher.name}\n" +
             "Description:\n$description\n\n" +
             "This podcast has  ${episodes.episodes.size}  episodes.\n" +
-            if (episodes.episodes.size > 0) {"${if (episodes.episodes.size > 10) "First 10 " else ""} Episodes:\n" +
+            if (episodes.episodes.isNotEmpty()) {"${if (episodes.episodes.size > 10) "First 10 " else ""} Episodes:\n" +
             "${
                 EpisodeList(
                     episodes.episodes.subList(
