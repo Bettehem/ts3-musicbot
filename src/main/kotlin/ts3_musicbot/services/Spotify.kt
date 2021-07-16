@@ -8,6 +8,7 @@ import ts3_musicbot.util.*
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.net.URLDecoder
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatterBuilder
@@ -25,6 +26,19 @@ class Spotify(private val market: String = "") {
         SearchType.Type.SHOW,
         SearchType.Type.EPISODE
     )
+    private fun encode(text: String) = runBlocking {
+        URLEncoder.encode(text, Charsets.UTF_8.toString())
+        .replace("'", "&#39;")
+        .replace("&", "&amp;")
+        .replace("/", "&#x2F;")
+    }
+
+    private fun decode(text: String) = runBlocking {
+        URLDecoder.decode(text, Charsets.UTF_8.toString())
+        .replace("&#39;", "'")
+        .replace("&amp;", "&")
+        .replace("&#x2F;", "/")
+    }
 
     suspend fun updateToken() {
         println("Updating Spotify access token...")
@@ -82,12 +96,7 @@ class Spotify(private val market: String = "") {
         fun searchData(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/search?")
-            urlBuilder.append(
-                "q=${URLEncoder.encode(searchQuery.query, Charsets.UTF_8.toString())}"
-                    .replace("'", "&#39;")
-                    .replace("&", "&amp;")
-                    .replace("/", "&#x2F;")
-            )
+            urlBuilder.append("q=${encode(searchQuery.query)}")
             urlBuilder.append(
                 "&type=${
                     if (type.getType() == SearchType.Type.SHOW)
@@ -118,16 +127,16 @@ class Spotify(private val market: String = "") {
                         artists.append("Artist: \t\t")
                         for (artistData in trackData.getJSONArray("artists")) {
                             val artist = artistData as JSONObject
-                            artists.append("${artist.getString("name")}, ")
+                            artists.append("${decode(artist.getString("name"))}, ")
                         }
 
                         val albumName = if (trackData.getJSONObject("album").getString("album_type") == "single") {
-                            "${trackData.getJSONObject("album").getString("name")} (Single)"
+                            "${decode(trackData.getJSONObject("album").getString("name"))} (Single)"
                         } else {
-                            trackData.getJSONObject("album").getString("name")
+                            decode(trackData.getJSONObject("album").getString("name"))
                         }
 
-                        val songName = trackData.getString("name")
+                        val songName = decode(trackData.getString("name"))
 
                         val songLink = trackData.getJSONObject("external_urls").getString("spotify")
 
@@ -150,12 +159,12 @@ class Spotify(private val market: String = "") {
                         artists.append("Artist: \t\t")
                         for (artistData in album.getJSONArray("artists")) {
                             val artist = artistData as JSONObject
-                            artists.append("${artist.getString("name")}, ")
+                            artists.append("${decode(artist.getString("name"))}, ")
                         }
                         val albumName = if (album.getString("album_type") == "single")
-                            "${album.getString("name")} (Single)"
+                            "${decode(album.getString("name"))} (Single)"
                         else
-                            album.getString("name")
+                            decode(album.getString("name"))
 
 
                         val albumLink = album.getJSONObject("external_urls").getString("spotify")
@@ -174,9 +183,9 @@ class Spotify(private val market: String = "") {
                     for (listData in playlists) {
                         listData as JSONObject
 
-                        val listName = listData.getString("name")
+                        val listName = decode(listData.getString("name"))
                         val listOwner = if (listData.getJSONObject("owner").get("display_name") != null)
-                            listData.getJSONObject("owner").get("display_name")
+                            decode(listData.getJSONObject("owner").getString("display_name"))
                         else
                             "N/A"
 
@@ -198,7 +207,7 @@ class Spotify(private val market: String = "") {
                     for (artistData in artists) {
                         artistData as JSONObject
 
-                        val artistName = artistData.getString("name")
+                        val artistName = decode(artistData.getString("name"))
                         val followers = artistData.getJSONObject("followers").getLong("total")
                         var genres = ""
                         artistData.getJSONArray("genres").forEach { genres += "$it, " }
@@ -224,10 +233,10 @@ class Spotify(private val market: String = "") {
                     for (showData in shows) {
                         showData as JSONObject
 
-                        val showName = showData.getString("name")
-                        val publisher = showData.getString("publisher")
+                        val showName = decode(showData.getString("name"))
+                        val publisher = decode(showData.getString("publisher"))
                         val episodes = showData.getInt("total_episodes")
-                        val description = showData.getString("description")
+                        val description = decode(showData.getString("description"))
                         val showLink = showData.getJSONObject("external_urls").getString("spotify")
 
                         searchResults.add(
@@ -246,8 +255,8 @@ class Spotify(private val market: String = "") {
                     for (episodeData in episodes) {
                         episodeData as JSONObject
 
-                        val episodeName = episodeData.getString("name")
-                        val description = episodeData.getString("description")
+                        val episodeName = decode(episodeData.getString("name"))
+                        val description = decode(episodeData.getString("description"))
                         val episodeLink = episodeData.getJSONObject("external_urls").getString("spotify")
 
                         searchResults.add(
@@ -320,9 +329,9 @@ class Spotify(private val market: String = "") {
         lateinit var playlist: Playlist
         suspend fun parsePlaylistData(data: JSONObject): Playlist {
             return Playlist(
-                Name(data.getString("name")),
+                Name(decode(data.getString("name"))),
                 getUser(Link(data.getJSONObject("owner").getJSONObject("external_urls").getString("spotify"))),
-                Description(data.getString("description")),
+                Description(decode(data.getString("description"))),
                 Followers(data.getJSONObject("followers").getInt("total")),
                 Publicity(data.getBoolean("public")),
                 Collaboration(data.getBoolean("collaborative")),

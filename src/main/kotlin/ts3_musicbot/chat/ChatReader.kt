@@ -575,7 +575,7 @@ class ChatReader(
                                         fun formatLines(queue: List<Track>): List<String> {
                                             return queue.mapIndexed { index, track ->
                                                 val strBuilder = StringBuilder()
-                                                strBuilder.append("${if (index < 10 ) ": " else ":" } ")
+                                                strBuilder.append("${if (index < 10 ) "$index: " else "$index:" } ")
                                                 if (track.link.linkType() != LinkType.YOUTUBE) {
                                                     track.artists.artists.forEach { strBuilder.append("${it.name}, ") }
                                                 } else {
