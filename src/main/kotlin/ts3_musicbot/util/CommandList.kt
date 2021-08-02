@@ -142,7 +142,10 @@ object CommandList {
                     "%queue-list shows a list of songs in the queue.\n" +
                     "By default it shows the first 15 songs in the queue.\n" +
                     "Available options:\n" +
-                    "-a, --all    \t-Show all songs in the queue"
+                    "-a, --all    \t-Show all songs in the queue\n" +
+                    "-l, --limit <amount> -Limit amount of songs to return.\n" +
+                    "Example - run %queue-list with a limit of 30 songs:\n" +
+                    "%queue-list --limit 30"
         ),
         Pair(
             "%queue-clear", "\n" +

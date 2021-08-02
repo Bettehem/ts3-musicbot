@@ -565,8 +565,9 @@ class ChatReader(
                                     )
                                 }
                                 printToChat(userName, listOf("Song Queue:"), apikey)
+                                val currentQueue = songQueue.getQueue()
                                 when {
-                                    songQueue.getQueue().isEmpty() -> printToChat(
+                                    currentQueue.isEmpty() -> printToChat(
                                         userName,
                                         listOf("Queue is empty!"),
                                         apikey
@@ -575,7 +576,7 @@ class ChatReader(
                                         fun formatLines(queue: List<Track>): List<String> {
                                             return queue.mapIndexed { index, track ->
                                                 val strBuilder = StringBuilder()
-                                                strBuilder.append("${if (index < 10 ) "$index: " else "$index:" } ")
+                                                strBuilder.append("${if (index < 10) "$index: " else "$index:"} ")
                                                 if (track.link.linkType() != LinkType.YOUTUBE) {
                                                     track.artists.artists.forEach { strBuilder.append("${it.name}, ") }
                                                 } else {
@@ -591,30 +592,39 @@ class ChatReader(
                                         }
 
                                         val msg = StringBuilder()
-                                        if (songQueue.getQueue().size <= 15) {
-                                            formatLines(songQueue.getQueue()).forEach { msg.appendLine(it) }
+                                        if (currentQueue.size <= 15) {
+                                            formatLines(currentQueue).forEach { msg.appendLine(it) }
                                         } else {
-                                            if ((commandString.substringAfter("%queue-list")
-                                                    .contains(" -a") || commandString.substringAfter("%queue-list")
-                                                    .contains(" --all"))
-                                            ) {
-                                                formatLines(songQueue.getQueue()).forEach { msg.appendLine(it) }
-                                            } else {
-                                                formatLines(songQueue.getQueue()).subList(0, 16)
-                                                    .forEach { msg.appendLine(it) }
+                                            val commandArgs = commandString.substringAfter("%queue-list ")
+                                            when {
+                                                commandArgs.contains("(-a|--all)|(-l|--limit)\\s+[0-9]+".toRegex()) -> {
+                                                    when (commandArgs.split("\\s+".toRegex()).first()) {
+                                                        "-a", "--all" -> {
+                                                            formatLines(currentQueue).forEach { msg.appendLine(it) }
+                                                        }
+                                                        "-l", "--limit" -> {
+                                                            val limit = commandArgs.split("\\s+".toRegex())
+                                                                .first { it.contains("[0-9]+".toRegex()) }.toInt()
+                                                            if (currentQueue.size <= limit)
+                                                                formatLines(currentQueue).forEach { msg.appendLine(it) }
+                                                            else
+                                                                formatLines(currentQueue).subList(0, limit)
+                                                                    .forEach { msg.appendLine(it) }
+                                                        }
+                                                    }
+                                                }
+                                                else -> formatLines(currentQueue).subList(0, 15).forEach {
+                                                    msg.appendLine(it)
+                                                }
                                             }
                                         }
-                                        msg.appendLine("Queue Length: ${songQueue.getQueue().size} tracks.")
+                                        msg.appendLine("Queue Length: ${currentQueue.size} tracks.")
                                         printToChat(userName, listOf(msg.toString()), apikey)
+                                        commandListener.onCommandExecuted(commandString, msg.toString())
+                                        commandJob.complete()
+                                        return true
                                     }
                                 }
-                                commandListener.onCommandExecuted(
-                                    commandString,
-                                    TrackList(songQueue.getQueue()).toString(),
-                                    TrackList(songQueue.getQueue())
-                                )
-                                commandJob.complete()
-                                return true
                             }
                             //%queue-clear command
                             commandString.contains("^%queue-clear$".toRegex()) -> {
@@ -806,13 +816,18 @@ class ChatReader(
                             }
                             //%queue-status command
                             commandString.contains("^%queue-status$".toRegex()) -> {
-                                if (songQueue.getState() != SongQueue.State.QUEUE_STOPPED) {
-                                    printToChat(userName, listOf("Queue Status: Active"), apikey)
-                                } else {
-                                    printToChat(userName, listOf("Queue Status: Not active"), apikey)
+                                val statusMessage = StringBuilder()
+                                statusMessage.append("Queue Status: ")
+                                var stateKnown = false
+                                when (songQueue.getState()) {
+                                    SongQueue.State.QUEUE_PLAYING -> statusMessage.appendLine("Playing").also{ stateKnown = true }
+                                    SongQueue.State.QUEUE_PAUSED -> statusMessage.appendLine("Paused").also{ stateKnown = true }
+                                    SongQueue.State.QUEUE_STOPPED -> statusMessage.appendLine("Stopped").also{ stateKnown = true }
                                 }
+                                printToChat(userName, statusMessage.toString().lines(), apikey)
+                                commandListener.onCommandExecuted(commandString, statusMessage.toString())
                                 commandJob.complete()
-                                return true
+                                return stateKnown
                             }
                             //%queue-nowplaying command
                             commandString.contains("^%queue-nowplaying$".toRegex()) -> {
@@ -1489,6 +1504,7 @@ class ChatReader(
     override fun onTrackEnded(player: String, track: Track) {
         voteSkipUsers.clear()
     }
+
     override fun onTrackPaused(player: String, track: Track) {}
     override fun onTrackResumed(player: String, track: Track) {}
 
