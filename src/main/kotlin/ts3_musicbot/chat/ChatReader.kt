@@ -620,7 +620,7 @@ class ChatReader(
                                         }
                                         msg.appendLine("Queue Length: ${currentQueue.size} tracks.")
                                         printToChat(userName, listOf(msg.toString()), apikey)
-                                        commandListener.onCommandExecuted(commandString, msg.toString())
+                                        commandListener.onCommandExecuted(commandString, msg.toString(), TrackList(currentQueue))
                                         commandJob.complete()
                                         return true
                                     }
