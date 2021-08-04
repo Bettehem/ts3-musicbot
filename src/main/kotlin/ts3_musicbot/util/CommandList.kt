@@ -56,7 +56,7 @@ object CommandList {
                     "%queue-add                   -Add track(s) to queue.\n" +
                     "%queue-playnext              -Add track/playlist/album to the top of the queue. Add multiple links separated by a comma \",\". Shuffle with the -s option\n" +
                     "%queue-play                  -Play the song queue\n" +
-                    "%queue-list <-a,--all>       -Lists current songs in queue. Add the -a or --all option to show all tracks if there are more than 15\n" +
+                    "%queue-list <--all,--limit>  -Lists current songs in queue. Add the -a/--all option to show all tracks or -l/--limit to set a limit to the amount of tracks.\n" +
                     "%queue-clear                 -Clears the song queue\n" +
                     "%queue-shuffle               -Shuffles the queue\n" +
                     "%queue-skip                  -Skips current song\n" +
