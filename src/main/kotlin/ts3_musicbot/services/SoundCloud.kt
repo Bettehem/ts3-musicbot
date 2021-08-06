@@ -35,7 +35,7 @@ class SoundCloud {
         println("Updating SoundCloud ClientId")
         val lines = commandRunner.runCommand(
             "curl https://soundcloud.com 2> /dev/null " +
-            "| grep -E \"<script crossorigin src=\\\"https:\\/\\/\\S*\\.js\\\"></script>\"",
+                    "| grep -E \"<script crossorigin src=\\\"https:\\/\\/\\S*\\.js\\\"></script>\"",
             printOutput = false
         ).first.outputText.lines()
         for (line in lines) {
@@ -288,12 +288,14 @@ class SoundCloud {
     private suspend fun fetchPlaylistData(link: Link): Response {
         val id = resolveId(link)
         val urlBuilder = StringBuilder()
-        urlBuilder.append("$api2URL/${
-            if (id.startsWith("soundcloud:system-playlists"))
-                "system-playlists"
-            else
-                "playlists"
-        }/")
+        urlBuilder.append(
+            "$api2URL/${
+                if (id.startsWith("soundcloud:system-playlists"))
+                    "system-playlists"
+                else
+                    "playlists"
+            }/"
+        )
         urlBuilder.append(id)
         urlBuilder.append("?client_id=$clientId")
         @Suppress("BlockingMethodInNonBlockingContext")
@@ -409,12 +411,14 @@ class SoundCloud {
 
     private fun fetchAlbumData(id: String): Response {
         val urlBuilder = StringBuilder()
-        urlBuilder.append("$api2URL/${
-            if (id.startsWith("soundcloud:system-playlists"))
-                "system-playlists"
-            else 
-                "playlists"
-        }/")
+        urlBuilder.append(
+            "$api2URL/${
+                if (id.startsWith("soundcloud:system-playlists"))
+                    "system-playlists"
+                else
+                    "playlists"
+            }/"
+        )
         urlBuilder.append(id)
         urlBuilder.append("?client_id=$clientId")
         return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
@@ -754,6 +758,107 @@ class SoundCloud {
         return playlists
     }
 
+    suspend fun fetchUserLikes(userLink: Link): TrackList {
+        suspend fun fetchData(link: Link = userLink): Response {
+            val id = if (link.link.startsWith("$apiURL/users/"))
+                link.link.substringAfterLast("/")
+            else
+                resolveId(link)
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$api2URL/users/$id/likes")
+            urlBuilder.append("?client_id=$clientId")
+            if (!link.link.contentEquals(userLink.link))
+                urlBuilder.append("&${link.link.substringAfter("?")}")
+            else
+                urlBuilder.append("&limit=200")
+            @Suppress("BlockingMethodInNonBlockingContext")
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        }
+
+        val likes = ArrayList<Track>()
+        val likesJob = Job()
+        withContext(IO + likesJob) {
+            var likesData = fetchData()
+            while (true) {
+                when (likesData.code.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val data = JSONObject(likesData.data.data)
+                            data.getJSONArray("collection").forEach {
+                                it as JSONObject
+                                when {
+                                    it.has("track") -> {
+                                        likes.add(
+                                            it.getJSONObject("track").let { track ->
+                                                Track(
+                                                    Album(
+                                                        Name(
+                                                            if (
+                                                                !track.isNull("publisher_metadata") &&
+                                                                track.getJSONObject("publisher_metadata")
+                                                                    .has("album_title") &&
+                                                                !track.getJSONObject("publisher_metadata")
+                                                                    .isNull("album_title")
+                                                            )
+                                                                track.getJSONObject("publisher_metadata")
+                                                                    .getString("album_title")
+                                                            else
+                                                                ""
+                                                        )
+                                                    ),
+                                                    Artists(
+                                                        listOf(
+                                                            Artist(
+                                                                Name(track.getJSONObject("user").getString("username")),
+                                                                Link(
+                                                                    track.getJSONObject("user")
+                                                                        .getString("permalink_url"),
+                                                                    track.getJSONObject("user").getInt("id").toString()
+                                                                )
+                                                            )
+                                                        )
+                                                    ),
+                                                    Name(track.getString("title")),
+                                                    Link(
+                                                        track.getString("permalink_url"),
+                                                        track.getInt("id").toString()
+                                                    ),
+                                                    Playability(track.getBoolean("streamable")),
+                                                    Likes(track.getInt("likes_count"))
+                                                )
+                                            }
+                                        )
+                                    }
+
+                                    it.has("playlist") -> {
+                                        it.getJSONObject("playlist").let { playlist ->
+                                            likes.addAll(getPlaylistTracks(Link(playlist.getString("permalink_url"))).trackList)
+                                        }
+                                    }
+
+                                    else -> {
+                                    }
+                                }
+                            }
+
+                            if (!data.isNull("next_href"))
+                                likesData = fetchData(Link(data.getString("next_href")))
+                            else {
+                                likesJob.complete()
+                                return@withContext
+                            }
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${likesData.data}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
+                    }
+                }
+            }
+        }
+        return TrackList(likes)
+    }
+
     /**
      * Fetch a SoundCloud user's uploaded tracks.
      * @param userId user's id.
@@ -961,7 +1066,7 @@ class SoundCloud {
                 description = Description(
                     if (!artistData.isNull("description"))
                         artistData.getString("description")
-                    else 
+                    else
                         ""
                 )
             )

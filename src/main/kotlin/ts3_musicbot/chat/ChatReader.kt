@@ -181,7 +181,7 @@ class ChatReader(
                                             }
                                         }
 
-                                        args[i].contains("((\\[URL])?(https?://(open\\.spotify\\.com|soundcloud\\.com|youtu\\.be|(m|www)\\.youtube\\.com))(\\[/URL])?.+)|(spotify:(track|album|playlist|show|episode|artist):.+)".toRegex()) -> {
+                                        args[i].contains("((\\[URL])?(https?://(open\\.spotify\\.com|soundcloud\\.com|youtu\\.be|((m|www)\\.)?youtube\\.com))(\\[/URL])?.+)|(spotify:(track|album|playlist|show|episode|artist):.+)".toRegex()) -> {
                                             //add links to ArrayList
                                             if (args[i].contains(",\\s*".toRegex()))
                                                 links.addAll(args[i].split(",\\s*".toRegex()).map { Link(it) })
@@ -394,17 +394,17 @@ class ChatReader(
                                         }
 
                                         //YouTube
-                                        link.link.contains("https?://(youtu\\.be|(m|www)\\.youtube\\.com)".toRegex()) -> {
+                                        link.link.contains("https?://(youtu\\.be|((m|www)\\.)?youtube\\.com)".toRegex()) -> {
                                             //get link type
                                             val type = when {
-                                                link.link.contains("https?://((m|www)\\.youtube\\.com/watch\\?v=|youtu\\.be/\\S+)".toRegex()) -> "track"
-                                                link.link.contains("https?://((m|www)\\.youtube\\.com/playlist\\?list=\\S+)".toRegex()) -> "playlist"
+                                                link.link.contains("https?://(((m|www)\\.)?youtube\\.com/watch\\?v=|youtu\\.be/\\S+)".toRegex()) -> "track"
+                                                link.link.contains("https?://(((m|www)\\.)?youtube\\.com/playlist\\?list=\\S+)".toRegex()) -> "playlist"
                                                 else -> ""
                                             }
                                             println("YouTube link: $link\nLink type: $type")
                                             //get track/playlist id
                                             val id =
-                                                link.link.split("((m|www)\\.youtube\\.com/(watch|playlist)\\?(v|list)=)|(youtu.be/)".toRegex())[1]
+                                                link.link.split("(((m|www)\\.)?youtube\\.com/(watch|playlist)\\?(v|list)=)|(youtu.be/)".toRegex())[1]
                                                     .substringAfter("[URL]")
                                                     .substringBefore("[/URL]")
                                                     .substringBefore("&")
@@ -428,7 +428,7 @@ class ChatReader(
                                                 "playlist" -> {
                                                     //get playlist tracks
                                                     val playlistTracks = TrackList(youTube.getPlaylistTracks(
-                                                        Link("https://youtube.com/playlist?list=$id")
+                                                        Link("https://www.youtube.com/playlist?list=$id")
                                                     ).trackList.filter { it.playability.isPlayable })
                                                     println("Playlist has a total of ${playlistTracks.trackList.size} tracks.\nAdding to queue...")
                                                     val trackList =
@@ -454,8 +454,9 @@ class ChatReader(
                                         link.link.contains("https?://soundcloud\\.com/".toRegex()) -> {
                                             //get link type
                                             val type = when {
-                                                link.link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/(?!sets)\\S+".toRegex()) -> "track"
+                                                link.link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/(?!sets)(?!likes)\\S+".toRegex()) -> "track"
                                                 link.link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/sets/\\S+".toRegex()) -> "playlist"
+                                                link.link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/likes".toRegex()) -> "likes"
                                                 else -> ""
                                             }
                                             println("SoundCloud link: $link\nLink type: $type")
@@ -503,12 +504,32 @@ class ChatReader(
                                                             true
                                                         } else false
                                                 }
+
+                                                "likes" -> {
+                                                    //get likes
+                                                    val likes = TrackList(
+                                                        soundCloud.fetchUserLikes(parseLink(link)).trackList
+                                                            .filter { it.playability.isPlayable }
+                                                    )
+                                                    val trackList =
+                                                        if (shouldShuffle) TrackList(likes.trackList.shuffled()) else likes
+                                                    songQueue.addAllToQueue(likes, customPosition)
+                                                    commandSuccessful =
+                                                        if (songQueue.getQueue().containsAll(trackList.trackList)) {
+                                                            commandListener.onCommandExecuted(
+                                                                commandString,
+                                                                "Added user's likes to queue.",
+                                                                trackList
+                                                            )
+                                                            true
+                                                        } else false
+                                                }
                                             }
                                         }
                                     }
                                 }
                                 return if (commandSuccessful) {
-                                    printToChat(userName, listOf("Added tracks to queue."), apikey)
+                                    printToChat(userName, listOf("Added to queue."), apikey)
                                     commandJob.complete()
                                     true
                                 } else {
@@ -620,7 +641,11 @@ class ChatReader(
                                         }
                                         msg.appendLine("Queue Length: ${currentQueue.size} tracks.")
                                         printToChat(userName, listOf(msg.toString()), apikey)
-                                        commandListener.onCommandExecuted(commandString, msg.toString(), TrackList(currentQueue))
+                                        commandListener.onCommandExecuted(
+                                            commandString,
+                                            msg.toString(),
+                                            TrackList(currentQueue)
+                                        )
                                         commandJob.complete()
                                         return true
                                     }
@@ -820,9 +845,12 @@ class ChatReader(
                                 statusMessage.append("Queue Status: ")
                                 var stateKnown = false
                                 when (songQueue.getState()) {
-                                    SongQueue.State.QUEUE_PLAYING -> statusMessage.appendLine("Playing").also{ stateKnown = true }
-                                    SongQueue.State.QUEUE_PAUSED -> statusMessage.appendLine("Paused").also{ stateKnown = true }
-                                    SongQueue.State.QUEUE_STOPPED -> statusMessage.appendLine("Stopped").also{ stateKnown = true }
+                                    SongQueue.State.QUEUE_PLAYING -> statusMessage.appendLine("Playing")
+                                        .also { stateKnown = true }
+                                    SongQueue.State.QUEUE_PAUSED -> statusMessage.appendLine("Paused")
+                                        .also { stateKnown = true }
+                                    SongQueue.State.QUEUE_STOPPED -> statusMessage.appendLine("Stopped")
+                                        .also { stateKnown = true }
                                 }
                                 printToChat(userName, statusMessage.toString().lines(), apikey)
                                 commandListener.onCommandExecuted(commandString, statusMessage.toString())

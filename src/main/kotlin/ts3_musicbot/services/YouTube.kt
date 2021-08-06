@@ -128,7 +128,7 @@ class YouTube {
                                 publicity = Publicity(
                                     playlistJSON.getJSONObject("status").getString("privacyStatus") == "public"
                                 ),
-                                link = Link("https://youtube.com/playlist?list=${playlistJSON.getString("id")}")
+                                link = Link("https://www.youtube.com/playlist?list=${playlistJSON.getString("id")}")
                             )
                             break
                         } catch (e: JSONException) {

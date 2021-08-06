@@ -8,6 +8,7 @@ import ts3_musicbot.util.SearchQuery
 import ts3_musicbot.util.SearchType
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class SoundCloudTest {
     private val soundCloud = SoundCloud()
@@ -71,6 +72,16 @@ class SoundCloudTest {
             val playlist = soundCloud.getPlaylistTracks(testLink)
             assertEquals("Louis The Child", playlist.trackList[1].artists.artists[0].name.name)
             assertEquals("Zella Day - Compass (Louis The Child Remix)", playlist.trackList[1].title.name)
+        }
+    }
+
+    @Test
+    fun testGettingUserLikes() {
+        runBlocking(IO) {
+            //SoundCloud link to user caomeizu's likes
+            val testLink = Link("https://soundcloud.com/caomeizu/likes")
+            val likes = soundCloud.fetchUserLikes(testLink)
+            assertTrue { likes.isNotEmpty() }
         }
     }
 
