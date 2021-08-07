@@ -454,9 +454,10 @@ class ChatReader(
                                         link.link.contains("https?://soundcloud\\.com/".toRegex()) -> {
                                             //get link type
                                             val type = when {
-                                                link.link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/(?!sets)(?!likes)\\S+".toRegex()) -> "track"
+                                                link.link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/(?!sets)(?!likes)(?!reposts)\\S+".toRegex()) -> "track"
                                                 link.link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/sets/\\S+".toRegex()) -> "playlist"
                                                 link.link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/likes".toRegex()) -> "likes"
+                                                link.link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/reposts".toRegex()) -> "reposts"
                                                 else -> ""
                                             }
                                             println("SoundCloud link: $link\nLink type: $type")
@@ -513,16 +514,36 @@ class ChatReader(
                                                     )
                                                     val trackList =
                                                         if (shouldShuffle) TrackList(likes.trackList.shuffled()) else likes
-                                                    songQueue.addAllToQueue(likes, customPosition)
+                                                    songQueue.addAllToQueue(trackList, customPosition)
                                                     commandSuccessful =
                                                         if (songQueue.getQueue().containsAll(trackList.trackList)) {
                                                             commandListener.onCommandExecuted(
                                                                 commandString,
-                                                                "Added user's likes to queue.",
+                                                                "Added user's likes to the queue.",
                                                                 trackList
                                                             )
                                                             true
                                                         } else false
+                                                }
+
+                                                "reposts" -> {
+                                                    val reposts = TrackList(
+                                                        soundCloud.fetchUserReposts(parseLink(link)).trackList
+                                                            .filter { it.playability.isPlayable }
+                                                    )
+                                                    val trackList =
+                                                        if (shouldShuffle) TrackList(reposts.trackList.shuffled()) else reposts
+                                                    songQueue.addAllToQueue(trackList, customPosition)
+                                                    commandSuccessful = 
+                                                        if (songQueue.getQueue().containsAll(trackList.trackList)) {
+                                                            commandListener.onCommandExecuted(
+                                                                commandString,
+                                                                "Added user's reposts to the queue.",
+                                                                trackList
+                                                            )
+                                                            true
+                                                        }
+                                                        else false
                                                 }
                                             }
                                         }
@@ -873,7 +894,7 @@ class ChatReader(
                                         messageLines.appendLine("Release:     \t\t\t${currentTrack.album.releaseDate.date}")
 
                                     if (currentTrack.artists.artists.isNotEmpty()) {
-                                        if (currentTrack.link.link.contains("soundcloud\\.com".toRegex()))
+                                        if (currentTrack.link.link.contains("(youtube|youtu\\.be|soundcloud\\.com)".toRegex()))
                                             messageLines.appendLine("Uploader: \t\t\t${currentTrack.artists.artists[0].name}")
                                         else
                                             messageLines.appendLine("Artists:\n${currentTrack.artists}")

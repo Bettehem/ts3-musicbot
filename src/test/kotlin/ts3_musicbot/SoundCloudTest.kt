@@ -78,10 +78,20 @@ class SoundCloudTest {
     @Test
     fun testGettingUserLikes() {
         runBlocking(IO) {
-            //SoundCloud link to user caomeizu's likes
-            val testLink = Link("https://soundcloud.com/caomeizu/likes")
+            //SoundCloud link to user bettehem's likes
+            val testLink = Link("https://soundcloud.com/bettehem/likes")
             val likes = soundCloud.fetchUserLikes(testLink)
             assertTrue { likes.isNotEmpty() }
+        }
+    }
+
+    @Test
+    fun testGettingUserReposts() {
+        runBlocking(IO) {
+            //SoundCloud link to user bettehem's reposts
+            val testLink = Link("https://soundcloud.com/bettehem/reposts")
+            val reposts = soundCloud.fetchUserReposts(testLink)
+            assertTrue { reposts.isNotEmpty() }
         }
     }
 

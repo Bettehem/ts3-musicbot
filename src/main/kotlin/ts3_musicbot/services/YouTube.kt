@@ -68,7 +68,13 @@ class YouTube {
                             }
                             track = Track(
                                 Album(releaseDate = releaseDate),
-                                Artists(),
+                                Artists(
+                                    listOf(
+                                        Artist(
+                                            Name(itemData.getJSONObject("snippet").getString("channelTitle"))
+                                        )
+                                    )
+                                ),
                                 Name(itemData.getJSONObject("snippet").getString("title")),
                                 Link("https://youtu.be/${itemData.getString("id")}"),
                                 Playability(isPlayable)
@@ -585,14 +591,17 @@ class YouTube {
                                     for (resultData in results) {
                                         resultData as JSONObject
 
+                                        val videoUploader =
+                                            decode(resultData.getJSONObject("snippet").getString("channelTitle"))
                                         val videoTitle = decode(resultData.getJSONObject("snippet").getString("title"))
                                         val videoLink =
                                             "https://youtu.be/${resultData.getJSONObject("id").getString("videoId")}"
 
                                         searchResults.add(
                                             SearchResult(
-                                                "Title:  $videoTitle\n" +
-                                                        "Link:   $videoLink\n"
+                                                "Uploader: $videoUploader\n" +
+                                                        "Title:    $videoTitle\n" +
+                                                        "Link:     $videoLink\n"
                                             )
                                         )
                                     }

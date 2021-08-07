@@ -665,7 +665,8 @@ class SoundCloud {
                         list.add(link)
                     }
                 }
-                linksToFetch.add(list)
+                if (list.isNotEmpty())
+                    linksToFetch.add(list)
                 for (linksList in linksToFetch) {
                     launch {
                         while (true) {
@@ -689,6 +690,10 @@ class SoundCloud {
                                 }
                                 HttpURLConnection.HTTP_NOT_FOUND -> {
                                     println("Error 404! Link not found!")
+                                    return@launch
+                                }
+                                HttpURLConnection.HTTP_BAD_REQUEST -> {
+                                    println("Bad request!")
                                     return@launch
                                 }
                                 else -> println("HTTP ERROR! CODE ${tracksData.code}")
@@ -760,14 +765,14 @@ class SoundCloud {
 
     suspend fun fetchUserLikes(userLink: Link): TrackList {
         suspend fun fetchData(link: Link = userLink): Response {
-            val id = if (link.link.startsWith("$apiURL/users/"))
-                link.link.substringAfterLast("/")
+            val id = if (link.link.startsWith("$api2URL/users/"))
+                link.link.substringBeforeLast("/").substringAfterLast("/")
             else
                 resolveId(link)
             val urlBuilder = StringBuilder()
             urlBuilder.append("$api2URL/users/$id/likes")
             urlBuilder.append("?client_id=$clientId")
-            if (!link.link.contentEquals(userLink.link))
+            if (link.link.startsWith("$api2URL/users/"))
                 urlBuilder.append("&${link.link.substringAfter("?")}")
             else
                 urlBuilder.append("&limit=200")
@@ -788,46 +793,58 @@ class SoundCloud {
                                 it as JSONObject
                                 when {
                                     it.has("track") -> {
-                                        likes.add(
-                                            it.getJSONObject("track").let { track ->
-                                                Track(
-                                                    Album(
-                                                        Name(
-                                                            if (
-                                                                !track.isNull("publisher_metadata") &&
-                                                                track.getJSONObject("publisher_metadata")
-                                                                    .has("album_title") &&
-                                                                !track.getJSONObject("publisher_metadata")
-                                                                    .isNull("album_title")
-                                                            )
-                                                                track.getJSONObject("publisher_metadata")
-                                                                    .getString("album_title")
-                                                            else
-                                                                ""
-                                                        )
-                                                    ),
-                                                    Artists(
-                                                        listOf(
-                                                            Artist(
-                                                                Name(track.getJSONObject("user").getString("username")),
-                                                                Link(
-                                                                    track.getJSONObject("user")
-                                                                        .getString("permalink_url"),
-                                                                    track.getJSONObject("user").getInt("id").toString()
+                                        it.getJSONObject("track").let { track ->
+                                            try {
+                                                likes.add(
+                                                    Track(
+                                                        Album(
+                                                            Name(
+                                                                if (
+                                                                    !track.isNull("publisher_metadata") &&
+                                                                    track.getJSONObject("publisher_metadata")
+                                                                        .has("album_title") &&
+                                                                    !track.getJSONObject("publisher_metadata")
+                                                                        .isNull("album_title")
                                                                 )
+                                                                    track.getJSONObject("publisher_metadata")
+                                                                        .getString("album_title")
+                                                                else
+                                                                    ""
                                                             )
+                                                        ),
+                                                        Artists(
+                                                            listOf(
+                                                                track.getJSONObject("user").let { user ->
+                                                                    Artist(
+                                                                        Name(user.getString("username")),
+                                                                        Link(
+                                                                            user.getString("permalink_url"),
+                                                                            user.getInt("id").toString()
+                                                                        )
+                                                                    )
+                                                                }
+                                                            )
+                                                        ),
+                                                        Name(track.getString("title")),
+                                                        Link(
+                                                            track.getString("permalink_url"),
+                                                            track.getInt("id").toString()
+                                                        ),
+                                                        Playability(track.getBoolean("streamable")),
+                                                        Likes(
+                                                            if (!track.isNull("likes_count"))
+                                                                track.getInt("likes_count")
+                                                            else
+                                                                0
                                                         )
-                                                    ),
-                                                    Name(track.getString("title")),
-                                                    Link(
-                                                        track.getString("permalink_url"),
-                                                        track.getInt("id").toString()
-                                                    ),
-                                                    Playability(track.getBoolean("streamable")),
-                                                    Likes(track.getInt("likes_count"))
+                                                    )
                                                 )
+                                            } catch (e: JSONException) {
+                                                //JSON broken, try getting the data again
+                                                println("Failed JSON:\n${track.toString(4)}\n")
+                                                println("Failed to get data from JSON, trying again...")
                                             }
-                                        )
+                                        }
                                     }
 
                                     it.has("playlist") -> {
@@ -837,6 +854,7 @@ class SoundCloud {
                                     }
 
                                     else -> {
+                                        println("Data type not recognized:\n$it")
                                     }
                                 }
                             }
@@ -853,6 +871,131 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        updateClientId()
+                    }
+                    else -> println("HTTP ERROR! CODE ${likesData.code}")
+                }
+            }
+        }
+        return TrackList(likes)
+    }
+
+    suspend fun fetchUserReposts(userLink: Link): TrackList {
+        suspend fun fetchData(link: Link = userLink): Response {
+            val id = if (link.link.startsWith("$api2URL/stream/users/"))
+                link.link.substringBeforeLast("/").substringAfterLast("/")
+            else
+                resolveId(Link(link.link.substringBeforeLast("/")))
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$api2URL/stream/users/$id/reposts")
+            urlBuilder.append("?client_id=$clientId")
+            if (link.link.startsWith("$api2URL/stream/users/"))
+                urlBuilder.append("&${link.link.substringAfter("?")}")
+            else
+                urlBuilder.append("&limit=200")
+            @Suppress("BlockingMethodInNonBlockingContext")
+
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        }
+
+        val likes = ArrayList<Track>()
+        val likesJob = Job()
+        withContext(IO + likesJob) {
+            var likesData = fetchData()
+            while (true) {
+                when (likesData.code.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val data = JSONObject(likesData.data.data)
+                            data.getJSONArray("collection").forEach {
+                                it as JSONObject
+                                when {
+                                    it.has("track") -> {
+                                        it.getJSONObject("track").let { track ->
+                                            try {
+                                                likes.add(
+                                                    Track(
+                                                        Album(
+                                                            Name(
+                                                                if (
+                                                                    !track.isNull("publisher_metadata") &&
+                                                                    track.getJSONObject("publisher_metadata")
+                                                                        .has("album_title") &&
+                                                                    !track.getJSONObject("publisher_metadata")
+                                                                        .isNull("album_title")
+                                                                )
+                                                                    track.getJSONObject("publisher_metadata")
+                                                                        .getString("album_title")
+                                                                else
+                                                                    ""
+                                                            )
+                                                        ),
+                                                        Artists(
+                                                            listOf(
+                                                                track.getJSONObject("user").let { user ->
+                                                                    Artist(
+                                                                        Name(user.getString("username")),
+                                                                        Link(
+                                                                            user.getString("permalink_url"),
+                                                                            user.getInt("id").toString()
+                                                                        )
+                                                                    )
+                                                                }
+                                                            )
+                                                        ),
+                                                        Name(track.getString("title")),
+                                                        Link(
+                                                            track.getString("permalink_url"),
+                                                            track.getInt("id").toString()
+                                                        ),
+                                                        Playability(track.getBoolean("streamable")),
+                                                        Likes(
+                                                            if (!track.isNull("likes_count"))
+                                                                track.getInt("likes_count")
+                                                            else
+                                                                0
+                                                        )
+                                                    )
+                                                )
+                                            } catch (e: JSONException) {
+                                                //JSON broken, try getting the data again
+                                                println("Failed JSON:\n${track.toString(4)}\n")
+                                                println("Failed to get data from JSON, trying again...")
+                                            }
+                                        }
+                                    }
+
+                                    it.has("playlist") -> {
+                                        it.getJSONObject("playlist").let { playlist ->
+                                            likes.addAll(getPlaylistTracks(Link(playlist.getString("permalink_url"))).trackList)
+                                        }
+                                    }
+
+                                    else -> {
+                                        println("Data type not recognized:\n$it")
+                                    }
+                                }
+                            }
+
+                            if (!data.isNull("next_href"))
+                                likesData = fetchData(Link(data.getString("next_href")))
+                            else {
+                                likesJob.complete()
+                                return@withContext
+                            }
+                        } catch (e: JSONException) {
+                            //JSON broken, try getting the data again
+                            println("Failed JSON:\n${likesData.data}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
+                    }
+
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        updateClientId()
+                    }
+                    else -> println("HTTP ERROR! CODE ${likesData.code}")
                 }
             }
         }
