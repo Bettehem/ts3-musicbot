@@ -305,7 +305,7 @@ class SongQueue(
                                 ) {
                                     //do nothing
                                     println("Waiting for ${getPlayer()} to start.")
-                                    delay(10)
+                                    delay(100)
                                 }
                                 if (track.link.link.contains("/track/")) {
                                     commandRunner.runCommand(
@@ -342,6 +342,7 @@ class SongQueue(
                                 ) {
                                     //do nothing
                                     println("Waiting for ${getPlayer()} to start.")
+                                    delay(100)
                                 }
 
                             }

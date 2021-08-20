@@ -70,9 +70,12 @@ class YouTube {
                                 Album(releaseDate = releaseDate),
                                 Artists(
                                     listOf(
-                                        Artist(
-                                            Name(itemData.getJSONObject("snippet").getString("channelTitle"))
-                                        )
+                                        itemData.getJSONObject("snippet").let { artist -> 
+                                            Artist(
+                                                Name(artist.getString("channelTitle")),
+                                                Link("https://www.youtube.com/channel/${artist.getString("channelId")}")
+                                            )
+                                        }
                                     )
                                 ),
                                 Name(itemData.getJSONObject("snippet").getString("title")),

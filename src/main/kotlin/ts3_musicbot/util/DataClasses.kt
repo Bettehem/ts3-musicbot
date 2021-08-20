@@ -264,20 +264,21 @@ data class Artist(
     val relatedArtists: Artists = Artists(ArrayList()), val genres: Genres = Genres(emptyList()),
     val followers: Followers = Followers(), val description: Description = Description()
 ) {
-    override fun toString() = "Artist:     \t\t\t\t$name\n" +
-            "Link:        \t\t\t\t$link\n" +
-            if (description.isNotEmpty()) {
-                "Description:\n$description\n"
-            } else {
-                ""
-            } +
-            if (genres.genres.isNotEmpty()) "Genres:  \t\t\t\t$genres\n" else {
-                ""
-            } +
-            if (topTracks.trackList.isNotEmpty()) "Top tracks:\n$topTracks\n" else {
-                ""
-            } +
-            if (relatedArtists.artists.isNotEmpty()) "Related artists:\n$relatedArtists" else ""
+    override fun toString() = 
+        "${if (link.linkType() == LinkType.SPOTIFY) "Artist" else "Uploader"}:     \t\t\t\t$name\n" +
+        "Link:        \t\t\t\t$link\n" +
+        if (description.isNotEmpty()) {
+            "Description:\n$description\n"
+        } else {
+            ""
+        } +
+        if (genres.genres.isNotEmpty()) "Genres:  \t\t\t\t$genres\n" else {
+            ""
+        } +
+        if (topTracks.trackList.isNotEmpty()) "Top tracks:\n$topTracks\n" else {
+            ""
+        } +
+        if (relatedArtists.artists.isNotEmpty()) "Related artists:\n$relatedArtists" else ""
 }
 
 data class Album(
@@ -294,9 +295,9 @@ data class Album(
             } else {
                 ""
             } +
-            when {
-                link.link.contains("(youtube|youtu.be|soundcloud)".toRegex()) -> "Upload Date:  \t\t${releaseDate.date}\n"
-                link.link.contains("spotify".toRegex()) -> "Release:    \t\t\t${releaseDate.date}\n"
+            when (link.linkType()){
+                LinkType.YOUTUBE,LinkType.SOUNDCLOUD -> "Upload Date:  \t\t${releaseDate.date}\n"
+                LinkType.SPOTIFY -> "Release:    \t\t\t${releaseDate.date}\n"
                 else -> "Date:      \t\t\t\t${releaseDate.date}"
             } +
             if (link.isNotEmpty()) {

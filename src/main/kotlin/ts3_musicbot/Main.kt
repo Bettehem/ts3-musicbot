@@ -287,7 +287,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             }
                         }, object : CommandListener {
                             override fun onCommandExecuted(command: String, output: String, extra: Any?) {
-                                print("\nCommand \"$command\" has been executed.\nOutput:\n$output\n\nCommand: ")
+                                print("\nCommand \"${command.substringBefore(" ")}\" has been executed.\nOutput:\n$output\n\nCommand: ")
                             }
                         }, apiKey, market, spotifyPlayer, channelName, nickname)
                         chatReader.startReading()
