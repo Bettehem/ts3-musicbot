@@ -30,7 +30,7 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
     private val youTubePlaylistLink = Link("https://www.youtube.com/playlist?list=PLVzaRVhV8Ebb5m6IIEpOJeOIBMKk4AVwm")
     private val soundCloudLink = Link("https://soundcloud.com/iamleeya/something-worth-dreaming-of")
     private val soundCloudPlaylistLink = Link("https://soundcloud.com/bettehem/sets/jeesjees")
-    private val chatReader = ChatReader("", File(""), this, this, "", spotifyMarket, "", "", "")
+    private val chatReader = ChatReader("", File(""), this, this, "", spotifyMarket, "", "", "", 60)
 
     private fun runCommand(
         chatReader: ChatReader, command: String, username: String = userName,
@@ -51,7 +51,7 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
                         assertEquals(CommandList.helpMessages.getValue("%help"), output)
                     }
                 }
-            }, "", spotifyMarket, "", "", "")
+            }, "", spotifyMarket, "", "", "", 60)
             val helpUser = "test"
             runCommand(chatReader, "%help", helpUser)
             delay(5)
