@@ -202,6 +202,17 @@ data class Artists(val artists: List<Artist> = emptyList()) {
     fun isNotEmpty() = artists.isNotEmpty()
 }
 
+data class Albums(val albums: List<Album> = emptyList()) {
+    override fun toString(): String {
+        val strBuilder = StringBuilder()
+        albums.forEach { "${strBuilder.appendLine(it)}" }
+        return strBuilder.toString()
+    }
+
+    fun isEmpty() = albums.isEmpty()
+    fun isNotEmpty() = albums.isNotEmpty()
+}
+
 data class TrackList(val trackList: List<Track> = emptyList()) {
     override fun toString(): String {
         val strBuilder = StringBuilder()
@@ -262,23 +273,30 @@ data class Genres(val genres: List<String> = emptyList()) {
 data class Artist(
     val name: Name = Name(), val link: Link = Link(), val topTracks: TrackList = TrackList(emptyList()),
     val relatedArtists: Artists = Artists(ArrayList()), val genres: Genres = Genres(emptyList()),
-    val followers: Followers = Followers(), val description: Description = Description()
+    val followers: Followers = Followers(), val description: Description = Description(),
+    val albums: Albums = Albums()
 ) {
-    override fun toString() = 
-        "${if (link.linkType() == LinkType.SPOTIFY) "Artist" else "Uploader"}:     \t\t\t\t$name\n" +
-        "Link:        \t\t\t\t$link\n" +
-        if (description.isNotEmpty()) {
-            "Description:\n$description\n"
-        } else {
-            ""
-        } +
-        if (genres.genres.isNotEmpty()) "Genres:  \t\t\t\t$genres\n" else {
-            ""
-        } +
-        if (topTracks.trackList.isNotEmpty()) "Top tracks:\n$topTracks\n" else {
-            ""
-        } +
-        if (relatedArtists.artists.isNotEmpty()) "Related artists:\n$relatedArtists" else ""
+    override fun toString() =
+        "${if (link.linkType() == LinkType.SPOTIFY) "Artist:\t\t" else "Uploader:"}     \t\t$name\n" +
+                "Link:        \t\t\t\t$link\n" +
+                if (description.isNotEmpty()) "Description:\n$description" else {
+                    ""
+                } +
+                if (genres.genres.isNotEmpty()) "Genres:  \t\t\t\t$genres\n" else {
+                    ""
+                } +
+                if (topTracks.trackList.isNotEmpty()) "Top tracks:\n$topTracks\n" else {
+                    ""
+                } +
+                if (albums.isNotEmpty()) "Albums:\n${
+                    Albums(albums.albums.subList(
+                        0,
+                        if (albums.albums.size >= 10) 9 else albums.albums.lastIndex
+                    ))
+                }\n" else {
+                    ""
+                } +
+                if (relatedArtists.artists.isNotEmpty()) "Related artists:\n$relatedArtists" else ""
 }
 
 data class Album(
@@ -295,18 +313,18 @@ data class Album(
             } else {
                 ""
             } +
-            when (link.linkType()){
-                LinkType.YOUTUBE,LinkType.SOUNDCLOUD -> "Upload Date:  \t\t${releaseDate.date}\n"
+            when (link.linkType()) {
+                LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> "Upload Date:  \t\t${releaseDate.date}\n"
                 LinkType.SPOTIFY -> "Release:    \t\t\t${releaseDate.date}\n"
-                else -> "Date:      \t\t\t\t${releaseDate.date}"
+                else -> "Date:      \t\t\t\t${releaseDate.date}\n"
             } +
             if (link.isNotEmpty()) {
-                "\nAlbum Link:  \t\t$link\n\n"
+                "Album Link:  \t\t$link\n"
             } else {
                 ""
             } +
             if (artists.isNotEmpty()) {
-                "\nAlbum Artists:\n$artists\n"
+                "Album Artists:\n$artists"
             } else {
                 ""
             } +
@@ -350,7 +368,7 @@ data class User(
                     if (lists.size < 10)
                         lists.add(it.toString())
                 }
-                lists.forEach {listsBuilder.appendLine(it)}
+                lists.forEach { listsBuilder.appendLine(it) }
                 listsBuilder.toString()
             } else {
                 ""
@@ -405,17 +423,20 @@ data class Show(
             "Publisher:    \t\t\t\t\t${publisher.name}\n" +
             "Description:\n$description\n\n" +
             "This podcast has  ${episodes.episodes.size}  episodes.\n" +
-            if (episodes.episodes.isNotEmpty()) {"${if (episodes.episodes.size > 10) "First 10 " else ""} Episodes:\n" +
-            "${
-                EpisodeList(
-                    episodes.episodes.subList(
-                        0,
-                        if (episodes.episodes.size > 10) 10 else episodes.episodes.size - 1
-                    )
-                )
-            }\n" +
-            "Show Link:       \t\t\t\t\t$link"}
-	    else {""}
+            if (episodes.episodes.isNotEmpty()) {
+                "${if (episodes.episodes.size > 10) "First 10 " else ""} Episodes:\n" +
+                        "${
+                            EpisodeList(
+                                episodes.episodes.subList(
+                                    0,
+                                    if (episodes.episodes.size > 10) 10 else episodes.episodes.size - 1
+                                )
+                            )
+                        }\n" +
+                        "Show Link:       \t\t\t\t\t$link"
+            } else {
+                ""
+            }
 
     fun isEmpty() =
         name.isEmpty() && publisher.isEmpty() && description.isEmpty() && episodes.isEmpty() && link.isEmpty()

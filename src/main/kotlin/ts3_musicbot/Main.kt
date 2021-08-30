@@ -31,6 +31,7 @@ private var statusTextView = TextArea()
 private val commandRunner = CommandRunner()
 private var spotifyPlayer = "spotify"
 private var useOfficialTsClient = true
+private var mpvVolume = 60
 private lateinit var teamSpeak: TeamSpeak
 
 class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, CommandListener {
@@ -73,6 +74,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
     private var tsClientRadioGroup = ToggleGroup()
     private var tsClientInternalRadioButton = RadioButton()
     private var tsClientOfficialRadioButton = RadioButton()
+    private var mpvVolumeTextView = Label()
+    private var mpvVolumeEditText = TextField()
     private var saveSettingsButton = Button()
     private var loadSettingsButton = Button()
     private var startBotButton = Button()
@@ -112,7 +115,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "                         If you use ncspot, before starting the bot you also need to export your terminal app of preference as \$TERMINAL.\n" +
                         "                         Example command: export TERMINAL=xfce4-terminal\n" +
                         "--config                 Provide a config file where to read arguments from\n" +
-                        "--use-internal-tsclient  Use the internal TeamSpeak client instead of the official one.\n"
+                        "--use-internal-tsclient  Use the internal TeamSpeak client instead of the official one.\n" +
+                        "--mpv-volume <volume>    Set the volume for MPV media player, which is used for YouTube/SoundCloud playback.\n" +
+                        "                         It's usually louder than Spotify, so by default MPV's volume will be at 60.\n"
 
                 //go through given arguments and save them
                 for (argPos in args.indices) {
@@ -167,6 +172,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             if (args.size >= argPos + 1)
                                 useOfficialTsClient = false
                         }
+                        "--mpv-volume" -> {
+                            if (args.size >= argPos + 1)
+                                mpvVolume = args[argPos + 1].toInt()
+                        }
                     }
                 }
 
@@ -182,6 +191,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     market = settings.market
                     spotifyPlayer = settings.spotifyPlayer
                     useOfficialTsClient = settings.useOfficialTsClient
+                    mpvVolume = settings.mpvVolume
                 }
 
                 if (useOfficialTsClient) {
@@ -289,7 +299,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             override fun onCommandExecuted(command: String, output: String, extra: Any?) {
                                 print("\nCommand \"${command.substringBefore(" ")}\" has been executed.\nOutput:\n$output\n\nCommand: ")
                             }
-                        }, apiKey, market, spotifyPlayer, channelName, nickname)
+                        }, apiKey, market, spotifyPlayer, channelName, nickname, mpvVolume)
                         chatReader.startReading()
                         println("Bot $nickname started listening to the chat in channel $channelName.")
 
@@ -310,7 +320,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                                                 nickname,
                                                 market,
                                                 spotifyPlayer,
-                                                useOfficialTsClient
+                                                useOfficialTsClient,
+                                                mpvVolume
                                             )
                                             saveSettings(settings, showGui = false)
                                         }
@@ -336,7 +347,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             override fun onCommandExecuted(command: String, output: String, extra: Any?) {
                                 print("\nCommand \"$command\" has been executed.\nOutput:\n$output\n\nCommand: ")
                             }
-                        }, apiKey, market, spotifyPlayer, channelName, nickname)
+                        }, apiKey, market, spotifyPlayer, channelName, nickname, mpvVolume)
                         chatReader.startReading()
                         println("Bot $nickname started listening to the chat in channel $channelName.")
                         val console = Console(object : ConsoleUpdateListener {
@@ -356,7 +367,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                                                 nickname,
                                                 market,
                                                 spotifyPlayer,
-                                                useOfficialTsClient
+                                                useOfficialTsClient,
+                                                mpvVolume
                                             )
                                             saveSettings(settings, showGui = false)
                                         }
@@ -414,6 +426,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 fileWriter.println("MARKET=${botSettings.market}")
                 fileWriter.println("SPOTIFY_PLAYER=${botSettings.spotifyPlayer}")
                 fileWriter.println("USE_OFFICIAL_TSCLIENT=${botSettings.useOfficialTsClient}")
+                fileWriter.println("MPV_VOLUME=${botSettings.mpvVolume}")
                 fileWriter.println()
                 fileWriter.close()
             }
@@ -435,6 +448,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "MARKET" -> settings.market = line.substringAfter("=")
                         "SPOTIFY_PLAYER" -> settings.spotifyPlayer = line.substringAfter("=")
                         "USE_OFFICIAL_TSCLIENT" -> settings.useOfficialTsClient = line.substringAfter("=").toBoolean()
+                        "MPV_VOLUME" -> settings.mpvVolume = line.substringAfter("=").toInt()
                     }
                 }
             }
@@ -495,7 +509,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     override fun onCommandExecuted(command: String, output: String, extra: Any?) {
                         print("\nCommand \"$command\" has been executed.\nOutput:\n$output\n\nCommand: ")
                     }
-                }, settings.apiKey, settings.market, settings.spotifyPlayer, settings.channelName, settings.nickname)
+                }, settings.apiKey, settings.market, settings.spotifyPlayer, settings.channelName, settings.nickname, settings.mpvVolume)
                 chatReader.startReading()
                 println("Bot ${settings.nickname} started listening to the chat in channel ${settings.channelName}")
                 val console = Console(object : ConsoleUpdateListener {
@@ -684,6 +698,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         tsClientOfficialRadioButton.toggleGroup = tsClientRadioGroup
         tsClientOfficialRadioButton.isSelected = useOfficialTsClient
 
+        mpvVolumeTextView.text = "Set MPV Media Player volume. Used for YouTube/SoundCloud playback. Defaults to 60"
+        mpvVolumeTextView.isVisible = false
+        mpvVolumeEditText.isVisible = false
+
         saveSettingsButton.text = "Save settings"
         loadSettingsButton.text = "Load settings"
         startBotButton.text = "Start Bot"
@@ -731,6 +749,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         selectTsClientTextView.isVisible = showAdvanced
         tsClientInternalRadioButton.isVisible = showAdvanced
         tsClientOfficialRadioButton.isVisible = showAdvanced
+        mpvVolumeTextView.isVisible = showAdvanced
+        mpvVolumeEditText.isVisible = showAdvanced
     }
 
     private fun ui() {
@@ -786,7 +806,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             spotifydRadioButton,
             selectTsClientTextView,
             tsClientInternalRadioButton,
-            tsClientOfficialRadioButton
+            tsClientOfficialRadioButton,
+            mpvVolumeTextView,
+            mpvVolumeEditText
         )
         scrollPane.content = itemLayout
         scrollPane.minHeight = 250.0
@@ -826,6 +848,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 val channelFilePath = channelFilePathEditText.text
                 val nickname = nicknameEditText.text
                 val market = marketEditText.text
+                mpvVolume = mpvVolumeEditText.text.toInt()
 
                 val settings = BotSettings(
                     apiKey,
@@ -837,7 +860,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     nickname,
                     market,
                     spotifyPlayer,
-                    useOfficialTsClient
+                    useOfficialTsClient,
+                    mpvVolume
                 )
                 saveSettings(settings, true)
             }
@@ -883,6 +907,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         tsClientInternalRadioButton.isSelected = true
                         tsClientOfficialRadioButton.isSelected = false
                     }
+                    mpvVolumeEditText.text = settings.mpvVolume.toString()
                 } else {
                     println("Could not load file!")
                 }
@@ -902,6 +927,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
 
             stopBotButton -> {
                 commandRunner.runCommand("wmctrl -c TeamSpeak", ignoreOutput = true)
+                commandRunner.runCommand("killall mpv && killall ncspot")
                 chatReader.stopReading()
                 statusTextView.text = "Status: Bot not active."
                 startBotButton.isManaged = true
@@ -928,7 +954,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             spotifydRadioButton -> "spotifyd"
             else -> "spotify" //default to spotify
         },
-        tsClientRadioGroup.selectedToggle == tsClientOfficialRadioButton
+        tsClientRadioGroup.selectedToggle == tsClientOfficialRadioButton,
+        mpvVolumeEditText.text.toInt()
     )
 
 

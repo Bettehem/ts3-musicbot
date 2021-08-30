@@ -9,6 +9,7 @@ private var songQueue = Collections.synchronizedList(ArrayList<Track>())
 
 class SongQueue(
     spotifyPlayer: String = "spotify",
+    mpvVolume: Int,
     private val playStateListener: PlayStateListener
 ) : PlayStateListener {
     private var queueState = State.QUEUE_STOPPED
@@ -27,7 +28,7 @@ class SongQueue(
 
     fun getState() = synchronized(queueState) { queueState }
 
-    private val trackPlayer = TrackPlayer(spotifyPlayer, this)
+    private val trackPlayer = TrackPlayer(spotifyPlayer, mpvVolume, this)
 
     private var currentTrack = Track(Album(), Artists(), Name(), Link(), Playability())
     private fun setCurrent(track: Track) = synchronized(currentTrack) { currentTrack = track }
@@ -223,7 +224,7 @@ class SongQueue(
         }
     }
 
-    private class TrackPlayer(val spotifyPlayer: String, val listener: PlayStateListener) {
+    private class TrackPlayer(val spotifyPlayer: String, val mpvVolume: Int, val listener: PlayStateListener) {
         var trackJob = Job()
 
         var trackPosition = 0
@@ -328,7 +329,7 @@ class SongQueue(
                                             "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket " +
                                                     "--ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0" +
                                                     (if (track.linkType == LinkType.YOUTUBE) ",cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" else "") +
-                                                    " --ytdl \"${track.link}\"",
+                                                    " --ytdl \"${track.link}\" --volume=$mpvVolume",
                                             inheritIO = true,
                                             ignoreOutput = true
                                         )

@@ -1105,6 +1105,22 @@ class Spotify(private val market: String = "") {
             )
         }
 
+        fun getAlbums(offset: Int = 0): Response {
+            val urlBuilder = StringBuilder()
+            urlBuilder.append("$apiURL/artists/")
+            urlBuilder.append(artistLink.getId())
+            urlBuilder.append("/albums")
+            urlBuilder.append("?market=${market.ifEmpty{ defaultMarket }}")
+            //spotify has a max limit of 50 albums per query
+            urlBuilder.append("&limit=50")
+            urlBuilder.append("&offset=$offset")
+            return sendHttpRequest(
+                URL(urlBuilder.toString()),
+                RequestMethod("GET"),
+                ExtraProperties(listOf("Authorization: Bearer $accessToken"))
+            )
+        }
+
         fun getRelatedArtists(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/artists/")
@@ -1119,7 +1135,7 @@ class Spotify(private val market: String = "") {
             )
         }
 
-        suspend fun parseData(artistData: JSONObject, topTracksData: JSONObject, relatedArtists: JSONObject): Artist {
+        suspend fun parseData(artistData: JSONObject, topTracksData: JSONObject, albumsData: JSONObject, relatedArtists: JSONObject): Artist {
             val name = Name(artistData.getString("name"))
             val topTracks = ArrayList<Track>()
             val topTracksList = topTracksData.getJSONArray("tracks")
@@ -1173,6 +1189,86 @@ class Spotify(private val market: String = "") {
                     )
                 )
             }
+            val albums = ArrayList<Album>()
+            val albumsAmount = albumsData.getInt("total")
+            var offset = 0
+            var currentAlbumsData = albumsData
+            while (albums.size < albumsAmount) {
+                albums.addAll(
+                    currentAlbumsData.getJSONArray("items").map { data ->
+                        data as JSONObject
+                        Album(
+                            Name(data.getString("name")),
+                            Artists(data.getJSONArray("artists").map {
+                                it as JSONObject
+                                val artistName = Name(it.getString("name"))
+                                val link = Link(it.getJSONObject("external_urls").getString("spotify"))
+                                Artist(artistName, link)
+                            }),
+                            when (data.getString("release_date_precision")) {
+                                "day" -> {
+                                    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                                    ReleaseDate(
+                                        LocalDate.parse(
+                                            data.getString("release_date"), formatter
+                                        )
+                                    )
+                                }
+                                "month" -> {
+                                    val formatter = DateTimeFormatterBuilder().appendPattern("yyyy-MM")
+                                    .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                                    .toFormatter()
+                                    ReleaseDate(
+                                        LocalDate.parse(
+                                            data.getString("release_date"), formatter
+                                        )
+                                    )
+                                }
+                                else -> {
+                                    val formatter = DateTimeFormatterBuilder().appendPattern("yyyy")
+                                    .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+                                    .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                                    .toFormatter()
+                                    ReleaseDate(
+                                        LocalDate.parse(
+                                            data.getString("release_date"), formatter
+                                        )
+                                    )
+                                }
+                            },
+                            TrackList(),
+                            Link(data.getJSONObject("external_urls").getString("spotify"))
+                        )
+                    }
+                )
+                if (!currentAlbumsData.isNull("next")) {
+                    offset += 50
+                    val albumsJob = Job()
+                    withContext(IO + albumsJob) {
+                        while (true) {
+                            val albumsResponse = getAlbums(offset)
+                            when (albumsResponse.code.code) {
+                                HttpURLConnection.HTTP_OK -> {
+                                    try {
+                                        currentAlbumsData = JSONObject(albumsResponse.data.data)
+                                        return@withContext
+                                    } catch (e: JSONException) {
+                                        //JSON broken, try getting the data again
+                                        println("Failed JSON:\n${albumsResponse.data}\n")
+                                        println("Failed to get data from JSON, trying again...")
+                                    }
+                                }
+                                HTTP_TOO_MANY_REQUESTS -> {
+                                    println("Too many requests! Waiting for ${albumsResponse.data.data} seconds.")
+                                    delay(albumsResponse.data.data.toLong() * 1000)
+                                }
+                                HttpURLConnection.HTTP_UNAUTHORIZED -> updateToken()
+                                else -> println("HTTP ERROR! CODE: ${albumsResponse.code}")
+                            }
+                        }
+                    }
+                }
+            }
             val related = ArrayList<Artist>()
             for (artist in relatedArtists.getJSONArray("artists")) {
                 artist as JSONObject
@@ -1183,12 +1279,16 @@ class Spotify(private val market: String = "") {
             val genres: List<String> = artistData.getJSONArray("genres").map {
                 if (it is String) it else ""
             }
+            val followers = Followers(artistData.getJSONObject("followers").getInt("total"))
             return Artist(
                 name,
                 artistLink,
                 TrackList(topTracks),
                 Artists(related),
-                Genres(genres)
+                Genres(genres),
+                followers,
+                Description(), //Maybe some day...
+                Albums(albums)
             )
         }
 
@@ -1227,6 +1327,30 @@ class Spotify(private val market: String = "") {
                                     else -> println("HTTP ERROR! CODE: ${topTracksData.code.code}")
                                 }
                             }
+                            lateinit var albums: JSONObject
+                            albums@ while (true) {
+                                val albumsData = getAlbums()
+                                when (albumsData.code.code) {
+                                    HttpURLConnection.HTTP_OK -> {
+                                        try {
+                                            withContext(Default) {
+                                                albums = JSONObject(albumsData.data.data)
+                                            }
+                                            break@albums
+                                        } catch (e: JSONException) {
+                                            //JSON broken, try getting the data again
+                                            println("Failed JSON:\n${albumsData.data.data}\n")
+                                            println("Failed to get data from JSON, trying again...")
+                                        }
+                                    }
+                                    HttpURLConnection.HTTP_UNAUTHORIZED -> updateToken()
+                                    HTTP_TOO_MANY_REQUESTS -> {
+                                        println("Too many requests! Waiting for ${albumsData.data.data} seconds.")
+                                        delay(albumsData.data.data.toLong() * 1000)
+                                    }
+                                    else -> println("HTTP ERROR! CODE: ${albumsData.code.code}")
+                                }
+                            }
                             lateinit var relatedArtists: JSONObject
                             relatedArtists@ while (true) {
                                 val relatedArtistsData = getRelatedArtists()
@@ -1254,7 +1378,7 @@ class Spotify(private val market: String = "") {
                                     else -> println("HTTP ERROR! CODE: ${relatedArtistsData.code.code}")
                                 }
                             }
-                            artist = parseData(JSONObject(artistData.data.data), topTracks, relatedArtists)
+                            artist = parseData(JSONObject(artistData.data.data), topTracks, albums, relatedArtists)
                             artistJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
@@ -1274,9 +1398,7 @@ class Spotify(private val market: String = "") {
                         //wait for given time before next request.
                         delay(artistData.data.data.toLong() * 1000)
                     }
-                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                        updateToken()
-                    }
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> updateToken()
                     HttpURLConnection.HTTP_BAD_REQUEST -> {
                         println("Error ${artistData.code}! Bad request!!")
                         artist = Artist()
