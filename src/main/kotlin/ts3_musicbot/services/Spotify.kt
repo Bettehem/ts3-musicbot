@@ -427,129 +427,133 @@ class Spotify(private val market: String = "") {
 
                 suspend fun parseItems(items: JSONArray) {
                     println("Parsing items... (${items.length()})")
-                    for (item in items) {
-                        item as JSONObject
-                        val itemJob = Job()
-                        withContext(Default + itemJob) {
-                            try {
-                                if (item.get("track") != null) {
-                                    if (item.getJSONObject("track").get("id") != null) {
-                                        if (!item.getJSONObject("track").getBoolean("is_local")) {
-                                            val albumName = if (item.getJSONObject("track").getJSONObject("album")
-                                                    .getString("album_type") == "single"
-                                            ) {
-                                                Name(
-                                                    "${
+                    if (items.isEmpty) {
+                        playlistLength -= (playlistLength - trackItems.size)
+                    } else {
+                        for (item in items) {
+                            item as JSONObject
+                            val itemJob = Job()
+                            withContext(IO + itemJob) {
+                                try {
+                                    if (item.get("track") != null) {
+                                        if (item.getJSONObject("track").get("id") != null) {
+                                            if (!item.getJSONObject("track").getBoolean("is_local")) {
+                                                val albumName = if (item.getJSONObject("track").getJSONObject("album")
+                                                        .getString("album_type") == "single"
+                                                ) {
+                                                    Name(
+                                                        "${
+                                                            item.getJSONObject("track").getJSONObject("album")
+                                                                .getString("name")
+                                                        } (Single)"
+                                                    )
+                                                } else {
+                                                    Name(
                                                         item.getJSONObject("track").getJSONObject("album")
                                                             .getString("name")
-                                                    } (Single)"
-                                                )
-                                            } else {
-                                                Name(
-                                                    item.getJSONObject("track").getJSONObject("album")
-                                                        .getString("name")
-                                                )
-                                            }
-                                            val artistsData = item.getJSONObject("track").getJSONArray("artists")
-                                            val artists = Artists(
-                                                artistsData.map {
-                                                    it as JSONObject
-                                                    Artist(
-                                                        Name(it.getString("name")),
-                                                        Link(
-                                                            it.getJSONObject("external_urls").getString("spotify")
-                                                        ),
-                                                        TrackList(emptyList()),
-                                                        Artists(emptyList())
                                                     )
                                                 }
-                                            )
-                                            val album = Album(
-                                                albumName,
-                                                artists,
-                                                when (item.getJSONObject("track").getJSONObject("album")
-                                                    .getString("release_date_precision")) {
-                                                    "day" -> {
-                                                        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                                                        ReleaseDate(
-                                                            LocalDate.parse(
-                                                                item.getJSONObject("track").getJSONObject("album")
-                                                                    .getString("release_date"), formatter
-                                                            )
+                                                val artistsData = item.getJSONObject("track").getJSONArray("artists")
+                                                val artists = Artists(
+                                                    artistsData.map {
+                                                        it as JSONObject
+                                                        Artist(
+                                                            Name(it.getString("name")),
+                                                            Link(
+                                                                it.getJSONObject("external_urls").getString("spotify")
+                                                            ),
+                                                            TrackList(emptyList()),
+                                                            Artists(emptyList())
                                                         )
                                                     }
-                                                    "month" -> {
-                                                        val formatter =
-                                                            DateTimeFormatterBuilder().appendPattern("yyyy-MM")
-                                                                .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                                                .toFormatter()
-                                                        ReleaseDate(
-                                                            LocalDate.parse(
-                                                                item.getJSONObject("track").getJSONObject("album")
-                                                                    .getString("release_date"), formatter
-                                                            )
-                                                        )
-                                                    }
-                                                    else -> {
-                                                        val formatter =
-                                                            DateTimeFormatterBuilder().appendPattern("yyyy")
-                                                                .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
-                                                                .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                                                .toFormatter()
-                                                        ReleaseDate(
-                                                            LocalDate.parse(
-                                                                item.getJSONObject("track").getJSONObject("album")
-                                                                    .getString("release_date"), formatter
-                                                            )
-                                                        )
-                                                    }
-                                                },
-                                                TrackList(emptyList()),
-                                                Link(
-                                                    item.getJSONObject("track").getJSONObject("album")
-                                                        .getJSONObject("external_urls").getString("spotify")
                                                 )
-                                            )
-                                            val title = Name(item.getJSONObject("track").getString("name"))
-                                            val link = Link(
-                                                item.getJSONObject("track").getJSONObject("external_urls")
-                                                    .getString("spotify")
-                                            )
-                                            val isPlayable = if (item.getJSONObject("track").getBoolean("is_playable"))
-                                                true
-                                            else {
-                                                println("Track playability not certain! Doing extra checks...")
-                                                getTrack(link).playability.isPlayable
-                                            }
-                                            trackItems.add(
-                                                Track(
-                                                    album,
+                                                val album = Album(
+                                                    albumName,
                                                     artists,
-                                                    title,
-                                                    link,
-                                                    Playability(isPlayable)
+                                                    when (item.getJSONObject("track").getJSONObject("album")
+                                                        .getString("release_date_precision")) {
+                                                        "day" -> {
+                                                            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                                                            ReleaseDate(
+                                                                LocalDate.parse(
+                                                                    item.getJSONObject("track").getJSONObject("album")
+                                                                        .getString("release_date"), formatter
+                                                                )
+                                                            )
+                                                        }
+                                                        "month" -> {
+                                                            val formatter =
+                                                                DateTimeFormatterBuilder().appendPattern("yyyy-MM")
+                                                                    .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                                                                    .toFormatter()
+                                                            ReleaseDate(
+                                                                LocalDate.parse(
+                                                                    item.getJSONObject("track").getJSONObject("album")
+                                                                        .getString("release_date"), formatter
+                                                                )
+                                                            )
+                                                        }
+                                                        else -> {
+                                                            val formatter =
+                                                                DateTimeFormatterBuilder().appendPattern("yyyy")
+                                                                    .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+                                                                    .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                                                                    .toFormatter()
+                                                            ReleaseDate(
+                                                                LocalDate.parse(
+                                                                    item.getJSONObject("track").getJSONObject("album")
+                                                                        .getString("release_date"), formatter
+                                                                )
+                                                            )
+                                                        }
+                                                    },
+                                                    TrackList(emptyList()),
+                                                    Link(
+                                                        item.getJSONObject("track").getJSONObject("album")
+                                                            .getJSONObject("external_urls").getString("spotify")
+                                                    )
                                                 )
-                                            )
-                                            itemJob.complete()
+                                                val title = Name(item.getJSONObject("track").getString("name"))
+                                                val link = Link(
+                                                    item.getJSONObject("track").getJSONObject("external_urls")
+                                                        .getString("spotify")
+                                                )
+                                                val isPlayable = if (item.getJSONObject("track").getBoolean("is_playable"))
+                                                    true
+                                                else {
+                                                    println("Track playability not certain! Doing extra checks...")
+                                                    getTrack(link).playability.isPlayable
+                                                }
+                                                trackItems.add(
+                                                    Track(
+                                                        album,
+                                                        artists,
+                                                        title,
+                                                        link,
+                                                        Playability(isPlayable)
+                                                    )
+                                                )
+                                                itemJob.complete()
+                                            } else {
+                                                println("This is a local track. Skipping...")
+                                                playlistLength -= 1
+                                                itemJob.complete()
+                                            }
                                         } else {
-                                            println("This is a local track. Skipping...")
+                                            println("Track id is null. Skipping...")
                                             playlistLength -= 1
                                             itemJob.complete()
                                         }
                                     } else {
-                                        println("Track id is null. Skipping...")
+                                        println("Track data null. Skipping...")
                                         playlistLength -= 1
                                         itemJob.complete()
                                     }
-                                } else {
-                                    println("Track data null. Skipping...")
+                                } catch (e: JSONException) {
+                                    println("Track couldn't be parsed due to JSONException. Skipping...")
                                     playlistLength -= 1
                                     itemJob.complete()
                                 }
-                            } catch (e: JSONException) {
-                                println("Track couldn't be parsed due to JSONException. Skipping...")
-                                playlistLength -= 1
-                                itemJob.complete()
                             }
                         }
                     }
