@@ -757,6 +757,7 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+                    else -> println("HTTP ERROR! CODE ${playlistsData.code}")
                 }
             }
         }
@@ -871,7 +872,6 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
-
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateClientId()
                     }
@@ -991,9 +991,13 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
-
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateClientId()
+                    }
+                    HttpURLConnection.HTTP_BAD_GATEWAY -> {
+                        println("HTTP ERROR! CODE ${likesData.code} BAD GATEWAY")
+                        likesJob.complete()
+                        return@withContext
                     }
                     else -> println("HTTP ERROR! CODE ${likesData.code}")
                 }
@@ -1067,11 +1071,9 @@ class SoundCloud {
                                 println("Failed to get data from JSON, trying again...")
                             }
                         }
-
                         HttpURLConnection.HTTP_UNAUTHORIZED -> {
                             updateClientId()
                         }
-
                         else -> println("HTTP ERROR! CODE: ${tracksData.code.code}")
                     }
                 }
@@ -1126,11 +1128,9 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
-
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateClientId()
                     }
-
                     else -> println("HTTP ERROR! CODE: ${userData.code}")
                 }
             }
@@ -1231,11 +1231,9 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
-
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateClientId()
                     }
-
                     else -> println("HTTP ERROR! CODE: ${artistData.code.code}")
                 }
             }

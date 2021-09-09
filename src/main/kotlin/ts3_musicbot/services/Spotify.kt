@@ -292,9 +292,7 @@ class Spotify(private val market: String = "") {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
-
                     HttpURLConnection.HTTP_UNAUTHORIZED -> updateToken() //token expired, update it.
-
                     HttpURLConnection.HTTP_BAD_REQUEST -> {
                         println("Error ${searchData.code}! Bad request!!")
                         searchJob.complete()
@@ -521,7 +519,7 @@ class Spotify(private val market: String = "") {
                                                 val isPlayable = if (item.getJSONObject("track").getBoolean("is_playable"))
                                                     true
                                                 else {
-                                                    println("Track playability not certain! Doing extra checks...")
+                                                    println("Track $link playability not certain! Doing extra checks...")
                                                     getTrack(link).playability.isPlayable
                                                 }
                                                 trackItems.add(
@@ -1712,11 +1710,9 @@ class Spotify(private val market: String = "") {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
-
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateToken()
                     }
-
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $showLink not found!")
                         show = Show()
@@ -1806,11 +1802,9 @@ class Spotify(private val market: String = "") {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
-
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateToken()
                     }
-
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $episodeLink not found!")
                         episode = Episode()

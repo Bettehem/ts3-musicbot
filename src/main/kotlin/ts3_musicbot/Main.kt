@@ -312,9 +312,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         chatReader.startReading()
                         println("Bot $nickname started listening to the chat in channel $channelName.")
 
-                        val console = Console(object : ConsoleUpdateListener {
+                        val console = Console(commandList, object : ConsoleUpdateListener {
                             override fun onCommandIssued(command: String) {
-                                if (command.startsWith("%"))
+                                if (command.startsWith(commandList.commandPrefix))
                                     chatReader.parseLine("__console__", command)
                                 else {
                                     when (command) {
@@ -359,9 +359,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         }, apiKey, market, spotifyPlayer, channelName, nickname, mpvVolume, commandList)
                         chatReader.startReading()
                         println("Bot $nickname started listening to the chat in channel $channelName.")
-                        val console = Console(object : ConsoleUpdateListener {
+                        val console = Console(commandList, object : ConsoleUpdateListener {
                             override fun onCommandIssued(command: String) {
-                                if (command.startsWith("%"))
+                                if (command.startsWith(commandList.commandPrefix))
                                     chatReader.parseLine("__console__", command)
                                 else {
                                     when (command) {
@@ -552,9 +552,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 )
                 chatReader.startReading()
                 println("Bot ${settings.nickname} started listening to the chat in channel ${settings.channelName}")
-                val console = Console(object : ConsoleUpdateListener {
+                val console = Console(commandList, object : ConsoleUpdateListener {
                     override fun onCommandIssued(command: String) {
-                        if (command.startsWith("%"))
+                        if (command.startsWith(commandList.commandPrefix))
                             chatReader.parseLine("__console__", command)
                         else {
                             when (command) {

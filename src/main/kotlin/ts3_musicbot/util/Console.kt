@@ -2,7 +2,7 @@ package ts3_musicbot.util
 
 import kotlin.system.exitProcess
 
-class Console(private val consoleUpdateListener: ConsoleUpdateListener) {
+class Console(private val commandList: CommandList, private val consoleUpdateListener: ConsoleUpdateListener) {
     private val commandRunner = CommandRunner()
 
     fun startConsole() {
@@ -17,7 +17,7 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener) {
                         "\n\nTS3 MusicBot help:\n\n" +
                                 "<command>\t<explanation>\n" +
                                 "help\t\tShows this help message.\n" +
-                                "%help\t\tShows commands for controlling the actual bot.\n" +
+                                "${commandList.commandList["help"]}\t\tShows commands for controlling the actual bot.\n" +
                                 "say\t\tSend a message to the chat.\n" +
                                 "save-settings\tSaves current settings in to a config file.\n" +
                                 "clear\t\tClears the screen.\n" +
@@ -26,16 +26,16 @@ class Console(private val consoleUpdateListener: ConsoleUpdateListener) {
                                 ""
                     )
                 }
-                "say" -> consoleUpdateListener.onCommandIssued("%$userCommand")
+                "say" -> consoleUpdateListener.onCommandIssued(commandList.commandPrefix+userCommand)
                 "save-settings" -> consoleUpdateListener.onCommandIssued(command)
                 "clear" -> print("\u001b[H\u001b[2J")
                 "exit" -> exit(command)
                 "quit" -> exit(command)
                 "" -> continue@loop
                 else -> {
-                    if (command.startsWith("%") && !command.startsWith("%say"))
+                    if (command.startsWith(commandList.commandPrefix) && !command.startsWith("${commandList.commandPrefix}say"))
                         consoleUpdateListener.onCommandIssued(userCommand)
-                    else if (command.startsWith("!")) {
+                    else if (command.contains("^\\\\?!.+".toRegex())) {
                         commandRunner.runCommand(userCommand.substringAfter("!"), inheritIO = true)
                     } else
                         println("Command $command not found! Type \"help\" to see available commands.")
