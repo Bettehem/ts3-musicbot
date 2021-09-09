@@ -323,19 +323,21 @@ class SongQueue(
                                 }
                             }
                             LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> {
+                                val mpvRunnable = Runnable {
+                                    commandRunner.runCommand(
+                                        "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket " +
+                                                "--ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0" +
+                                                (if (track.linkType == LinkType.YOUTUBE) ",cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" else "") +
+                                                " --ytdl \"${track.link}\" --volume=$mpvVolume",
+                                        inheritIO = true,
+                                        ignoreOutput = true
+                                    )
+                                }
                                 Thread {
-                                    Runnable {
-                                        commandRunner.runCommand(
-                                            "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket " +
-                                                    "--ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0" +
-                                                    (if (track.linkType == LinkType.YOUTUBE) ",cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" else "") +
-                                                    " --ytdl \"${track.link}\" --volume=$mpvVolume",
-                                            inheritIO = true,
-                                            ignoreOutput = true
-                                        )
-                                    }.run()
+                                    mpvRunnable.run()
                                 }.start()
                                 delay(5000)
+                                var waitAmount = 0
                                 while (commandRunner.runCommand(
                                         "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${getPlayer()}(.+)?\" | grep -v \"grep\"",
                                         printOutput = false
@@ -343,9 +345,16 @@ class SongQueue(
                                 ) {
                                     //do nothing
                                     println("Waiting for ${getPlayer()} to start.")
-                                    delay(100)
+                                    delay(250)
+                                    if (waitAmount < 20) {
+                                        waitAmount++
+                                    } else {
+                                        waitAmount = 0
+                                        Thread {
+                                            mpvRunnable.run()
+                                        }.start()
+                                    }
                                 }
-
                             }
                             else -> {
                                 println("Error: ${track.link} is not a supported link type!")

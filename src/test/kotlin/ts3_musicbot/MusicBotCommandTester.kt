@@ -20,6 +20,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class MusicBotCommandTester : ChatUpdateListener, CommandListener {
+    private val commandList = CommandList()
     private val spotifyMarket = "FI"
     private val userName = "__console__"
     private val spotifyLink = Link("https://open.spotify.com/track/19gtYiBXEhSyTCOe1GyKDB")
@@ -30,7 +31,7 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
     private val youTubePlaylistLink = Link("https://www.youtube.com/playlist?list=PLVzaRVhV8Ebb5m6IIEpOJeOIBMKk4AVwm")
     private val soundCloudLink = Link("https://soundcloud.com/iamleeya/something-worth-dreaming-of")
     private val soundCloudPlaylistLink = Link("https://soundcloud.com/bettehem/sets/jeesjees")
-    private val chatReader = ChatReader("", File(""), this, this, "", spotifyMarket, "", "", "", 60)
+    private val chatReader = ChatReader("", File(""), this, this, "", spotifyMarket, "", "", "", 60, commandList)
 
     private fun runCommand(
         chatReader: ChatReader, command: String, username: String = userName,
@@ -46,17 +47,17 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
             val chatReader = ChatReader("", File(""), this@MusicBotCommandTester, object : CommandListener {
                 override fun onCommandExecuted(command: String, output: String, extra: Any?) {
                     if (command.substringAfter("%help").isNotEmpty()) {
-                        assertEquals(CommandList.helpMessages.getValue(command.substringAfter("%help ")), output)
+                        assertEquals(commandList.helpMessages[command.substringAfter(" ")], output)
                     } else {
-                        assertEquals(CommandList.helpMessages.getValue("%help"), output)
+                        assertEquals(commandList.helpMessages["%help"], output)
                     }
                 }
-            }, "", spotifyMarket, "", "", "", 60)
+            }, "", spotifyMarket, "", "", "", 60, commandList)
             val helpUser = "test"
             runCommand(chatReader, "%help", helpUser)
             delay(5)
-            CommandList.commandList.forEach {
-                runCommand(chatReader, "%help $it", helpUser)
+            commandList.commandList.forEach {
+                runCommand(chatReader, "%help ${it.key}", helpUser)
                 delay(5)
             }
         }

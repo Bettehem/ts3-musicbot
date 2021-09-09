@@ -14,16 +14,13 @@ import ts3_musicbot.chat.ChatUpdate
 import ts3_musicbot.chat.ChatUpdateListener
 import ts3_musicbot.chat.CommandListener
 import ts3_musicbot.client.TeamSpeak
-import ts3_musicbot.util.BotSettings
-import ts3_musicbot.util.CommandList.commandList
-import ts3_musicbot.util.CommandRunner
-import ts3_musicbot.util.Console
-import ts3_musicbot.util.ConsoleUpdateListener
+import ts3_musicbot.util.CommandList
 import java.io.File
 import java.io.PrintWriter
 import kotlin.system.exitProcess
 import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.IO
+import ts3_musicbot.util.*
 
 var inputFilePath = ""
 private lateinit var window: Stage
@@ -32,6 +29,7 @@ private val commandRunner = CommandRunner()
 private var spotifyPlayer = "spotify"
 private var useOfficialTsClient = true
 private var mpvVolume = 60
+private var commandList = CommandList()
 private lateinit var teamSpeak: TeamSpeak
 
 class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, CommandListener {
@@ -76,6 +74,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
     private var tsClientOfficialRadioButton = RadioButton()
     private var mpvVolumeTextView = Label()
     private var mpvVolumeEditText = TextField()
+    private var loadCustomCommandsButton = Button()
     private var saveSettingsButton = Button()
     private var loadSettingsButton = Button()
     private var startBotButton = Button()
@@ -98,6 +97,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 var channelFilename = ""
                 var market = ""
                 var configFile = ""
+                var commandConfig = ""
 
                 val helpMessage = "\n" +
                         "TS3 Music Bot help message\n" +
@@ -114,7 +114,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "--spotify <client>       Specify a spotify client to use. Can be spotify, ncspot or spotifyd." +
                         "                         If you use ncspot, before starting the bot you also need to export your terminal app of preference as \$TERMINAL.\n" +
                         "                         Example command: export TERMINAL=xfce4-terminal\n" +
-                        "--config                 Provide a config file where to read arguments from\n" +
+                        "--config                 Provide a config file where to read the bot's settings from\n" +
+                        "--command-config         Provide a config file where to read custom commands from\n" +
                         "--use-internal-tsclient  Use the internal TeamSpeak client instead of the official one.\n" +
                         "--mpv-volume <volume>    Set the volume for MPV media player, which is used for YouTube/SoundCloud playback.\n" +
                         "                         It's usually louder than Spotify, so by default MPV's volume will be at 60.\n"
@@ -168,6 +169,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             if (args.size >= argPos + 1)
                                 configFile = args[argPos + 1]
                         }
+                        "--command-config" -> {
+                            if (args.size >= argPos + 1)
+                                commandConfig = args[argPos + 1]
+                        }
                         "--use-internal-tsclient" -> {
                             if (args.size >= argPos + 1)
                                 useOfficialTsClient = false
@@ -192,6 +197,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     spotifyPlayer = settings.spotifyPlayer
                     useOfficialTsClient = settings.useOfficialTsClient
                     mpvVolume = settings.mpvVolume
+                }
+
+                if (commandConfig.isNotEmpty()) {
+                    commandList = loadCommands(File(commandConfig))
                 }
 
                 if (useOfficialTsClient) {
@@ -299,7 +308,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             override fun onCommandExecuted(command: String, output: String, extra: Any?) {
                                 print("\nCommand \"${command.substringBefore(" ")}\" has been executed.\nOutput:\n$output\n\nCommand: ")
                             }
-                        }, apiKey, market, spotifyPlayer, channelName, nickname, mpvVolume)
+                        }, apiKey, market, spotifyPlayer, channelName, nickname, mpvVolume, commandList)
                         chatReader.startReading()
                         println("Bot $nickname started listening to the chat in channel $channelName.")
 
@@ -347,7 +356,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             override fun onCommandExecuted(command: String, output: String, extra: Any?) {
                                 print("\nCommand \"$command\" has been executed.\nOutput:\n$output\n\nCommand: ")
                             }
-                        }, apiKey, market, spotifyPlayer, channelName, nickname, mpvVolume)
+                        }, apiKey, market, spotifyPlayer, channelName, nickname, mpvVolume, commandList)
                         chatReader.startReading()
                         println("Bot $nickname started listening to the chat in channel $channelName.")
                         val console = Console(object : ConsoleUpdateListener {
@@ -457,6 +466,25 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             return settings
         }
 
+        private fun loadCommands(commandsFile: File): CommandList {
+            var prefix = commandList.commandPrefix
+            val commands = mutableMapOf<String, String>()
+            if (commandsFile.exists()) {
+                commandsFile.readLines().forEach { line ->
+                    if (line.contains("[A-Z_]+(\\s+)?=(\\S+)?".toRegex())) {
+                        val (key, value) = line.lowercase().replaceFirst('_', '-').split("=")
+                        if (key == "command-prefix")
+                            prefix = value
+                        else
+                            commands[key] = value
+                    }
+                }
+            }
+            commandList.applyCustomCommands(prefix, commands)
+            println("Loaded custom commands from ${commandsFile.absolutePath}")
+            return commandList
+        }
+
         /**
          * @param settings settings that are used to start teamspeak and connect to desired server
          * @return returns true if starting teamspeak is successful, false if it fails
@@ -468,54 +496,66 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     commandRunner.runCommand(
                         ignoreOutput = true,
                         command = "teamspeak3 -nosingleinstance \"ts3server://${settings.serverAddress}" +
-                        "?port=${
-                            settings.serverPort.ifEmpty {
-                                "9987"
-                            }
-                        }&nickname=${settings.nickname.replace(" ", "%20")}&${
-                            if ((settings.serverPassword.isNotEmpty())) {
-                                "password=${settings.serverPassword}"
-                            } else {
-                                ""
-                            }
-                        }&${
-                            if (settings.channelName.isNotEmpty()) {
-                                "channel=${settings.channelName.replace(" ", "%20")}"
-                            } else {
-                                ""
-                            }
-                        } &\""
+                                "?port=${
+                                    settings.serverPort.ifEmpty {
+                                        "9987"
+                                    }
+                                }&nickname=${settings.nickname.replace(" ", "%20")}&${
+                                    if ((settings.serverPassword.isNotEmpty())) {
+                                        "password=${settings.serverPassword}"
+                                    } else {
+                                        ""
+                                    }
+                                }&${
+                                    if (settings.channelName.isNotEmpty()) {
+                                        "channel=${settings.channelName.replace(" ", "%20")}"
+                                    } else {
+                                        ""
+                                    }
+                                } &\""
                     )
                     Thread.sleep(1000)
                     //wait for teamspeak to start
                     while (!commandRunner.runCommand("ps aux | grep ts3client | grep -v grep", printOutput = false)
-                    .first.outputText.contains("ts3client_linux".toRegex())
-                ) {
-                    //do nothing
-                }
-                Thread.sleep(5000)
+                            .first.outputText.contains("ts3client_linux".toRegex())
+                    ) {
+                        //do nothing
+                    }
+                    Thread.sleep(5000)
                 } else {
                     teamSpeak = TeamSpeak(
                         settings.nickname, settings.serverAddress, settings.serverPassword, settings.channelName,
                         if (settings.serverPort.isNotEmpty()) settings.serverPort.toInt() else 9987
                     )
                 }
-                val chatReader = ChatReader("Official Client", getChannelFile(settings), object : ChatUpdateListener {
-                    override fun onChatUpdated(update: ChatUpdate) {
-                        if (update.message.startsWith("%"))
-                        print("\nUser ${update.userName} issued command \"${update.message}\"\nCommand: ")
-                    }
-                }, object : CommandListener {
-                    override fun onCommandExecuted(command: String, output: String, extra: Any?) {
-                        print("\nCommand \"$command\" has been executed.\nOutput:\n$output\n\nCommand: ")
-                    }
-                }, settings.apiKey, settings.market, settings.spotifyPlayer, settings.channelName, settings.nickname, settings.mpvVolume)
+                val chatReader = ChatReader(
+                    "Official Client",
+                    getChannelFile(settings),
+                    object : ChatUpdateListener {
+                        override fun onChatUpdated(update: ChatUpdate) {
+                            if (update.message.startsWith("%"))
+                                print("\nUser ${update.userName} issued command \"${update.message}\"\nCommand: ")
+                        }
+                    },
+                    object : CommandListener {
+                        override fun onCommandExecuted(command: String, output: String, extra: Any?) {
+                            print("\nCommand \"$command\" has been executed.\nOutput:\n$output\n\nCommand: ")
+                        }
+                    },
+                    settings.apiKey,
+                    settings.market,
+                    settings.spotifyPlayer,
+                    settings.channelName,
+                    settings.nickname,
+                    settings.mpvVolume,
+                    commandList
+                )
                 chatReader.startReading()
                 println("Bot ${settings.nickname} started listening to the chat in channel ${settings.channelName}")
                 val console = Console(object : ConsoleUpdateListener {
                     override fun onCommandIssued(command: String) {
                         if (command.startsWith("%"))
-                        chatReader.parseLine("__console__", command)
+                            chatReader.parseLine("__console__", command)
                         else {
                             when (command) {
                                 "save-settings" -> {
@@ -525,7 +565,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         }
                     }
                 })
-                CoroutineScope(IO).launch{console.startConsole()}
+                CoroutineScope(IO).launch { console.startConsole() }
                 return true
             } else {
                 statusTextView.text =
@@ -684,7 +724,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         spotifydRadioButton.isSelected = false
         spotifyPlayerRadioGroup.selectedToggleProperty().addListener { _, _, _ ->
             when (spotifyPlayerRadioGroup.selectedToggle) {
-                spotifyRadioButton -> spotifyPlayer = "spotify"                  
+                spotifyRadioButton -> spotifyPlayer = "spotify"
                 ncspotRadioButton -> spotifyPlayer = "ncspot"
                 spotifydRadioButton -> spotifyPlayer = "spotifyd"
             }
@@ -702,6 +742,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         mpvVolumeTextView.isVisible = false
         mpvVolumeEditText.isVisible = false
 
+        loadCustomCommandsButton.text = "Load custom commands"
+        loadCustomCommandsButton.isVisible = false
+
         saveSettingsButton.text = "Save settings"
         loadSettingsButton.text = "Load settings"
         startBotButton.text = "Start Bot"
@@ -711,6 +754,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
 
 
         browseChannelFileButton.onAction = this
+        loadCustomCommandsButton.onAction = this
         saveSettingsButton.onAction = this
         loadSettingsButton.onAction = this
         startBotButton.onAction = this
@@ -751,6 +795,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         tsClientOfficialRadioButton.isVisible = showAdvanced
         mpvVolumeTextView.isVisible = showAdvanced
         mpvVolumeEditText.isVisible = showAdvanced
+        loadCustomCommandsButton.isVisible = showAdvanced
     }
 
     private fun ui() {
@@ -808,7 +853,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             tsClientInternalRadioButton,
             tsClientOfficialRadioButton,
             mpvVolumeTextView,
-            mpvVolumeEditText
+            mpvVolumeEditText,
+            loadCustomCommandsButton
         )
         scrollPane.content = itemLayout
         scrollPane.minHeight = 250.0
@@ -835,6 +881,17 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 channelFilePathEditText.text = inputFilePath
             }
 
+            loadCustomCommandsButton -> {
+                val fileChooser = FileChooser()
+                fileChooser.title = "Select custom commands config file."
+                fileChooser.initialDirectory = File(System.getProperty("user.home"))
+                fileChooser.selectedExtensionFilter =
+                    FileChooser.ExtensionFilter("Custom Commands config", listOf("*.config", "*.conf"))
+
+                val file = fileChooser.showOpenDialog(window)
+                commandList = loadCommands(file)
+            }
+
             saveSettingsButton -> {
                 val apiKey = apiKeyEditText.text
                 val serverAddress = serverAddressEditText.text
@@ -848,7 +905,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 val channelFilePath = channelFilePathEditText.text
                 val nickname = nicknameEditText.text
                 val market = marketEditText.text
-                mpvVolume = mpvVolumeEditText.text.toInt()
+                mpvVolume = mpvVolumeEditText.text.ifEmpty { "$mpvVolume" }.toInt()
 
                 val settings = BotSettings(
                     apiKey,
@@ -960,7 +1017,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
 
 
     override fun onChatUpdated(update: ChatUpdate) {
-        if (commandList.any { update.message.startsWith(it) }) {
+        if (commandList.commandList.any { update.message.startsWith(it.value) }) {
             statusTextView.appendText("\nUser: ${update.userName}\nCommand: ${update.message}\n")
             statusScrollPane.layout()
             statusScrollPane.vvalue = 1.0
