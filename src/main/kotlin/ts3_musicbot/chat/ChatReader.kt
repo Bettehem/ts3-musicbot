@@ -160,7 +160,7 @@ class ChatReader(
                             //queue-add and queue-playnext command
                             commandString.contains("^(${commandList.commandList["queue-add"]}|${commandList.commandList["queue-playnext"]})(\\s+-(s|(p\\s+[0-9]+)))*(\\s*(\\[URL])?((spotify:(user:\\S+:)?(track|album|playlist|show|episode|artist):\\S+)|(https?://\\S+))(\\[/URL])?\\s*,?\\s*)+(\\s+-(s|(p\\s+[0-9]+)))*\$".toRegex()) -> {
                                 var commandSuccessful = false
-                                val shouldPlayNext = commandString.contains("^${commandList.commandPrefix}queue-playnext".toRegex())
+                                val shouldPlayNext = commandString.contains("^${commandList.commandList["queue-playnext"]}".toRegex())
                                 var shouldShuffle = false
                                 var hasCustomPosition = false
                                 var customPosition = if (shouldPlayNext) {
@@ -1337,7 +1337,7 @@ class ChatReader(
                         } else {
                             printToChat(
                                 userName,
-                                listOf("Command not found! Try ${commandList.commandList["help "]}to see available commands."),
+                                listOf("Command not found! Try ${commandList.commandList["help"]} to see available commands."),
                                 apikey
                             )
                             commandJob.complete()
