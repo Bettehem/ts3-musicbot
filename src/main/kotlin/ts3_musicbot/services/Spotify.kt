@@ -26,18 +26,19 @@ class Spotify(private val market: String = "") {
         SearchType.Type.SHOW,
         SearchType.Type.EPISODE
     )
+
     private fun encode(text: String) = runBlocking {
         URLEncoder.encode(text, Charsets.UTF_8.toString())
-        .replace("'", "&#39;")
-        .replace("&", "&amp;")
-        .replace("/", "&#x2F;")
+            .replace("'", "&#39;")
+            .replace("&", "&amp;")
+            .replace("/", "&#x2F;")
     }
 
     private fun decode(text: String) = runBlocking {
         URLDecoder.decode(text, Charsets.UTF_8.toString())
-        .replace("&#39;", "'")
-        .replace("&amp;", "&")
-        .replace("&#x2F;", "/")
+            .replace("&#39;", "'")
+            .replace("&amp;", "&")
+            .replace("&#x2F;", "/")
     }
 
     suspend fun updateToken() {
@@ -90,24 +91,29 @@ class Spotify(private val market: String = "") {
         return token
     }
 
-    suspend fun searchSpotify(type: SearchType, searchQuery: SearchQuery): SearchResults {
+    suspend fun searchSpotify(type: SearchType, searchQuery: SearchQuery, resultLimit: Int = 10): SearchResults {
         val searchResults = ArrayList<SearchResult>()
 
-        fun searchData(): Response {
+        fun searchData(limit: Int = resultLimit, offset: Int = 0, link: Link = Link("")): Response {
             val urlBuilder = StringBuilder()
-            urlBuilder.append("$apiURL/search?")
-            urlBuilder.append("q=${encode(searchQuery.query)}")
-            urlBuilder.append(
-                "&type=${
-                    if (type.getType() == SearchType.Type.SHOW)
-                        type.type.replace("podcast", "show")
-                    else
-                        type.type
-                }"
-            )
-            urlBuilder.append("&limit=10")
-            if (market.isNotEmpty())
-                urlBuilder.append("&market=$market")
+            if (link.isNotEmpty()) {
+                urlBuilder.append("$link")
+            } else {
+                urlBuilder.append("$apiURL/search?")
+                urlBuilder.append("q=${encode(searchQuery.query)}")
+                urlBuilder.append(
+                    "&type=${
+                        if (type.getType() == SearchType.Type.SHOW)
+                            type.type.replace("podcast", "show")
+                        else
+                            type.type
+                    }"
+                )
+                urlBuilder.append("&limit=$limit")
+                urlBuilder.append("&offset=$offset")
+                if (market.isNotEmpty())
+                    urlBuilder.append("&market=$market")
+            }
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
                 RequestMethod("GET"),
@@ -272,39 +278,65 @@ class Spotify(private val market: String = "") {
         }
 
         println("Searching for \"$searchQuery\" on Spotify...")
-        val searchJob = Job()
-        withContext(IO + searchJob) {
-            while (true) {
-                val searchData = searchData()
-                //check http return code
-                when (searchData.code.code) {
-                    HttpURLConnection.HTTP_OK -> {
-                        try {
-                            val resultData = JSONObject(searchData.data.data)
-                            withContext(Default + searchJob) {
-                                parseResults(resultData)
+        val searches = ArrayList<Pair<Int, Int>>()
+        var remainingResults = resultLimit
+        var resultOffset = 0
+        //Spotify allows a maximum of 50 results, so we have to do searches in smaller chunks in case the user wants more than 50 results
+        val maxResults = 50
+        while (true) {
+            if (remainingResults > maxResults) {
+                searches.add(Pair(maxResults, resultOffset))
+                remainingResults -= maxResults
+                resultOffset += maxResults
+            } else {
+                searches.add(Pair(remainingResults, resultOffset))
+                break
+            }
+        }
+        val resultsData = ArrayList<Response>()
+        for (search in searches) {
+            resultsData.add(searchData(search.first, search.second))
+        }
+        for (result in resultsData) {
+            val searchJob = Job()
+            withContext(IO + searchJob) {
+                var searchData = result
+                while (true) {
+                    //check http return code
+                    when (searchData.code.code) {
+                        HttpURLConnection.HTTP_OK -> {
+                            try {
+                                val resultData = JSONObject(searchData.data.data)
+                                withContext(Default + searchJob) {
+                                    parseResults(resultData)
+                                }
+                                searchJob.complete()
+                                return@withContext
+                            } catch (e: JSONException) {
+                                //JSON broken, try getting the data again
+                                println("Failed JSON:\n${searchData.data}\n")
+                                println("Failed to get data from JSON, trying again...")
+                                searchData = searchData(link = Link(result.url.toString()))
                             }
+                        }
+                        HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                            //token expired, update it.
+                            updateToken()
+                            searchData = searchData(link = Link(result.url.toString()))
+                        }
+                        HttpURLConnection.HTTP_BAD_REQUEST -> {
+                            println("Error ${searchData.code}! Bad request!!")
                             searchJob.complete()
                             return@withContext
-                        } catch (e: JSONException) {
-                            //JSON broken, try getting the data again
-                            println("Failed JSON:\n${searchData.data}\n")
-                            println("Failed to get data from JSON, trying again...")
                         }
+                        HTTP_TOO_MANY_REQUESTS -> {
+                            println("Too many requests! Waiting for ${searchData.data.data} seconds.")
+                            //wait for given time before next request.
+                            delay(searchData.data.data.toLong() * 1000)
+                            searchData = searchData(link = Link(result.url.toString()))
+                        }
+                        else -> println("HTTP ERROR! CODE: ${searchData.code}")
                     }
-                    HttpURLConnection.HTTP_UNAUTHORIZED -> updateToken() //token expired, update it.
-                    HttpURLConnection.HTTP_BAD_REQUEST -> {
-                        println("Error ${searchData.code}! Bad request!!")
-                        searchJob.complete()
-                        return@withContext
-                    }
-                    HTTP_TOO_MANY_REQUESTS -> {
-                        println("Too many requests! Waiting for ${searchData.data.data} seconds.")
-                        //wait for given time before next request.
-                        delay(searchData.data.data.toLong() * 1000)
-                    }
-                    else -> println("HTTP ERROR! CODE: ${searchData.code}")
-
                 }
             }
         }
@@ -516,12 +548,13 @@ class Spotify(private val market: String = "") {
                                                     item.getJSONObject("track").getJSONObject("external_urls")
                                                         .getString("spotify")
                                                 )
-                                                val isPlayable = if (item.getJSONObject("track").getBoolean("is_playable"))
-                                                    true
-                                                else {
-                                                    println("Track $link playability not certain! Doing extra checks...")
-                                                    getTrack(link).playability.isPlayable
-                                                }
+                                                val isPlayable =
+                                                    if (item.getJSONObject("track").getBoolean("is_playable"))
+                                                        true
+                                                    else {
+                                                        println("Track $link playability not certain! Doing extra checks...")
+                                                        getTrack(link).playability.isPlayable
+                                                    }
                                                 trackItems.add(
                                                     Track(
                                                         album,
@@ -1112,7 +1145,7 @@ class Spotify(private val market: String = "") {
             urlBuilder.append("$apiURL/artists/")
             urlBuilder.append(artistLink.getId())
             urlBuilder.append("/albums")
-            urlBuilder.append("?market=${market.ifEmpty{ defaultMarket }}")
+            urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             //spotify has a max limit of 50 albums per query
             urlBuilder.append("&limit=50")
             urlBuilder.append("&offset=$offset")
@@ -1137,7 +1170,12 @@ class Spotify(private val market: String = "") {
             )
         }
 
-        suspend fun parseData(artistData: JSONObject, topTracksData: JSONObject, albumsData: JSONObject, relatedArtists: JSONObject): Artist {
+        suspend fun parseData(
+            artistData: JSONObject,
+            topTracksData: JSONObject,
+            albumsData: JSONObject,
+            relatedArtists: JSONObject
+        ): Artist {
             val name = Name(artistData.getString("name"))
             val topTracks = ArrayList<Track>()
             val topTracksList = topTracksData.getJSONArray("tracks")
@@ -1218,8 +1256,8 @@ class Spotify(private val market: String = "") {
                                 }
                                 "month" -> {
                                     val formatter = DateTimeFormatterBuilder().appendPattern("yyyy-MM")
-                                    .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                    .toFormatter()
+                                        .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                                        .toFormatter()
                                     ReleaseDate(
                                         LocalDate.parse(
                                             data.getString("release_date"), formatter
@@ -1228,9 +1266,9 @@ class Spotify(private val market: String = "") {
                                 }
                                 else -> {
                                     val formatter = DateTimeFormatterBuilder().appendPattern("yyyy")
-                                    .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
-                                    .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                    .toFormatter()
+                                        .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+                                        .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                                        .toFormatter()
                                     ReleaseDate(
                                         LocalDate.parse(
                                             data.getString("release_date"), formatter

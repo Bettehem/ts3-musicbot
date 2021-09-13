@@ -70,7 +70,7 @@ class YouTube {
                                 Album(releaseDate = releaseDate),
                                 Artists(
                                     listOf(
-                                        itemData.getJSONObject("snippet").let { artist -> 
+                                        itemData.getJSONObject("snippet").let { artist ->
                                             Artist(
                                                 Name(artist.getString("channelTitle")),
                                                 Link("https://www.youtube.com/channel/${artist.getString("channelId")}")
@@ -551,7 +551,7 @@ class YouTube {
      * @param searchQuery search keywords
      * @return returns top 10 results from the search
      */
-    suspend fun searchYoutube(searchType: SearchType, searchQuery: SearchQuery): SearchResults {
+    suspend fun searchYoutube(searchType: SearchType, searchQuery: SearchQuery, resultLimit: Int = 10): SearchResults {
         fun encode(text: String) = runBlocking {
             URLEncoder.encode(text, Charsets.UTF_8.toString())
                 .replace("'", "&#39;")
@@ -566,27 +566,42 @@ class YouTube {
                 .replace("&x2F;", "/")
         }
 
-        fun searchData(apiKey: String = apiKey1): Response {
+        fun searchData(
+            apiKey: String = apiKey1,
+            limit: Int = resultLimit,
+            pageToken: String = "",
+            link: Link = Link("")
+        ): Response {
             val urlBuilder = StringBuilder()
-            urlBuilder.append("$apiUrl/search?")
-            urlBuilder.append("q=${encode(searchQuery.query)}")
-            urlBuilder.append("&type=${searchType.type.replace("track", "video")}")
-            urlBuilder.append("&maxResults=10")
-            urlBuilder.append("&part=snippet")
-            urlBuilder.append("&key=$apiKey")
+            if (link.isNotEmpty()) {
+                urlBuilder.append(link.link.substringBefore("&key="))
+                urlBuilder.append("&key=$apiKey")
+            } else {
+                urlBuilder.append("$apiUrl/search?")
+                urlBuilder.append("q=${encode(searchQuery.query)}")
+                urlBuilder.append("&type=${searchType.type.replace("track", "video")}")
+                urlBuilder.append("&maxResults=$limit")
+                urlBuilder.append("&part=snippet")
+                if (pageToken.isNotEmpty())
+                    urlBuilder.append("&pageToken=$pageToken")
+                urlBuilder.append("&key=$apiKey")
+            }
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
 
         val searchResults = ArrayList<SearchResult>()
+        println("Searching for \"$searchQuery\" on YouTube...")
         val searchJob = Job()
         var key = apiKey1
         withContext(IO + searchJob) {
+            //YouTube allows a maximum of 50 results, so we have to do searches in smaller chunks in case the user wants more than 50 results
+            val maxResults = 50
+            var searchData = searchData(key, if (resultLimit > maxResults) maxResults else resultLimit)
             while (true) {
-                val result = searchData(key)
-                when (result.code.code) {
+                when (searchData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val responseData = JSONObject(result.data.data)
+                            val responseData = JSONObject(searchData.data.data)
                             when (searchType.type) {
                                 "track", "video" -> {
                                     val results = responseData.getJSONArray("items")
@@ -631,8 +646,16 @@ class YouTube {
                                     }
                                 }
                             }
-                            searchJob.complete()
-                            return@withContext
+                            if (searchResults.size < resultLimit && responseData.has("nextPageToken")) {
+                                searchData = searchData(
+                                    key,
+                                    resultLimit - searchResults.size,
+                                    responseData.getString("nextPageToken")
+                                )
+                            } else {
+                                searchJob.complete()
+                                return@withContext
+                            }
                         } catch (e: Exception) {
                             e.printStackTrace()
                             println("Error! JSON Broken!")
@@ -641,16 +664,17 @@ class YouTube {
                         }
                     }
                     HttpURLConnection.HTTP_FORBIDDEN -> {
-                        if (key == apiKey1)
+                        if (key == apiKey1) {
                             key = apiKey2
-                        else {
-                            println("HTTP ERROR! CODE: ${result.code}")
+                            searchData = searchData(key, link = Link(searchData.url.toString()))
+                        } else {
+                            println("HTTP ERROR! CODE: ${searchData.code}")
                             searchJob.complete()
                             return@withContext
                         }
                     }
                     else -> {
-                        println("HTTP ERROR! CODE: ${result.code}")
+                        println("HTTP ERROR! CODE: ${searchData.code}")
                         searchJob.complete()
                         return@withContext
                     }

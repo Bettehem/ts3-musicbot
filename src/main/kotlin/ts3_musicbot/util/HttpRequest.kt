@@ -11,7 +11,7 @@ data class ExtraProperties(val properties: List<String>)
 data class PostData(val data: List<String>)
 data class ResponseCode(val code: Int)
 data class ResponseData(val data: String)
-data class Response(val code: ResponseCode, val data: ResponseData)
+data class Response(val code: ResponseCode, val data: ResponseData, val url: URL)
 
 const val HTTP_TOO_MANY_REQUESTS = 429
 
@@ -84,7 +84,8 @@ fun sendHttpRequest(
                     ""
                 }
             }
-        )
+        ),
+        url
     )
 
 }

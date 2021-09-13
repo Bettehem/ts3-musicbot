@@ -56,27 +56,27 @@ data class CommandList(
             Pair(
                 "help", "\n" +
                         "General commands:\n" +
-                        "${commandList["help"]} <command>              -Shows this help message. Use ${commandList["help"]} <command> to get more help on a specific command.\n" +
-                        "${commandList["queue-add"]}                   -Add track(s) to queue.\n" +
-                        "${commandList["queue-playnext"]}              -Add track/playlist/album to the top of the queue. Add multiple links separated by a comma \",\". Shuffle with the -s option\n" +
-                        "${commandList["queue-play"]}                  -Play the song queue\n" +
-                        "${commandList["queue-list"]} <--all,--limit>  -Lists current songs in queue. Add the -a/--all option to show all tracks or -l/--limit to set a limit to the amount of tracks.\n" +
-                        "${commandList["queue-clear"]}                 -Clears the song queue\n" +
-                        "${commandList["queue-shuffle"]}               -Shuffles the queue\n" +
-                        "${commandList["queue-skip"]}                  -Skips current song\n" +
-                        "${commandList["queue-voteskip"]}              -Vote to skip the currently playing track. All users currently listening will also have to run ${commandList["queue-voteskip"]} for the track to be skipped.\n" +
-                        "${commandList["queue-move"]} <link> <pos>     -Moves a track to a desired position in the queue. <link> should be your song link and <pos> should be the new position of your song.\n" +
-                        "${commandList["queue-stop"]}                  -Stops the queue\n" +
-                        "${commandList["queue-status"]}                -Returns the status of the song queue\n" +
-                        "${commandList["queue-nowplaying"]}            -Returns information on the currently playing track\n" +
-                        "${commandList["queue-pause"]}                 -Pauses playback\n" +
-                        "${commandList["queue-resume"]}                -Resumes playback\n" +
-                        "${commandList["sp-search"]} <type> <text>     -Search on Spotify. <type> can be track, album, playlist, artist, show or episode.\n" +
-                        "${commandList["yt-search"]} <type> <text>     -Search on YouTube. Shows 10 first results. <type> can be track, video or playlist\n" +
-                        "${commandList["sc-search"]} <type> <text>     -Search on SoundCloud. Shows 10 first results. <type> can be track, playlist, album, artist or user\n" +
-                        "${commandList["sp-info"]} <link>              -Shows info on the given link. <link> can be a Spotify link or a Spotify URI\n" +
-                        "${commandList["yt-info"]} <link>              -Shows info on the given link. <link> can be a YouTube link.\n" +
-                        "${commandList["sc-info"]} <link>              -Shows info on the given link. <link> can be a SoundCloud link\n" +
+                        "${commandList["help"]} <command>                  -Shows this help message. Use ${commandList["help"]} <command> to get more help on a specific command.\n" +
+                        "${commandList["queue-add"]}                       -Add track(s) to queue.\n" +
+                        "${commandList["queue-playnext"]}                  -Add track/playlist/album to the top of the queue. Add multiple links separated by a comma \",\". Shuffle with the -s option\n" +
+                        "${commandList["queue-play"]}                      -Play the song queue\n" +
+                        "${commandList["queue-list"]} <--all,--limit>      -Lists current songs in queue. Add the -a/--all option to show all tracks or -l/--limit to set a limit to the amount of tracks.\n" +
+                        "${commandList["queue-clear"]}                     -Clears the song queue\n" +
+                        "${commandList["queue-shuffle"]}                   -Shuffles the queue\n" +
+                        "${commandList["queue-skip"]}                      -Skips current song\n" +
+                        "${commandList["queue-voteskip"]}                  -Vote to skip the currently playing track. All users currently listening will also have to run ${commandList["queue-voteskip"]} for the track to be skipped.\n" +
+                        "${commandList["queue-move"]} <link> <pos>         -Moves a track to a desired position in the queue. <link> should be your song link and <pos> should be the new position of your song.\n" +
+                        "${commandList["queue-stop"]}                      -Stops the queue\n" +
+                        "${commandList["queue-status"]}                    -Returns the status of the song queue\n" +
+                        "${commandList["queue-nowplaying"]}                -Returns information on the currently playing track\n" +
+                        "${commandList["queue-pause"]}                     -Pauses playback\n" +
+                        "${commandList["queue-resume"]}                    -Resumes playback\n" +
+                        "${commandList["sp-search"]} <type> <text> <limit> -Search on Spotify. <type> can be track, album, playlist, artist, show or episode. You can also limit the amount of search results with the -l/--limit flag.\n" +
+                        "${commandList["yt-search"]} <type> <text> <limit> -Search on YouTube. Shows 10 first results by default. <type> can be track, video or playlist. You can set the amount of results with the -l/--limit flag.\n" +
+                        "${commandList["sc-search"]} <type> <text> <limit> -Search on SoundCloud. Shows 10 first results by default. <type> can be track, playlist, album, artist or user. You can set the amount of results with the -l/--limit flag.\n" +
+                        "${commandList["sp-info"]} <link>                  -Shows info on the given link. <link> can be a Spotify link or a Spotify URI\n" +
+                        "${commandList["yt-info"]} <link>                  -Shows info on the given link. <link> can be a YouTube link.\n" +
+                        "${commandList["sc-info"]} <link>                  -Shows info on the given link. <link> can be a SoundCloud link\n" +
                         "\n\n" +
                         "Player specific commands:\n" +
                         "(These aren't normally needed. Using the commands above is recommended instead)\n" +
@@ -214,10 +214,12 @@ data class CommandList(
                         "Showing help for ${commandList["sp-search"]} command:\n" +
                         "${commandList["sp-search"]} can be used to search for tracks, albums, playlists, artists, shows and episodes on Spotify.\n" +
                         "To perform a search, you need to provide a search type followed by keywords.\n" +
+                        "Available options:\n" +
+                        "-l, --limit    \tSet amount of search results to show.\n" +
                         "Example - Search for a Spotify track with the keywords \"Tesseract Exile\":\n" +
                         "${commandList["sp-search"]} track Tesseract Exile\n" +
-                        "Example - Search for a Spotify album with the keywords \"The Algorithm Brute Force\":\n" +
-                        "${commandList["sp-search"]} album The Algorithm Brute Force"
+                        "Example - Search for a Spotify album with the keywords \"The Algorithm Brute Force\" and set a limit to show only 5 search results:\n" +
+                        "${commandList["sp-search"]} album The Algorithm Brute Force --limit 10"
             ),
             Pair(
                 "yt-search", "\n" +
@@ -228,10 +230,12 @@ data class CommandList(
                         "video    \tSearch for a YouTube video.\n" +
                         "track    \tSame as video.\n" +
                         "playlist    \tSearch for a YouTube playlist.\n" +
+                        "Available options:\n" +
+                        "-l, --limit    \tSet amount of search results to show.\n" +
                         "Example - Search on YouTube for a video with the name \"Jinjer Pisces\":\n" +
                         "${commandList["yt-search"]} track Jinjer Pisces\n" +
-                        "Example 2:\n" +
-                        "${commandList["yt-search"]} video Jinjer Pisces"
+                        "Example - search for \"Jinjer Pisces\" and set a limit to show 20 search results:\n" +
+                        "${commandList["yt-search"]} video Jinjer Pisces -l 20"
             ),
             Pair(
                 "sc-search", "\n" +
@@ -244,10 +248,12 @@ data class CommandList(
                         "user     \t\tSearch for a SoundCloud user.\n" +
                         "album    \t\tSearch for a SoundCloud album.\n" +
                         "artist   \t\tSearch for a SoundCloud artist.\n" +
+                        "Available options:\n" +
+                        "-l, --limit    \tSet amount of search results to show.\n" +
                         "Example - Search on SoundCloud for a track with the name \"leeya - something worth dreaming of\":\n" +
                         "${commandList["sc-search"]} track leeya something worth dreaming of\n" +
-                        "Example 2 - Search on SoundCloud for a playlist with the name \"jeesjees\":\n" +
-                        "${commandList["sc-search"]} playlist jeesjees\n" +
+                        "Example 2 - Search on SoundCloud for a playlist with the name \"jeesjees\" and set a limit to show 10 search results:\n" +
+                        "${commandList["sc-search"]} playlist jeesjees --limit 10\n" +
                         "Example 3 - Search on SoundCloud for a user with the name \"bettehem\":\n" +
                         "${commandList["sc-search"]} user bettehem"
             ),

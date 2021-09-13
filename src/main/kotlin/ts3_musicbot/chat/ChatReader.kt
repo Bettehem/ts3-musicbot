@@ -925,7 +925,135 @@ class ChatReader(
                                 commandJob.complete()
                                 return true
                             }
+                            //sp-search/yt-search/sc-search command
+                            commandString.contains("^(${commandList.commandList["sp-search"]}|${commandList.commandList["yt-search"]}|${commandList.commandList["sc-search"]})\\s+".toRegex()) -> {
+                                val service = when (commandString.substringBefore(" ")) {
+                                    commandList.commandList["sp-search"] -> "sp"
+                                    commandList.commandList["yt-search"] -> "yt"
+                                    commandList.commandList["sc-search"] -> "sc"
+                                    else -> ""
+                                }
+                                val searchType =
+                                    SearchType(commandString.substringAfter(" ").substringBefore(" "))
+                                if (searchType.getType() != SearchType.Type.OTHER && when (service) {
+                                        "sp" -> spotify.supportedSearchTypes.contains(searchType.getType())
+                                        "yt" -> youTube.supportedSearchTypes.contains(searchType.getType())
+                                        "sc" -> soundCloud.supportedSearchTypes.contains(searchType.getType())
+                                        else -> false
+                                    }
+                                ) {
+                                    val limit = if (commandString.contains("(-l|--limit)\\s+[0-9]+".toRegex())) {
+                                        commandString.split("\\s+(-l|--limit)\\s+".toRegex()).last().substringBefore(" ").toInt()
+                                    } else {
+                                        10
+                                    }
+                                    val searchQuery = SearchQuery(commandString.substringAfter("$searchType ").replace("(-l|--limit)\\s+[0-9]+".toRegex(), ""))
+                                    printToChat(userName, listOf("Searching, please wait..."), apikey)
+                                    val results = when (service) {
+                                        "sp" -> spotify.searchSpotify(searchType, searchQuery, limit)
+                                        "yt" -> youTube.searchYoutube(searchType, searchQuery, limit)
+                                        "sc" -> soundCloud.searchSoundCloud(searchType, searchQuery, limit)
+                                        else -> SearchResults(emptyList())
+                                    }
+                                    if (results.isNotEmpty()) {
+                                        val searchResults = ArrayList<SearchResult>()
+                                        results.results.forEach { searchResults.add(it) }
+                                        printToChat(
+                                            userName, listOf("\n${SearchResults(searchResults)}"),
+                                            apikey
+                                        )
+                                        commandListener.onCommandExecuted(commandString, results.toString(), results)
+                                        commandJob.complete()
+                                        return true
+                                    } else {
+                                        printToChat(userName, listOf("No results found!"), apikey)
+                                        commandListener.onCommandExecuted(commandString, results.toString(), results)
+                                        commandJob.complete()
+                                        return false
+                                    }
+                                } else {
+                                    printToChat(
+                                        userName,
+                                        listOf("Search type not supported! Run ${commandList.commandList["help"]} ${commandList.commandList["$service-search"]} to see more information on this command."),
+                                        apikey
+                                    )
+                                    commandListener.onCommandExecuted(commandString, "Not supported", searchType)
+                                    commandJob.complete()
+                                    return false
+                                }
+                            }
 
+                            //sp-info, yt-info and sc-info command
+                            commandString.contains("^(${commandList.commandList["sp-info"]}|${commandList.commandList["yt-info"]}|${commandList.commandList["sc-info"]})\\s+".toRegex()) -> {
+                                val supportedServices = listOf("sp", "yt", "sc")
+                                val service = when (commandString.substringBefore(" ")) {
+                                    commandList.commandList["sp-info"] -> "sp"
+                                    commandList.commandList["yt-info"] -> "yt"
+                                    commandList.commandList["sc-info"] -> "sc"
+                                    else -> ""
+                                }
+                                if (supportedServices.contains(service)) {
+                                    val link = parseLink(Link(commandString.substringAfter(" ")))
+                                    var data: Any? = null
+                                    when (service) {
+                                        "sp" -> {
+                                            data = when {
+                                                link.link.contains("track".toRegex()) -> spotify.getTrack(link)
+                                                link.link.contains("album".toRegex()) -> spotify.getAlbum(link)
+                                                link.link.contains("playlist".toRegex()) -> spotify.getPlaylist(link)
+                                                link.link.contains("artist".toRegex()) -> spotify.getArtist(link)
+                                                link.link.contains("show".toRegex()) -> spotify.getShow(link)
+                                                link.link.contains("episode".toRegex()) -> spotify.getEpisode(link)
+                                                link.link.contains("user".toRegex()) -> spotify.getUser(link)
+                                                else -> null
+                                            }
+                                        }
+                                        "yt" -> {
+                                            data = when (youTube.resolveType(link)) {
+                                                "video" -> youTube.getVideo(link)
+                                                "playlist" -> youTube.fetchPlaylist(link)
+                                                "channel" -> youTube.fetchChannel(link)
+                                                else -> null
+                                            }
+                                        }
+                                        "sc" -> {
+                                            data = when (soundCloud.resolveType(link)) {
+                                                "track" -> soundCloud.getTrack(link)
+                                                "album" -> soundCloud.fetchAlbum(link)
+                                                "playlist" -> soundCloud.getPlaylist(link)
+                                                "artist" -> soundCloud.fetchArtist(link)
+                                                "user" -> soundCloud.fetchUser(link)
+                                                else -> null
+                                            }
+                                        }
+                                    }
+                                    return if (data != null) {
+                                        printToChat(userName, listOf("\n$data"), apikey)
+                                        commandListener.onCommandExecuted(commandString, data.toString(), data)
+                                        commandJob.complete()
+                                        true
+                                    } else {
+                                        printToChat(
+                                            userName,
+                                            listOf("You have to provide a Spotify link or URI to a track!"),
+                                            apikey
+                                        )
+                                        commandListener.onCommandExecuted(commandString, data.toString(), data)
+                                        commandJob.complete()
+                                        false
+                                    }
+                                } else {
+                                    printToChat(
+                                        userName, listOf(
+                                            "This service isn't supported, available commands are:\n" +
+                                                    "${supportedServices.map { "${commandList.commandList["$it-info"]}" }}"
+                                        ), apikey
+                                    )
+                                    commandListener.onCommandExecuted(commandString, "Not supported")
+                                    commandJob.complete()
+                                    return false
+                                }
+                            }
 
                             //sp-pause command
                             commandString.contains("^${commandList.commandList["sp-pause"]}$".toRegex()) -> {
@@ -1077,78 +1205,6 @@ class ChatReader(
                                 commandJob.complete()
                                 return true
                             }
-                            //sp-info, yt-info and sc-info command
-                            commandString.contains("^(${commandList.commandList["sp-info"]}|${commandList.commandList["yt-info"]}|${commandList.commandList["sc-info"]})\\s+".toRegex()) -> {
-                                val supportedServices = listOf("sp", "yt", "sc")
-                                val service = when (commandString.substringBefore(" ")) {
-                                    commandList.commandList["sp-info"] -> "sp"
-                                    commandList.commandList["yt-info"] -> "yt"
-                                    commandList.commandList["sc-info"] -> "sc"
-                                    else -> ""
-                                }
-                                if (supportedServices.contains(service)) {
-                                    val link = parseLink(Link(commandString.substringAfter(" ")))
-                                    var data: Any? = null
-                                    when (service) {
-                                        "sp" -> {
-                                            data = when {
-                                                link.link.contains("track".toRegex()) -> spotify.getTrack(link)
-                                                link.link.contains("album".toRegex()) -> spotify.getAlbum(link)
-                                                link.link.contains("playlist".toRegex()) -> spotify.getPlaylist(link)
-                                                link.link.contains("artist".toRegex()) -> spotify.getArtist(link)
-                                                link.link.contains("show".toRegex()) -> spotify.getShow(link)
-                                                link.link.contains("episode".toRegex()) -> spotify.getEpisode(link)
-                                                link.link.contains("user".toRegex()) -> spotify.getUser(link)
-                                                else -> null
-                                            }
-                                        }
-                                        "yt" -> {
-                                            data = when (youTube.resolveType(link)) {
-                                                "video" -> youTube.getVideo(link)
-                                                "playlist" -> youTube.fetchPlaylist(link)
-                                                "channel" -> youTube.fetchChannel(link)
-                                                else -> null
-                                            }
-                                        }
-                                        "sc" -> {
-                                            data = when (soundCloud.resolveType(link)) {
-                                                "track" -> soundCloud.getTrack(link)
-                                                "album" -> soundCloud.fetchAlbum(link)
-                                                "playlist" -> soundCloud.getPlaylist(link)
-                                                "artist" -> soundCloud.fetchArtist(link)
-                                                "user" -> soundCloud.fetchUser(link)
-                                                else -> null
-                                            }
-                                        }
-                                    }
-                                    return if (data != null) {
-                                        printToChat(userName, listOf("\n$data"), apikey)
-                                        commandListener.onCommandExecuted(commandString, data.toString(), data)
-                                        commandJob.complete()
-                                        true
-                                    } else {
-                                        printToChat(
-                                            userName,
-                                            listOf("You have to provide a Spotify link or URI to a track!"),
-                                            apikey
-                                        )
-                                        commandListener.onCommandExecuted(commandString, data.toString(), data)
-                                        commandJob.complete()
-                                        false
-                                    }
-                                } else {
-                                    printToChat(
-                                        userName, listOf(
-                                            "This service isn't supported, available commands are:\n" +
-                                                    "${supportedServices.map { "${commandList.commandList["$it-info"]}" }}"
-                                        ), apikey
-                                    )
-                                    commandListener.onCommandExecuted(commandString, "Not supported")
-                                    commandJob.complete()
-                                    return false
-                                }
-                            }
-
 
                             //yt-pause command
                             commandString.contains("^${commandList.commandList["yt-pause"]}$".toRegex()) -> {
@@ -1265,58 +1321,6 @@ class ChatReader(
                                 return true
                             }
 
-                            //sp-search/yt-search/sc-search command
-                            commandString.contains("^(${commandList.commandList["sp-search"]}|${commandList.commandList["yt-search"]}|${commandList.commandList["sc-search"]})\\s+".toRegex()) -> {
-                                val service = when (commandString.substringBefore(" ")) {
-                                    commandList.commandList["sp-search"] -> "sp"
-                                    commandList.commandList["yt-search"] -> "yt"
-                                    commandList.commandList["sc-search"] -> "sc"
-                                    else -> ""
-                                }
-                                val searchType =
-                                    SearchType(commandString.substringAfter(" ").substringBefore(" "))
-                                if (searchType.getType() != SearchType.Type.OTHER && when (service) {
-                                        "sp" -> spotify.supportedSearchTypes.contains(searchType.getType())
-                                        "yt" -> youTube.supportedSearchTypes.contains(searchType.getType())
-                                        "sc" -> soundCloud.supportedSearchTypes.contains(searchType.getType())
-                                        else -> false
-                                    }
-                                ) {
-                                    val searchQuery = SearchQuery(commandString.substringAfter("$searchType "))
-                                    printToChat(userName, listOf("Searching, please wait..."), apikey)
-                                    val results = when (service) {
-                                        "sp" -> spotify.searchSpotify(searchType, searchQuery)
-                                        "yt" -> youTube.searchYoutube(searchType, searchQuery)
-                                        "sc" -> soundCloud.searchSoundCloud(searchType, searchQuery)
-                                        else -> SearchResults(emptyList())
-                                    }
-                                    if (results.isNotEmpty()) {
-                                        val searchResults = ArrayList<SearchResult>()
-                                        results.results.forEach { searchResults.add(it) }
-                                        printToChat(
-                                            userName, listOf("\n${SearchResults(searchResults)}"),
-                                            apikey
-                                        )
-                                        commandListener.onCommandExecuted(commandString, results.toString(), results)
-                                        commandJob.complete()
-                                        return true
-                                    } else {
-                                        printToChat(userName, listOf("No results found!"), apikey)
-                                        commandListener.onCommandExecuted(commandString, results.toString(), results)
-                                        commandJob.complete()
-                                        return false
-                                    }
-                                } else {
-                                    printToChat(
-                                        userName,
-                                        listOf("Search type not supported! Run ${commandList.commandList["help"]} ${commandList.commandList["$service-search"]} to see more information on this command."),
-                                        apikey
-                                    )
-                                    commandListener.onCommandExecuted(commandString, "Not supported", searchType)
-                                    commandJob.complete()
-                                    return false
-                                }
-                            }
                             else -> {
                                 commandJob.complete()
                                 return false

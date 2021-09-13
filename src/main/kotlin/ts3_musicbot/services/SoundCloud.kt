@@ -15,7 +15,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class SoundCloud {
-    var clientId = "fSSdm5yTnDka1g0Fz1CO5Yx6z0NbeHAj"
+    var clientId = "B31E7OJEB3BxbSbJBHarCQOhvKZUY09J"
     private val commandRunner = CommandRunner()
     private val api2URL = URL("https://api-v2.soundcloud.com")
     val apiURL = URL("https://api.soundcloud.com")
@@ -54,15 +54,24 @@ class SoundCloud {
         return clientId
     }
 
-    suspend fun searchSoundCloud(searchType: SearchType, searchQuery: SearchQuery): SearchResults {
+    suspend fun searchSoundCloud(
+        searchType: SearchType,
+        searchQuery: SearchQuery,
+        resultLimit: Int = 10
+    ): SearchResults {
         val searchResults = ArrayList<SearchResult>()
-        fun searchData(): Response {
+        fun searchData(limit: Int = resultLimit, offset: Int = 0, link: Link = Link("")): Response {
             val urlBuilder = StringBuilder()
-            urlBuilder.append("$api2URL/search/")
-            urlBuilder.append(if (searchType.type == "artist") "users" else "${searchType}s")
-            urlBuilder.append("?q=${URLEncoder.encode(searchQuery.query, Charsets.UTF_8.toString())}")
-            urlBuilder.append("&limit=10")
-            urlBuilder.append("&client_id=$clientId")
+            if (link.isNotEmpty()) {
+                urlBuilder.append("$link")
+            } else {
+                urlBuilder.append("$api2URL/search/")
+                urlBuilder.append("${searchType.type.replace("artist", "user")}s")
+                urlBuilder.append("?q=${URLEncoder.encode(searchQuery.query, Charsets.UTF_8.toString())}")
+                urlBuilder.append("&limit=$limit")
+                urlBuilder.append("&offset=$offset")
+                urlBuilder.append("&client_id=$clientId")
+            }
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
 
@@ -116,6 +125,7 @@ class SoundCloud {
                                         ""
                                 ),
                                 Followers(playlistData.getJSONObject("user").getInt("followers_count")),
+                                /*
                                 fetchUserPlaylists(
                                     Link(
                                         "$apiURL/users/${
@@ -123,7 +133,8 @@ class SoundCloud {
                                         }"
                                     )
                                 ),
-                                Link(playlistData.getJSONObject("user").getString("permalink_url"))
+                                */
+                                link = Link(playlistData.getJSONObject("user").getString("permalink_url"))
                             ),
                             Description(if (!playlistData.isNull("description")) playlistData.getString("description") else ""),
                             Followers(playlistData.getInt("likes_count")),
@@ -257,27 +268,54 @@ class SoundCloud {
         }
 
         println("Searching for \"$searchQuery\"")
-        val searchJob = Job()
-        withContext(IO + searchJob) {
-            while (true) {
-                val searchData = searchData()
-                when (searchData.code.code) {
-                    HttpURLConnection.HTTP_OK -> {
-                        try {
-                            val resultData = JSONObject(searchData.data.data)
-                            withContext(Default + searchJob) {
-                                parseResults(resultData)
+        val searches = ArrayList<Pair<Int, Int>>()
+        var remainingResults = resultLimit
+        var resultOffset = 0
+        //SoundClouds allows a maximum of 200 results, so we have to do searches in smaller chunks in case the user wants more than 200 results.
+        val maxResults = 200
+        while (true) {
+            if (remainingResults > maxResults) {
+                searches.add(Pair(maxResults, resultOffset))
+                remainingResults -= maxResults
+                resultOffset += maxResults
+            } else {
+                searches.add(Pair(remainingResults, resultOffset))
+                break
+            }
+        }
+        val resultsData = ArrayList<Response>()
+        for (search in searches) {
+            resultsData.add(searchData(search.first, search.second))
+        }
+        for (result in resultsData) {
+            val searchJob = Job()
+            withContext(IO + searchJob) {
+                var searchData = result
+                while (true) {
+                    when (searchData.code.code) {
+                        HttpURLConnection.HTTP_OK -> {
+                            try {
+                                val resultData = JSONObject(searchData.data.data)
+                                withContext(Default + searchJob) {
+                                    parseResults(resultData)
+                                }
+                                searchJob.complete()
+                                return@withContext
+                            } catch (e: JSONException) {
+                                //JSON broken, try getting the data again
+                                println("Failed JSON:\n${searchData.data}\n")
+                                println("Failed to get data from JSON, trying again...")
+                                searchData = searchData(link = Link(result.url.toString()))
                             }
-                            searchJob.complete()
-                            return@withContext
-                        } catch (e: JSONException) {
-                            //JSON broken, try getting the data again
-                            println("Failed JSON:\n${searchData.data}\n")
-                            println("Failed to get data from JSON, trying again...")
+                        }
+                        HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                            updateClientId()
+                            searchData = searchData(link = Link(result.url.toString()))
+                        }
+                        else -> {
+                            println("HTTP ERROR! CODE ${searchData.code}")
                         }
                     }
-                    HttpURLConnection.HTTP_UNAUTHORIZED -> updateClientId()
-                    else -> println("HTTP ERROR! CODE ${searchData.code}")
                 }
             }
         }
