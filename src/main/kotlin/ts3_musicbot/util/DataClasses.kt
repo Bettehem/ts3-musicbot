@@ -19,7 +19,8 @@ data class Track(
     val link: Link = Link(),
     val playability: Playability = Playability(),
     val likes: Likes = Likes(),
-    val linkType: LinkType = link.linkType()
+    val linkType: LinkType = link.linkType(),
+    val description: Description = Description()
 ) {
     override fun toString() = "$album\n" +
             if (artists.isNotEmpty()) {
@@ -28,7 +29,12 @@ data class Track(
                 ""
             } +
             "Title:      \t\t\t\t$title\n" +
-            "Link:       \t\t\t\t$link\n"
+            "Link:       \t\t\t\t$link\n" +
+            if (description.isNotEmpty()) {
+                "Description:    \t\t$description\n"
+            } else {
+                ""
+            }
 
     fun isEmpty() = album.isEmpty() && artists.isEmpty() && title.isEmpty() && link.isEmpty()
     fun isNotEmpty() = album.isNotEmpty() || artists.isNotEmpty() || title.isNotEmpty() || link.isNotEmpty()
@@ -289,10 +295,12 @@ data class Artist(
                     ""
                 } +
                 if (albums.isNotEmpty()) "Albums:\n${
-                    Albums(albums.albums.subList(
-                        0,
-                        if (albums.albums.size >= 10) 9 else albums.albums.lastIndex
-                    ))
+                    Albums(
+                        albums.albums.subList(
+                            0,
+                            if (albums.albums.size >= 10) 9 else albums.albums.lastIndex
+                        )
+                    )
                 }\n" else {
                     ""
                 } +

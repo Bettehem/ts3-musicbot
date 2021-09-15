@@ -80,7 +80,8 @@ class YouTube {
                                 ),
                                 Name(itemData.getJSONObject("snippet").getString("title")),
                                 Link("https://youtu.be/${itemData.getString("id")}"),
-                                Playability(isPlayable)
+                                Playability(isPlayable),
+                                description = Description(itemData.getJSONObject("snippet").getString("description"))
                             )
                             ytJob.complete()
                             return@withContext
