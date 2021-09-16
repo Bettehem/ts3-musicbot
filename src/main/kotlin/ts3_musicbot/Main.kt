@@ -476,7 +476,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         if (key == "command-prefix")
                             prefix = value
                         else
-                            commands[key] = value
+                            commands[key] = value.substringBefore(" ")
                     }
                 }
             }

@@ -619,7 +619,8 @@ class YouTube {
                                             SearchResult(
                                                 "Uploader: $videoUploader\n" +
                                                         "Title:    $videoTitle\n" +
-                                                        "Link:     $videoLink\n"
+                                                        "Link:     $videoLink\n",
+                                                Link(videoLink)
                                             )
                                         )
                                     }
@@ -641,7 +642,8 @@ class YouTube {
                                             SearchResult(
                                                 "Playlist: $listTitle\n" +
                                                         "Creator:    $listCreator\n" +
-                                                        "Link:     $listLink\n"
+                                                        "Link:     $listLink\n",
+                                                Link(listLink)
                                             )
                                         )
                                     }

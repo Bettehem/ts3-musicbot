@@ -56,27 +56,27 @@ data class CommandList(
             Pair(
                 "help", "\n" +
                         "General commands:\n" +
-                        "${commandList["help"]} <command>                  -Shows this help message. Use ${commandList["help"]} <command> to get more help on a specific command.\n" +
-                        "${commandList["queue-add"]}                       -Add track(s) to queue.\n" +
-                        "${commandList["queue-playnext"]}                  -Add track/playlist/album to the top of the queue. Add multiple links separated by a comma \",\". Shuffle with the -s option\n" +
-                        "${commandList["queue-play"]}                      -Play the song queue\n" +
-                        "${commandList["queue-list"]} <--all,--limit>      -Lists current songs in queue. Add the -a/--all option to show all tracks or -l/--limit to set a limit to the amount of tracks.\n" +
-                        "${commandList["queue-clear"]}                     -Clears the song queue\n" +
-                        "${commandList["queue-shuffle"]}                   -Shuffles the queue\n" +
-                        "${commandList["queue-skip"]}                      -Skips current song\n" +
-                        "${commandList["queue-voteskip"]}                  -Vote to skip the currently playing track. All users currently listening will also have to run ${commandList["queue-voteskip"]} for the track to be skipped.\n" +
-                        "${commandList["queue-move"]} <link> <pos>         -Moves a track to a desired position in the queue. <link> should be your song link and <pos> should be the new position of your song.\n" +
-                        "${commandList["queue-stop"]}                      -Stops the queue\n" +
-                        "${commandList["queue-status"]}                    -Returns the status of the song queue\n" +
-                        "${commandList["queue-nowplaying"]}                -Returns information on the currently playing track\n" +
-                        "${commandList["queue-pause"]}                     -Pauses playback\n" +
-                        "${commandList["queue-resume"]}                    -Resumes playback\n" +
-                        "${commandList["sp-search"]} <type> <text> <limit> -Search on Spotify. <type> can be track, album, playlist, artist, show or episode. You can also limit the amount of search results with the -l/--limit flag.\n" +
-                        "${commandList["yt-search"]} <type> <text> <limit> -Search on YouTube. Shows 10 first results by default. <type> can be track, video or playlist. You can set the amount of results with the -l/--limit flag.\n" +
-                        "${commandList["sc-search"]} <type> <text> <limit> -Search on SoundCloud. Shows 10 first results by default. <type> can be track, playlist, album, artist or user. You can set the amount of results with the -l/--limit flag.\n" +
-                        "${commandList["sp-info"]} <link>                  -Shows info on the given link. <link> can be a Spotify link or a Spotify URI\n" +
-                        "${commandList["yt-info"]} <link>                  -Shows info on the given link. <link> can be a YouTube link.\n" +
-                        "${commandList["sc-info"]} <link>                  -Shows info on the given link. <link> can be a SoundCloud link\n" +
+                        "${commandList["help"]} <command>                          -Shows this help message. Use ${commandList["help"]} <command> to get more help on a specific command.\n" +
+                        "${commandList["queue-add"]}                               -Add track(s) to queue by link or directly searching from yt/sp/sc and adding the first match to the queue.\n" +
+                        "${commandList["queue-playnext"]}                          -Add track/playlist/album to the top of the queue. Add multiple links separated by a comma \",\". Shuffle with the -s option\n" +
+                        "${commandList["queue-play"]}                              -Play the song queue\n" +
+                        "${commandList["queue-list"]} <--all,--limit>              -Lists current songs in queue. Add the -a/--all option to show all tracks or -l/--limit to set a limit to the amount of tracks.\n" +
+                        "${commandList["queue-clear"]}                             -Clears the song queue\n" +
+                        "${commandList["queue-shuffle"]}                           -Shuffles the queue\n" +
+                        "${commandList["queue-skip"]}                              -Skips current song\n" +
+                        "${commandList["queue-voteskip"]}                          -Vote to skip the currently playing track. All users currently listening will also have to run ${commandList["queue-voteskip"]} for the track to be skipped.\n" +
+                        "${commandList["queue-move"]} <link> <pos>                 -Moves a track to a desired position in the queue. <link> should be your song link and <pos> should be the new position of your song.\n" +
+                        "${commandList["queue-stop"]}                              -Stops the queue\n" +
+                        "${commandList["queue-status"]}                            -Returns the status of the song queue\n" +
+                        "${commandList["queue-nowplaying"]}                        -Returns information on the currently playing track\n" +
+                        "${commandList["queue-pause"]}                             -Pauses playback\n" +
+                        "${commandList["queue-resume"]}                            -Resumes playback\n" +
+                        "${commandList["sp-search"]} <type> <text> <limit>         -Search on Spotify. <type> can be track, album, playlist, artist, show or episode. You can also limit the amount of search results with the -l/--limit flag.\n" +
+                        "${commandList["yt-search"]} <type> <text> <limit>         -Search on YouTube. Shows 10 first results by default. <type> can be track, video or playlist. You can set the amount of results with the -l/--limit flag.\n" +
+                        "${commandList["sc-search"]} <type> <text> <limit>         -Search on SoundCloud. Shows 10 first results by default. <type> can be track, playlist, album, artist or user. You can set the amount of results with the -l/--limit flag.\n" +
+                        "${commandList["sp-info"]} <link>                          -Shows info on the given link. <link> can be a Spotify link or a Spotify URI\n" +
+                        "${commandList["yt-info"]} <link>                          -Shows info on the given link. <link> can be a YouTube link.\n" +
+                        "${commandList["sc-info"]} <link>                          -Shows info on the given link. <link> can be a SoundCloud link\n" +
                         "\n\n" +
                         "Player specific commands:\n" +
                         "(These aren't normally needed. Using the commands above is recommended instead)\n" +
@@ -114,26 +114,46 @@ data class CommandList(
                         "Showing help for ${commandList["queue-add"]} command:\n" +
                         "${commandList["queue-add"]} lets you add songs, albums and playlists to the end of the song queue.\n" +
                         "You can also pass in a link to an artist, which will result in the artist's top tracks getting added to the queue.\n" +
+                        "Instead of using links, you can search like with the ${commandList["sp-search"]},${commandList["yt-search"]} and ${commandList["sc-search"]} commands,\n" +
+                        "but the first search result will be automatically added to the queue.\n" +
                         "Counting starts from 0, so the first song is at position 0, second is at 1 and so on.\n" +
                         "You can add options either before or after song link(s).\n" +
                         "Available options:\n" +
                         "-s    \t-Shuffle the playlist/album before adding to the queue.\n" +
                         "-p    \t-Add track(s) to a specific position in the queue.\n" +
                         "Example - Add playlist to queue at position 15 and shuffle it before that:\n" +
-                        "${commandList["queue-add"]} -s https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt -p 15"
+                        "${commandList["queue-add"]} -s https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt -p 15\n" +
+                        "Example - Search for an album on spotify and add it to the queue:\n" +
+                        "${commandList["queue-add"]} spotify album Haken Affinity:\n" +
+                        "Example - Search for a podcast on spotify and add it to the queue:\n" +
+                        "${commandList["queue-add"]} sp podcast Joe Rogan Experience\n" +
+                        "Example - Search for a video on YouTube and add it to the queue:\n" +
+                        "${commandList["queue-add"]} youtube video Haken Initiate\n" +
+                        "Example - Search for a playlist on SoundCloud and add it to the queue:\n" +
+                        "${commandList["queue-add"]} soundcloud playlist jeesjees\n"
             ),
             Pair(
                 "queue-playnext", "\n" +
                         "Showing help for ${commandList["queue-playnext"]} command:\n" +
                         "${commandList["queue-playnext"]} lets you add songs, albums and playlists to the start of the song queue.\n" +
                         "You can also pass in a link to an artist, which will result in the artist's top tracks getting added to the queue.\n" +
+                        "Instead of using links, you can search like with the ${commandList["sp-search"]},${commandList["yt-search"]} and ${commandList["sc-search"]} commands,\n" +
+                        "but the first search result will be automatically added to the queue.\n" +
                         "Counting starts from 0, so the first song is at position 0, second is at 1 and so on.\n" +
                         "You can add options either before or after song link(s).\n" +
                         "Available options:\n" +
                         "-s    \t-Shuffle the playlist/album before adding to the queue.\n" +
                         "-p    \t-Add track(s) to a specific position in the queue.\n" +
                         "Example - Add playlist to queue at position 15 and shuffle it before that:\n" +
-                        "${commandList["queue-playnext"]} -s https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt -p 15"
+                        "${commandList["queue-playnext"]} -s https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt -p 15" +
+                        "Example - Search for an album on spotify and add it to the queue:\n" +
+                        "${commandList["queue-playnext"]} spotify album Haken Affinity:\n" +
+                        "Example - Search for a podcast on spotify and add it to the queue:\n" +
+                        "${commandList["queue-playnext"]} sp podcast Joe Rogan Experience\n" +
+                        "Example - Search for a video on YouTube and add it to the queue:\n" +
+                        "${commandList["queue-playnext"]} youtube video Haken Initiate\n" +
+                        "Example - Search for a playlist on SoundCloud and add it to the queue:\n" +
+                        "${commandList["queue-playnext"]} soundcloud playlist jeesjees\n"
             ),
             Pair(
                 "queue-play", "\n" +

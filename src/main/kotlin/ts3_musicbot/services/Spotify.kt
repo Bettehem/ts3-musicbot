@@ -151,7 +151,8 @@ class Spotify(private val market: String = "") {
                                 "${artists.toString().substringBeforeLast(",")}\n" +
                                         "Album:  \t$albumName\n" +
                                         "Title:  \t\t$songName\n" +
-                                        "Link:   \t\t$songLink\n"
+                                        "Link:   \t\t$songLink\n",
+                                Link(songLink)
                             )
                         )
                     }
@@ -179,7 +180,8 @@ class Spotify(private val market: String = "") {
                             SearchResult(
                                 "${artists.toString().substringBeforeLast(",")}\n" +
                                         "Album:  \t$albumName\n" +
-                                        "Link:   \t\t$albumLink\n"
+                                        "Link:   \t\t$albumLink\n",
+                                Link(albumLink)
                             )
                         )
                     }
@@ -203,7 +205,8 @@ class Spotify(private val market: String = "") {
                                 "Playlist:  \t$listName\n" +
                                         "Owner:    \t$listOwner\n" +
                                         "Tracks:   \t$trackAmount\n" +
-                                        "Link:     \t\t$listLink\n"
+                                        "Link:     \t\t$listLink\n",
+                                Link(listLink)
                             )
                         )
                     }
@@ -229,7 +232,8 @@ class Spotify(private val market: String = "") {
                                         } else {
                                             ""
                                         } +
-                                        "Link:      \t\t\t$artistLink\n"
+                                        "Link:      \t\t\t$artistLink\n",
+                                Link(artistLink)
                             )
                         )
                     }
@@ -251,7 +255,8 @@ class Spotify(private val market: String = "") {
                                         "Publisher: \t$publisher\n" +
                                         "Episodes:  \t$episodes\n" +
                                         "Description:\n$description\n" +
-                                        "Link:      \t\t$showLink\n"
+                                        "Link:      \t\t$showLink\n",
+                                Link(showLink)
                             )
                         )
                     }
@@ -269,7 +274,8 @@ class Spotify(private val market: String = "") {
                             SearchResult(
                                 "Episode Name: \t$episodeName\n" +
                                         "Description:\n$description\n" +
-                                        "Link          \t\t\t\t$episodeLink\n"
+                                        "Link          \t\t\t\t$episodeLink\n",
+                                Link(episodeLink)
                             )
                         )
                     }

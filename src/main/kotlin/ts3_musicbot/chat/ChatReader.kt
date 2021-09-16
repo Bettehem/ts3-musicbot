@@ -142,7 +142,11 @@ class ChatReader(
                                     //check if command exists
                                     return if (commandList.commandList.any { it.value.contains(args.toRegex()) }) {
                                         //print help for command
-                                        printToChat(userName, listOf(commandList.helpMessages[commandList.commandList.filterValues { it == args }.keys.first()].orEmpty()), apikey)
+                                        printToChat(
+                                            userName,
+                                            listOf(commandList.helpMessages[commandList.commandList.filterValues { it == args }.keys.first()].orEmpty()),
+                                            apikey
+                                        )
                                         commandJob.complete()
                                         true
                                     } else {
@@ -158,9 +162,10 @@ class ChatReader(
                             }
 
                             //queue-add and queue-playnext command
-                            commandString.contains("^(${commandList.commandList["queue-add"]}|${commandList.commandList["queue-playnext"]})(\\s+-(s|(p\\s+[0-9]+)))*(\\s*(\\[URL])?((spotify:(user:\\S+:)?(track|album|playlist|show|episode|artist):\\S+)|(https?://\\S+))(\\[/URL])?\\s*,?\\s*)+(\\s+-(s|(p\\s+[0-9]+)))*\$".toRegex()) -> {
+                            commandString.contains("^(${commandList.commandList["queue-add"]}|${commandList.commandList["queue-playnext"]})(\\s+-(s|(p\\s+[0-9]+)))*(\\s*(\\[URL])?((spotify:(user:\\S+:)?(track|album|playlist|show|episode|artist):\\S+)|(https?://\\S+)|((sp|spotify|yt|youtube|sc|soundcloud)\\s+(track|album|playlist|show|episode|artist|video|user)\\s+.+))(\\[/URL])?\\s*,?\\s*)+(\\s+-(s|(p\\s+[0-9]+)))*\$".toRegex()) -> {
                                 var commandSuccessful = false
-                                val shouldPlayNext = commandString.contains("^${commandList.commandList["queue-playnext"]}".toRegex())
+                                val shouldPlayNext =
+                                    commandString.contains("^${commandList.commandList["queue-playnext"]}".toRegex())
                                 var shouldShuffle = false
                                 var hasCustomPosition = false
                                 var customPosition = if (shouldPlayNext) {
@@ -169,6 +174,56 @@ class ChatReader(
                                     -1
                                 }
                                 val links = ArrayList<Link>()
+                                if (commandString.contains("\\s+(sp|spotify|yt|youtube|sc|soundcloud)\\s+\\w+\\s+.+".toRegex())) {
+                                    when {
+                                        commandString.contains("\\s+(sp|spotify)\\s+".toRegex()) ->
+                                            spotify.searchSpotify(
+                                                SearchType(
+                                                    commandString.split("\\s+(sp|spotify)\\s+".toRegex()).last()
+                                                        .substringBefore(" ")
+                                                ),
+                                                SearchQuery(
+                                                    commandString.split("\\s+(sp|spotify)\\s+\\w+\\s+".toRegex()).last()
+                                                ),
+                                                1
+                                            ).results.let {
+                                                if (it.isNotEmpty())
+                                                    links.add(it.first().link)
+                                            }
+
+                                        commandString.contains("\\s+(yt|youtube)\\s+".toRegex()) ->
+                                            youTube.searchYoutube(
+                                                SearchType(
+                                                    commandString.split("\\s+(yt|youtube)\\s+".toRegex()).last()
+                                                        .substringBefore(" ")
+                                                ),
+                                                SearchQuery(
+                                                    commandString.split("\\s+(yt|youtube)\\s+\\w+\\s+".toRegex()).last()
+                                                ),
+                                                1
+                                            ).results.let {
+                                                if (it.isNotEmpty())
+                                                    links.add(it.first().link)
+                                            }
+
+                                        commandString.contains("\\s+(sc|soundcloud)\\s+".toRegex()) ->
+                                            soundCloud.searchSoundCloud(
+                                                SearchType(
+                                                    commandString.split("\\s+(sc|soundcloud)\\s+".toRegex()).last()
+                                                        .substringBefore(" ")
+                                                ),
+                                                SearchQuery(
+                                                    commandString.split("\\s+(sc|soundcloud)\\s+\\w+\\s+".toRegex())
+                                                        .last()
+                                                ),
+                                                1
+                                            ).results.let {
+                                                if (it.isNotEmpty())
+                                                    links.add(it.first().link)
+                                            }
+
+                                    }
+                                }
                                 //get arguments in command
                                 val args = commandString.split("\\s".toRegex())
                                 for (i in args.indices) {
@@ -943,11 +998,15 @@ class ChatReader(
                                     }
                                 ) {
                                     val limit = if (commandString.contains("(-l|--limit)\\s+[0-9]+".toRegex())) {
-                                        commandString.split("\\s+(-l|--limit)\\s+".toRegex()).last().substringBefore(" ").toInt()
+                                        commandString.split("\\s+(-l|--limit)\\s+".toRegex()).last()
+                                            .substringBefore(" ").toInt()
                                     } else {
                                         10
                                     }
-                                    val searchQuery = SearchQuery(commandString.substringAfter("$searchType ").replace("(-l|--limit)\\s+[0-9]+".toRegex(), ""))
+                                    val searchQuery = SearchQuery(
+                                        commandString.substringAfter("$searchType ")
+                                            .replace("(-l|--limit)\\s+[0-9]+".toRegex(), "")
+                                    )
                                     printToChat(userName, listOf("Searching, please wait..."), apikey)
                                     val results = when (service) {
                                         "sp" -> spotify.searchSpotify(searchType, searchQuery, limit)
@@ -1333,7 +1392,11 @@ class ChatReader(
                             when {
                                 //send a message to the chat
                                 message.contains("^${commandList.commandPrefix}say(\\s+\\S+)+$".toRegex()) -> {
-                                    printToChat("", listOf(message.substringAfter("${commandList.commandPrefix}say ")), apikey)
+                                    printToChat(
+                                        "",
+                                        listOf(message.substringAfter("${commandList.commandPrefix}say ")),
+                                        apikey
+                                    )
                                     commandJob.complete()
                                     return true
                                 }
@@ -1359,7 +1422,7 @@ class ChatReader(
                 for (command in commands) {
                     when {
                         //check if command contains "&&" and a command following that
-                        command.contains("\\s+&{2}\\s+${commandList.commandPrefix}[a-z]+(-?[a-z])".toRegex()) -> {
+                        command.contains("\\s+&{2}\\s+${commandList.commandPrefix}.+(-?.+)".toRegex()) -> {
                             //run commands
                             for (cmd in command.split("\\s+&{2}\\s+".toRegex())) {
                                 if (executeCommand(cmd)) {

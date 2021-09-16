@@ -96,7 +96,7 @@ data class SearchQuery(val query: String) {
     fun isNotEmpty() = query.isNotEmpty()
 }
 
-data class SearchResult(val resultText: String) {
+data class SearchResult(val resultText: String, val link: Link) {
     override fun toString() = resultText
 }
 

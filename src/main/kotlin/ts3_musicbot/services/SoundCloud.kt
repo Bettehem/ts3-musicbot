@@ -103,7 +103,8 @@ class SoundCloud {
                                 "Upload Date:   \t${track.album.releaseDate.date}\n" +
                                         "Uploader: \t\t\t${track.artists.toShortString()}\n" +
                                         "Track Title:   \t\t${track.title}\n" +
-                                        "Track Link:    \t\t${track.link}\n"
+                                        "Track Link:    \t\t${track.link}\n",
+                                track.link
                             )
                         )
                     }
@@ -125,15 +126,6 @@ class SoundCloud {
                                         ""
                                 ),
                                 Followers(playlistData.getJSONObject("user").getInt("followers_count")),
-                                /*
-                                fetchUserPlaylists(
-                                    Link(
-                                        "$apiURL/users/${
-                                            playlistData.getJSONObject("user").getInt("id")
-                                        }"
-                                    )
-                                ),
-                                */
                                 link = Link(playlistData.getJSONObject("user").getString("permalink_url"))
                             ),
                             Description(if (!playlistData.isNull("description")) playlistData.getString("description") else ""),
@@ -148,7 +140,8 @@ class SoundCloud {
                                 "Playlist:   \t${playlist.name}\n" +
                                         "Owner:    \t${playlist.owner.name}\n" +
                                         "Tracks:    \t$trackAmount\n" +
-                                        "Link:     \t\t${playlist.link}\n"
+                                        "Link:     \t\t${playlist.link}\n",
+                                playlist.link
                             )
                         )
                     }
@@ -195,7 +188,8 @@ class SoundCloud {
                                 "Album:   \t${album.name}\n" +
                                         "Artist:     \t${album.artists.toShortString()}\n" +
                                         "Tracks:    \t${album.tracks.trackList.size}\n" +
-                                        "Link:     \t\t${album.link}\n"
+                                        "Link:     \t\t${album.link}\n",
+                                album.link
                             )
                         )
                     }
@@ -224,7 +218,8 @@ class SoundCloud {
                                             ""
                                         } +
                                         "Followers:  \t${user.followers}\n" +
-                                        "Link:      \t\t\t${user.link}\n"
+                                        "Link:      \t\t\t${user.link}\n",
+                                user.link
                             )
                         )
                     }
@@ -259,7 +254,8 @@ class SoundCloud {
                                             ""
                                         } +
                                         "Followers:  \t${artist.followers}\n" +
-                                        "Link:      \t\t\t${artist.link}\n"
+                                        "Link:      \t\t\t${artist.link}\n",
+                                artist.link
                             )
                         )
                     }
