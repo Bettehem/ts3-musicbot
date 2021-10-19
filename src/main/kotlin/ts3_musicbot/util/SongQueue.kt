@@ -246,7 +246,7 @@ class SongQueue(
         fun startTrack() {
             synchronized(trackPosition) { trackPosition = 0 }
             synchronized(this) { trackJob.cancel() }
-            synchronized(trackJob) { trackJob = Job() }
+            synchronized(this) { trackJob = Job() }
 
             fun playerStatus() = commandRunner.runCommand(
                 "playerctl -p ${getPlayer()} status", printOutput = false, printErrors = false
@@ -333,9 +333,10 @@ class SongQueue(
                                         ignoreOutput = true
                                     )
                                 }
-                                Thread {
+                                val mpvCoroutine = CoroutineScope(IO).launch {
                                     mpvRunnable.run()
-                                }.start()
+                                }
+                                mpvCoroutine.start()
                                 delay(5000)
                                 var waitAmount = 0
                                 while (commandRunner.runCommand(
@@ -343,16 +344,16 @@ class SongQueue(
                                         printOutput = false
                                     ).first.outputText.isEmpty()
                                 ) {
-                                    //do nothing
                                     println("Waiting for ${getPlayer()} to start.")
                                     delay(250)
+                                    //if playback hasn't started after five seconds, try starting playback again.
                                     if (waitAmount < 20) {
                                         waitAmount++
                                     } else {
                                         waitAmount = 0
-                                        Thread {
-                                            mpvRunnable.run()
-                                        }.start()
+                                        commandRunner.runCommand("pkill -9 mpv", ignoreOutput = true)
+                                        mpvCoroutine.cancel()
+                                        mpvCoroutine.start()
                                     }
                                 }
                             }
@@ -495,15 +496,20 @@ class SongQueue(
         }
 
         fun stopTrack() {
+            val player = getPlayer()
+            //try stopping playback twice because sometimes once doesn't seem to be enough
             for (i in 1..2) {
                 commandRunner.runCommand(
                     "playerctl -p " +
-                            when (getPlayer()) {
+                            when (player) {
                                 "spotify" -> "spotify pause"
                                 else -> "${getPlayer()} stop"
                             },
-                    printErrors = false
+                    ignoreOutput = true
                 )
+            }
+            if (player != "spotify") {
+                commandRunner.runCommand("pkill -9 ${getPlayer()}")
             }
             synchronized(trackJob) { trackJob.cancel() }
         }

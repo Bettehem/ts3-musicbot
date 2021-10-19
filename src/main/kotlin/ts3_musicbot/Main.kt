@@ -28,7 +28,7 @@ private var statusTextView = TextArea()
 private val commandRunner = CommandRunner()
 private var spotifyPlayer = "spotify"
 private var useOfficialTsClient = true
-private var mpvVolume = 60
+private var mpvVolume = 87
 private var commandList = CommandList()
 private lateinit var teamSpeak: TeamSpeak
 

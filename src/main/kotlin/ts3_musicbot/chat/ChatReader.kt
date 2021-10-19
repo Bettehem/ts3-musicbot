@@ -285,17 +285,16 @@ class ChatReader(
                                                             }"
                                                         )
                                                     )
-                                                    if (track.playability.isPlayable) {
+                                                    if (track.playability.isPlayable)
                                                         songQueue.addToQueue(track, customPosition)
-                                                        commandSuccessful = if (songQueue.getQueue().contains(track)) {
-                                                            commandListener.onCommandExecuted(
-                                                                commandString,
-                                                                "Added track to queue.",
-                                                                track
-                                                            )
-                                                            true
-                                                        } else false
-                                                    }
+                                                    commandSuccessful = if (songQueue.getQueue().contains(track)) {
+                                                        commandListener.onCommandExecuted(
+                                                            commandString,
+                                                            "Added track to queue.",
+                                                            track
+                                                        )
+                                                        true
+                                                    } else false
                                                 }
 
                                                 "album" -> {
@@ -408,18 +407,17 @@ class ChatReader(
                                                             }"
                                                         )
                                                     )
-                                                    if (episode.playability.isPlayable) {
+                                                    if (episode.playability.isPlayable)
                                                         songQueue.addToQueue(episode.toTrack(), customPosition)
-                                                        commandSuccessful =
-                                                            if (songQueue.getQueue().contains(episode.toTrack())) {
-                                                                commandListener.onCommandExecuted(
-                                                                    commandString,
-                                                                    "Added podcast episode to queue.",
-                                                                    episode
-                                                                )
-                                                                true
-                                                            } else false
-                                                    }
+                                                    commandSuccessful =
+                                                        if (songQueue.getQueue().contains(episode.toTrack())) {
+                                                            commandListener.onCommandExecuted(
+                                                                commandString,
+                                                                "Added podcast episode to queue.",
+                                                                episode
+                                                            )
+                                                            true
+                                                        } else false
                                                 }
 
                                                 "artist" -> {
@@ -472,17 +470,16 @@ class ChatReader(
                                             when (type) {
                                                 "track" -> {
                                                     val track = youTube.getVideo(Link("https://youtu.be/$id"))
-                                                    if (track.playability.isPlayable) {
+                                                    if (track.playability.isPlayable)
                                                         songQueue.addToQueue(track, customPosition)
-                                                        commandSuccessful = if (songQueue.getQueue().contains(track)) {
-                                                            commandListener.onCommandExecuted(
-                                                                commandString,
-                                                                "Added track to queue.",
-                                                                track
-                                                            )
-                                                            true
-                                                        } else false
-                                                    }
+                                                    commandSuccessful = if (songQueue.getQueue().contains(track)) {
+                                                        commandListener.onCommandExecuted(
+                                                            commandString,
+                                                            "Added track to queue.",
+                                                            track
+                                                        )
+                                                        true
+                                                    } else false
                                                 }
 
                                                 "playlist" -> {
@@ -531,7 +528,8 @@ class ChatReader(
                                                                 .substringBefore("?")
                                                         )
                                                     )
-                                                    songQueue.addToQueue(track, customPosition)
+                                                    if (track.playability.isPlayable)
+                                                        songQueue.addToQueue(track, customPosition)
                                                     commandSuccessful =
                                                         if (songQueue.getQueue().contains(track)) {
                                                             commandListener.onCommandExecuted(
@@ -643,7 +641,7 @@ class ChatReader(
                                 }
                             }
                             //queue-list command
-                            commandString.contains("^${commandList.commandList["queue-list"]}(.+)?".toRegex()) -> {
+                            commandString.contains("^${commandList.commandList["queue-list"]}(\\s+)?(.+)?".toRegex()) -> {
                                 if (songQueue.getState() != SongQueue.State.QUEUE_STOPPED) {
                                     val track = songQueue.nowPlaying()
                                     val strBuilder = StringBuilder()

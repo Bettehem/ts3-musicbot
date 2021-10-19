@@ -15,7 +15,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class SoundCloud {
-    var clientId = "B31E7OJEB3BxbSbJBHarCQOhvKZUY09J"
+    var clientId = "9W64ngrJNaQIXfNm6SORus4z4ucknVhz"
     private val commandRunner = CommandRunner()
     private val api2URL = URL("https://api-v2.soundcloud.com")
     val apiURL = URL("https://api.soundcloud.com")
@@ -96,7 +96,7 @@ class SoundCloud {
                             ),
                             Name(trackData.getString("title")),
                             Link(trackData.getString("permalink_url")),
-                            Playability(trackData.getBoolean("streamable"))
+                            Playability(trackData.getBoolean("streamable") && trackData.getString("policy") != "BLOCK")
                         )
                         searchResults.add(
                             SearchResult(
@@ -491,9 +491,8 @@ class SoundCloud {
                                         DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
                                     )
                                 ),
-                                fetchAlbumTracks(link),
-
-                                )
+                                fetchAlbumTracks(link)
+                            )
                             break
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
@@ -599,7 +598,7 @@ class SoundCloud {
                 ),
                 Name(trackData.getString("title")),
                 Link(trackData.getString("permalink_url"), trackData.getInt("id").toString()),
-                Playability(trackData.getBoolean("streamable")),
+                Playability(trackData.getBoolean("streamable") && trackData.getString("policy") != "BLOCK"),
                 Likes(trackData.getInt("likes_count"))
             )
         }
@@ -676,7 +675,7 @@ class SoundCloud {
                         ),
                         Name(trackData.getString("title")),
                         Link(trackData.getString("permalink_url"), trackData.getInt("id").toString()),
-                        Playability(trackData.getBoolean("streamable"))
+                        Playability(trackData.getBoolean("streamable") && trackData.getString("policy") != "BLOCK")
                     )
                 )
             }
@@ -865,7 +864,7 @@ class SoundCloud {
                                                             track.getString("permalink_url"),
                                                             track.getInt("id").toString()
                                                         ),
-                                                        Playability(track.getBoolean("streamable")),
+                                                        Playability(track.getBoolean("streamable") && track.getString("policy") != "BLOCK"),
                                                         Likes(
                                                             if (!track.isNull("likes_count"))
                                                                 track.getInt("likes_count")
@@ -984,7 +983,7 @@ class SoundCloud {
                                                             track.getString("permalink_url"),
                                                             track.getInt("id").toString()
                                                         ),
-                                                        Playability(track.getBoolean("streamable")),
+                                                        Playability(track.getBoolean("streamable") && track.getString("policy") != "BLOCK"),
                                                         Likes(
                                                             if (!track.isNull("likes_count"))
                                                                 track.getInt("likes_count")
@@ -1093,7 +1092,7 @@ class SoundCloud {
                                         ),
                                         Name(it.getString("title")),
                                         Link(it.getString("permalink_url"), it.getInt("id").toString()),
-                                        Playability(it.getBoolean("streamable")),
+                                        Playability(it.getBoolean("streamable") && it.getString("policy") != "BLOCK"),
                                         Likes(it.getInt("likes_count"))
                                     )
                                 })
@@ -1173,7 +1172,7 @@ class SoundCloud {
     }
 
     //SoundCloud doesn't have "Artists", but usually users with tracks uploaded, happen to be artists,
-    //therefore we just fetch an User's data, and present it as an Artist
+    //therefore we just fetch a User's data, and present it as an Artist
     suspend fun fetchArtist(link: Link): Artist {
         lateinit var artist: Artist
         val id = if (link.link.startsWith("$apiURL/users/"))
