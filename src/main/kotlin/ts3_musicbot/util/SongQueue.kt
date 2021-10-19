@@ -509,7 +509,7 @@ class SongQueue(
                 )
             }
             if (player != "spotify") {
-                commandRunner.runCommand("pkill -9 ${getPlayer()}")
+                commandRunner.runCommand("pkill -9 ${getPlayer()}", ignoreOutput = true)
             }
             synchronized(trackJob) { trackJob.cancel() }
         }

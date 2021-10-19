@@ -1142,7 +1142,20 @@ class ChatReader(
                                 if (message.substringAfter("${commandList.commandList["sp-playsong"]}")
                                         .isNotEmpty()
                                 ) {
-                                    if (parseLink(Link(message)).link.startsWith("https://open.spotify.com/track")) {
+                                    //start ncspot if necessary
+                                    if (spotifyPlayer == "ncspot") {
+                                        if (commandRunner.runCommand("ps aux | grep ncspot | grep -v grep", printOutput = false).first.outputText.isEmpty()){
+                                            println("Starting ncspot.")
+                                            commandRunner.runCommand("\$TERMINAL -e ncspot", ignoreOutput = true)
+                                            while (commandRunner.runCommand("playerctl -p ncspot status", printOutput = false, printErrors = false).first.outputText != "Stopped") {
+                                                //wait for ncspot to start
+                                                println("Waiting for ncspot to start...")
+                                                delay(500)
+                                            }
+                                        }
+                                    }
+                                    println("Playing song...")
+                                    if (parseLink(Link(commandString.substringAfter("${commandList.commandList["sp-playsong"]} "))).link.startsWith("https://open.spotify.com/track")) {
                                         commandRunner.runCommand(
                                             "playerctl -p $spotifyPlayer open spotify:track:${
                                                 parseLink(Link(message)).link
@@ -1169,6 +1182,18 @@ class ChatReader(
                             //sp-playlist command
                             //Play Spotify playlist based on link or URI
                             commandString.contains("^${commandList.commandList["sp-playlist"]}\\s+".toRegex()) -> {
+                                //start ncspot if necessary
+                                if (spotifyPlayer == "ncspot") {
+                                    if (commandRunner.runCommand("ps aux | grep ncspot | grep -v grep", printOutput = false).first.outputText.isEmpty()){
+                                        println("Starting ncspot.")
+                                        commandRunner.runCommand("\$TERMINAL -e ncspot", ignoreOutput = true)
+                                        while (commandRunner.runCommand("playerctl -p ncspot status", printOutput = false, printErrors = false).first.outputText != "Stopped") {
+                                            //wait for ncspot to start
+                                            println("Waiting for ncspot to start...")
+                                            delay(500)
+                                        }
+                                    }
+                                }
                                 if (message.split(" ".toRegex())[1].startsWith("spotify:user:")
                                     && message.split(" ".toRegex())[1].contains(":playlist:")
                                 ) {
@@ -1186,7 +1211,7 @@ class ChatReader(
                                             message.substringAfter("playlist:")
                                         }"
                                     )
-                                } else if (parseLink(Link(message)).link.startsWith("https://open.spotify.com/")) {
+                                } else if (parseLink(Link(message.substringAfter(" "))).link.startsWith("https://open.spotify.com/")) {
                                     commandRunner.runCommand(
                                         "playerctl -p $spotifyPlayer open spotify:playlist:${
                                             parseLink(Link(message)).link.substringAfter("playlist/")
@@ -1199,13 +1224,25 @@ class ChatReader(
                             }
                             //sp-playalbum command
                             commandString.contains("^${commandList.commandList["sp-playalbum"]}\\s+".toRegex()) -> {
+                                //start ncspot if necessary
+                                if (spotifyPlayer == "ncspot") {
+                                    if (commandRunner.runCommand("ps aux | grep ncspot | grep -v grep", printOutput = false).first.outputText.isEmpty()){
+                                        println("Starting ncspot.")
+                                        commandRunner.runCommand("\$TERMINAL -e ncspot", ignoreOutput = true)
+                                        while (commandRunner.runCommand("playerctl -p ncspot status", printOutput = false, printErrors = false).first.outputText != "Stopped") {
+                                            //wait for ncspot to start
+                                            println("Waiting for ncspot to start...")
+                                            delay(500)
+                                        }
+                                    }
+                                }
                                 if (message.split(" ".toRegex())[1].startsWith("spotify:album")) {
                                     commandRunner.runCommand(
                                         "playerctl -p $spotifyPlayer open spotify:album:${
                                             message.substringAfter("album:")
                                         }"
                                     )
-                                } else if (parseLink(Link(message)).link.startsWith("https://open.spotify.com/")) {
+                                } else if (parseLink(Link(message.substringAfter(" "))).link.startsWith("https://open.spotify.com/")) {
                                     commandRunner.runCommand(
                                         "playerctl -p $spotifyPlayer open spotify:album:${
                                             parseLink(Link(message)).link.substringAfter("album/")
@@ -1220,7 +1257,7 @@ class ChatReader(
                             commandString.contains("^${commandList.commandList["sp-nowplaying"]}$".toRegex()) -> {
                                 val lines = StringBuilder()
                                 lines.appendLine("Now playing on Spotify:")
-                                val nowPlaying = commandRunner.runCommand("playerctl -p $spotifyPlayer metadata")
+                                val nowPlaying = commandRunner.runCommand("playerctl -p $spotifyPlayer metadata", printOutput = false)
                                     .first.outputText.lines()
                                 for (line in nowPlaying) {
                                     when (line.substringAfter("xesam:").split("\\s+".toRegex())[0]) {
