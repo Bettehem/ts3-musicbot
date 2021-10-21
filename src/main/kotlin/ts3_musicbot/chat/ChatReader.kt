@@ -1302,46 +1302,36 @@ class ChatReader(
 
                             //yt-pause command
                             commandString.contains("^${commandList.commandList["yt-pause"]}$".toRegex()) -> {
-                                commandRunner.runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                                commandRunner.runCommand("playerctl -p mpv pause")
                                 commandJob.complete()
                                 return true
                             }
-                            //yt-resume command
-                            commandString.contains("^${commandList.commandList["yt-resume"]}$".toRegex()) -> {
-                                commandRunner.runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
-                                commandJob.complete()
-                                return true
-                            }
-                            //yt-play command
-                            commandString.contains("^${commandList.commandList["yt-play"]}$".toRegex()) -> {
-                                commandRunner.runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                            //yt-resume and yt-play commands
+                            commandString.contains("^(${commandList.commandList["yt-resume"]}|${commandList.commandList["yt-play"]})$".toRegex()) -> {
+                                commandRunner.runCommand("playerctl -p mpv play")
                                 commandJob.complete()
                                 return true
                             }
                             //yt-stop command
                             commandString.contains("^${commandList.commandList["yt-stop"]}$".toRegex()) -> {
-                                commandRunner.runCommand("echo \"stop\" | socat - /tmp/mpvsocket")
+                                commandRunner.runCommand("playerctl -p mpv stop")
                                 commandJob.complete()
                                 return true
                             }
                             //yt-playsong command
                             commandString.contains("^${commandList.commandList["yt-playsong"]}\\s+".toRegex()) -> {
-                                ytLink = parseLink(Link(message))
+                                ytLink = parseLink(Link(message.substringAfter(" ")))
                                 if (ytLink.link.isNotEmpty()) {
-                                    Thread {
-                                        Runnable {
-                                            run {
-                                                commandRunner.runCommand(
-                                                    "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket" +
-                                                            "--ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0," +
-                                                            "cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" +
-                                                            " --ytdl \"$ytLink\" --volume=$mpvVolume",
-                                                    inheritIO = true,
-                                                    ignoreOutput = true
-                                                )
-                                            }
-                                        }.run()
-                                    }.start()
+                                    launch {
+                                        commandRunner.runCommand(
+                                            "mpv --terminal=no --no-video" +
+                                                    " --ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0," +
+                                                    "cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" +
+                                                    " --ytdl \"$ytLink\" --volume=$mpvVolume",
+                                            inheritIO = true,
+                                            ignoreOutput = true
+                                        )
+                                    }
                                 }
                                 commandJob.complete()
                                 return true
@@ -1361,43 +1351,33 @@ class ChatReader(
 
                             //sc-pause command
                             commandString.contains("^${commandList.commandList["sc-pause"]}$".toRegex()) -> {
-                                commandRunner.runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                                commandRunner.runCommand("playerctl -p mpv pause")
                                 commandJob.complete()
                                 return true
                             }
-                            //sc-resume command
-                            commandString.contains("^${commandList.commandList["sc-resume"]}$".toRegex()) -> {
-                                commandRunner.runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
-                                commandJob.complete()
-                                return true
-                            }
-                            //sc-play command
-                            commandString.contains("^${commandList.commandList["sc-play"]}$".toRegex()) -> {
-                                commandRunner.runCommand("echo \"cycle pause\" | socat - /tmp/mpvsocket")
+                            //sc-resume and sc-play commands
+                            commandString.contains("^(${commandList.commandList["sc-resume"]}|${commandList.commandList["sc-play"]})$".toRegex()) -> {
+                                commandRunner.runCommand("playerctl -p mpv play")
                                 commandJob.complete()
                                 return true
                             }
                             //sc-stop command
                             commandString.contains("^${commandList.commandList["sc-stop"]}$".toRegex()) -> {
-                                commandRunner.runCommand("echo \"stop\" | socat - /tmp/mpvsocket")
+                                commandRunner.runCommand("playerctl -p mpv stop")
                                 commandJob.complete()
                                 return true
                             }
                             //sc-playsong command
                             commandString.contains("^${commandList.commandList["sc-playsong"]}\\s+".toRegex()) -> {
-                                scLink = parseLink(Link(message))
+                                scLink = parseLink(Link(message.substringAfter(" ")))
                                 if (scLink.link.isNotEmpty()) {
-                                    Thread {
-                                        Runnable {
-                                            run {
-                                                commandRunner.runCommand(
-                                                    "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket --ytdl \"$scLink\" --volume=$mpvVolume",
-                                                    inheritIO = true,
-                                                    ignoreOutput = true
-                                                )
-                                            }
-                                        }.run()
-                                    }.start()
+                                    launch {
+                                        commandRunner.runCommand(
+                                            "mpv --terminal=no --no-video --ytdl \"$scLink\" --volume=$mpvVolume",
+                                            inheritIO = true,
+                                            ignoreOutput = true
+                                        )
+                                    }
                                 }
                                 commandJob.complete()
                                 return true

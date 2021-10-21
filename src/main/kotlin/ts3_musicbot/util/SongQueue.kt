@@ -325,8 +325,8 @@ class SongQueue(
                             LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> {
                                 val mpvRunnable = Runnable {
                                     commandRunner.runCommand(
-                                        "mpv --terminal=no --no-video --input-ipc-server=/tmp/mpvsocket " +
-                                                "--ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0" +
+                                        "mpv --terminal=no --no-video" +
+                                                " --ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0" +
                                                 (if (track.linkType == LinkType.YOUTUBE) ",cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" else "") +
                                                 " --ytdl \"${track.link}\" --volume=$mpvVolume",
                                         inheritIO = true,

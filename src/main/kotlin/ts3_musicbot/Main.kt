@@ -31,6 +31,7 @@ private var useOfficialTsClient = true
 private var mpvVolume = 87
 private var commandList = CommandList()
 private lateinit var teamSpeak: TeamSpeak
+private lateinit var chatReader: ChatReader
 
 class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, CommandListener {
     private lateinit var scene: Scene
@@ -80,7 +81,6 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
     private var startBotButton = Button()
     private var stopBotButton = Button()
 
-    private lateinit var chatReader: ChatReader
 
     companion object {
         @JvmStatic
@@ -118,7 +118,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "--command-config         Provide a config file where to read custom commands from\n" +
                         "--use-internal-tsclient  Use the internal TeamSpeak client instead of the official one.\n" +
                         "--mpv-volume <volume>    Set the volume for MPV media player, which is used for YouTube/SoundCloud playback.\n" +
-                        "                         It's usually louder than Spotify, so by default MPV's volume will be at 60.\n"
+                        "                         It's usually louder than Spotify, so by default MPV's volume will be at $mpvVolume.\n"
 
                 //go through given arguments and save them
                 for (argPos in args.indices) {
@@ -299,7 +299,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     }
 
                     if (channelFile.exists()) {
-                        val chatReader = ChatReader("Official Client", channelFile, object : ChatUpdateListener {
+                        chatReader = ChatReader("Official Client", channelFile, object : ChatUpdateListener {
                             override fun onChatUpdated(update: ChatUpdate) {
                                 if (update.message.startsWith("%"))
                                     print("\nUser ${update.userName} issued command \"${update.message}\"\nCommand: ")
@@ -347,7 +347,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             nickname, serverAddress, serverPassword, channelName,
                             if (serverPort.isNotEmpty()) serverPort.toInt() else 9987
                         )
-                        val chatReader = ChatReader("Official Client", File(""), object : ChatUpdateListener {
+                        chatReader = ChatReader("Official Client", File(""), object : ChatUpdateListener {
                             override fun onChatUpdated(update: ChatUpdate) {
                                 if (update.message.startsWith("%"))
                                     print("\nUser ${update.userName} issued command \"${update.message}\"\nCommand: ")
@@ -447,17 +447,17 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             if (settingsFile.exists()) {
                 for (line in settingsFile.readLines()) {
                     when (line.substringBefore("=")) {
-                        "API_KEY" -> settings.apiKey = line.substringAfter("=")
-                        "SERVER_ADDRESS" -> settings.serverAddress = line.substringAfter("=")
-                        "SERVER_PORT" -> settings.serverPort = line.substringAfter("=")
+                        "API_KEY" -> settings.apiKey = line.substringAfter("=").replace(" ", "")
+                        "SERVER_ADDRESS" -> settings.serverAddress = line.substringAfter("=").replace(" ", "")
+                        "SERVER_PORT" -> settings.serverPort = line.substringAfter("=").replace(" ", "")
                         "SERVER_PASSWORD" -> settings.serverPassword = line.substringAfter("=")
                         "CHANNEL_NAME" -> settings.channelName = line.substringAfter("=")
-                        "CHANNEL_FILE_PATH" -> settings.channelFilePath = line.substringAfter("=")
-                        "NICKNAME" -> settings.nickname = line.substringAfter("=")
-                        "MARKET" -> settings.market = line.substringAfter("=")
-                        "SPOTIFY_PLAYER" -> settings.spotifyPlayer = line.substringAfter("=")
-                        "USE_OFFICIAL_TSCLIENT" -> settings.useOfficialTsClient = line.substringAfter("=").toBoolean()
-                        "MPV_VOLUME" -> settings.mpvVolume = line.substringAfter("=").toInt()
+                        "CHANNEL_FILE_PATH" -> settings.channelFilePath = line.substringAfter("=").substringBeforeLast(" ")
+                        "NICKNAME" -> settings.nickname = line.substringAfter("=").substringBeforeLast(" ")
+                        "MARKET" -> settings.market = line.substringAfter("=").replace(" " , "")
+                        "SPOTIFY_PLAYER" -> settings.spotifyPlayer = line.substringAfter("=").replace(" ", "")
+                        "USE_OFFICIAL_TSCLIENT" -> settings.useOfficialTsClient = line.substringAfter("=").replace(" ", "").toBoolean()
+                        "MPV_VOLUME" -> settings.mpvVolume = line.substringAfter("=").replace(" ", "").toInt()
                     }
                 }
             }
@@ -528,7 +528,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         if (settings.serverPort.isNotEmpty()) settings.serverPort.toInt() else 9987
                     )
                 }
-                val chatReader = ChatReader(
+                chatReader = ChatReader(
                     "Official Client",
                     getChannelFile(settings),
                     object : ChatUpdateListener {
@@ -738,7 +738,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         tsClientOfficialRadioButton.toggleGroup = tsClientRadioGroup
         tsClientOfficialRadioButton.isSelected = useOfficialTsClient
 
-        mpvVolumeTextView.text = "Set MPV Media Player volume. Used for YouTube/SoundCloud playback. Defaults to 60"
+        mpvVolumeTextView.text = "Set MPV Media Player volume. Used for YouTube/SoundCloud playback. Defaults to $mpvVolume"
         mpvVolumeTextView.isVisible = false
         mpvVolumeEditText.isVisible = false
 
@@ -1012,7 +1012,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             else -> "spotify" //default to spotify
         },
         tsClientRadioGroup.selectedToggle == tsClientOfficialRadioButton,
-        mpvVolumeEditText.text.toInt()
+        mpvVolumeEditText.text.ifEmpty { "$mpvVolume" }.toInt()
     )
 
 
