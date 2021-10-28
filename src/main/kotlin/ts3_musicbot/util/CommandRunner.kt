@@ -18,7 +18,7 @@ class CommandRunner {
      * @param ignoreOutput Ignore all output from the command
      * @param printOutput Print output of the command in to stdout
      * @param printErrors Print errors of the command in to stdout
-     * @param inheritIO InheritIO let's you properly use interactive commands
+     * @param inheritIO InheritIO lets you properly use interactive commands
      * @return Returns a Pair which contains an Output and an Error.
      */
     fun runCommand(
@@ -26,13 +26,17 @@ class CommandRunner {
         ignoreOutput: Boolean = false,
         printOutput: Boolean = true,
         printErrors: Boolean = true,
-        inheritIO: Boolean = false
+        inheritIO: Boolean = false,
+        printCommand: Boolean = false,
     ): Pair<Output, Error> {
         val commandOutput = StringBuilder()
         val errorOutput = StringBuilder()
 
         val commands = listOf("sh", "-c", command)
         val processBuilder = ProcessBuilder(commands)
+
+        if (printCommand)
+            println("Running command \"$command\"")
         val process: Process
         if (inheritIO) {
             process = processBuilder.inheritIO().start()

@@ -23,12 +23,12 @@ import kotlinx.coroutines.Dispatchers.IO
 import ts3_musicbot.util.*
 
 var inputFilePath = ""
+var mpvVolume = 87
 private lateinit var window: Stage
 private var statusTextView = TextArea()
 private val commandRunner = CommandRunner()
 private var spotifyPlayer = "spotify"
 private var useOfficialTsClient = true
-private var mpvVolume = 87
 private var commandList = CommandList()
 private lateinit var teamSpeak: TeamSpeak
 private lateinit var chatReader: ChatReader

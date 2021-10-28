@@ -10,9 +10,7 @@ import ts3_musicbot.services.Spotify
 import ts3_musicbot.services.YouTube
 import ts3_musicbot.util.*
 import java.io.File
-import java.lang.Runnable
 import java.util.*
-import kotlin.collections.ArrayList
 
 class ChatReader(
     private val client: Any,
@@ -1329,7 +1327,8 @@ class ChatReader(
                                                     "cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" +
                                                     " --ytdl \"$ytLink\" --volume=$mpvVolume",
                                             inheritIO = true,
-                                            ignoreOutput = true
+                                            ignoreOutput = true,
+                                            printCommand = true
                                         )
                                     }
                                 }
@@ -1375,7 +1374,8 @@ class ChatReader(
                                         commandRunner.runCommand(
                                             "mpv --terminal=no --no-video --ytdl \"$scLink\" --volume=$mpvVolume",
                                             inheritIO = true,
-                                            ignoreOutput = true
+                                            ignoreOutput = true,
+                                            printCommand = true
                                         )
                                     }
                                 }
