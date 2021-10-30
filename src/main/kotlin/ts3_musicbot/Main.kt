@@ -248,13 +248,17 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         println("Error!\nOptions -a, -s and -n are required. See -h or --help for more information")
                         exitProcess(0)
                     }
-                    Thread.sleep(5000)
                     //get the server's name
-                    val virtualserverName = commandRunner.runCommand(
+                    fun getVirtualServerName() = commandRunner.runCommand(
                         "(echo auth apikey=$apiKey; " +
                                 "echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
                         printOutput = false
                     ).first.outputText.lines()
+                    while (getVirtualServerName().any { it.contains("Unknown parameter".toRegex()) }) {
+                        println("Waiting for teamspeak to start...")
+                        Thread.sleep(500)
+                    }
+                    val virtualserverName: List<String> = getVirtualServerName()
                     var serverName = ""
                     for (line in virtualserverName) {
                         if (line.contains("virtualserver_name") && line.contains("=")) {
@@ -452,11 +456,13 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "SERVER_PORT" -> settings.serverPort = line.substringAfter("=").replace(" ", "")
                         "SERVER_PASSWORD" -> settings.serverPassword = line.substringAfter("=")
                         "CHANNEL_NAME" -> settings.channelName = line.substringAfter("=")
-                        "CHANNEL_FILE_PATH" -> settings.channelFilePath = line.substringAfter("=").substringBeforeLast(" ")
+                        "CHANNEL_FILE_PATH" -> settings.channelFilePath =
+                            line.substringAfter("=").substringBeforeLast(" ")
                         "NICKNAME" -> settings.nickname = line.substringAfter("=").substringBeforeLast(" ")
-                        "MARKET" -> settings.market = line.substringAfter("=").replace(" " , "")
+                        "MARKET" -> settings.market = line.substringAfter("=").replace(" ", "")
                         "SPOTIFY_PLAYER" -> settings.spotifyPlayer = line.substringAfter("=").replace(" ", "")
-                        "USE_OFFICIAL_TSCLIENT" -> settings.useOfficialTsClient = line.substringAfter("=").replace(" ", "").toBoolean()
+                        "USE_OFFICIAL_TSCLIENT" -> settings.useOfficialTsClient =
+                            line.substringAfter("=").replace(" ", "").toBoolean()
                         "MPV_VOLUME" -> settings.mpvVolume = line.substringAfter("=").replace(" ", "").toInt()
                     }
                 }
@@ -579,11 +585,16 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             var channelFile = File("")
             if (settings.channelFilePath.isEmpty()) {
                 //get the server's name
-                val virtualserverName = commandRunner.runCommand(
+                fun getVirtualServerName() = commandRunner.runCommand(
                     "(echo auth apikey=${settings.apiKey}; " +
                             "echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
                     printOutput = false
                 ).first.outputText.lines()
+                while (getVirtualServerName().contains("Unknown parameter")) {
+                    //wait for teamspeak to actually start
+                    Thread.sleep(500)
+                }
+                val virtualserverName: List<String> = getVirtualServerName()
                 var serverName = ""
                 println("Getting server name...")
                 for (line in virtualserverName) {
@@ -738,7 +749,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         tsClientOfficialRadioButton.toggleGroup = tsClientRadioGroup
         tsClientOfficialRadioButton.isSelected = useOfficialTsClient
 
-        mpvVolumeTextView.text = "Set MPV Media Player volume. Used for YouTube/SoundCloud playback. Defaults to $mpvVolume"
+        mpvVolumeTextView.text =
+            "Set MPV Media Player volume. Used for YouTube/SoundCloud playback. Defaults to $mpvVolume"
         mpvVolumeTextView.isVisible = false
         mpvVolumeEditText.isVisible = false
 

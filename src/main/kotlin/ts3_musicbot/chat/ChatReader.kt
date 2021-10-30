@@ -109,19 +109,19 @@ class ChatReader(
      */
     fun parseLine(userName: String, message: String) {
         //check if message is a command
-        if (message.startsWith(commandList.commandPrefix) && message.length > 1) {
+        if ((message.startsWith(commandList.commandPrefix) || message.startsWith("%")) && message.length > 1) {
 
             val commandJob: CompletableJob = Job()
             CoroutineScope(IO + commandJob).launch {
                 suspend fun executeCommand(commandString: String): Boolean {
                     //parse and execute commands
-                    if (commandList.commandList.any { commandString.startsWith(it.value) }) {
+                    if (commandList.commandList.any { commandString.startsWith(it.value)  } || commandString.startsWith("%help")) {
                         println("Running command $commandString")
                         when {
                             //help command
-                            commandString.contains("${commandList.commandList["help"]}\\s*${commandList.commandPrefix}?[a-z]*-?[a-z]*".toRegex()) -> {
+                            commandString.contains("(%help|${commandList.commandList["help"]})\\s*${commandList.commandPrefix}?[a-z]*-?[a-z]*".toRegex()) -> {
                                 //check extra arguments
-                                if (commandString.substringAfter("${commandList.commandList["help"]}").isEmpty()) {
+                                if (commandString.contains("^(%help|${commandList.commandList["help"]})$".toRegex())) {
                                     //print normal help message
                                     printToChat(
                                         userName,
@@ -1442,7 +1442,7 @@ class ChatReader(
 
                 //check for commands in message and add to list
                 val commands = ArrayList<String>()
-                commands.addAll("$message;".split("\\s*;+\\s*".toRegex()))
+                commands.addAll("${message.replace(";\\[/URL]".toRegex(), "[/URL];")};".split("(\\s*)?;+\\s*".toRegex()))
                 //loop through command list
                 for (command in commands) {
                     when {
