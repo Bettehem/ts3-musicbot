@@ -22,6 +22,7 @@ data class CommandList(
             Pair("sp-pause", "%sp-pause"),
             Pair("sp-resume", "%sp-resume"),
             Pair("sp-play", "%sp-play"),
+            Pair("sp-stop", "%sp-stop"),
             Pair("sp-skip", "%sp-skip"),
             Pair("sp-next", "%sp-next"),
             Pair("sp-prev", "%sp-prev"),
@@ -85,6 +86,7 @@ data class CommandList(
                         "${commandList["sp-pause"]}                    -Pauses the Spotify playback\n" +
                         "${commandList["sp-resume"]}                   -Resumes the Spotify playback\n" +
                         "${commandList["sp-play"]}                     -Resumes the Spotify playback\n" +
+                        "${commandList["sp-stop"]}                     -Stops the Spotify playback\n" +
                         "${commandList["sp-skip"]}                     -Skips the currently playing track\n" +
                         "${commandList["sp-next"]}                     -Skips the currently playing track\n" +
                         "${commandList["sp-prev"]}                     -Plays the previous track\n" +
@@ -314,6 +316,11 @@ data class CommandList(
                 "sp-play", "\n" +
                         "Showing help for ${commandList["sp-play"]} command:\n" +
                         "${commandList["sp-play"]} starts/resumes Spotify playback."
+            ),
+            Pair(
+                "sp-stop", "\n" +
+                        "Showing help for ${commandList["sp-stop"]} command:\n" +
+                        "${commandList["sp-stop"]} stops or pauses Spotify playback."
             ),
             Pair(
                 "sp-skip", "\n" +

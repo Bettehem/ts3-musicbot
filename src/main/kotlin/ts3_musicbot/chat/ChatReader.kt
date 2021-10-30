@@ -1122,6 +1122,16 @@ class ChatReader(
                                 commandJob.complete()
                                 return true
                             }
+                            //sp-stop command
+                            //Stop spotify playback
+                            commandString.contains("^${commandList.commandList["sp-stop"]}$".toRegex()) -> {
+                                if (spotifyPlayer == "ncspot")
+                                    commandRunner.runCommand("playerctl -p ncspot stop; tmux kill-session -t ncspot")
+                                else
+                                    commandRunner.runCommand("playerctl -p $spotifyPlayer pause")
+                                commandJob.complete()
+                                return true
+                            }
                             //sp-skip & sp-next command
                             commandString.contains("^(${commandList.commandList["sp-skip"]}|${commandList.commandList["sp-next"]})$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p $spotifyPlayer next && sleep 1")
@@ -1144,7 +1154,7 @@ class ChatReader(
                                     if (spotifyPlayer == "ncspot") {
                                         if (commandRunner.runCommand("ps aux | grep ncspot | grep -v grep", printOutput = false).first.outputText.isEmpty()){
                                             println("Starting ncspot.")
-                                            commandRunner.runCommand("\$TERMINAL -e ncspot", ignoreOutput = true)
+                                            commandRunner.runCommand("tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter", ignoreOutput = true, printCommand = true)
                                             while (commandRunner.runCommand("playerctl -p ncspot status", printOutput = false, printErrors = false).first.outputText != "Stopped") {
                                                 //wait for ncspot to start
                                                 println("Waiting for ncspot to start...")
@@ -1184,7 +1194,7 @@ class ChatReader(
                                 if (spotifyPlayer == "ncspot") {
                                     if (commandRunner.runCommand("ps aux | grep ncspot | grep -v grep", printOutput = false).first.outputText.isEmpty()){
                                         println("Starting ncspot.")
-                                        commandRunner.runCommand("\$TERMINAL -e ncspot", ignoreOutput = true)
+                                        commandRunner.runCommand("tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter", ignoreOutput = true, printCommand = true)
                                         while (commandRunner.runCommand("playerctl -p ncspot status", printOutput = false, printErrors = false).first.outputText != "Stopped") {
                                             //wait for ncspot to start
                                             println("Waiting for ncspot to start...")
@@ -1226,7 +1236,7 @@ class ChatReader(
                                 if (spotifyPlayer == "ncspot") {
                                     if (commandRunner.runCommand("ps aux | grep ncspot | grep -v grep", printOutput = false).first.outputText.isEmpty()){
                                         println("Starting ncspot.")
-                                        commandRunner.runCommand("\$TERMINAL -e ncspot", ignoreOutput = true)
+                                        commandRunner.runCommand("tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter", ignoreOutput = true, printCommand = true)
                                         while (commandRunner.runCommand("playerctl -p ncspot status", printOutput = false, printErrors = false).first.outputText != "Stopped") {
                                             //wait for ncspot to start
                                             println("Waiting for ncspot to start...")

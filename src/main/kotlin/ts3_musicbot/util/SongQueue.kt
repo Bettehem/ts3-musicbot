@@ -266,12 +266,9 @@ class SongQueue(
                     "ncspot" -> {
                         //sometimes ncspot has problems starting, so ensure it actually starts
 
-                        fun killCommand() = commandRunner.runCommand("pkill -9 ncspot; sleep 2", ignoreOutput = true)
-                        fun startCommand() =
-                            commandRunner.runCommand("\$TERMINAL -e ncspot &", ignoreOutput = true, inheritIO = true)
-                        delay(500)
-                        fun checkProcess() =
-                            commandRunner.runCommand("ps aux | grep ncspot | grep -v grep", printOutput = false)
+                        fun killCommand() = commandRunner.runCommand("playerctl -p ncspot stop; tmux kill-session -t ncspot", ignoreOutput = true)
+                        fun startCommand() = commandRunner.runCommand("tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter", ignoreOutput = true, printCommand = true)
+                        fun checkProcess() = commandRunner.runCommand("ps aux | grep ncspot | grep -v grep", printOutput = false)
 
                         startCommand()
                         while (checkProcess().first.outputText.isEmpty()) {
@@ -279,7 +276,6 @@ class SongQueue(
                             if (checkProcess().first.outputText.isEmpty()) {
                                 killCommand()
                                 startCommand()
-                                killCommand()
                                 delay(2000)
                             }
                         }
@@ -559,6 +555,9 @@ class SongQueue(
             }
             if (player != "spotify") {
                 commandRunner.runCommand("pkill -9 ${getPlayer()}", ignoreOutput = true)
+                if (player == "ncspot") {
+                    commandRunner.runCommand("tmux kill-session -t ncspot")
+                }
             }
             synchronized(trackJob) { trackJob.cancel() }
         }
