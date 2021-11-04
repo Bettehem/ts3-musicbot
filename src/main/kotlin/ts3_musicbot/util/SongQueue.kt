@@ -333,13 +333,13 @@ class SongQueue(
                                     commandRunner.runCommand(
                                         "playerctl -p $spotifyPlayer open spotify:track:${
                                             track.link.getId()
-                                        } &", printCommand = true
+                                        }", printCommand = true
                                     )
                                 } else {
                                     commandRunner.runCommand(
                                         "playerctl -p $spotifyPlayer open spotify:episode:${
                                             track.link.getId()
-                                        } &", printCommand = true
+                                        }", printCommand = true
                                     )
                                 }
                             }

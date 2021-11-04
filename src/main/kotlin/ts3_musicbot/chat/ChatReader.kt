@@ -27,8 +27,6 @@ class ChatReader(
 ) : PlayStateListener {
 
     private var shouldRead = false
-    private var ytLink = Link("")
-    private var scLink = Link("")
     private val commandRunner = CommandRunner()
     private val spotify = Spotify(market)
     private val youTube = YouTube()
@@ -115,7 +113,7 @@ class ChatReader(
             CoroutineScope(IO + commandJob).launch {
                 suspend fun executeCommand(commandString: String): Boolean {
                     //parse and execute commands
-                    if (commandList.commandList.any { commandString.startsWith(it.value)  } || commandString.startsWith("%help")) {
+                    if (commandList.commandList.any { commandString.startsWith(it.value) } || commandString.startsWith("%help")) {
                         println("Running command $commandString")
                         when {
                             //help command
@@ -1152,10 +1150,23 @@ class ChatReader(
                                 ) {
                                     //start ncspot if necessary
                                     if (spotifyPlayer == "ncspot") {
-                                        if (commandRunner.runCommand("ps aux | grep ncspot | grep -v grep", printOutput = false).first.outputText.isEmpty()){
+                                        if (commandRunner.runCommand(
+                                                "ps aux | grep ncspot | grep -v grep",
+                                                printOutput = false
+                                            ).first.outputText.isEmpty()
+                                        ) {
                                             println("Starting ncspot.")
-                                            commandRunner.runCommand("tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter", ignoreOutput = true, printCommand = true)
-                                            while (commandRunner.runCommand("playerctl -p ncspot status", printOutput = false, printErrors = false).first.outputText != "Stopped") {
+                                            commandRunner.runCommand(
+                                                "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
+                                                ignoreOutput = true,
+                                                printCommand = true
+                                            )
+                                            while (commandRunner.runCommand(
+                                                    "playerctl -p ncspot status",
+                                                    printOutput = false,
+                                                    printErrors = false
+                                                ).first.outputText != "Stopped"
+                                            ) {
                                                 //wait for ncspot to start
                                                 println("Waiting for ncspot to start...")
                                                 delay(500)
@@ -1163,7 +1174,10 @@ class ChatReader(
                                         }
                                     }
                                     println("Playing song...")
-                                    if (parseLink(Link(commandString.substringAfter("${commandList.commandList["sp-playsong"]} "))).link.startsWith("https://open.spotify.com/track")) {
+                                    if (
+                                        parseLink(Link(commandString.substringAfter("${commandList.commandList["sp-playsong"]} "))).link
+                                            .startsWith("https://open.spotify.com/track")
+                                    ) {
                                         commandRunner.runCommand(
                                             "playerctl -p $spotifyPlayer open spotify:track:${
                                                 parseLink(Link(message)).link
@@ -1192,10 +1206,23 @@ class ChatReader(
                             commandString.contains("^${commandList.commandList["sp-playlist"]}\\s+".toRegex()) -> {
                                 //start ncspot if necessary
                                 if (spotifyPlayer == "ncspot") {
-                                    if (commandRunner.runCommand("ps aux | grep ncspot | grep -v grep", printOutput = false).first.outputText.isEmpty()){
+                                    if (commandRunner.runCommand(
+                                            "ps aux | grep ncspot | grep -v grep",
+                                            printOutput = false
+                                        ).first.outputText.isEmpty()
+                                    ) {
                                         println("Starting ncspot.")
-                                        commandRunner.runCommand("tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter", ignoreOutput = true, printCommand = true)
-                                        while (commandRunner.runCommand("playerctl -p ncspot status", printOutput = false, printErrors = false).first.outputText != "Stopped") {
+                                        commandRunner.runCommand(
+                                            "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
+                                            ignoreOutput = true,
+                                            printCommand = true
+                                        )
+                                        while (commandRunner.runCommand(
+                                                "playerctl -p ncspot status",
+                                                printOutput = false,
+                                                printErrors = false
+                                            ).first.outputText != "Stopped"
+                                        ) {
                                             //wait for ncspot to start
                                             println("Waiting for ncspot to start...")
                                             delay(500)
@@ -1234,10 +1261,23 @@ class ChatReader(
                             commandString.contains("^${commandList.commandList["sp-playalbum"]}\\s+".toRegex()) -> {
                                 //start ncspot if necessary
                                 if (spotifyPlayer == "ncspot") {
-                                    if (commandRunner.runCommand("ps aux | grep ncspot | grep -v grep", printOutput = false).first.outputText.isEmpty()){
+                                    if (commandRunner.runCommand(
+                                            "ps aux | grep ncspot | grep -v grep",
+                                            printOutput = false
+                                        ).first.outputText.isEmpty()
+                                    ) {
                                         println("Starting ncspot.")
-                                        commandRunner.runCommand("tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter", ignoreOutput = true, printCommand = true)
-                                        while (commandRunner.runCommand("playerctl -p ncspot status", printOutput = false, printErrors = false).first.outputText != "Stopped") {
+                                        commandRunner.runCommand(
+                                            "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
+                                            ignoreOutput = true,
+                                            printCommand = true
+                                        )
+                                        while (commandRunner.runCommand(
+                                                "playerctl -p ncspot status",
+                                                printOutput = false,
+                                                printErrors = false
+                                            ).first.outputText != "Stopped"
+                                        ) {
                                             //wait for ncspot to start
                                             println("Waiting for ncspot to start...")
                                             delay(500)
@@ -1265,7 +1305,10 @@ class ChatReader(
                             commandString.contains("^${commandList.commandList["sp-nowplaying"]}$".toRegex()) -> {
                                 val lines = StringBuilder()
                                 lines.appendLine("Now playing on Spotify:")
-                                val nowPlaying = commandRunner.runCommand("playerctl -p $spotifyPlayer metadata", printOutput = false)
+                                val nowPlaying = commandRunner.runCommand(
+                                    "playerctl -p $spotifyPlayer metadata",
+                                    printOutput = false
+                                )
                                     .first.outputText.lines()
                                 for (line in nowPlaying) {
                                     when (line.substringAfter("xesam:").split("\\s+".toRegex())[0]) {
@@ -1328,7 +1371,7 @@ class ChatReader(
                             }
                             //yt-playsong command
                             commandString.contains("^${commandList.commandList["yt-playsong"]}\\s+".toRegex()) -> {
-                                ytLink = parseLink(Link(message.substringAfter(" ")))
+                                val ytLink = parseLink(Link(message.substringAfter(" ")))
                                 if (ytLink.link.isNotEmpty()) {
                                     launch {
                                         commandRunner.runCommand(
@@ -1341,17 +1384,21 @@ class ChatReader(
                                             printCommand = true
                                         )
                                     }
+                                    commandListener.onCommandExecuted(commandString, "Playing song", ytLink)
+                                    commandJob.complete()
+                                    return true
+                                } else {
+                                    commandListener.onCommandExecuted(commandString, "Couldn't play song", ytLink)
+                                    commandJob.complete()
+                                    return false
                                 }
-                                commandJob.complete()
-                                return true
                             }
                             //yt-nowplaying command
                             commandString.contains("^${commandList.commandList["yt-nowplaying"]}$".toRegex()) -> {
                                 printToChat(
                                     userName, listOf(
                                         "Now playing on YouTube:\n" +
-                                                youTube.getVideoTitle(ytLink) +
-                                                "\nLink: $ytLink"
+                                                youTube.getVideo(Link(commandRunner.runCommand("playerctl -p mpv metadata --format '{{ xesam:url }}'", printOutput = false).first.outputText))
                                     ), apikey
                                 )
                                 commandJob.complete()
@@ -1378,7 +1425,7 @@ class ChatReader(
                             }
                             //sc-playsong command
                             commandString.contains("^${commandList.commandList["sc-playsong"]}\\s+".toRegex()) -> {
-                                scLink = parseLink(Link(message.substringAfter(" ")))
+                                val scLink = parseLink(Link(message.substringAfter(" ")))
                                 if (scLink.link.isNotEmpty()) {
                                     launch {
                                         commandRunner.runCommand(
@@ -1388,17 +1435,22 @@ class ChatReader(
                                             printCommand = true
                                         )
                                     }
+                                    commandListener.onCommandExecuted(commandString, "Playing song", scLink)
+                                    commandJob.complete()
+                                    return true
+                                } else {
+                                    commandListener.onCommandExecuted(commandString, "Couldn't play song", scLink)
+                                    commandJob.complete()
+                                    return false
                                 }
-                                commandJob.complete()
-                                return true
+
                             }
                             //sc-nowplaying command
                             commandString.contains("^${commandList.commandList["sc-nowplaying"]}$".toRegex()) -> {
                                 printToChat(
                                     userName, listOf(
                                         "Now playing on SoundCloud:\n" +
-                                                "${soundCloud.getTrack(scLink).title}\n" +
-                                                "Link: $scLink"
+                                                soundCloud.getTrack(Link(commandRunner.runCommand("playerctl -p mpv metadata --format '{{ xesam:url }}'").first.outputText))
                                     ), apikey
                                 )
                                 commandJob.complete()
@@ -1442,7 +1494,10 @@ class ChatReader(
 
                 //check for commands in message and add to list
                 val commands = ArrayList<String>()
-                commands.addAll("${message.replace(";\\[/URL]".toRegex(), "[/URL];")};".split("(\\s*)?;+\\s*".toRegex()))
+                commands.addAll(
+                    "${message.replace(";\\[/URL]".toRegex(), "[/URL];")};"
+                        .split("(\\s*)?;+\\s*".toRegex())
+                )
                 //loop through command list
                 for (command in commands) {
                     when {
@@ -1677,12 +1732,11 @@ class ChatReader(
             "mpv" -> {
                 when (track.linkType) {
                     LinkType.YOUTUBE -> {
-                        ytLink = track.link
-                        println("Playing ${track.title}")
+                        println("Playing $track")
 
                     }
                     LinkType.SOUNDCLOUD -> {
-                        println("Playing ${track.artists} - ${track.title}")
+                        println("Playing $track")
                     }
                     else -> {
                     }

@@ -253,12 +253,12 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "(echo auth apikey=$apiKey; " +
                                 "echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
                         printOutput = false
-                    ).first.outputText.lines()
-                    while (getVirtualServerName().any { it.contains("Unknown parameter".toRegex()) }) {
-                        println("Waiting for teamspeak to start...")
+                    ).first.outputText
+                    while (!getVirtualServerName().contains("virtualserver_name=".toRegex())) {
+                        println("Waiting for TeamSpeak to start...")
                         Thread.sleep(500)
                     }
-                    val virtualserverName: List<String> = getVirtualServerName()
+                    val virtualserverName: List<String> = getVirtualServerName().lines()
                     var serverName = ""
                     for (line in virtualserverName) {
                         if (line.contains("virtualserver_name") && line.contains("=")) {
@@ -589,12 +589,12 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     "(echo auth apikey=${settings.apiKey}; " +
                             "echo \"servervariable virtualserver_name\"; echo quit) | nc localhost 25639",
                     printOutput = false
-                ).first.outputText.lines()
-                while (getVirtualServerName().contains("Unknown parameter")) {
-                    //wait for teamspeak to actually start
+                ).first.outputText
+                while (!getVirtualServerName().contains("virtualserver_name=".toRegex())) {
+                    println("Waiting for TeamSpeak to start...")
                     Thread.sleep(500)
                 }
-                val virtualserverName: List<String> = getVirtualServerName()
+                val virtualserverName: List<String> = getVirtualServerName().lines()
                 var serverName = ""
                 println("Getting server name...")
                 for (line in virtualserverName) {
@@ -996,7 +996,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
 
             stopBotButton -> {
                 commandRunner.runCommand("wmctrl -c TeamSpeak", ignoreOutput = true)
-                commandRunner.runCommand("killall mpv && killall ncspot")
+                commandRunner.runCommand(
+                    "killall mpv; killall ncspot; tmux kill-session -t ncspot",
+                    ignoreOutput = true
+                )
                 chatReader.stopReading()
                 statusTextView.text = "Status: Bot not active."
                 startBotButton.isManaged = true

@@ -26,7 +26,7 @@ class Console(private val commandList: CommandList, private val consoleUpdateLis
                                 ""
                     )
                 }
-                "say" -> consoleUpdateListener.onCommandIssued(commandList.commandPrefix+userCommand)
+                "say" -> consoleUpdateListener.onCommandIssued(commandList.commandPrefix + userCommand)
                 "save-settings" -> consoleUpdateListener.onCommandIssued(command)
                 "clear" -> print("\u001b[H\u001b[2J")
                 "exit" -> exit(command)
@@ -59,6 +59,7 @@ class Console(private val commandList: CommandList, private val consoleUpdateLis
 
         commandRunner.runCommand("killall mpv", ignoreOutput = true)
         commandRunner.runCommand("killall ncspot", ignoreOutput = true)
+        commandRunner.runCommand("tmux kill-session -t ncspot", ignoreOutput = true)
         commandRunner.runCommand("playerctl -p spotifyd stop", ignoreOutput = true)
         consoleUpdateListener.onCommandIssued(command)
         exitProcess(0)
