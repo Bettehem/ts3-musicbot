@@ -458,7 +458,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "CHANNEL_NAME" -> settings.channelName = line.substringAfter("=")
                         "CHANNEL_FILE_PATH" -> settings.channelFilePath =
                             line.substringAfter("=").substringBeforeLast(" ")
-                        "NICKNAME" -> settings.nickname = line.substringAfter("=").substringBeforeLast(" ")
+                        "NICKNAME" -> settings.nickname = line.substringAfter("=").replace("\\s+$".toRegex(), "")
                         "MARKET" -> settings.market = line.substringAfter("=").replace(" ", "")
                         "SPOTIFY_PLAYER" -> settings.spotifyPlayer = line.substringAfter("=").replace(" ", "")
                         "USE_OFFICIAL_TSCLIENT" -> settings.useOfficialTsClient =
