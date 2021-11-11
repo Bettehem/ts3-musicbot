@@ -2,6 +2,7 @@ package ts3_musicbot.util
 
 data class CommandList(
     var commandPrefix: String = "%",
+    //list of available commands. First is the name of the command, second is the default value.
     var commandList: MutableMap<String, String> =
         mapOf(
             Pair("help", "%help"),
@@ -9,6 +10,7 @@ data class CommandList(
             Pair("queue-playnext", "%queue-playnext"),
             Pair("queue-play", "%queue-play"),
             Pair("queue-list", "%queue-list"),
+            Pair("queue-delete", "%queue-delete"),
             Pair("queue-clear", "%queue-clear"),
             Pair("queue-shuffle", "%queue-shuffle"),
             Pair("queue-skip", "%queue-skip"),
@@ -62,6 +64,7 @@ data class CommandList(
                         "${commandList["queue-playnext"]}                          -Add track/playlist/album to the top of the queue. Add multiple links separated by a comma \",\". Shuffle with the -s option\n" +
                         "${commandList["queue-play"]}                              -Play the song queue\n" +
                         "${commandList["queue-list"]} <--all,--limit>              -Lists current songs in queue. Add the -a/--all option to show all tracks or -l/--limit to set a limit to the amount of tracks.\n" +
+                        "${commandList["queue-delete"]} <link(s)/position(s)>      -Delete song(s) from the queue. If you want to delete multiple tracks, just separate them with a comma \",\". Optionally you can just use a position to delete a track.\n" +
                         "${commandList["queue-clear"]}                             -Clears the song queue\n" +
                         "${commandList["queue-shuffle"]}                           -Shuffles the queue\n" +
                         "${commandList["queue-skip"]}                              -Skips current song\n" +
@@ -172,6 +175,21 @@ data class CommandList(
                         "-l, --limit <amount> -Limit amount of songs to return.\n" +
                         "Example - run %queue-list with a limit of 30 songs:\n" +
                         "${commandList["queue-list"]} --limit 30"
+            ),
+            Pair(
+                "queue-delete", "\n" +
+                        "Showing help for ${commandList["queue-delete"]} command:\n" +
+                        "${commandList["queue-delete"]} lets you delete a track, or tracks from the queue.\n" +
+                        "If the same track is in the queue multiple times,\n" +
+                        "the bot will ask you to choose which one you want to delete.\n" +
+                        "Example - Delete a track from the queue using a link:\n" +
+                        "${commandList["queue-delete"]} https://open.spotify.com/track/54k9d97GSM3lBXY61UagKx\n" +
+                        "Example - Delete multiple tracks using links:\n" +
+                        "${commandList["queue-delete"]} https://open.spotify.com/track/54k9d97GSM3lBXY61UagKx, https://open.spotify.com/track/6le9zgS2y7MQKvDmmGABDW\n" +
+                        "Example - Delete a track from the queue at position 86:\n" +
+                        "${commandList["queue-delete"]} 86\n" +
+                        "Example - Delete a track from the queue at position 86 and 23:\n" +
+                        "${commandList["queue-delete"]} 86, 23"
             ),
             Pair(
                 "queue-clear", "\n" +

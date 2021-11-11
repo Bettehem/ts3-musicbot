@@ -84,6 +84,42 @@ class SongQueue(
         }
     }
 
+    /**
+     * Delete a track from the queue.
+     * @param trackOrPosition the Track or position from where to remove a track.
+     */
+    fun deleteTrack(trackOrPosition: Any) {
+        when (trackOrPosition) {
+            is Track -> synchronized(songQueue){ songQueue.remove(trackOrPosition) }
+            is Int -> synchronized(songQueue){ songQueue.removeAt(trackOrPosition) }
+        }
+    }
+
+    /**
+     * Delete tracks from the queue.
+     * @param tracksOrPositions list of Tracks or positions of tracks to be deleted
+     */
+    fun deleteTracks(tracksOrPositions: Any) {
+        val tracks = ArrayList<Track>()
+        val positions = ArrayList<Int>()
+        if (tracksOrPositions is List<*>) {
+            for (item in tracksOrPositions) {
+                when (item) {
+                    is Track -> tracks.add(item)
+                    is Int -> positions.add(item)
+                }
+            }
+        }
+        if (tracks.isNotEmpty())
+            synchronized(songQueue) { songQueue.removeAll(tracks) }
+        if (positions.isNotEmpty()) {
+            positions.sortDescending()
+            for (position in positions) {
+                synchronized(songQueue) { songQueue.removeAt(position) }
+            }
+        }
+    }
+
     fun getQueue(): ArrayList<Track> = synchronized(songQueue) { songQueue }.toMutableList() as ArrayList<Track>
 
     fun nowPlaying(): Track {

@@ -36,6 +36,8 @@ data class Track(
                 ""
             }
 
+    fun toShortString() = "${artists.toShortString()} - $title : $link"
+
     fun isEmpty() = album.isEmpty() && artists.isEmpty() && title.isEmpty() && link.isEmpty()
     fun isNotEmpty() = album.isNotEmpty() || artists.isNotEmpty() || title.isNotEmpty() || link.isNotEmpty()
 }
