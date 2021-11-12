@@ -727,10 +727,10 @@ class ChatReader(
                                 }
                             }
                             //queue-delete command
-                            commandString.contains("^${commandList.commandList["queue-delete"]}\\s+(((\\[URL])?https?://\\S+,?(\\s+)?)+\$|(\\S+\\s+)?([0-9]+(,(\\s+)?)?)+)".toRegex()) -> {
+                            commandString.contains("^${commandList.commandList["queue-delete"]}\\s+((-a|--all)?\\s+((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+(-a|--all))?|([0-9]+,?(\\s+)?)+)".toRegex()) -> {
                                 //get links from message
                                 val links =
-                                    if (commandString.contains("^${commandList.commandList["queue-delete"]}\\s+(\\[URL])?https?://\\S+(,(\\s+)?)?+".toRegex())) {
+                                    if (commandString.contains("^${commandList.commandList["queue-delete"]}\\s+(-a|--all)?\\s+((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+(-a|--all))?".toRegex())) {
                                         commandString.split("(\\s+|,\\s+|,)".toRegex()).filter {
                                             it.contains("(\\[URL])?https?://\\S+,?(\\[/URL])?".toRegex())
                                         }.map { parseLink(Link(it.replace(",\\[/URL]".toRegex(), "[/URL]"))) }
@@ -748,7 +748,6 @@ class ChatReader(
 
                                 val currentList = songQueue.getQueue()
                                 val tracksToDelete = ArrayList<Track>()
-                                val duplicates = ArrayList<Int>()
                                 for (link in links) {
                                     currentList.forEach { track ->
                                         if (track.link == link)
@@ -758,7 +757,7 @@ class ChatReader(
                                 for (track in tracksToDelete.distinct()) {
                                     //check if there are multiple instances of the track in the queue.
                                     if (currentList.filter { it.link == track.link }.size > 1) {
-                                        duplicates.clear()
+                                        val duplicates = ArrayList<Int>()
                                         printToChat(
                                             userName, listOf(
                                                 "There are multiple instances of this track:\n" +
@@ -777,22 +776,31 @@ class ChatReader(
                                                         }
                                             ), apikey
                                         )
-                                        printToChat(
-                                            userName, listOf(
-                                                "Select the track(s) you want to delete, then run ${commandList.commandList["queue-delete"]} with the position(s) specified, for example:\n" +
-                                                        "${commandList.commandList["queue-delete"]} ${duplicates.first()}\n" +
-                                                        "Or if you want to delete multiple tracks:\n" +
-                                                        "${commandList.commandList["queue-delete"]} ${
-                                                            duplicates.subList(0, 2).let { trackPositions ->
-                                                                val positionsText = StringBuilder()
-                                                                for (pos in trackPositions) {
-                                                                    positionsText.append("$pos, ")
+                                        if (commandString.contains("\\s+(-a|--all)(\\s+)?".toRegex())) {
+                                            printToChat(
+                                                userName,
+                                                listOf("You used the -a/--all flag, so deleting all matches."),
+                                                apikey
+                                            )
+                                            songQueue.deleteTracks(duplicates)
+                                        } else {
+                                            printToChat(
+                                                userName, listOf(
+                                                    "Select the track(s) you want to delete, then run ${commandList.commandList["queue-delete"]} with the position(s) specified, for example:\n" +
+                                                            "${commandList.commandList["queue-delete"]} ${duplicates.first()}\n" +
+                                                            "Or if you want to delete multiple tracks:\n" +
+                                                            "${commandList.commandList["queue-delete"]} ${
+                                                                duplicates.subList(0, 2).let { trackPositions ->
+                                                                    val positionsText = StringBuilder()
+                                                                    for (pos in trackPositions) {
+                                                                        positionsText.append("$pos, ")
+                                                                    }
+                                                                    positionsText.toString().substringBeforeLast(",")
                                                                 }
-                                                                positionsText.toString().substringBeforeLast(",")
-                                                            }
-                                                        }"
-                                            ), apikey
-                                        )
+                                                            }"
+                                                ), apikey
+                                            )
+                                        }
                                     } else {
                                         //no duplicates found, delete the track
                                         printToChat(

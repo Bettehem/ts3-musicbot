@@ -69,7 +69,7 @@ data class CommandList(
                         "${commandList["queue-shuffle"]}                           -Shuffles the queue\n" +
                         "${commandList["queue-skip"]}                              -Skips current song\n" +
                         "${commandList["queue-voteskip"]}                          -Vote to skip the currently playing track. All users currently listening will also have to run ${commandList["queue-voteskip"]} for the track to be skipped.\n" +
-                        "${commandList["queue-move"]} <link> <pos>                 -Moves a track to a desired position in the queue. <link> should be your song link and <pos> should be the new position of your song.\n" +
+                        "${commandList["queue-move"]} <link> -p <pos>              -Moves a track to a desired position in the queue. <link> should be your song link and <pos> should be the new position of your song.\n" +
                         "${commandList["queue-stop"]}                              -Stops the queue\n" +
                         "${commandList["queue-status"]}                            -Returns the status of the song queue\n" +
                         "${commandList["queue-nowplaying"]}                        -Returns information on the currently playing track\n" +
@@ -182,6 +182,8 @@ data class CommandList(
                         "${commandList["queue-delete"]} lets you delete a track, or tracks from the queue.\n" +
                         "If the same track is in the queue multiple times,\n" +
                         "the bot will ask you to choose which one you want to delete.\n" +
+                        "Available options:\n" +
+                        "-a, --all    \t-Delete all matching tracks from the queue.\n" +
                         "Example - Delete a track from the queue using a link:\n" +
                         "${commandList["queue-delete"]} https://open.spotify.com/track/54k9d97GSM3lBXY61UagKx\n" +
                         "Example - Delete multiple tracks using links:\n" +
@@ -189,7 +191,11 @@ data class CommandList(
                         "Example - Delete a track from the queue at position 86:\n" +
                         "${commandList["queue-delete"]} 86\n" +
                         "Example - Delete a track from the queue at position 86 and 23:\n" +
-                        "${commandList["queue-delete"]} 86, 23"
+                        "${commandList["queue-delete"]} 86, 23\n" +
+                        "Example - Delete all tracks matching the given link:\n" +
+                        "${commandList["queue-delete"]} --all https://open.spotify.com/track/54k9d97GSM3lBXY61UagKx\n" +
+                        "Example - Delete all tracks matching the given link:\n" +
+                        "${commandList["queue-delete"]} https://open.spotify.com/track/54k9d97GSM3lBXY61UagKx, https://open.spotify.com/track/6le9zgS2y7MQKvDmmGABDW\n -a"
             ),
             Pair(
                 "queue-clear", "\n" +
