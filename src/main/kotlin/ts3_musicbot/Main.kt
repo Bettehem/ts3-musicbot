@@ -318,9 +318,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
 
                         val console = Console(commandList, object : ConsoleUpdateListener {
                             override fun onCommandIssued(command: String) {
-                                if (command.startsWith(commandList.commandPrefix))
-                                    chatReader.parseLine("__console__", command)
-                                else {
+                                if (command.startsWith(commandList.commandPrefix)) {
+                                    chatReader.latestMsgUsername = "__console__"
+                                    chatReader.parseLine(command)
+                                } else {
                                     when (command) {
                                         "save-settings" -> {
                                             val settings = BotSettings(
@@ -365,9 +366,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         println("Bot $nickname started listening to the chat in channel $channelName.")
                         val console = Console(commandList, object : ConsoleUpdateListener {
                             override fun onCommandIssued(command: String) {
-                                if (command.startsWith(commandList.commandPrefix))
-                                    chatReader.parseLine("__console__", command)
-                                else {
+                                if (command.startsWith(commandList.commandPrefix)) {
+                                    chatReader.latestMsgUsername = "__console__"
+                                    chatReader.parseLine(command)
+                                } else {
                                     when (command) {
                                         "save-settings" -> {
                                             val settings = BotSettings(
@@ -560,9 +562,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 println("Bot ${settings.nickname} started listening to the chat in channel ${settings.channelName}")
                 val console = Console(commandList, object : ConsoleUpdateListener {
                     override fun onCommandIssued(command: String) {
-                        if (command.startsWith(commandList.commandPrefix))
-                            chatReader.parseLine("__console__", command)
-                        else {
+                        if (command.startsWith(commandList.commandPrefix)) {
+                            chatReader.latestMsgUsername = "__console__"
+                            chatReader.parseLine(command)
+                        } else {
                             when (command) {
                                 "save-settings" -> {
                                     saveSettings(settings, showGui = false)

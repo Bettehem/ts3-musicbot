@@ -7,9 +7,9 @@
       </element>
       <element id="extracted-dir" path="$KOTLIN_BUNDLED$/lib/kotlin-stdlib.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$PROJECT_DIR$/lib/json-20210307.jar" path-in-jar="/" />
-      <element id="extracted-dir" path="$PROJECT_DIR$/lib/kotlinx-coroutines-core-jvm-1.5.0.jar" path-in-jar="/" />
-      <element id="extracted-dir" path="$PROJECT_DIR$/lib/kotlinx-coroutines-javafx-1.5.0.jar" path-in-jar="/" />
       <element id="module-output" name="kotlin.musicbot.ts3-musicbot.main" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/lib/kotlinx-coroutines-core-jvm-1.5.2-native-mt.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/lib/kotlinx-coroutines-javafx-1.5.2-native-mt.jar" path-in-jar="/" />
     </root>
   </artifact>
 </component>

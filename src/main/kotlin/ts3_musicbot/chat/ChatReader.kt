@@ -32,6 +32,7 @@ class ChatReader(
     private val youTube = YouTube()
     private val soundCloud = SoundCloud()
     private var voteSkipUsers = ArrayList<Pair<String, Boolean>>()
+    var latestMsgUsername = ""
 
     @Volatile
     private var songQueue = SongQueue(spotifyPlayer, mpvVolume, this)
@@ -102,10 +103,9 @@ class ChatReader(
 
     /**
      * Parses the new line in the chat file and runs it if it's a command.
-     * @param userName
      * @param message the message/command that should be parsed
      */
-    fun parseLine(userName: String, message: String) {
+    fun parseLine(message: String) {
         //check if message is a command
         if ((message.startsWith(commandList.commandPrefix) || message.startsWith("%")) && message.length > 1) {
 
@@ -122,9 +122,7 @@ class ChatReader(
                                 if (commandString.contains("^(%help|${commandList.commandList["help"]})$".toRegex())) {
                                     //print normal help message
                                     printToChat(
-                                        userName,
-                                        listOf(commandList.helpMessages["help"].orEmpty()),
-                                        apikey
+                                        listOf(commandList.helpMessages["help"].orEmpty())
                                     )
                                     commandJob.complete()
                                     return true
@@ -139,17 +137,13 @@ class ChatReader(
                                     return if (commandList.commandList.any { it.value.contains(args.toRegex()) }) {
                                         //print help for command
                                         printToChat(
-                                            userName,
-                                            listOf(commandList.helpMessages[commandList.commandList.filterValues { it == args }.keys.first()].orEmpty()),
-                                            apikey
+                                            listOf(commandList.helpMessages[commandList.commandList.filterValues { it == args }.keys.first()].orEmpty())
                                         )
                                         commandJob.complete()
                                         true
                                     } else {
                                         printToChat(
-                                            userName,
-                                            listOf("Command doesn't exist! See ${commandList.commandList["help"]} for available commands."),
-                                            apikey
+                                            listOf("Command doesn't exist! See ${commandList.commandList["help"]} for available commands.")
                                         )
                                         commandJob.complete()
                                         false
@@ -251,7 +245,7 @@ class ChatReader(
 
                                 println("Fetching data...")
                                 println("Total number of links: ${links.size}")
-                                printToChat(userName, listOf("Please wait, fetching data..."), apikey)
+                                printToChat(listOf("Please wait, fetching data..."))
                                 //add links to queue
                                 for (link in links) {
                                     when {
@@ -603,11 +597,11 @@ class ChatReader(
                                     }
                                 }
                                 return if (commandSuccessful) {
-                                    printToChat(userName, listOf("Added to queue."), apikey)
+                                    printToChat(listOf("Added to queue."))
                                     commandJob.complete()
                                     true
                                 } else {
-                                    printToChat(userName, listOf("One or more tracks could not be added :/"), apikey)
+                                    printToChat(listOf("One or more tracks could not be added :/"))
                                     commandJob.complete()
                                     false
                                 }
@@ -617,21 +611,21 @@ class ChatReader(
                                 if (songQueue.getQueue().isNotEmpty()) {
                                     return if (songQueue.getState() != SongQueue.State.QUEUE_STOPPED) {
                                         printToChat(
-                                            userName, listOf(
+                                            listOf(
                                                 "Queue is already active!\n" +
                                                         "Did you mean to type ${commandList.commandList["queue-resume"]} instead?"
-                                            ), apikey
+                                            )
                                         )
                                         commandJob.complete()
                                         false
                                     } else {
-                                        printToChat(userName, listOf("Playing Queue."), apikey)
+                                        printToChat(listOf("Playing Queue."))
                                         songQueue.startQueue()
                                         commandJob.complete()
                                         true
                                     }
                                 } else {
-                                    printToChat(userName, listOf("Queue is empty!"), apikey)
+                                    printToChat(listOf("Queue is empty!"))
                                     commandJob.complete()
                                     return false
                                 }
@@ -645,7 +639,6 @@ class ChatReader(
                                         strBuilder.append("${it.name}, ")
                                     }
                                     printToChat(
-                                        userName,
                                         listOf(
                                             if (track.linkType == LinkType.YOUTUBE) {
                                                 "Currently playing:\n${track.title} : ${track.link.link}"
@@ -655,17 +648,14 @@ class ChatReader(
                                                 } - ${track.title}" +
                                                         " : ${track.link.link}"
                                             }
-                                        ),
-                                        apikey
+                                        )
                                     )
                                 }
-                                printToChat(userName, listOf("Song Queue:"), apikey)
+                                printToChat(listOf("Song Queue:"))
                                 val currentQueue = songQueue.getQueue()
                                 when {
                                     currentQueue.isEmpty() -> printToChat(
-                                        userName,
-                                        listOf("Queue is empty!"),
-                                        apikey
+                                        listOf("Queue is empty!")
                                     )
                                     else -> {
                                         fun formatLines(queue: List<Track>): List<String> {
@@ -715,7 +705,7 @@ class ChatReader(
                                             }
                                         }
                                         msg.appendLine("Queue Length: ${currentQueue.size} tracks.")
-                                        printToChat(userName, listOf(msg.toString()), apikey)
+                                        printToChat(listOf(msg.toString()))
                                         commandListener.onCommandExecuted(
                                             commandString,
                                             msg.toString(),
@@ -747,19 +737,14 @@ class ChatReader(
                                 }
 
                                 val currentList = songQueue.getQueue()
-                                val tracksToDelete = ArrayList<Track>()
-                                for (link in links) {
-                                    currentList.forEach { track ->
-                                        if (track.link == link)
-                                            tracksToDelete.add(track)
-                                    }
-                                }
+                                //get a list of the tracks to delete
+                                val tracksToDelete = currentList.filter { track -> links.contains(track.link) }
                                 for (track in tracksToDelete.distinct()) {
                                     //check if there are multiple instances of the track in the queue.
                                     if (currentList.filter { it.link == track.link }.size > 1) {
                                         val duplicates = ArrayList<Int>()
                                         printToChat(
-                                            userName, listOf(
+                                            listOf(
                                                 "There are multiple instances of this track:\n" +
                                                         currentList.mapIndexed { i, t ->
                                                             if (t.link == track.link)
@@ -774,18 +759,19 @@ class ChatReader(
                                                             }
                                                             sb.toString()
                                                         }
-                                            ), apikey
+                                            )
                                         )
                                         if (commandString.contains("\\s+(-a|--all)(\\s+)?".toRegex())) {
                                             printToChat(
-                                                userName,
-                                                listOf("You used the -a/--all flag, so deleting all matches."),
-                                                apikey
+                                                listOf(
+                                                    "You used the -a/--all flag, so deleting all matches of track:\n" +
+                                                            track.toShortString()
+                                                )
                                             )
                                             songQueue.deleteTracks(duplicates)
                                         } else {
                                             printToChat(
-                                                userName, listOf(
+                                                listOf(
                                                     "Select the track(s) you want to delete, then run ${commandList.commandList["queue-delete"]} with the position(s) specified, for example:\n" +
                                                             "${commandList.commandList["queue-delete"]} ${duplicates.first()}\n" +
                                                             "Or if you want to delete multiple tracks:\n" +
@@ -798,15 +784,13 @@ class ChatReader(
                                                                     positionsText.toString().substringBeforeLast(",")
                                                                 }
                                                             }"
-                                                ), apikey
+                                                )
                                             )
                                         }
                                     } else {
                                         //no duplicates found, delete the track
                                         printToChat(
-                                            userName,
-                                            listOf("Deleting track:\n${track.toShortString()}"),
-                                            apikey
+                                            listOf("Deleting track:\n${track.toShortString()}")
                                         )
                                         songQueue.deleteTrack(track)
                                     }
@@ -815,9 +799,7 @@ class ChatReader(
                                 //delete tracks at specified positions
                                 if (positions.isNotEmpty()) {
                                     printToChat(
-                                        userName,
-                                        listOf("Deleting track${if (positions.size > 1) "s" else ""}."),
-                                        apikey
+                                        listOf("Deleting track${if (positions.size > 1) "s" else ""}.")
                                     )
                                     songQueue.deleteTracks(positions)
                                 }
@@ -826,12 +808,12 @@ class ChatReader(
                             commandString.contains("^${commandList.commandList["queue-clear"]}$".toRegex()) -> {
                                 songQueue.clearQueue()
                                 return if (songQueue.getQueue().isEmpty()) {
-                                    printToChat(userName, listOf("Cleared the queue."), apikey)
+                                    printToChat(listOf("Cleared the queue."))
                                     commandListener.onCommandExecuted(commandString, "Cleared the queue.")
                                     commandJob.complete()
                                     true
                                 } else {
-                                    printToChat(userName, listOf("Could not clear the queue!"), apikey)
+                                    printToChat(listOf("Could not clear the queue!"))
                                     commandListener.onCommandExecuted(commandString, "Could not clear the queue!")
                                     commandJob.complete()
                                     false
@@ -840,7 +822,7 @@ class ChatReader(
                             //queue-shuffle command
                             commandString.contains("^${commandList.commandList["queue-shuffle"]}$".toRegex()) -> {
                                 songQueue.shuffleQueue()
-                                printToChat(userName, listOf("Shuffled the queue."), apikey)
+                                printToChat(listOf("Shuffled the queue."))
                                 commandJob.complete()
                                 return true
                             }
@@ -904,7 +886,7 @@ class ChatReader(
                                     if (user != botName) {
                                         for (voteSkipUser in currentList) {
                                             if (user == voteSkipUser.first) {
-                                                if (userName == user) {
+                                                if (latestMsgUsername == user) {
                                                     newList.add(Pair(user, true))
                                                 } else {
                                                     newList.add(Pair(user, voteSkipUser.second))
@@ -912,19 +894,17 @@ class ChatReader(
                                             }
                                         }
                                         if (currentList.isEmpty()) {
-                                            newList.add(Pair(user, userName == user))
+                                            newList.add(Pair(user, latestMsgUsername == user))
                                         }
                                     }
                                 }
                                 voteSkipUsers.addAll(newList)
                                 if (voteSkipUsers.any { !it.second }) {
                                     printToChat(
-                                        userName,
-                                        listOf("\nAll users have not voted yet.\nWaiting for more votes..."),
-                                        apikey
+                                        listOf("\nAll users have not voted yet.\nWaiting for more votes...")
                                     )
                                 } else {
-                                    printToChat(userName, listOf("Skipping current song."), apikey)
+                                    printToChat(listOf("Skipping current song."))
                                     voteSkipUsers.clear()
                                     val currentSong = songQueue.nowPlaying()
                                     songQueue.skipSong()
@@ -955,9 +935,7 @@ class ChatReader(
                                 when {
                                     position > songQueue.getQueue().size - 1 -> {
                                         printToChat(
-                                            userName,
-                                            listOf("lol u think arrays start at 1?"),
-                                            apikey
+                                            listOf("lol u think arrays start at 1?")
                                         )
                                         commandJob.complete()
                                         return false
@@ -965,9 +943,7 @@ class ChatReader(
 
                                     position < 0 -> {
                                         printToChat(
-                                            userName,
-                                            listOf("What were you thinking?", "You can't do that."),
-                                            apikey
+                                            listOf("What were you thinking?", "You can't do that.")
                                         )
                                         commandJob.complete()
                                         return false
@@ -977,9 +953,7 @@ class ChatReader(
                                         songQueue.moveTrack(Track(link = link), position)
                                         return if (songQueue.getQueue()[position].link == link) {
                                             printToChat(
-                                                userName,
-                                                listOf("Moved track to new position."),
-                                                apikey
+                                                listOf("Moved track to new position.")
                                             )
                                             commandListener.onCommandExecuted(
                                                 commandString,
@@ -989,9 +963,7 @@ class ChatReader(
                                             true
                                         } else {
                                             printToChat(
-                                                userName,
-                                                listOf("Couldn't move track to new position."),
-                                                apikey
+                                                listOf("Couldn't move track to new position.")
                                             )
                                             commandListener.onCommandExecuted(
                                                 commandString,
@@ -1006,7 +978,7 @@ class ChatReader(
                             //queue-stop command
                             commandString.contains("^${commandList.commandList["queue-stop"]}$".toRegex()) -> {
                                 songQueue.stopQueue()
-                                printToChat(userName, listOf("Stopped the queue."), apikey)
+                                printToChat(listOf("Stopped the queue."))
                                 commandJob.complete()
                                 return true
                             }
@@ -1023,7 +995,7 @@ class ChatReader(
                                     SongQueue.State.QUEUE_STOPPED -> statusMessage.appendLine("Stopped")
                                         .also { stateKnown = true }
                                 }
-                                printToChat(userName, statusMessage.toString().lines(), apikey)
+                                printToChat(statusMessage.toString().lines())
                                 commandListener.onCommandExecuted(commandString, statusMessage.toString())
                                 commandJob.complete()
                                 return stateKnown
@@ -1051,9 +1023,9 @@ class ChatReader(
                                     }
                                     messageLines.appendLine("Track Title:   \t\t${currentTrack.title}")
                                     messageLines.appendLine("Track Link:    \t\t${currentTrack.link}")
-                                    printToChat(userName, listOf(messageLines.toString()), apikey)
+                                    printToChat(listOf(messageLines.toString()))
                                 } else {
-                                    printToChat(userName, listOf("No song playing!"), apikey)
+                                    printToChat(listOf("No song playing!"))
                                 }
                                 commandJob.complete()
                                 return true
@@ -1097,34 +1069,31 @@ class ChatReader(
                                         commandString.substringAfter("$searchType ")
                                             .replace("(-l|--limit)\\s+[0-9]+".toRegex(), "")
                                     )
-                                    printToChat(userName, listOf("Searching, please wait..."), apikey)
+                                    printToChat(listOf("Searching, please wait..."))
                                     val results = when (service) {
                                         "sp" -> spotify.searchSpotify(searchType, searchQuery, limit)
                                         "yt" -> youTube.searchYoutube(searchType, searchQuery, limit)
                                         "sc" -> soundCloud.searchSoundCloud(searchType, searchQuery, limit)
                                         else -> SearchResults(emptyList())
                                     }
-                                    if (results.isNotEmpty()) {
+                                    return if (results.isNotEmpty()) {
                                         val searchResults = ArrayList<SearchResult>()
                                         results.results.forEach { searchResults.add(it) }
                                         printToChat(
-                                            userName, listOf("\n${SearchResults(searchResults)}"),
-                                            apikey
+                                            listOf("\n${SearchResults(searchResults)}")
                                         )
                                         commandListener.onCommandExecuted(commandString, results.toString(), results)
                                         commandJob.complete()
-                                        return true
+                                        true
                                     } else {
-                                        printToChat(userName, listOf("No results found!"), apikey)
+                                        printToChat(listOf("No results found!"))
                                         commandListener.onCommandExecuted(commandString, results.toString(), results)
                                         commandJob.complete()
-                                        return false
+                                        false
                                     }
                                 } else {
                                     printToChat(
-                                        userName,
-                                        listOf("Search type not supported! Run ${commandList.commandList["help"]} ${commandList.commandList["$service-search"]} to see more information on this command."),
-                                        apikey
+                                        listOf("Search type not supported! Run ${commandList.commandList["help"]} ${commandList.commandList["$service-search"]} to see more information on this command.")
                                     )
                                     commandListener.onCommandExecuted(commandString, "Not supported", searchType)
                                     commandJob.complete()
@@ -1177,15 +1146,13 @@ class ChatReader(
                                         }
                                     }
                                     return if (data != null) {
-                                        printToChat(userName, listOf("\n$data"), apikey)
+                                        printToChat(listOf("\n$data"))
                                         commandListener.onCommandExecuted(commandString, data.toString(), data)
                                         commandJob.complete()
                                         true
                                     } else {
                                         printToChat(
-                                            userName,
-                                            listOf("You have to provide a Spotify link or URI to a track!"),
-                                            apikey
+                                            listOf("You have to provide a Spotify link or URI to a track!")
                                         )
                                         commandListener.onCommandExecuted(commandString, data.toString(), data)
                                         commandJob.complete()
@@ -1193,10 +1160,10 @@ class ChatReader(
                                     }
                                 } else {
                                     printToChat(
-                                        userName, listOf(
+                                        listOf(
                                             "This service isn't supported, available commands are:\n" +
                                                     "${supportedServices.map { "${commandList.commandList["$it-info"]}" }}"
-                                        ), apikey
+                                        )
                                     )
                                     commandListener.onCommandExecuted(commandString, "Not supported")
                                     commandJob.complete()
@@ -1292,7 +1259,7 @@ class ChatReader(
                                     commandJob.complete()
                                     return true
                                 } else {
-                                    printToChat(userName, listOf("Error! Please provide a song to play!"), apikey)
+                                    printToChat(listOf("Error! Please provide a song to play!"))
                                     commandJob.complete()
                                     return false
                                 }
@@ -1442,7 +1409,7 @@ class ChatReader(
                                         )
                                     }
                                 }
-                                printToChat(userName, listOf(lines.toString()), apikey)
+                                printToChat(listOf(lines.toString()))
                                 commandJob.complete()
                                 return true
                             }
@@ -1492,7 +1459,7 @@ class ChatReader(
                             //yt-nowplaying command
                             commandString.contains("^${commandList.commandList["yt-nowplaying"]}$".toRegex()) -> {
                                 printToChat(
-                                    userName, listOf(
+                                    listOf(
                                         "Now playing on YouTube:\n" +
                                                 youTube.getVideo(
                                                     Link(
@@ -1502,7 +1469,7 @@ class ChatReader(
                                                         ).first.outputText
                                                     )
                                                 )
-                                    ), apikey
+                                    )
                                 )
                                 commandJob.complete()
                                 return true
@@ -1551,10 +1518,10 @@ class ChatReader(
                             //sc-nowplaying command
                             commandString.contains("^${commandList.commandList["sc-nowplaying"]}$".toRegex()) -> {
                                 printToChat(
-                                    userName, listOf(
+                                    listOf(
                                         "Now playing on SoundCloud:\n" +
                                                 soundCloud.getTrack(Link(commandRunner.runCommand("playerctl -p mpv metadata --format '{{ xesam:url }}'").first.outputText))
-                                    ), apikey
+                                    )
                                 )
                                 commandJob.complete()
                                 return true
@@ -1568,14 +1535,12 @@ class ChatReader(
                         }
                     } else {
                         //if userName is set to __console__, allow the usage of %say command
-                        if (userName == "__console__") {
+                        if (latestMsgUsername == "__console__") {
                             when {
                                 //send a message to the chat
                                 message.contains("^${commandList.commandPrefix}say(\\s+\\S+)+$".toRegex()) -> {
                                     printToChat(
-                                        "",
-                                        listOf(message.substringAfter("${commandList.commandPrefix}say ")),
-                                        apikey
+                                        listOf(message.substringAfter("${commandList.commandPrefix}say "))
                                     )
                                     commandJob.complete()
                                     return true
@@ -1583,9 +1548,7 @@ class ChatReader(
                             }
                         } else {
                             printToChat(
-                                userName,
-                                listOf("Command not found! Try ${commandList.commandList["help"]} to see available commands."),
-                                apikey
+                                listOf("Command not found! Try ${commandList.commandList["help"]} to see available commands.")
                             )
                             commandJob.complete()
                             return false
@@ -1631,8 +1594,8 @@ class ChatReader(
         }
     }
 
-    //use ClientQuery to send message (requires apikey)
-    private fun printToChat(userName: String, messages: List<String>, apikey: String) {
+    //use TeamSpeak ClientQuery to send message(s)
+    private fun printToChat(messages: List<String>) {
         /**
          * Send a message to the current TeamSpeak channel's chat
          * @param message The message that should be sent. Max length is 8192 chars!
@@ -1643,7 +1606,7 @@ class ChatReader(
                     "echo quit) | nc localhost 25639"
             commandRunner.runCommand(command, printOutput = false)
         }
-        if (userName == "__console__") {
+        if (latestMsgUsername == "__console__") {
             messages.forEach { println(it) }
         } else {
             if (apikey.isNotEmpty()) {
@@ -1776,7 +1739,7 @@ class ChatReader(
         when (chatFile.extension) {
             "html" -> {
                 //extract message
-                val userName = line.split("client://".toRegex())[1].split("&quot;".toRegex())[1]
+                latestMsgUsername = line.split("client://".toRegex())[1].split("&quot;".toRegex())[1]
                 val time = Time(Calendar.getInstance())
                 val rawTime = line.split("TextMessage_Time\">&lt;".toRegex())[1]
                     .split("&gt;</span>".toRegex())[0]
@@ -1786,16 +1749,16 @@ class ChatReader(
                 time.second = rawTime[2]
 
                 val userMessage = line.split("TextMessage_Text\">".toRegex())[1].split("</span>".toRegex())[0]
-                parseLine(userName, userMessage)
+                parseLine(userMessage)
                 withContext(Main) {
-                    onChatUpdateListener.onChatUpdated(ChatUpdate(userName, userMessage))
+                    onChatUpdateListener.onChatUpdated(ChatUpdate(latestMsgUsername, userMessage))
                 }
             }
 
             "txt" -> {
                 //extract message
                 if (line.startsWith("<")) {
-                    val userName = line.substringAfter("> ").substringBeforeLast(": ")
+                    latestMsgUsername = line.substringAfter("> ").substringBeforeLast(": ")
                     val time = Time(Calendar.getInstance())
                     val rawTime =
                         line.split(" ".toRegex())[0].substringAfter("<").substringBefore(">").split(":".toRegex())
@@ -1803,10 +1766,10 @@ class ChatReader(
                     time.minute = rawTime[1]
                     time.second = rawTime[2]
 
-                    val userMessage = line.substringAfter("$userName: ")
-                    parseLine(userName, userMessage)
+                    val userMessage = line.substringAfter("$latestMsgUsername: ")
+                    parseLine(userMessage)
                     withContext(Main) {
-                        onChatUpdateListener.onChatUpdated(ChatUpdate(userName, userMessage))
+                        onChatUpdateListener.onChatUpdated(ChatUpdate(latestMsgUsername, userMessage))
                     }
                 }
             }
@@ -1828,7 +1791,8 @@ class ChatReader(
         when (player) {
             "spotify", "ncspot", "spotifyd" -> {
                 CoroutineScope(Default).launch {
-                    parseLine("", "${commandList.commandList["queue-nowplaying"]}")
+                    latestMsgUsername = "__song_queue__"
+                    parseLine("${commandList.commandList["queue-nowplaying"]}")
                     println("Now playing:\n$track")
                 }
             }
@@ -1844,13 +1808,15 @@ class ChatReader(
                     else -> {
                     }
                 }
-                parseLine("", "${commandList.commandList["queue-nowplaying"]}")
+                latestMsgUsername = "__song_queue__"
+                parseLine("${commandList.commandList["queue-nowplaying"]}")
             }
         }
     }
 
     override fun onAdPlaying() {
-        printToChat("__song_queue__", listOf("\nAd playing."), apikey)
+        latestMsgUsername = "__song_queue__"
+        printToChat(listOf("\nAd playing."))
     }
 
 }

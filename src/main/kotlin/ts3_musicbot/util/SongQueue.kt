@@ -311,12 +311,13 @@ class SongQueue(
                             delay(5000)
                             if (checkProcess().first.outputText.isEmpty()) {
                                 killCommand()
+                                delay(500)
                                 startCommand()
                                 delay(2000)
                             }
                         }
                     }
-                    "spotifyd" -> println("Using spotifyd. The service should be started already, so not doing anything now.")
+                    "spotifyd" -> println("Using spotifyd. The service should be started by the user already, so not doing anything now.")
                     else -> {
                         println("$spotifyPlayer is not a valid spotify player!")
                     }

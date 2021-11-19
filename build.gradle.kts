@@ -12,13 +12,13 @@ repositories {
 
 dependencies {
     implementation(platform("org.jetbrains.kotlin:kotlin-bom"))
-    implementation(kotlin("stdlib-jdk8"))
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
 
-    implementation("org.json:json:20201115")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.5.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.5.0")
+    implementation("org.json:json:20210307")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.5.2-native-mt")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.5.2-native-mt")
 }
 
 // JavaJX module to include

@@ -15,7 +15,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class SoundCloud {
-    var clientId = "9W64ngrJNaQIXfNm6SORus4z4ucknVhz"
+    var clientId = "aruu5nVXiDILh6Dg7IlLpyhpjsnC2POa"
     private val commandRunner = CommandRunner()
     private val api2URL = URL("https://api-v2.soundcloud.com")
     val apiURL = URL("https://api.soundcloud.com")
@@ -41,13 +41,13 @@ class SoundCloud {
         for (line in lines) {
             val url = line.substringAfter("\"").substringBefore("\"")
             val data = commandRunner.runCommand(
-                "curl $url 2> /dev/null | grep \"client_id=\"",
+                "curl $url 2> /dev/null | grep -E \"client_id=\\w+&\"",
                 printOutput = false,
                 printErrors = false
             ).first.outputText
             if (data.isNotEmpty()) {
                 val id = data.substringAfter("client_id=").substringBefore("&")
-                clientId = id
+                synchronized(clientId) { clientId = id }
                 break
             }
         }
