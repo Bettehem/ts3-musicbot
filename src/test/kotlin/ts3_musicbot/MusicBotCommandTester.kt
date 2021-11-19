@@ -38,7 +38,8 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
         commandListener: CommandListener = chatReader.commandListener
     ) {
         chatReader.commandListener = commandListener
-        chatReader.parseLine(username, command)
+        chatReader.latestMsgUsername = username
+        chatReader.parseLine(command)
     }
 
     @Test
