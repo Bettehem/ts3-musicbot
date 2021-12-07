@@ -157,7 +157,7 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
         }).also { Thread.sleep(5000) }
         runBlocking(Default) {
             val youTube = YouTube()
-            list = youTube.getPlaylistTracks(youTubePlaylistLink).trackList.filter { it.playability.isPlayable }
+            list = youTube.fetchPlaylistTracks(youTubePlaylistLink).trackList.filter { it.playability.isPlayable }
         }
         assertEquals(list, extraList.trackList)
         runCommand(chatReader, "%queue-clear")

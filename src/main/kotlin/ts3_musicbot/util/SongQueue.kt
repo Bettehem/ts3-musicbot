@@ -90,8 +90,8 @@ class SongQueue(
      */
     fun deleteTrack(trackOrPosition: Any) {
         when (trackOrPosition) {
-            is Track -> synchronized(songQueue){ songQueue.remove(trackOrPosition) }
-            is Int -> synchronized(songQueue){ songQueue.removeAt(trackOrPosition) }
+            is Track -> synchronized(songQueue) { songQueue.remove(trackOrPosition) }
+            is Int -> synchronized(songQueue) { songQueue.removeAt(trackOrPosition) }
         }
     }
 
@@ -194,7 +194,8 @@ class SongQueue(
                                 "youtube-dl cannot download this track! Skipping...\n" +
                                         "Check if a newer version of youtube-dl is available and update it to the latest one if you already haven't."
                             )
-                            songQueue.removeAt(0)
+                            songQueue.removeFirst()
+                            break
                         }
                         if (songQueue.isNotEmpty()) {
                             playTrack(songQueue.first())
@@ -288,9 +289,11 @@ class SongQueue(
         ).first.outputText
 
         fun startTrack() {
-            synchronized(trackPosition) { trackPosition = 0 }
-            synchronized(this) { trackJob.cancel() }
-            synchronized(this) { trackJob = Job() }
+            synchronized(this) {
+                trackPosition = 0
+                trackJob.cancel()
+                trackJob = Job()
+            }
 
             fun playerStatus() = commandRunner.runCommand(
                 "playerctl -p ${getPlayer()} status", printOutput = false, printErrors = false
@@ -302,9 +305,19 @@ class SongQueue(
                     "ncspot" -> {
                         //sometimes ncspot has problems starting, so ensure it actually starts
 
-                        fun killCommand() = commandRunner.runCommand("playerctl -p ncspot stop; tmux kill-session -t ncspot", ignoreOutput = true)
-                        fun startCommand() = commandRunner.runCommand("tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter", ignoreOutput = true, printCommand = true)
-                        fun checkProcess() = commandRunner.runCommand("ps aux | grep ncspot | grep -v grep", printOutput = false)
+                        fun killCommand() = commandRunner.runCommand(
+                            "playerctl -p ncspot stop; tmux kill-session -t ncspot",
+                            ignoreOutput = true
+                        )
+
+                        fun startCommand() = commandRunner.runCommand(
+                            "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
+                            ignoreOutput = true,
+                            printCommand = true
+                        )
+
+                        fun checkProcess() =
+                            commandRunner.runCommand("ps aux | grep ncspot | grep -v grep", printOutput = false)
 
                         startCommand()
                         while (checkProcess().first.outputText.isEmpty()) {
@@ -426,7 +439,7 @@ class SongQueue(
                                     songQueue.remove(track)
                                 }
                                 listener.onTrackEnded(getPlayer(), track)
-                                    .also { synchronized(trackJob) { trackJob }.complete() }
+                                    .also { trackJob.complete() }
                             }
                         }
                     }
@@ -451,9 +464,19 @@ class SongQueue(
                     return minutes * 60 + seconds
                 }
 
+                suspend fun startCountingTrackPosition(job: Job) {
+                    withContext(job + IO) {
+                        while (job.isActive) {
+                            delay(1000)
+                            trackPosition += 1
+                        }
+                    }
+                }
+
                 var trackLength = getTrackLength()
                 var wasPaused = false
-                loop@ while (true) {
+                lateinit var trackPositionJob: Job
+                loop@ while (trackJob.isActive) {
                     if (currentUrl() == track.link.link || currentUrl().startsWith("https://open.spotify.com/ad/")) {
                         when (playerStatus().first.outputText) {
                             "Playing" -> {
@@ -468,57 +491,66 @@ class SongQueue(
                                     }
                                 }
                                 if (wasPaused) {
+                                    CoroutineScope(trackJob + IO).launch {
+                                        trackPositionJob = Job()
+                                        startCountingTrackPosition(trackPositionJob)
+                                    }
                                     listener.onTrackResumed(getPlayer(), track)
                                     wasPaused = false
                                 }
-                                if (synchronized(trackPosition) { trackPosition } == 0) {
+                                if (trackPosition == 0) {
+                                    CoroutineScope(trackJob + IO).launch {
+                                        trackPositionJob = Job()
+                                        startCountingTrackPosition(trackPositionJob)
+                                    }
                                     listener.onTrackStarted(getPlayer(), track)
+                                    delay(1000)
                                 }
-                                delay(990 - trackLength / 10L)
-                                synchronized(trackPosition) { trackPosition += 1 }
                             }
                             "Paused" -> {
-                                if (synchronized(trackPosition) { trackPosition } >= trackLength - 10) {
+                                if (trackPosition >= trackLength - 10) {
                                     //songEnded
+                                    trackPositionJob.cancel()
                                     listener.onTrackEnded(getPlayer(), track)
-                                        .also { synchronized(trackJob) { trackJob.complete() } }
+                                        .also { trackJob.complete() }
                                     break@loop
                                 } else {
                                     if (!wasPaused) {
+                                        trackPositionJob.cancel()
                                         listener.onTrackPaused(getPlayer(), track)
                                         wasPaused = true
                                     }
                                 }
                             }
                             "Stopped" -> {
-                                if (synchronized(trackPosition) { trackPosition } > 1) {
+                                if (trackPosition > 1) {
+                                    trackPositionJob.cancel()
                                     listener.onTrackEnded(getPlayer(), track)
-                                        .also { synchronized(trackJob) { trackJob.complete() } }
+                                        .also { trackJob.complete() }
                                     break@loop
                                 }
                             }
                             else -> {
-                                synchronized(trackJob) {
-                                    trackJob.completeExceptionally(Throwable("Unhandled Player Status"))
-                                }
+                                trackPositionJob.cancel()
+                                trackJob.completeExceptionally(Throwable("Unhandled Player Status"))
                                 break@loop
                             }
                         }
                     } else {
-                        if (synchronized(trackPosition) { trackPosition } >= trackLength - 20) {
+                        if (trackPosition >= trackLength - 10) {
+                            trackPositionJob.cancel()
                             listener.onTrackEnded(getPlayer(), track)
-                                .also { synchronized(trackJob) { trackJob.complete() } }
+                                .also { trackJob.complete() }
                             break@loop
                         } else {
                             //Something went seriously wrong. Restart the player and start the song again.
                             commandRunner.runCommand("pkill -9 ${getPlayer()}")
                             if (getPlayer() == spotifyPlayer)
                                 startSpotifyPlayer()
-                            synchronized(songQueue) {songQueue.add(0, track)}
+                            synchronized(songQueue) { songQueue.add(0, track) }
+                            trackPositionJob.cancel()
                             openTrack().also {
-                                synchronized(trackJob) {
-                                    trackJob.complete()
-                                }
+                                trackJob.complete()
                             }
                             break@loop
                         }
@@ -526,15 +558,15 @@ class SongQueue(
                 }
                 when (track.linkType) {
                     LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> {
-                        while (synchronized(trackJob) { trackJob.isActive }) {
+                        while (trackJob.isActive) {
                             if (commandRunner.runCommand(
                                     "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${getPlayer()}(.+)?\" | grep -v \"grep\"",
                                     printOutput = false
                                 ).first.outputText.isEmpty()
                             ) {
-                                if (synchronized(trackPosition) { trackPosition } >= trackLength - 20) {
+                                if (trackPosition >= trackLength - 20) {
                                     listener.onTrackEnded(getPlayer(), track)
-                                        .also { synchronized(trackJob) { trackJob.complete() } }
+                                        .also { trackJob.complete() }
                                     break
                                 }
                                 delay(1000)
@@ -543,8 +575,7 @@ class SongQueue(
                             delay(50)
                         }
                     }
-                    else -> {
-                    }
+                    else -> {}
                 }
             }
 
@@ -592,11 +623,11 @@ class SongQueue(
             }
             if (player != "spotify") {
                 commandRunner.runCommand("pkill -9 ${getPlayer()}", ignoreOutput = true)
-                if (player == "ncspot") {
-                    commandRunner.runCommand("tmux kill-session -t ncspot")
-                }
             }
-            synchronized(trackJob) { trackJob.cancel() }
+            if (player == "ncspot") {
+                commandRunner.runCommand("tmux kill-session -t ncspot")
+            }
+            trackJob.cancel()
         }
     }
 }

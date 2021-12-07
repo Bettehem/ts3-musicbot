@@ -17,7 +17,7 @@ class YouTubeTest {
             //YouTube link for track: Phace & Noisia - Non-Responsive
             val testYtLink = Link("https://youtu.be/IKZnGWxJN3I")
             //You need to have youtube-dl installed for the getTitle function to work.
-            val title = youTube.getVideoTitle(testYtLink)
+            val title = youTube.fetchVideo(testYtLink).title.name
             assertEquals("Phace & Noisia - Non-Responsive", title)
         }
     }
@@ -27,7 +27,7 @@ class YouTubeTest {
         runBlocking(IO) {
             //YouTube link for track: Phace & Noisia - Non-Responsive
             val testYtLink = Link("https://youtu.be/IKZnGWxJN3I")
-            val track = youTube.getVideo(testYtLink)
+            val track = youTube.fetchVideo(testYtLink)
             assertTrue(
                 (track.title.name == "Phace & Noisia - Non-Responsive" && track.playability.isPlayable) ||
                         (track.title.name.isEmpty() && !track.playability.isPlayable)
@@ -50,7 +50,7 @@ class YouTubeTest {
         runBlocking(IO) {
             //YouTube link for playlist: prog. The playlist length is 6 tracks.
             val testYtLink = Link("https://www.youtube.com/playlist?list=PLVzaRVhV8Ebb5m6IIEpOJeOIBMKk4AVwm")
-            val tracks = youTube.getPlaylistTracks(testYtLink)
+            val tracks = youTube.fetchPlaylistTracks(testYtLink)
             assertTrue(tracks.trackList.size == 6 || tracks.trackList.isEmpty())
         }
     }

@@ -24,15 +24,11 @@ class YouTube {
     )
 
     /**
-     * Get the title of a YouTube video
-     * @param videoLink link to video
-     * @return returns a title
+     * Fetch a video/track from YouTube
+     * @param videoLink link to a video
+     * @return returns a Track containing the video's information.
      */
-    suspend fun getVideoTitle(videoLink: Link): String {
-        return getVideo(videoLink).title.name
-    }
-
-    suspend fun getVideo(videoLink: Link): Track {
+    suspend fun fetchVideo(videoLink: Link): Track {
         /**
          * Send a request to YouTube API to get playlist items
          * @param part tells the API what type of information to return
@@ -110,6 +106,11 @@ class YouTube {
         return track
     }
 
+    /**
+     * Fetch a playlist's data (not tracks) from YouTube
+     * @param playlistLink link to playlist
+     * @return returns a Playlist containing the given playlist's information
+     */
     suspend fun fetchPlaylist(playlistLink: Link): Playlist {
         fun fetchPlaylistData(apiKey: String = apiKey1): Response {
             val urlBuilder = StringBuilder()
@@ -168,11 +169,11 @@ class YouTube {
     }
 
     /**
-     * Get a list of videos/tracks in a given playlist
+     * Fetch a list of YouTube videos/tracks in a given playlist
      * @param link link to playlist
      * @return returns a list of videos/tracks
      */
-    suspend fun getPlaylistTracks(link: Link): TrackList {
+    suspend fun fetchPlaylistTracks(link: Link): TrackList {
         /**
          * Send a request to YouTube API to get playlist items
          * @param maxResults max results to receive. 50 is the maximum per request
@@ -243,7 +244,16 @@ class YouTube {
                                             )
                                             val track = Track(
                                                 Album(releaseDate = releaseDate),
-                                                Artists(),
+                                                Artists(
+                                                    listOf(
+                                                        item.getJSONObject("snippet").let { artist ->
+                                                            Artist(
+                                                                Name(artist.getString("channelTitle")),
+                                                                Link("https://www.youtube.com/channel/${artist.getString("channelId")}")
+                                                            )
+                                                        }
+                                                    )
+                                                ),
                                                 Name(title),
                                                 Link(videoLink),
                                                 Playability(isPlayable)
@@ -383,6 +393,11 @@ class YouTube {
         return trackList
     }
 
+    /**
+     * Fetch a channel's playlists from YouTube
+     * @param channelLink link to a YouTube channel
+     * @return returns a list of the channel's playlists.
+     */
     private suspend fun fetchChannelPlaylists(channelLink: Link): List<Playlist> {
         fun fetchPlaylistsData(apiKey: String = apiKey1, pageToken: String = ""): Response {
             val urlBuilder = StringBuilder()
@@ -491,6 +506,11 @@ class YouTube {
         }
     }
 
+    /**
+     * Fetch a channel's data on YouTube
+     * @param link a YouTube channel's link
+     * @return returns the channel's data as a User data class
+     */
     suspend fun fetchChannel(link: Link): User {
         fun fetchChannelData(apiKey: String = apiKey1): Response {
             val urlBuilder = StringBuilder()
@@ -550,7 +570,8 @@ class YouTube {
      * Search on YouTube for a video/track or a playlist
      * @param searchType can be "track", "video" or "playlist"
      * @param searchQuery search keywords
-     * @return returns top 10 results from the search
+     * @param resultLimit limit how many results are retrieved.
+     * @return returns results from the search
      */
     suspend fun searchYoutube(searchType: SearchType, searchQuery: SearchQuery, resultLimit: Int = 10): SearchResults {
         fun encode(text: String) = runBlocking {
@@ -687,6 +708,11 @@ class YouTube {
         return SearchResults(searchResults)
     }
 
+    /**
+     * Resolve the type of given YouTube link
+     * @param link link to be resolved
+     * @return returns a String containing the type of link. Possible values: video, channel, playlist
+     */
     suspend fun resolveType(link: Link): String {
         fun fetchData(apiKey: String = apiKey1): Response {
             val urlBuilder = StringBuilder()
