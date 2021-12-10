@@ -1076,6 +1076,7 @@ class Spotify(private val market: String = "") {
 
         lateinit var track: Track
         val trackJob = Job()
+        var isRetry = false
         withContext(IO + trackJob) {
             while (true) {
                 val trackData = getTrackData(trackLink, market.ifEmpty { defaultMarket })
@@ -1105,8 +1106,13 @@ class Spotify(private val market: String = "") {
                     HttpURLConnection.HTTP_BAD_REQUEST -> {
                         println("Error ${trackData.code}! Bad request!!")
                         track = Track()
-                        trackJob.complete()
-                        return@withContext
+                        if (isRetry) {
+                            trackJob.complete()
+                            return@withContext
+                        } else {
+                            isRetry = true
+                            updateToken()
+                        }
                     }
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${trackData.data.data} seconds.")

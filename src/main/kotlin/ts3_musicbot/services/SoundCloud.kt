@@ -809,7 +809,7 @@ class SoundCloud {
             if (link.link.startsWith("$api2URL/users/"))
                 urlBuilder.append("&${link.link.substringAfter("?")}")
             else
-                urlBuilder.append("&limit=200")
+                urlBuilder.append("&limit=150")
             @Suppress("BlockingMethodInNonBlockingContext")
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }

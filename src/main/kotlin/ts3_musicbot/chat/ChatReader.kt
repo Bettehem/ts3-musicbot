@@ -1,7 +1,6 @@
 package ts3_musicbot.chat
 
 import kotlinx.coroutines.*
-import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Dispatchers.Main
 import ts3_musicbot.client.TeamSpeak
@@ -39,7 +38,7 @@ class ChatReader(
 
     init {
         //initialise spotify token
-        CoroutineScope(Default).launch {
+        CoroutineScope(IO).launch {
             spotify.updateToken()
         }
     }
@@ -109,7 +108,7 @@ class ChatReader(
         //check if message is a command
         if ((message.startsWith(commandList.commandPrefix) || message.startsWith("%")) && message.length > 1) {
 
-            val commandJob: CompletableJob = Job()
+            val commandJob = Job()
             CoroutineScope(IO + commandJob).launch {
                 suspend fun executeCommand(commandString: String): Boolean {
                     //parse and execute commands
@@ -123,6 +122,10 @@ class ChatReader(
                                     //print normal help message
                                     printToChat(
                                         listOf(commandList.helpMessages["help"].orEmpty())
+                                    )
+                                    commandListener.onCommandExecuted(
+                                        commandString,
+                                        commandList.helpMessages["help"].orEmpty()
                                     )
                                     commandJob.complete()
                                     return true
@@ -139,11 +142,21 @@ class ChatReader(
                                         printToChat(
                                             listOf(commandList.helpMessages[commandList.commandList.filterValues { it == args }.keys.first()].orEmpty())
                                         )
+                                        commandListener.onCommandExecuted(
+                                            commandString,
+                                            commandList.helpMessages[commandList.commandList.filterValues { it == args }.keys.first()].orEmpty(),
+                                            args
+                                        )
                                         commandJob.complete()
                                         true
                                     } else {
                                         printToChat(
                                             listOf("Command doesn't exist! See ${commandList.commandList["help"]} for available commands.")
+                                        )
+                                        commandListener.onCommandExecuted(
+                                            commandString,
+                                            "Command doesn't exist! See ${commandList.commandList["help"]} for available commands.",
+                                            args
                                         )
                                         commandJob.complete()
                                         false
@@ -782,7 +795,8 @@ class ChatReader(
                                                                         for (pos in trackPositions) {
                                                                             positionsText.append("$pos, ")
                                                                         }
-                                                                        positionsText.toString().substringBeforeLast(",")
+                                                                        positionsText.toString()
+                                                                            .substringBeforeLast(",")
                                                                     }
                                                                 }"
                                                     )
@@ -1589,11 +1603,9 @@ class ChatReader(
                             //run command
                             if (command.isNotEmpty())
                                 executeCommand(command.substringBeforeLast(";"))
-
                         }
                     }
                 }
-                commandJob.join()
             }
         }
     }
@@ -1793,30 +1805,15 @@ class ChatReader(
 
     override fun onTrackStarted(player: String, track: Track) {
         when (player) {
-            "spotify", "ncspot", "spotifyd" -> {
-                CoroutineScope(Default).launch {
-                    latestMsgUsername = "__song_queue__"
-                    parseLine("${commandList.commandList["queue-nowplaying"]}")
-                    println("Now playing:\n$track")
-                }
-            }
-            "mpv" -> {
-                when (track.linkType) {
-                    LinkType.YOUTUBE -> {
-                        println("Playing $track")
-
-                    }
-                    LinkType.SOUNDCLOUD -> {
-                        println("Playing $track")
-                    }
-                    else -> {
-                    }
-                }
+            "spotify", "ncspot", "spotifyd", "mpv" -> {
                 latestMsgUsername = "__song_queue__"
                 parseLine("${commandList.commandList["queue-nowplaying"]}")
+                println("Now playing:\n$track")
             }
         }
     }
+
+    override fun onTrackStopped(player: String, track: Track) {}
 
     override fun onAdPlaying() {
         latestMsgUsername = "__song_queue__"
