@@ -524,7 +524,7 @@ class ChatReader(
                                             //check type
                                             when (type) {
                                                 "track" -> {
-                                                    val track = soundCloud.getTrack(
+                                                    val track = soundCloud.fetchTrack(
                                                         Link(
                                                             link.link.substringAfter("[URL]")
                                                                 .substringBefore("[/URL]")
@@ -1154,7 +1154,7 @@ class ChatReader(
                                         }
                                         "sc" -> {
                                             data = when (soundCloud.resolveType(link)) {
-                                                "track" -> soundCloud.getTrack(link)
+                                                "track" -> soundCloud.fetchTrack(link)
                                                 "album" -> soundCloud.fetchAlbum(link)
                                                 "playlist" -> soundCloud.getPlaylist(link)
                                                 "artist" -> soundCloud.fetchArtist(link)
@@ -1538,7 +1538,7 @@ class ChatReader(
                                 printToChat(
                                     listOf(
                                         "Now playing on SoundCloud:\n" +
-                                                soundCloud.getTrack(Link(commandRunner.runCommand("playerctl -p mpv metadata --format '{{ xesam:url }}'").first.outputText))
+                                                soundCloud.fetchTrack(Link(commandRunner.runCommand("playerctl -p mpv metadata --format '{{ xesam:url }}'").first.outputText))
                                     )
                                 )
                                 commandJob.complete()

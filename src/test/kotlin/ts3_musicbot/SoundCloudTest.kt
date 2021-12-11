@@ -47,7 +47,7 @@ class SoundCloudTest {
         runBlocking(IO) {
             //SoundCloud link to track: i am leeya - something worth dreaming of (leeyas mashup)
             val testLink = Link("https://soundcloud.com/iamleeya/something-worth-dreaming-of")
-            val track = soundCloud.getTrack(testLink)
+            val track = soundCloud.fetchTrack(testLink)
             assertEquals("i am leeya", track.artists.artists[0].name.name)
             assertEquals("something worth dreaming of (leeyas mashup)", track.title.name)
         }

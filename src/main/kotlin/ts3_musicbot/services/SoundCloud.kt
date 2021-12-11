@@ -129,7 +129,11 @@ class SoundCloud {
                                 link = Link(playlistData.getJSONObject("user").getString("permalink_url"))
                             ),
                             Description(if (!playlistData.isNull("description")) playlistData.getString("description") else ""),
-                            Followers(playlistData.getInt("likes_count")),
+                            if (!playlistData.isNull("likes_count")) {
+                                Followers(playlistData.getInt("likes_count"))
+                            } else {
+                                Followers()
+                            },
                             Publicity(playlistData.getString("sharing") == "public"),
                             Collaboration(false),
                             Link(playlistData.getString("permalink_url"))
@@ -350,7 +354,11 @@ class SoundCloud {
                     )
                 ),
                 Description(playlistData.getString("description")),
-                Followers(playlistData.getInt("likes_count")),
+                if (!playlistData.isNull("likes_count")) {
+                    Followers(playlistData.getInt("likes_count"))
+                } else {
+                    Followers()
+                },
                 Publicity(playlistData.getBoolean("public")),
                 Collaboration(false),
                 Link(
@@ -563,11 +571,11 @@ class SoundCloud {
     }
 
     /**
-     * Get a Track object for a given SoundCloud song link
+     * Fetch a Track object for a given SoundCloud song link
      * @param link link to the song
      * @return returns a Track object with uploader, title and link
      */
-    suspend fun getTrack(link: Link): Track {
+    suspend fun fetchTrack(link: Link): Track {
         lateinit var track: Track
 
         suspend fun fetchTrackData(): Response {
@@ -599,7 +607,11 @@ class SoundCloud {
                 Name(trackData.getString("title")),
                 Link(trackData.getString("permalink_url"), trackData.getInt("id").toString()),
                 Playability(trackData.getBoolean("streamable") && trackData.getString("policy") != "BLOCK"),
-                Likes(trackData.getInt("likes_count"))
+                if (!trackData.isNull("likes_count")) {
+                    Likes(trackData.getInt("likes_count"))
+                } else {
+                    Likes()
+                }
             )
         }
 
@@ -769,7 +781,11 @@ class SoundCloud {
                                         Name(it.getString("title")),
                                         User(),
                                         Description(if (!it.isNull("description")) it.getString("description") else ""),
-                                        Followers(it.getInt("likes_count")),
+                                        if (!it.isNull("likes_count")) {
+                                            Followers(it.getInt("likes_count"))
+                                        } else {
+                                            Followers()
+                                        },
                                         Publicity(it.getBoolean("public")),
                                         Collaboration(false),
                                         Link(
@@ -1093,7 +1109,11 @@ class SoundCloud {
                                         Name(it.getString("title")),
                                         Link(it.getString("permalink_url"), it.getInt("id").toString()),
                                         Playability(it.getBoolean("streamable") && it.getString("policy") != "BLOCK"),
-                                        Likes(it.getInt("likes_count"))
+                                        if (!it.isNull("likes_count")) {
+                                            Likes(it.getInt("likes_count"))
+                                        } else {
+                                            Likes()
+                                        }
                                     )
                                 })
                                 tracksJob.complete()
