@@ -110,6 +110,65 @@ class ChatReader(
 
             val commandJob = Job()
             CoroutineScope(IO + commandJob).launch {
+                suspend fun startSpotifyPlayer() {
+                    fun killCommand() = when (spotifyPlayer) {
+                        "spotify" -> commandRunner.runCommand(
+                            "pkill -9 spotify",
+                            ignoreOutput = true
+                        )
+                        "ncspot" -> commandRunner.runCommand(
+                            "playerctl -p ncspot stop; tmux kill-session -t ncspot",
+                            ignoreOutput = true
+                        )
+                        "spotifyd" -> commandRunner.runCommand("echo \"spotifyd isn't well supported yet, please kill it manually.\"")
+                        else -> commandRunner.runCommand("echo \"$spotifyPlayer is not a supported player!\" > /dev/stderr; return 2")
+                    }
+
+                    fun startCommand() = when (spotifyPlayer) {
+                        "spotify" -> commandRunner.runCommand(
+                            "$spotifyPlayer &",
+                            ignoreOutput = true,
+                            printCommand = true,
+                            inheritIO = true
+                        )
+                        "ncspot" -> commandRunner.runCommand(
+                            "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
+                            ignoreOutput = true,
+                            printCommand = true
+                        )
+                        "spotifyd" -> commandRunner.runCommand("echo \"spotifyd isn't well supported yet, please start it manually.\"")
+                        else -> commandRunner.runCommand("echo \"$spotifyPlayer is not a supported player!\" > /dev/stderr; return 2")
+                    }
+
+                    fun checkProcess() = commandRunner.runCommand(
+                        "ps aux | grep $spotifyPlayer | grep -v grep",
+                        printOutput = false
+                    )
+
+                    if (checkProcess().first.outputText.isEmpty())
+                        startCommand()
+                    //sometimes the spotify player has problems starting, so ensure it actually starts.
+                    while (checkProcess().first.outputText.isEmpty()) {
+                        delay(7000)
+                        if (checkProcess().first.outputText.isEmpty()) {
+                            repeat(2) { killCommand() }
+                            delay(500)
+                            startCommand()
+                            delay(2000)
+                        }
+                    }
+                    //wait for the spotify player to start.
+                    while (commandRunner.runCommand(
+                            "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?$spotifyPlayer(\\s+\\S+)?$\" | grep -v \"grep\"",
+                            printOutput = false
+                        ).first.outputText.isEmpty()
+                    ) {
+                        //do nothing
+                        println("Waiting for $spotifyPlayer to start")
+                        delay(10)
+                    }
+                    delay(5000)
+                }
                 suspend fun executeCommand(commandString: String): Boolean {
                     //parse and execute commands
                     if (commandList.commandList.any { commandString.startsWith(it.value) } || commandString.startsWith("%help")) {
@@ -1169,10 +1228,9 @@ class ChatReader(
                                         commandJob.complete()
                                         true
                                     } else {
-                                        printToChat(
-                                            listOf("You have to provide a Spotify link or URI to a track!")
-                                        )
-                                        commandListener.onCommandExecuted(commandString, data.toString(), data)
+                                        val msg = "You have to provide a Spotify link or URI to a track!"
+                                        printToChat(listOf(msg))
+                                        commandListener.onCommandExecuted(commandString, msg)
                                         commandJob.complete()
                                         false
                                     }
@@ -1229,31 +1287,7 @@ class ChatReader(
                                 if (message.substringAfter("${commandList.commandList["sp-playsong"]}")
                                         .isNotEmpty()
                                 ) {
-                                    //start ncspot if necessary
-                                    if (spotifyPlayer == "ncspot") {
-                                        if (commandRunner.runCommand(
-                                                "ps aux | grep ncspot | grep -v grep",
-                                                printOutput = false
-                                            ).first.outputText.isEmpty()
-                                        ) {
-                                            println("Starting ncspot.")
-                                            commandRunner.runCommand(
-                                                "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
-                                                ignoreOutput = true,
-                                                printCommand = true
-                                            )
-                                            while (commandRunner.runCommand(
-                                                    "playerctl -p ncspot status",
-                                                    printOutput = false,
-                                                    printErrors = false
-                                                ).first.outputText != "Stopped"
-                                            ) {
-                                                //wait for ncspot to start
-                                                println("Waiting for ncspot to start...")
-                                                delay(500)
-                                            }
-                                        }
-                                    }
+                                    startSpotifyPlayer()
                                     println("Playing song...")
                                     if (
                                         parseLink(Link(commandString.substringAfter("${commandList.commandList["sp-playsong"]} "))).link
@@ -1285,31 +1319,7 @@ class ChatReader(
                             //sp-playlist command
                             //Play Spotify playlist based on link or URI
                             commandString.contains("^${commandList.commandList["sp-playlist"]}\\s+".toRegex()) -> {
-                                //start ncspot if necessary
-                                if (spotifyPlayer == "ncspot") {
-                                    if (commandRunner.runCommand(
-                                            "ps aux | grep ncspot | grep -v grep",
-                                            printOutput = false
-                                        ).first.outputText.isEmpty()
-                                    ) {
-                                        println("Starting ncspot.")
-                                        commandRunner.runCommand(
-                                            "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
-                                            ignoreOutput = true,
-                                            printCommand = true
-                                        )
-                                        while (commandRunner.runCommand(
-                                                "playerctl -p ncspot status",
-                                                printOutput = false,
-                                                printErrors = false
-                                            ).first.outputText != "Stopped"
-                                        ) {
-                                            //wait for ncspot to start
-                                            println("Waiting for ncspot to start...")
-                                            delay(500)
-                                        }
-                                    }
-                                }
+                                startSpotifyPlayer()
                                 if (message.split(" ".toRegex())[1].startsWith("spotify:user:")
                                     && message.split(" ".toRegex())[1].contains(":playlist:")
                                 ) {
@@ -1340,31 +1350,7 @@ class ChatReader(
                             }
                             //sp-playalbum command
                             commandString.contains("^${commandList.commandList["sp-playalbum"]}\\s+".toRegex()) -> {
-                                //start ncspot if necessary
-                                if (spotifyPlayer == "ncspot") {
-                                    if (commandRunner.runCommand(
-                                            "ps aux | grep ncspot | grep -v grep",
-                                            printOutput = false
-                                        ).first.outputText.isEmpty()
-                                    ) {
-                                        println("Starting ncspot.")
-                                        commandRunner.runCommand(
-                                            "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
-                                            ignoreOutput = true,
-                                            printCommand = true
-                                        )
-                                        while (commandRunner.runCommand(
-                                                "playerctl -p ncspot status",
-                                                printOutput = false,
-                                                printErrors = false
-                                            ).first.outputText != "Stopped"
-                                        ) {
-                                            //wait for ncspot to start
-                                            println("Waiting for ncspot to start...")
-                                            delay(500)
-                                        }
-                                    }
-                                }
+                                startSpotifyPlayer()
                                 if (message.split(" ".toRegex())[1].startsWith("spotify:album")) {
                                     commandRunner.runCommand(
                                         "playerctl -p $spotifyPlayer open spotify:album:${
