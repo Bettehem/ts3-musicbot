@@ -15,7 +15,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class SoundCloud {
-    var clientId = "aruu5nVXiDILh6Dg7IlLpyhpjsnC2POa"
+    var clientId = "atkWGyMg57QFFAwK5c9VpC1N5Q141g7I"
     private val commandRunner = CommandRunner()
     private val api2URL = URL("https://api-v2.soundcloud.com")
     val apiURL = URL("https://api.soundcloud.com")
@@ -310,7 +310,7 @@ class SoundCloud {
                         }
                         HttpURLConnection.HTTP_UNAUTHORIZED -> {
                             updateClientId()
-                            searchData = searchData(link = Link(result.url.toString()))
+                            searchData = searchData(link = Link(result.url.toString().replace("client_id=[a-zA-Z0-9]+".toRegex(), "client_id=$clientId")))
                         }
                         else -> {
                             println("HTTP ERROR! CODE ${searchData.code}")
