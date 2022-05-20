@@ -1,14 +1,16 @@
 package ts3_musicbot.services
 
-import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.json.JSONException
 import org.json.JSONObject
 import ts3_musicbot.util.*
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLEncoder
 import java.net.URLDecoder
+import java.net.URLEncoder
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -248,8 +250,8 @@ class YouTube {
                                                     listOf(
                                                         item.getJSONObject("snippet").let { artist ->
                                                             Artist(
-                                                                Name(artist.getString("channelTitle")),
-                                                                Link("https://www.youtube.com/channel/${artist.getString("channelId")}")
+                                                                Name(artist.getString("videoOwnerChannelTitle")),
+                                                                Link("https://www.youtube.com/channel/${artist.getString("videoOwnerChannelId")}")
                                                             )
                                                         }
                                                     )
@@ -321,7 +323,16 @@ class YouTube {
                                             )
                                         val track = Track(
                                             Album(releaseDate = releaseDate),
-                                            Artists(),
+                                            Artists(
+                                                listOf(
+                                                    item.getJSONObject("snippet").let { artist ->
+                                                        Artist(
+                                                            Name(artist.getString("videoOwnerChannelTitle")),
+                                                            Link("https://www.youtube.com/channel/${artist.getString("videoOwnerChannelId")}")
+                                                        )
+                                                    }
+                                                )
+                                            ),
                                             Name(title),
                                             Link(videoLink),
                                             Playability(isPlayable)
@@ -575,14 +586,18 @@ class YouTube {
      */
     suspend fun searchYoutube(searchType: SearchType, searchQuery: SearchQuery, resultLimit: Int = 10): SearchResults {
         fun encode(text: String) = runBlocking {
-            URLEncoder.encode(text, Charsets.UTF_8.toString())
+            withContext(IO) {
+                URLEncoder.encode(text, Charsets.UTF_8.toString())
+            }
                 .replace("'", "&#39;")
                 .replace("&", "&amp;")
                 .replace("/", "&#x2F;")
         }
 
         fun decode(text: String) = runBlocking {
-            URLDecoder.decode(text, Charsets.UTF_8.toString())
+            withContext(IO) {
+                URLDecoder.decode(text, Charsets.UTF_8.toString())
+            }
                 .replace("&#39;", "'")
                 .replace("&amp;", "&")
                 .replace("&x2F;", "/")
