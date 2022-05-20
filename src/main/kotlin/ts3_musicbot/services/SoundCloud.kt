@@ -15,7 +15,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class SoundCloud {
-    var clientId = "atkWGyMg57QFFAwK5c9VpC1N5Q141g7I"
+    var clientId = "xJmsHs37dLKGnKYrWkjl2xQYMEtUp1nz"
     private val commandRunner = CommandRunner()
     private val api2URL = URL("https://api-v2.soundcloud.com")
     val apiURL = URL("https://api.soundcloud.com")
@@ -41,12 +41,12 @@ class SoundCloud {
         for (line in lines) {
             val url = line.substringAfter("\"").substringBefore("\"")
             val data = commandRunner.runCommand(
-                "curl $url 2> /dev/null | grep -E \"client_id=\\w+&\"",
+                "curl $url 2> /dev/null | grep -E \"client_id=[0-9A-Za-z\\-_]+\"",
                 printOutput = false,
                 printErrors = false
             ).first.outputText
             if (data.isNotEmpty()) {
-                val id = data.substringAfter("client_id=").substringBefore("&")
+                val id = data.replace("^.*client_id=".toRegex(), "").replace("(&|\"?\\),).*$".toRegex(), "")
                 synchronized(clientId) { clientId = id }
                 break
             }
@@ -825,7 +825,7 @@ class SoundCloud {
             if (link.link.startsWith("$api2URL/users/"))
                 urlBuilder.append("&${link.link.substringAfter("?")}")
             else
-                urlBuilder.append("&limit=150")
+                urlBuilder.append("&limit=100")
             @Suppress("BlockingMethodInNonBlockingContext")
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
@@ -943,7 +943,7 @@ class SoundCloud {
             if (link.link.startsWith("$api2URL/stream/users/"))
                 urlBuilder.append("&${link.link.substringAfter("?")}")
             else
-                urlBuilder.append("&limit=200")
+                urlBuilder.append("&limit=150")
             @Suppress("BlockingMethodInNonBlockingContext")
 
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
