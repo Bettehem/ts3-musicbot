@@ -1620,7 +1620,7 @@ class ChatReader(
                     fun addEscaping(msg: String): String {
                         val distro = commandRunner.runCommand("cat /etc/issue", printOutput = false).first.outputText
                         return when {
-                            distro.contains("Ubuntu".toRegex()) -> {
+                            distro.contains("(Ubuntu|Debian)".toRegex()) -> {
                                 msg.replace(" ", "\\\\\\s")
                                     .replace("\n", "\\\\\\n")
                                     .replace("/", "\\/")
