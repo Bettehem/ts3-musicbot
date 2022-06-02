@@ -169,6 +169,7 @@ class ChatReader(
                     }
                     delay(5000)
                 }
+
                 suspend fun executeCommand(commandString: String): Boolean {
                     //parse and execute commands
                     if (commandList.commandList.any { commandString.startsWith(it.value) } || commandString.startsWith("%help")) {
@@ -789,10 +790,10 @@ class ChatReader(
                                 }
                             }
                             //queue-delete command
-                            commandString.contains("^${commandList.commandList["queue-delete"]}\\s+((-a|--all)?\\s+((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+(-a|--all))?|([0-9]+,?(\\s+)?)+)".toRegex()) -> {
+                            commandString.contains("^${commandList.commandList["queue-delete"]}((\\s+(-a|--all))?(\\s+(\\[URL])?https?://\\S+,?\\s*)*(\\s+(-a|--all))?|([0-9]+,?\\s*)+)".toRegex()) -> {
                                 //get links from message
                                 val links =
-                                    if (commandString.contains("^${commandList.commandList["queue-delete"]}\\s+(-a|--all)?\\s+((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+(-a|--all))?".toRegex())) {
+                                    if (commandString.contains("^${commandList.commandList["queue-delete"]}(\\s+(-a|--all))?\\s+((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+(-a|--all))?".toRegex())) {
                                         commandString.split("(\\s+|,\\s+|,)".toRegex()).filter {
                                             it.contains("(\\[URL])?https?://\\S+,?(\\[/URL])?".toRegex())
                                         }.map { parseLink(Link(it.replace(",\\[/URL]".toRegex(), "[/URL]"))) }
@@ -807,33 +808,19 @@ class ChatReader(
                                 } else {
                                     emptyList()
                                 }
-
-                                val currentList = songQueue.getQueue()
-                                //get a list of the tracks to delete
-                                val tracksToDelete = currentList.filter { track -> links.contains(track.link) }
-                                if (tracksToDelete.isNotEmpty()) {
-                                    for (track in tracksToDelete.distinct()) {
-                                        //check if there are multiple instances of the track in the queue.
-                                        if (currentList.filter { it.link == track.link }.size > 1) {
-                                            val duplicates = ArrayList<Int>()
-                                            printToChat(
-                                                listOf(
-                                                    "There are multiple instances of this track:\n" +
-                                                            currentList.mapIndexed { i, t ->
-                                                                if (t.link == track.link)
-                                                                    "$i: ${t.toShortString()}".also { duplicates.add(i) }
-                                                                else
-                                                                    ""
-                                                            }.let {
-                                                                val sb = StringBuilder()
-                                                                for (item in it) {
-                                                                    if (item.isNotEmpty())
-                                                                        sb.appendLine(item)
-                                                                }
-                                                                sb.toString()
-                                                            }
-                                                )
-                                            )
+                                if (links.isEmpty() && positions.isEmpty()) {
+                                    printToChat(
+                                        listOf(
+                                            "You need to specify what tracks to delete!\n" +
+                                                    "You can get more help by running ${commandList.commandList["help"]} ${commandList.commandList["queue-delete"]}"
+                                        )
+                                    )
+                                } else {
+                                    val currentList = songQueue.getQueue()
+                                    //get a list of the tracks to delete
+                                    val tracksToDelete = currentList.filter { track -> links.contains(track.link) }
+                                    if (tracksToDelete.isNotEmpty()) {
+                                        for (track in tracksToDelete.distinct()) {
                                             if (commandString.contains("\\s+(-a|--all)(\\s+)?".toRegex())) {
                                                 printToChat(
                                                     listOf(
@@ -841,44 +828,67 @@ class ChatReader(
                                                                 track.toShortString()
                                                     )
                                                 )
-                                                songQueue.deleteTracks(duplicates)
+                                                songQueue.deleteTracks(tracksToDelete.distinct())
                                             } else {
-                                                printToChat(
-                                                    listOf(
-                                                        "Select the track(s) you want to delete, then run ${commandList.commandList["queue-delete"]} with the position(s) specified, for example:\n" +
-                                                                "${commandList.commandList["queue-delete"]} ${duplicates.first()}\n" +
-                                                                "Or if you want to delete multiple tracks:\n" +
-                                                                "${commandList.commandList["queue-delete"]} ${
-                                                                    duplicates.subList(0, 2).let { trackPositions ->
-                                                                        val positionsText = StringBuilder()
-                                                                        for (pos in trackPositions) {
-                                                                            positionsText.append("$pos, ")
+                                                //check if there are multiple instances of the track in the queue.
+                                                if (currentList.filter { it.link == track.link }.size > 1) {
+                                                    val duplicates = ArrayList<Int>()
+                                                    printToChat(
+                                                        listOf(
+                                                            "There are multiple instances of this track:\n" +
+                                                                    currentList.mapIndexed { i, t ->
+                                                                        if (t.link == track.link)
+                                                                            "$i: ${t.toShortString()}".also {
+                                                                                duplicates.add(i)
+                                                                            }
+                                                                        else
+                                                                            ""
+                                                                    }.let {
+                                                                        val sb = StringBuilder()
+                                                                        for (item in it) {
+                                                                            if (item.isNotEmpty())
+                                                                                sb.appendLine(item)
                                                                         }
-                                                                        positionsText.toString()
-                                                                            .substringBeforeLast(",")
+                                                                        sb.toString()
                                                                     }
-                                                                }"
+                                                        )
                                                     )
-                                                )
+                                                    printToChat(
+                                                        listOf(
+                                                            "Select the track(s) you want to delete, then run ${commandList.commandList["queue-delete"]} with the position(s) specified, for example:\n" +
+                                                                    "${commandList.commandList["queue-delete"]} ${duplicates.first()}\n" +
+                                                                    "Or if you want to delete multiple tracks:\n" +
+                                                                    "${commandList.commandList["queue-delete"]} ${
+                                                                        duplicates.subList(0, 2).let { trackPositions ->
+                                                                            val positionsText = StringBuilder()
+                                                                            for (pos in trackPositions) {
+                                                                                positionsText.append("$pos, ")
+                                                                            }
+                                                                            positionsText.toString()
+                                                                                .substringBeforeLast(",")
+                                                                        }
+                                                                    }"
+                                                        )
+                                                    )
+                                                } else {
+                                                    //no duplicates found, delete the track
+                                                    printToChat(
+                                                        listOf("Deleting track:\n${track.toShortString()}")
+                                                    )
+                                                    songQueue.deleteTrack(track)
+                                                }
                                             }
-                                        } else {
-                                            //no duplicates found, delete the track
-                                            printToChat(
-                                                listOf("Deleting track:\n${track.toShortString()}")
-                                            )
-                                            songQueue.deleteTrack(track)
                                         }
+                                    } else {
+                                        printToChat(listOf("No matches found in the queue!"))
                                     }
-                                } else {
-                                    printToChat(listOf("No matches found in the queue!"))
-                                }
-
-                                //delete tracks at specified positions
-                                if (positions.isNotEmpty()) {
-                                    printToChat(
-                                        listOf("Deleting track${if (positions.size > 1) "s" else ""}.")
-                                    )
-                                    songQueue.deleteTracks(positions)
+                                    //delete tracks at specified positions
+                                    if (positions.isNotEmpty()) {
+                                        printToChat(
+                                            listOf("Deleting track${if (positions.size > 1) "s" else ""}.")
+                                        )
+                                        songQueue.deleteTracks(positions)
+                                    }
                                 }
                             }
                             //queue-clear command
