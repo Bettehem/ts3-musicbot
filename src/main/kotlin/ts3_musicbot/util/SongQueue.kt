@@ -403,111 +403,107 @@ class SongQueue(
                     }
                 }
 
-                while (currentUrl() != track.link.link) {
-                    //wait for track to start
-                    when (track.linkType) {
-                        LinkType.SPOTIFY -> {
-                            //check active processes and wait for the spotify player to start
-                            val player = getPlayer()
-                            while (commandRunner.runCommand(
-                                    "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?$player(.+)?\" | grep -v \"grep\"",
-                                    printOutput = false
-                                ).first.outputText.isEmpty()
-                            ) {
-                                println("Waiting for $player to start.")
-                                delay(100)
-                            }
-                            //Try to start playing song
-                            var attempts = 0
-                            while (playerStatus().first.outputText != "Playing") {
-                                if (attempts < 5) {
-                                    if (track.link.link.contains("/track/")) {
-                                        commandRunner.runCommand(
-                                            "playerctl -p $spotifyPlayer open spotify:track:${
-                                                track.link.getId()
-                                            }", printCommand = true
-                                        )
-                                    } else {
-                                        commandRunner.runCommand(
-                                            "playerctl -p $spotifyPlayer open spotify:episode:${
-                                                track.link.getId()
-                                            }", printCommand = true
-                                        )
-                                    }
-                                    delay(2000)
-                                    attempts++
-                                } else {
-                                    attempts = 0
-                                    startSpotifyPlayer()
-                                }
-                            }
+                //wait for track to start
+                when (track.linkType) {
+                    LinkType.SPOTIFY -> {
+                        //check active processes and wait for the spotify player to start
+                        val player = getPlayer()
+                        while (commandRunner.runCommand(
+                                "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?$player(.+)?\" | grep -v \"grep\"",
+                                printOutput = false
+                            ).first.outputText.isEmpty()
+                        ) {
+                            println("Waiting for $player to start.")
+                            delay(100)
                         }
-                        LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> {
-                            suspend fun startMPV(job: Job) {
-                                val mpvRunnable = Runnable {
+                        //Try to start playing song
+                        var attempts = 0
+                        while (playerStatus().first.outputText != "Playing") {
+                            if (attempts < 5) {
+                                if (track.link.link.contains("/track/")) {
                                     commandRunner.runCommand(
-                                        "mpv --terminal=no --no-video" +
-                                                " --ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0" +
-                                                (if (track.linkType == LinkType.YOUTUBE) ",cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" else "") +
-                                                " --ytdl \"${track.link}\" --volume=$mpvVolume &",
-                                        inheritIO = true,
-                                        ignoreOutput = true, printCommand = true
+                                        "playerctl -p $spotifyPlayer open spotify:track:${
+                                            track.link.getId()
+                                        }", printCommand = true
+                                    )
+                                } else {
+                                    commandRunner.runCommand(
+                                        "playerctl -p $spotifyPlayer open spotify:episode:${
+                                            track.link.getId()
+                                        }", printCommand = true
                                     )
                                 }
-                                withContext(IO + job) {
-                                    mpvRunnable.run()
-                                    var attempts = 0
-                                    while (job.isActive && commandRunner.runCommand(
-                                            "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${getPlayer()}(.+)?\" | grep -v \"grep\"",
-                                            printOutput = false
-                                        ).first.outputText.isEmpty()
-                                    ) {
-                                        println("Waiting for ${getPlayer()} to start.")
-                                        //if playback hasn't started after five seconds, try starting playback again.
-                                        if (attempts < 5) {
-                                            delay(1000)
-                                            attempts++
-                                        } else {
-                                            attempts = 0
-                                            commandRunner.runCommand("pkill -9 mpv", ignoreOutput = true)
-                                            delay(1000)
-                                            mpvRunnable.run()
-                                        }
+                                delay(2000)
+                                attempts++
+                            } else {
+                                attempts = 0
+                                startSpotifyPlayer()
+                            }
+                        }
+                    }
+                    LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> {
+                        suspend fun startMPV(job: Job) {
+                            val mpvRunnable = Runnable {
+                                commandRunner.runCommand(
+                                    "mpv --terminal=no --no-video" +
+                                            " --ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0" +
+                                            (if (track.linkType == LinkType.YOUTUBE) ",cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" else "") +
+                                            " --ytdl \"${track.link}\" --volume=$mpvVolume &",
+                                    inheritIO = true,
+                                    ignoreOutput = true, printCommand = true
+                                )
+                            }
+                            withContext(IO + job) {
+                                mpvRunnable.run()
+                                var attempts = 0
+                                while (job.isActive && commandRunner.runCommand(
+                                        "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${getPlayer()}(.+)?\" | grep -v \"grep\"",
+                                        printOutput = false
+                                    ).first.outputText.isEmpty()
+                                ) {
+                                    println("Waiting for ${getPlayer()} to start.")
+                                    //if playback hasn't started after five seconds, try starting playback again.
+                                    if (attempts < 5) {
+                                        delay(1000)
+                                        attempts++
+                                    } else {
+                                        attempts = 0
+                                        commandRunner.runCommand("pkill -9 mpv", ignoreOutput = true)
+                                        delay(1000)
+                                        mpvRunnable.run()
                                     }
                                 }
                             }
+                        }
 
-                            var currentJob = Job()
-                            startMPV(currentJob)
-                            delay(7000)
-                            var attempts = 0
-                            while (playerStatus().first.outputText != "Playing") {
-                                println("Waiting for track to start playing")
+                        var currentJob = Job()
+                        startMPV(currentJob)
+                        delay(7000)
+                        var attempts = 0
+                        while (playerStatus().first.outputText != "Playing") {
+                            println("Waiting for track to start playing")
+                            delay(1000)
+                            if (attempts < 5) {
                                 delay(1000)
-                                if (attempts < 5) {
-                                    delay(1000)
-                                    attempts++
-                                } else {
-                                    attempts = 0
-                                    currentJob.cancel()
-                                    delay(1000)
-                                    currentJob = Job()
-                                    startMPV(currentJob)
-                                }
+                                attempts++
+                            } else {
+                                attempts = 0
+                                currentJob.cancel()
+                                delay(1000)
+                                currentJob = Job()
+                                startMPV(currentJob)
                             }
-                            break
                         }
-                        else -> {
-                            println("Error: ${track.link} is not a supported link type!")
-                            synchronized(SongQueue::javaClass) {
-                                println("Removing track from queue.")
-                                songQueue.remove(track)
-                            }
-                            trackPositionJob.cancel()
-                            trackJob.complete()
-                            listener.onTrackStopped(getPlayer(), track)
-                            break
+                    }
+                    else -> {
+                        println("Error: ${track.link} is not a supported link type!")
+                        synchronized(SongQueue::javaClass) {
+                            println("Removing track from queue.")
+                            songQueue.remove(track)
                         }
+                        trackPositionJob.cancel()
+                        trackJob.complete()
+                        listener.onTrackStopped(getPlayer(), track)
                     }
                 }
 
