@@ -880,7 +880,8 @@ class ChatReader(
                                             }
                                         }
                                     } else {
-                                        printToChat(listOf("No matches found in the queue!"))
+                                        if (positions.isEmpty())
+                                            printToChat(listOf("No matches found in the queue!"))
                                     }
                                     //delete tracks at specified positions
                                     if (positions.isNotEmpty()) {
