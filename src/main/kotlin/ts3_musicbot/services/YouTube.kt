@@ -23,6 +23,7 @@ class YouTube {
         SearchType.Type.TRACK,
         SearchType.Type.VIDEO,
         SearchType.Type.PLAYLIST,
+        SearchType.Type.CHANNEL,
     )
 
     /**
@@ -579,7 +580,7 @@ class YouTube {
 
     /**
      * Search on YouTube for a video/track or a playlist
-     * @param searchType can be "track", "video" or "playlist"
+     * @param searchType can be "track", "video", "playlist" or "channel"
      * @param searchQuery search keywords
      * @param resultLimit limit how many results are retrieved.
      * @return returns results from the search
@@ -684,6 +685,25 @@ class YouTube {
                                         )
                                     }
                                 }
+                                "channel" -> {
+                                    val results = responseData.getJSONArray("items")
+                                    for (resultData in results) {
+                                        resultData as JSONObject
+
+                                        val channelTitle = decode(resultData.getJSONObject("snippet").getString("title"))
+                                        val channelLink =
+                                            "https://www.youtube.com/channel/${
+                                                resultData.getJSONObject("id").getString("channelId")
+                                            }"
+                                        searchResults.add(
+                                            SearchResult(
+                                                "Channel: $channelTitle\n" +
+                                                "Link:    $channelLink\n",
+                                                Link(channelLink)
+                                            )
+                                        )
+                                    }
+                                }
                             }
                             if (searchResults.size < resultLimit && responseData.has("nextPageToken")) {
                                 searchData = searchData(
@@ -740,10 +760,10 @@ class YouTube {
 
         val resolveJob = Job()
         var key = apiKey1
-        return if (link.link.contains("\\S+/playlist\\?list=\\S+".toRegex()))
-            "playlist"
-        else
-            withContext(IO + resolveJob) {
+        return when {
+            link.link.contains("\\S+/playlist/\\S+".toRegex()) -> "playlist"
+            link.link.contains("\\S+/c(hannel)?/\\S+".toRegex()) -> "channel"
+            else -> withContext(IO + resolveJob) {
                 var linkType = ""
                 while (true) {
                     val linkData = fetchData(key)
@@ -768,7 +788,7 @@ class YouTube {
                         }
                         HttpURLConnection.HTTP_FORBIDDEN -> {
                             if (key == apiKey1)
-                                key = apiKey2
+                            key = apiKey2
                             else {
                                 println("HTTP ERROR! CODE: ${linkData.code.code}")
                                 break
@@ -784,9 +804,11 @@ class YouTube {
                 resolveJob.complete()
                 linkType
             }
+        }
     }
 
-    suspend fun resolveChannelId(channelName: String): String {
+    suspend fun resolveChannelId(channelLink: Link): String {
+        val channelName = channelLink.link.substringAfterLast("/")
         fun fetchData(apiKey: String = apiKey1): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiUrl/search?")
@@ -796,49 +818,53 @@ class YouTube {
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
 
-        val idJob = Job()
-        var key = apiKey1
-        return withContext(IO + idJob) {
-            var id = ""
-            while (true) {
-                val channelData = fetchData(key)
-                when (channelData.code.code) {
-                    HttpURLConnection.HTTP_OK -> {
-                        try {
-                            val resultsJSON = JSONObject(channelData.data.data)
-                            id = resultsJSON.getJSONArray("items").first {
-                                it as JSONObject
-                                it.getJSONObject("id").getString("kind").substringAfter("#") == "channel"
-                                        && it.getJSONObject("snippet").getString("title")
-                                    .replace(" ", "") == channelName
-                            }.let {
-                                it as JSONObject
-                                it.getJSONObject("id").getString("channelId")
+        return if (channelLink.link.contains("\\S+/channel/\\S+".toRegex())) {
+            channelLink.link.substringAfterLast("/")
+        } else {
+            val idJob = Job()
+            var key = apiKey1
+            return withContext(IO + idJob) {
+                var id = ""
+                while (true) {
+                    val channelData = fetchData(key)
+                    when (channelData.code.code) {
+                        HttpURLConnection.HTTP_OK -> {
+                            try {
+                                val resultsJSON = JSONObject(channelData.data.data)
+                                id = resultsJSON.getJSONArray("items").first {
+                                    it as JSONObject
+                                    it.getJSONObject("id").getString("kind").substringAfter("#") == "channel"
+                                    && it.getJSONObject("snippet").getString("title").replace(" ", "") == channelLink.link
+                                }.let {
+                                    it as JSONObject
+                                    it.getJSONObject("id").getString("channelId")
+                                }
+                                break
+                            } catch (e: JSONException) {
+                                e.printStackTrace()
+                                println("Error! JSON Broken!")
+                                break
                             }
-                            break
-                        } catch (e: JSONException) {
-                            e.printStackTrace()
-                            println("Error! JSON Broken!")
-                            break
                         }
-                    }
-                    HttpURLConnection.HTTP_FORBIDDEN -> {
-                        if (key == apiKey1)
+                        HttpURLConnection.HTTP_FORBIDDEN -> {
+                            if (key == apiKey1)
                             key = apiKey2
-                        else {
+                            else {
+                                println("HTTP ERROR! CODE: ${channelData.code.code}")
+                                break
+                            }
+                        }
+                        else -> {
                             println("HTTP ERROR! CODE: ${channelData.code.code}")
                             break
                         }
                     }
-                    else -> {
-                        println("HTTP ERROR! CODE: ${channelData.code.code}")
-                        break
-                    }
                 }
+                idJob.complete()
+                id
             }
-            idJob.complete()
-            id
         }
     }
+
 }
 

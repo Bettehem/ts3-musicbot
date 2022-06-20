@@ -59,7 +59,7 @@ class ChatReader(
                 )
             }
             "txt" -> {
-                return Link(link.link.substringAfter("[URL]").substringBefore("[/URL]"))
+                return Link(link.link.replace("\\[/?URL]".toRegex(), ""))
             }
         }
         return link
@@ -1189,73 +1189,58 @@ class ChatReader(
                                 }
                             }
 
-                            //sp-info, yt-info and sc-info command
-                            commandString.contains("^(${commandList.commandList["sp-info"]}|${commandList.commandList["yt-info"]}|${commandList.commandList["sc-info"]})\\s+".toRegex()) -> {
-                                val supportedServices = listOf("sp", "yt", "sc")
-                                val service = when (commandString.substringBefore(" ")) {
-                                    commandList.commandList["sp-info"] -> "sp"
-                                    commandList.commandList["yt-info"] -> "yt"
-                                    commandList.commandList["sc-info"] -> "sc"
-                                    else -> ""
-                                }
-                                if (supportedServices.contains(service)) {
-                                    val link = parseLink(Link(commandString.substringAfter(" ")))
-                                    var data: Any? = null
-                                    when (service) {
-                                        "sp" -> {
-                                            data = when {
-                                                link.link.contains("track".toRegex()) -> spotify.getTrack(link)
-                                                link.link.contains("album".toRegex()) -> spotify.getAlbum(link)
-                                                link.link.contains("playlist".toRegex()) -> spotify.getPlaylist(link)
-                                                link.link.contains("artist".toRegex()) -> spotify.getArtist(link)
-                                                link.link.contains("show".toRegex()) -> spotify.getShow(link)
-                                                link.link.contains("episode".toRegex()) -> spotify.getEpisode(link)
-                                                link.link.contains("user".toRegex()) -> spotify.getUser(link)
-                                                else -> null
-                                            }
+                            //info command
+                            commandString.contains("^${commandList.commandList["info"]}\\s+".toRegex()) -> {
+                                val links = parseLink(Link(commandString.replace("${commandList.commandList["info"]}\\s+".toRegex(), ""))).link
+                                    .split("\\s*,\\s*".toRegex()).map{ Link(it) }
+
+                                var output: ArrayList<Any> = ArrayList()
+                                var success = false;
+                                for (link in links) {
+                                    var data: Any? = when (link.linkType()) {
+                                        LinkType.SPOTIFY -> when {
+                                            link.link.contains("track".toRegex()) -> spotify.getTrack(link).also{ output.add(it) }
+                                            link.link.contains("album".toRegex()) -> spotify.getAlbum(link).also{ output.add(it) }
+                                            link.link.contains("playlist".toRegex()) -> spotify.getPlaylist(link).also{ output.add(it) }
+                                            link.link.contains("artist".toRegex()) -> spotify.getArtist(link).also{ output.add(it) }
+                                            link.link.contains("show".toRegex()) -> spotify.getShow(link).also{ output.add(it) }
+                                            link.link.contains("episode".toRegex()) -> spotify.getEpisode(link).also{ output.add(it) }
+                                            link.link.contains("user".toRegex()) -> spotify.getUser(link).also{ output.add(it) }
+                                            else -> null
                                         }
-                                        "yt" -> {
-                                            data = when (youTube.resolveType(link)) {
-                                                "video" -> youTube.fetchVideo(link)
-                                                "playlist" -> youTube.fetchPlaylist(link)
-                                                "channel" -> youTube.fetchChannel(link)
-                                                else -> null
-                                            }
+                                        LinkType.YOUTUBE -> when (youTube.resolveType(link)) {
+                                            "video" -> youTube.fetchVideo(link).also{ output.add(it) }
+                                            "playlist" -> youTube.fetchPlaylist(link).also{ output.add(it) }
+                                            "channel" -> youTube.fetchChannel(link).also{ output.add(it) }
+                                            else -> null
                                         }
-                                        "sc" -> {
-                                            data = when (soundCloud.resolveType(link)) {
-                                                "track" -> soundCloud.fetchTrack(link)
-                                                "album" -> soundCloud.fetchAlbum(link)
-                                                "playlist" -> soundCloud.getPlaylist(link)
-                                                "artist" -> soundCloud.fetchArtist(link)
-                                                "user" -> soundCloud.fetchUser(link)
-                                                else -> null
-                                            }
+                                        LinkType.SOUNDCLOUD -> when (soundCloud.resolveType(link)) {
+                                            "track" -> soundCloud.fetchTrack(link).also{ output.add(it) }
+                                            "album" -> soundCloud.fetchAlbum(link).also{ output.add(it) }
+                                            "playlist" -> soundCloud.getPlaylist(link).also{ output.add(it) }
+                                            "artist" -> soundCloud.fetchArtist(link).also{ output.add(it) }
+                                            "user" -> soundCloud.fetchUser(link).also{ output.add(it) }
+                                            else -> null
+                                        }
+                                        else -> {
+                                            printToChat(listOf("Link type not supported for this link: $link")).also{ output.add(it) }
+                                            null
                                         }
                                     }
-                                    return if (data != null) {
+                                    if (data != null) {
                                         printToChat(listOf("\n$data"))
-                                        commandListener.onCommandExecuted(commandString, data.toString(), data)
-                                        commandJob.complete()
-                                        true
+                                        success = true
                                     } else {
-                                        val msg = "You have to provide a Spotify link or URI to a track!"
+                                        val msg = "This link isn't supported: $link"
                                         printToChat(listOf(msg))
                                         commandListener.onCommandExecuted(commandString, msg)
                                         commandJob.complete()
-                                        false
+                                        success = false
                                     }
-                                } else {
-                                    printToChat(
-                                        listOf(
-                                            "This service isn't supported, available commands are:\n" +
-                                                    "${supportedServices.map { "${commandList.commandList["$it-info"]}" }}"
-                                        )
-                                    )
-                                    commandListener.onCommandExecuted(commandString, "Not supported")
-                                    commandJob.complete()
-                                    return false
                                 }
+                                commandListener.onCommandExecuted(commandString, output.map{ it.toString() }.toString(), links)
+                                commandJob.complete()
+                                return success
                             }
 
                             //sp-pause command

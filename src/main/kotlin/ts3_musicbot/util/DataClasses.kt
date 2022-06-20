@@ -31,7 +31,7 @@ data class Track(
             "Title:      \t\t\t\t$title\n" +
             "Link:       \t\t\t\t$link\n" +
             if (description.isNotEmpty()) {
-                "Description:    \t\t$description\n"
+                "Description:\n$description\n"
             } else {
                 ""
             }
@@ -68,7 +68,7 @@ data class SearchType(val type: String) {
     enum class Type {
         TRACK, VIDEO, EPISODE,
         ALBUM, PLAYLIST,
-        ARTIST,
+        ARTIST, CHANNEL,
         USER,
         SHOW,
         OTHER;
@@ -81,6 +81,7 @@ data class SearchType(val type: String) {
         "album" -> Type.ALBUM
         "playlist" -> Type.PLAYLIST
         "artist" -> Type.ARTIST
+        "channel" -> Type.CHANNEL
         "user" -> Type.USER
         "show", "podcast" -> Type.SHOW
         else -> Type.OTHER
@@ -137,8 +138,8 @@ data class Link(val link: String = "", val linkId: String = "") {
         }
         LinkType.YOUTUBE -> {
             linkId.ifEmpty {
-                if (link.contains("https?://(www\\.)?youtube\\.com/c/\\S+".toRegex())) {
-                    runBlocking { YouTube().resolveChannelId(link.substringAfterLast("/")) }
+                if (link.contains("https?://(www\\.)?youtube\\.com/c(hannel)?/\\S+".toRegex())) {
+                    runBlocking { YouTube().resolveChannelId(Link(link)) }
                 } else {
                     link.substringAfterLast("/").substringAfter("?v=").substringBefore("&")
                         .substringAfter("?list=")
@@ -285,9 +286,9 @@ data class Artist(
     val albums: Albums = Albums()
 ) {
     override fun toString() =
-        "${if (link.linkType() == LinkType.SPOTIFY) "Artist:\t\t" else "Uploader:"}     \t\t$name\n" +
+        "${if (link.linkType() == LinkType.YOUTUBE) "Uploader:" else "Artist:\t\t"}     \t\t$name\n" +
                 "Link:        \t\t\t\t$link\n" +
-                if (description.isNotEmpty()) "Description:\n$description" else {
+                if (description.isNotEmpty()) "Description:\n$description\n" else {
                     ""
                 } +
                 if (genres.genres.isNotEmpty()) "Genres:  \t\t\t\t$genres\n" else {

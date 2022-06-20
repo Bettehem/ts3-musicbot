@@ -21,6 +21,7 @@ data class CommandList(
             Pair("queue-nowplaying", "%queue-nowplaying"),
             Pair("queue-pause", "%queue-pause"),
             Pair("queue-resume", "%queue-resume"),
+            Pair("info", "%info"),
             Pair("sp-pause", "%sp-pause"),
             Pair("sp-resume", "%sp-resume"),
             Pair("sp-play", "%sp-play"),
@@ -33,7 +34,6 @@ data class CommandList(
             Pair("sp-playalbum", "%sp-playalbum"),
             Pair("sp-nowplaying", "%sp-nowplaying"),
             Pair("sp-search", "%sp-search"),
-            Pair("sp-info", "%sp-info"),
             Pair("yt-pause", "%yt-pause"),
             Pair("yt-resume", "%yt-resume"),
             Pair("yt-play", "%yt-play"),
@@ -41,7 +41,6 @@ data class CommandList(
             Pair("yt-playsong", "%yt-playsong"),
             Pair("yt-nowplaying", "%yt-nowplaying"),
             Pair("yt-search", "%yt-search"),
-            Pair("yt-info", "%yt-info"),
             Pair("sc-pause", "%sc-pause"),
             Pair("sc-resume", "%sc-resume"),
             Pair("sc-play", "%sc-play"),
@@ -49,7 +48,6 @@ data class CommandList(
             Pair("sc-playsong", "%sc-playsong"),
             Pair("sc-nowplaying", "%sc-nowplaying"),
             Pair("sc-search", "%sc-search"),
-            Pair("sc-info", "%sc-info")
         ).toMutableMap()
 ) {
     var helpMessages = createHelpMessages()
@@ -76,11 +74,9 @@ data class CommandList(
                         "${commandList["queue-pause"]}                             -Pauses playback\n" +
                         "${commandList["queue-resume"]}                            -Resumes playback\n" +
                         "${commandList["sp-search"]} <type> <text> <limit>         -Search on Spotify. <type> can be track, album, playlist, artist, show or episode. You can also limit the amount of search results with the -l/--limit flag.\n" +
-                        "${commandList["yt-search"]} <type> <text> <limit>         -Search on YouTube. Shows 10 first results by default. <type> can be track, video or playlist. You can set the amount of results with the -l/--limit flag.\n" +
+                        "${commandList["yt-search"]} <type> <text> <limit>         -Search on YouTube. Shows 10 first results by default. <type> can be track, video, playlist or channel. You can set the amount of results with the -l/--limit flag.\n" +
                         "${commandList["sc-search"]} <type> <text> <limit>         -Search on SoundCloud. Shows 10 first results by default. <type> can be track, playlist, album, artist or user. You can set the amount of results with the -l/--limit flag.\n" +
-                        "${commandList["sp-info"]} <link>                          -Shows info on the given link. <link> can be a Spotify link or a Spotify URI\n" +
-                        "${commandList["yt-info"]} <link>                          -Shows info on the given link. <link> can be a YouTube link.\n" +
-                        "${commandList["sc-info"]} <link>                          -Shows info on the given link. <link> can be a SoundCloud link\n" +
+                        "${commandList["info"]} <link>                          -Shows info on the given link(s). <link> can be one or more Spotify, YouTube or SoundCloud links, separated by a comma.\n" +
                         "\n\n" +
                         "Player specific commands:\n" +
                         "(These aren't normally needed. Using the commands above is recommended instead)\n" +
@@ -273,9 +269,10 @@ data class CommandList(
                         "${commandList["yt-search"]} can be used to search for tracks/videos and playlists on YouTube.\n" +
                         "When searching, you need to specify what type of search you are doing.\n" +
                         "Available search types:\n" +
-                        "video    \tSearch for a YouTube video.\n" +
-                        "track    \tSame as video.\n" +
+                        "video    \t\tSearch for a YouTube video.\n" +
+                        "track    \t\tSame as video.\n" +
                         "playlist    \tSearch for a YouTube playlist.\n" +
+                        "channel   \tSearch for a YouTube channel.\n" +
                         "Available options:\n" +
                         "-l, --limit    \tSet amount of search results to show.\n" +
                         "Example - Search on YouTube for a video with the name \"Jinjer Pisces\":\n" +
@@ -304,27 +301,19 @@ data class CommandList(
                         "${commandList["sc-search"]} user bettehem"
             ),
             Pair(
-                "sp-info", "\n" +
-                        "Showing help for ${commandList["sp-info"]} command:\n" +
-                        "${commandList["sp-info"]} shows information on a given Spotify link.\n" +
-                        "Example - Get info on Spotify track link:\n" +
-                        "${commandList["sp-info"]} https://open.spotify.com/track/2igwFfvr1OAGX9SKDCPBwO\n" +
-                        "Example - Get info on Spotify URI:\n" +
-                        "${commandList["sp-info"]} spotify:track:2igwFfvr1OAGX9SKDCPBwO"
-            ),
-            Pair(
-                "sc-info", "\n" +
-                        "Showing help for ${commandList["sc-info"]} command:\n" +
-                        "${commandList["sp-info"]} shows information on a given SoundCloud link.\n" +
-                        "Example - Get info on SoundCloud track link:\n" +
-                        "${commandList["sc-info"]} https://soundcloud.com/iamleeya/something-worth-dreaming-of\n"
-            ),
-            Pair(
-                "yt-info", "\n" +
-                        "Showing help for ${commandList["yt-info"]} command:\n" +
-                        "${commandList["yt-info"]} shows information on a given YouTube link.\n" +
-                        "Example - Get info on YouTube track link:\n" +
-                        "${commandList["yt-info"]} https://youtu.be/IKZnGWxJN3I\n"
+                "info", "\n" +
+                        "Showing help for ${commandList["info"]} command:\n" +
+                        "${commandList["info"]} shows information on a given link.\n" +
+                        "Example 1 - Get info on Spotify track link:\n" +
+                        "${commandList["info"]} https://open.spotify.com/track/2igwFfvr1OAGX9SKDCPBwO\n" +
+                        "Example 2 - Get info on Spotify URI:\n" +
+                        "${commandList["info"]} spotify:track:2igwFfvr1OAGX9SKDCPBwO" +
+                        "Example 3 - Get info on SoundCloud track link:\n" +
+                        "${commandList["info"]} https://soundcloud.com/iamleeya/something-worth-dreaming-of\n" +
+                        "Example 4 - Get info on YouTube track link:\n" +
+                        "${commandList["info"]} https://youtu.be/IKZnGWxJN3I\n"
+                        "Example 5 - Get info on YouTube and SoundCloud link:\n" +
+                        "${commandList["info"]} https://youtu.be/IKZnGWxJN3I,https://soundcloud.com/iamleeya/something-worth-dreaming-of\n"
             ),
             Pair(
                 "sp-pause", "\n" +
