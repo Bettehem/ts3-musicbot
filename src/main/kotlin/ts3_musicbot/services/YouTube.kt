@@ -814,6 +814,7 @@ class YouTube {
             urlBuilder.append("$apiUrl/search?")
             urlBuilder.append("q=$channelName")
             urlBuilder.append("&part=snippet")
+            urlBuilder.append("&type=channel")
             urlBuilder.append("&key=$apiKey")
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
@@ -834,7 +835,7 @@ class YouTube {
                                 id = resultsJSON.getJSONArray("items").first {
                                     it as JSONObject
                                     it.getJSONObject("id").getString("kind").substringAfter("#") == "channel"
-                                    && it.getJSONObject("snippet").getString("title").replace(" ", "") == channelLink.link
+                                    && it.getJSONObject("snippet").getString("title").replace(" ", "") == channelLink.link.substringAfterLast("/")
                                 }.let {
                                     it as JSONObject
                                     it.getJSONObject("id").getString("channelId")
