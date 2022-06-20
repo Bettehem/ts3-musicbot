@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     application
-    kotlin("jvm") version "1.5.10"
+    kotlin("jvm") version "1.7.0"
     id("org.openjfx.javafxplugin") version "0.0.9"
 }
 
@@ -12,16 +12,15 @@ repositories {
 
 dependencies {
     implementation(platform("org.jetbrains.kotlin:kotlin-bom"))
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
 
-    implementation("org.json:json:20210307")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.5.2-native-mt")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.5.2-native-mt")
+    implementation("org.json:json:20220320")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.6.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.6.2")
 }
 
-// JavaJX module to include
+// JavaFX module to include
 javafx {
     version = "11.0.2"
     modules = listOf("javafx.controls")
