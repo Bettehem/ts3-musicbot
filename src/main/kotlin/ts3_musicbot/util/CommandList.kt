@@ -311,7 +311,7 @@ data class CommandList(
                         "Example 3 - Get info on SoundCloud track link:\n" +
                         "${commandList["info"]} https://soundcloud.com/iamleeya/something-worth-dreaming-of\n" +
                         "Example 4 - Get info on YouTube track link:\n" +
-                        "${commandList["info"]} https://youtu.be/IKZnGWxJN3I\n"
+                        "${commandList["info"]} https://youtu.be/IKZnGWxJN3I\n" +
                         "Example 5 - Get info on YouTube and SoundCloud link:\n" +
                         "${commandList["info"]} https://youtu.be/IKZnGWxJN3I,https://soundcloud.com/iamleeya/something-worth-dreaming-of\n"
             ),
