@@ -1,14 +1,19 @@
 package ts3_musicbot.services
 
-import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.Dispatchers.IO
-import org.json.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONException
+import org.json.JSONObject
 import ts3_musicbot.util.*
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLEncoder
 import java.net.URLDecoder
+import java.net.URLEncoder
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatterBuilder
@@ -28,17 +33,21 @@ class Spotify(private val market: String = "") {
     )
 
     private fun encode(text: String) = runBlocking {
-        URLEncoder.encode(text, Charsets.UTF_8.toString())
-            .replace("'", "&#39;")
-            .replace("&", "&amp;")
-            .replace("/", "&#x2F;")
+        withContext(IO) {
+            URLEncoder.encode(text, Charsets.UTF_8.toString())
+                .replace("'", "&#39;")
+                .replace("&", "&amp;")
+                .replace("/", "&#x2F;")
+        }
     }
 
     private fun decode(text: String) = runBlocking {
-        URLDecoder.decode(text, Charsets.UTF_8.toString())
-            .replace("&#39;", "'")
-            .replace("&amp;", "&")
-            .replace("&#x2F;", "/")
+        withContext(IO) {
+            URLDecoder.decode(text, Charsets.UTF_8.toString())
+                .replace("&#39;", "'")
+                .replace("&amp;", "&")
+                .replace("&#x2F;", "/")
+        }
     }
 
     suspend fun updateToken() {
@@ -536,10 +545,16 @@ class Spotify(private val market: String = "") {
                                                                     .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
                                                                     .toFormatter()
                                                             ReleaseDate(
-                                                                LocalDate.parse(
-                                                                    item.getJSONObject("track").getJSONObject("album")
-                                                                        .getString("release_date"), formatter
-                                                                )
+                                                                if (item.getJSONObject("track").getJSONObject("album")
+                                                                        .getString("release_date") != "0000"
+                                                                ) //wtf spotify? https://open.spotify.com/album/1gw4BOiDZIZnskP7vHnPCc
+                                                                    LocalDate.parse(
+                                                                        item.getJSONObject("track")
+                                                                            .getJSONObject("album")
+                                                                            .getString("release_date"), formatter
+                                                                    )
+                                                                else
+                                                                    LocalDate.now()
                                                             )
                                                         }
                                                     },
@@ -717,9 +732,12 @@ class Spotify(private val market: String = "") {
                             .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
                             .toFormatter()
                         ReleaseDate(
-                            LocalDate.parse(
-                                data.getString("release_date"), formatter
-                            )
+                            if (data.getString("release_date") != "0000")
+                                LocalDate.parse(
+                                    data.getString("release_date"), formatter
+                                )
+                            else
+                                LocalDate.now()
                         )
                     }
                 },
@@ -808,7 +826,10 @@ class Spotify(private val market: String = "") {
                         .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
                         .toFormatter()
                     ReleaseDate(
-                        LocalDate.parse(albumData.getString("release_date"), formatter)
+                        if (albumData.getString("release_date") != "0000")
+                            LocalDate.parse(albumData.getString("release_date"), formatter)
+                        else
+                            LocalDate.now()
                     )
                 }
             }
@@ -998,9 +1019,12 @@ class Spotify(private val market: String = "") {
                             .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
                             .toFormatter()
                         ReleaseDate(
-                            LocalDate.parse(
-                                trackData.getJSONObject("album").getString("release_date"), formatter
-                            )
+                            if (trackData.getJSONObject("album").getString("release_date") != "0000")
+                                LocalDate.parse(
+                                    trackData.getJSONObject("album").getString("release_date"), formatter
+                                )
+                            else
+                                LocalDate.now()
                         )
                     }
                 },
@@ -1223,8 +1247,10 @@ class Spotify(private val market: String = "") {
                                     .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
                                     .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
                                     .toFormatter()
-                                LocalDate.now().withYear(2)
-                                LocalDate.parse(track.getJSONObject("album").getString("release_date"), formatter)
+                                if (track.getJSONObject("album").getString("release_date") != "0000")
+                                    LocalDate.parse(track.getJSONObject("album").getString("release_date"), formatter)
+                                else
+                                    LocalDate.now()
                             }
                         }
                     ),
@@ -1282,9 +1308,12 @@ class Spotify(private val market: String = "") {
                                         .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
                                         .toFormatter()
                                     ReleaseDate(
-                                        LocalDate.parse(
-                                            data.getString("release_date"), formatter
-                                        )
+                                        if (data.getString("release_date") != "0000")
+                                            LocalDate.parse(
+                                                data.getString("release_date"), formatter
+                                            )
+                                        else
+                                            LocalDate.now()
                                     )
                                 }
                             },
