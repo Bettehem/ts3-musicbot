@@ -358,7 +358,7 @@ class Spotify(private val market: String = "") {
         return SearchResults(searchResults)
     }
 
-    private fun getPlaylistData(playlistLink: Link): Response {
+    private fun fetchPlaylistData(playlistLink: Link): Response {
         val urlBuilder = StringBuilder()
         urlBuilder.append("$apiURL/playlists/")
         urlBuilder.append(playlistLink.getId())
@@ -370,12 +370,12 @@ class Spotify(private val market: String = "") {
         )
     }
 
-    suspend fun getPlaylist(playlistLink: Link): Playlist {
+    suspend fun fetchPlaylist(playlistLink: Link): Playlist {
         lateinit var playlist: Playlist
         suspend fun parsePlaylistData(data: JSONObject): Playlist {
             return Playlist(
                 Name(decode(data.getString("name"))),
-                getUser(Link(data.getJSONObject("owner").getJSONObject("external_urls").getString("spotify"))),
+                fetchUser(Link(data.getJSONObject("owner").getJSONObject("external_urls").getString("spotify"))),
                 Description(decode(data.getString("description"))),
                 Followers(data.getJSONObject("followers").getInt("total")),
                 Publicity(data.getBoolean("public")),
@@ -387,7 +387,7 @@ class Spotify(private val market: String = "") {
         val playlistJob = Job()
         withContext(IO + playlistJob) {
             while (true) {
-                val playlistData = getPlaylistData(playlistLink)
+                val playlistData = fetchPlaylistData(playlistLink)
                 //check http return code
                 when (playlistData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
@@ -445,7 +445,7 @@ class Spotify(private val market: String = "") {
         return playlist
     }
 
-    suspend fun getPlaylistTracks(playlistLink: Link): TrackList {
+    suspend fun fetchPlaylistTracks(playlistLink: Link): TrackList {
         val trackItems = ArrayList<Track>()
         suspend fun parsePlaylistData(playlistData: JSONObject) {
             //get playlist length
@@ -455,7 +455,7 @@ class Spotify(private val market: String = "") {
             var listOffset = 0
             while (trackItems.size < playlistLength) {
 
-                fun getItemData(): Response {
+                fun fetchItemData(): Response {
                     val listUrlBuilder = StringBuilder()
                     listUrlBuilder.append("https://api.spotify.com/v1/playlists/")
                     listUrlBuilder.append(playlistLink.getId())
@@ -574,7 +574,7 @@ class Spotify(private val market: String = "") {
                                                         true
                                                     else {
                                                         println("Track $link playability not certain! Doing extra checks...")
-                                                        getTrack(link).playability.isPlayable
+                                                        fetchTrack(link).playability.isPlayable
                                                     }
                                                 trackItems.add(
                                                     Track(
@@ -614,7 +614,7 @@ class Spotify(private val market: String = "") {
                 val itemJob = Job()
                 withContext(IO + itemJob) {
                     while (true) {
-                        val itemData = getItemData()
+                        val itemData = fetchItemData()
                         when (itemData.code.code) {
                             HttpURLConnection.HTTP_OK -> {
                                 try {
@@ -648,7 +648,7 @@ class Spotify(private val market: String = "") {
         val playlistJob = Job()
         withContext(IO + playlistJob) {
             while (true) {
-                val playlistData = getPlaylistData(playlistLink)
+                val playlistData = fetchPlaylistData(playlistLink)
                 //check http return code
                 when (playlistData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
@@ -684,7 +684,7 @@ class Spotify(private val market: String = "") {
         return TrackList(trackItems)
     }
 
-    private fun getAlbumData(albumLink: Link): Response {
+    private fun fetchAlbumData(albumLink: Link): Response {
         val urlBuilder = StringBuilder()
         urlBuilder.append("$apiURL/albums/")
         urlBuilder.append(albumLink.getId())
@@ -696,7 +696,7 @@ class Spotify(private val market: String = "") {
         )
     }
 
-    suspend fun getAlbum(albumLink: Link): Album {
+    suspend fun fetchAlbum(albumLink: Link): Album {
         lateinit var album: Album
         suspend fun parseAlbumData(data: JSONObject): Album {
             return Album(
@@ -741,7 +741,7 @@ class Spotify(private val market: String = "") {
                         )
                     }
                 },
-                getAlbumTracks(albumLink),
+                fetchAlbumTracks(albumLink),
                 albumLink,
                 Genres(data.getJSONArray("genres").map {
                     if (it is String) it else ""
@@ -752,7 +752,7 @@ class Spotify(private val market: String = "") {
         val albumJob = Job()
         withContext(IO + albumJob) {
             while (true) {
-                val albumData = getAlbumData(albumLink)
+                val albumData = fetchAlbumData(albumLink)
                 //check http return code
                 when (albumData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
@@ -795,7 +795,7 @@ class Spotify(private val market: String = "") {
         return album
     }
 
-    suspend fun getAlbumTracks(albumLink: Link): TrackList {
+    suspend fun fetchAlbumTracks(albumLink: Link): TrackList {
         val trackItems = ArrayList<Track>()
 
         suspend fun parseAlbumData(albumData: JSONObject) {
@@ -927,7 +927,7 @@ class Spotify(private val market: String = "") {
         val albumJob = Job()
         withContext(IO + albumJob) {
             while (true) {
-                val albumData = getAlbumData(albumLink)
+                val albumData = fetchAlbumData(albumLink)
                 //check http return code
                 when (albumData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
@@ -963,8 +963,8 @@ class Spotify(private val market: String = "") {
         return TrackList(trackItems)
     }
 
-    suspend fun getTrack(trackLink: Link): Track {
-        fun getTrackData(link: Link, spMarket: String = ""): Response {
+    suspend fun fetchTrack(trackLink: Link): Track {
+        fun fetchTrackData(link: Link, spMarket: String = ""): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/tracks/")
             urlBuilder.append(link.getId())
@@ -1051,9 +1051,9 @@ class Spotify(private val market: String = "") {
                         val id = trackData.getString("id")
                         val trackData2 = if (id != trackLink.getId()) {
                             val newLink = Link("https://open.spotify.com/track/$id")
-                            getTrackData(newLink)
+                            fetchTrackData(newLink)
                         } else {
-                            getTrackData(trackLink)
+                            fetchTrackData(trackLink)
                         }
                         when (trackData2.code.code) {
                             HttpURLConnection.HTTP_OK -> {
@@ -1103,7 +1103,7 @@ class Spotify(private val market: String = "") {
         var isRetry = false
         withContext(IO + trackJob) {
             while (true) {
-                val trackData = getTrackData(trackLink, market.ifEmpty { defaultMarket })
+                val trackData = fetchTrackData(trackLink, market.ifEmpty { defaultMarket })
                 when (trackData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
@@ -1150,8 +1150,8 @@ class Spotify(private val market: String = "") {
         return track
     }
 
-    suspend fun getArtist(artistLink: Link): Artist {
-        fun getArtistData(): Response {
+    suspend fun fetchArtist(artistLink: Link): Artist {
+        fun fetchArtistData(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/artists/")
             urlBuilder.append(artistLink.getId())
@@ -1163,7 +1163,7 @@ class Spotify(private val market: String = "") {
             )
         }
 
-        fun getTopTracks(): Response {
+        fun fetchTopTracks(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/artists/")
             urlBuilder.append(artistLink.getId())
@@ -1176,7 +1176,7 @@ class Spotify(private val market: String = "") {
             )
         }
 
-        fun getAlbums(offset: Int = 0): Response {
+        fun fetchAlbums(offset: Int = 0): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/artists/")
             urlBuilder.append(artistLink.getId())
@@ -1192,7 +1192,7 @@ class Spotify(private val market: String = "") {
             )
         }
 
-        fun getRelatedArtists(): Response {
+        fun fetchRelatedArtists(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/artists/")
             urlBuilder.append(artistLink.getId())
@@ -1254,7 +1254,7 @@ class Spotify(private val market: String = "") {
                             }
                         }
                     ),
-                    getAlbumTracks(Link(track.getJSONObject("album").getString("uri"))),
+                    fetchAlbumTracks(Link(track.getJSONObject("album").getString("uri"))),
                     artistLink
                 )
                 topTracks.add(
@@ -1327,7 +1327,7 @@ class Spotify(private val market: String = "") {
                     val albumsJob = Job()
                     withContext(IO + albumsJob) {
                         while (true) {
-                            val albumsResponse = getAlbums(offset)
+                            val albumsResponse = fetchAlbums(offset)
                             when (albumsResponse.code.code) {
                                 HttpURLConnection.HTTP_OK -> {
                                     try {
@@ -1377,13 +1377,13 @@ class Spotify(private val market: String = "") {
         val artistJob = Job()
         withContext(IO + artistJob) {
             while (true) {
-                val artistData = getArtistData()
+                val artistData = fetchArtistData()
                 when (artistData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
                             lateinit var topTracks: JSONObject
                             topTracks@ while (true) {
-                                val topTracksData = getTopTracks()
+                                val topTracksData = fetchTopTracks()
                                 when (topTracksData.code.code) {
                                     HttpURLConnection.HTTP_OK -> {
                                         try {
@@ -1410,7 +1410,7 @@ class Spotify(private val market: String = "") {
                             }
                             lateinit var albums: JSONObject
                             albums@ while (true) {
-                                val albumsData = getAlbums()
+                                val albumsData = fetchAlbums()
                                 when (albumsData.code.code) {
                                     HttpURLConnection.HTTP_OK -> {
                                         try {
@@ -1434,7 +1434,7 @@ class Spotify(private val market: String = "") {
                             }
                             lateinit var relatedArtists: JSONObject
                             relatedArtists@ while (true) {
-                                val relatedArtistsData = getRelatedArtists()
+                                val relatedArtistsData = fetchRelatedArtists()
                                 when (relatedArtistsData.code.code) {
                                     HttpURLConnection.HTTP_OK -> {
                                         try {
@@ -1493,9 +1493,9 @@ class Spotify(private val market: String = "") {
         return artist
     }
 
-    suspend fun getUser(userLink: Link): User {
+    suspend fun fetchUser(userLink: Link): User {
         lateinit var user: User
-        fun getUserData(): Response {
+        fun fetchUserData(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/users/")
             urlBuilder.append(userLink.getId())
@@ -1507,7 +1507,7 @@ class Spotify(private val market: String = "") {
             )
         }
 
-        fun getUserPlaylistsData(): Response {
+        fun fetchUserPlaylistsData(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/users/${userLink.getId()}/playlists")
             urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
@@ -1523,7 +1523,7 @@ class Spotify(private val market: String = "") {
             val userPlaylistsJob = Job()
             withContext(IO + userPlaylistsJob) {
                 while (true) {
-                    val playlistsData = getUserPlaylistsData()
+                    val playlistsData = fetchUserPlaylistsData()
                     when (playlistsData.code.code) {
                         HttpURLConnection.HTTP_OK -> {
                             try {
@@ -1583,7 +1583,7 @@ class Spotify(private val market: String = "") {
         val userJob = Job()
         withContext(IO + userJob) {
             while (true) {
-                val userData = getUserData()
+                val userData = fetchUserData()
                 //check response code
                 when (userData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
@@ -1617,7 +1617,7 @@ class Spotify(private val market: String = "") {
         return user
     }
 
-    private fun getShowData(showLink: Link): Response {
+    private fun fetchShowData(showLink: Link): Response {
         val urlBuilder = StringBuilder()
         urlBuilder.append("$apiURL/shows/")
         urlBuilder.append(showLink.getId())
@@ -1629,13 +1629,13 @@ class Spotify(private val market: String = "") {
         )
     }
 
-    suspend fun getShow(showLink: Link): Show {
+    suspend fun fetchShow(showLink: Link): Show {
         lateinit var show: Show
 
         suspend fun getShowEpisodes(showLink: Link, totalItems: Int): EpisodeList {
             lateinit var episodeList: EpisodeList
 
-            fun getEpisodesData(offset: Int = 0): Response {
+            fun fetchEpisodesData(offset: Int = 0): Response {
                 val urlBuilder = StringBuilder()
                 urlBuilder.append("$apiURL/shows/")
                 urlBuilder.append(showLink.getId())
@@ -1695,7 +1695,7 @@ class Spotify(private val market: String = "") {
                         val episodesJob = Job()
                         withContext(episodesJob + IO) {
                             while (true) {
-                                val data = getEpisodesData(offset)
+                                val data = fetchEpisodesData(offset)
                                 when (data.code.code) {
                                     HttpURLConnection.HTTP_OK -> {
                                         try {
@@ -1732,7 +1732,7 @@ class Spotify(private val market: String = "") {
             val episodeJob = Job()
             withContext(IO + episodeJob) {
                 while (true) {
-                    val episodesData = getEpisodesData()
+                    val episodesData = fetchEpisodesData()
                     when (episodesData.code.code) {
                         HttpURLConnection.HTTP_OK -> {
                             try {
@@ -1775,7 +1775,7 @@ class Spotify(private val market: String = "") {
         val showJob = Job()
         withContext(IO + showJob) {
             while (true) {
-                val showData = getShowData(showLink)
+                val showData = fetchShowData(showLink)
                 when (showData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
@@ -1816,10 +1816,10 @@ class Spotify(private val market: String = "") {
         return show
     }
 
-    suspend fun getEpisode(episodeLink: Link): Episode {
+    suspend fun fetchEpisode(episodeLink: Link): Episode {
         lateinit var episode: Episode
 
-        fun getEpisodeData(): Response {
+        fun fetchEpisodeData(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/episodes/")
             urlBuilder.append(episodeLink.getId())
@@ -1854,8 +1854,10 @@ class Spotify(private val market: String = "") {
                                 .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
                                 .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
                                 .toFormatter()
-                            LocalDate.now().withYear(2)
-                            LocalDate.parse(episodeData.getString("release_date"), formatter)
+                            if (episodeData.getString("release_date") != "0000")
+                                LocalDate.parse(episodeData.getString("release_date"), formatter)
+                            else
+                                LocalDate.now()
                         }
                     }
                 ),
@@ -1867,7 +1869,7 @@ class Spotify(private val market: String = "") {
         val episodeJob = Job()
         withContext(IO + episodeJob) {
             while (true) {
-                val episodeData = getEpisodeData()
+                val episodeData = fetchEpisodeData()
                 when (episodeData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {

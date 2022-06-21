@@ -127,7 +127,7 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
                 })
             val spotify = Spotify(spotifyMarket)
             spotify.updateToken()
-            list = TrackList(spotify.getAlbumTracks(spotifyAlbumLink).trackList.filter { it.playability.isPlayable })
+            list = TrackList(spotify.fetchAlbumTracks(spotifyAlbumLink).trackList.filter { it.playability.isPlayable })
             while (commandCompleted.first != "%queue-list $spotifyAlbumLink" && !commandCompleted.second) {
                 println("Waiting for command to complete.")
                 Thread.sleep(500)
@@ -163,7 +163,7 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
                 })
             val spotify = Spotify(spotifyMarket)
             spotify.updateToken()
-            list = spotify.getPlaylistTracks(spotifyPlaylistLink).trackList.filter { it.playability.isPlayable }
+            list = spotify.fetchPlaylistTracks(spotifyPlaylistLink).trackList.filter { it.playability.isPlayable }
             while (commandCompleted.first != "%queue-list $spotifyPlaylistLink" && !commandCompleted.second) {
                 println("Waiting fo command to complete")
                 Thread.sleep(500)

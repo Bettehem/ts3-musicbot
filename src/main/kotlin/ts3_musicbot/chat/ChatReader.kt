@@ -338,7 +338,7 @@ class ChatReader(
                                             //check type
                                             when (type) {
                                                 "track" -> {
-                                                    val track = spotify.getTrack(
+                                                    val track = spotify.fetchTrack(
                                                         Link(
                                                             "https://open.spotify.com/$type/${
                                                                 link.link
@@ -363,7 +363,7 @@ class ChatReader(
                                                 "album" -> {
                                                     //get album's tracks
                                                     val albumTracks = TrackList(
-                                                        spotify.getAlbumTracks(
+                                                        spotify.fetchAlbumTracks(
                                                             Link(
                                                                 "https://open.spotify.com/$type/${
                                                                     link.link
@@ -398,7 +398,7 @@ class ChatReader(
                                                 "playlist" -> {
                                                     //get playlist's tracks
                                                     val playlistTracks = TrackList(
-                                                        spotify.getPlaylistTracks(
+                                                        spotify.fetchPlaylistTracks(
                                                             Link(
                                                                 "https://open.spotify.com/$type/${
                                                                     link.link
@@ -432,7 +432,7 @@ class ChatReader(
                                                 "show" -> {
                                                     //fetch show's episodes
                                                     val episodes = TrackList(
-                                                        spotify.getShow(
+                                                        spotify.fetchShow(
                                                             Link(
                                                                 "https://open.spotify.com/$type/${
                                                                     link.link
@@ -460,7 +460,7 @@ class ChatReader(
 
                                                 "episode" -> {
                                                     //fetch episode
-                                                    val episode = spotify.getEpisode(
+                                                    val episode = spotify.fetchEpisode(
                                                         Link(
                                                             "https://open.spotify.com/$type/${
                                                                 link.link
@@ -485,7 +485,7 @@ class ChatReader(
 
                                                 "artist" -> {
                                                     //fetch artist's top tracks
-                                                    val topTracks = spotify.getArtist(
+                                                    val topTracks = spotify.fetchArtist(
                                                         Link(
                                                             "https://open.spotify.com/$type/${
                                                                 link.link
@@ -1188,24 +1188,23 @@ class ChatReader(
                                     return false
                                 }
                             }
-
                             //info command
                             commandString.contains("^${commandList.commandList["info"]}\\s+".toRegex()) -> {
                                 val links = parseLink(Link(commandString.replace("${commandList.commandList["info"]}\\s+".toRegex(), ""))).link
                                     .split("\\s*,\\s*".toRegex()).map{ Link(it) }
 
-                                var output: ArrayList<Any> = ArrayList()
-                                var success = false;
+                                val output = ArrayList<Any>()
+                                var success = false
                                 for (link in links) {
-                                    var data: Any? = when (link.linkType()) {
+                                    val data: Any? = when (link.linkType()) {
                                         LinkType.SPOTIFY -> when {
-                                            link.link.contains("track".toRegex()) -> spotify.getTrack(link).also{ output.add(it) }
-                                            link.link.contains("album".toRegex()) -> spotify.getAlbum(link).also{ output.add(it) }
-                                            link.link.contains("playlist".toRegex()) -> spotify.getPlaylist(link).also{ output.add(it) }
-                                            link.link.contains("artist".toRegex()) -> spotify.getArtist(link).also{ output.add(it) }
-                                            link.link.contains("show".toRegex()) -> spotify.getShow(link).also{ output.add(it) }
-                                            link.link.contains("episode".toRegex()) -> spotify.getEpisode(link).also{ output.add(it) }
-                                            link.link.contains("user".toRegex()) -> spotify.getUser(link).also{ output.add(it) }
+                                            link.link.contains("track".toRegex()) -> spotify.fetchTrack(link).also{ output.add(it) }
+                                            link.link.contains("album".toRegex()) -> spotify.fetchAlbum(link).also{ output.add(it) }
+                                            link.link.contains("playlist".toRegex()) -> spotify.fetchPlaylist(link).also{ output.add(it) }
+                                            link.link.contains("artist".toRegex()) -> spotify.fetchArtist(link).also{ output.add(it) }
+                                            link.link.contains("show".toRegex()) -> spotify.fetchShow(link).also{ output.add(it) }
+                                            link.link.contains("episode".toRegex()) -> spotify.fetchEpisode(link).also{ output.add(it) }
+                                            link.link.contains("user".toRegex()) -> spotify.fetchUser(link).also{ output.add(it) }
                                             else -> null
                                         }
                                         LinkType.YOUTUBE -> when (youTube.resolveType(link)) {
@@ -1227,22 +1226,21 @@ class ChatReader(
                                             null
                                         }
                                     }
-                                    if (data != null) {
+                                    success = if (data != null) {
                                         printToChat(listOf("\n$data"))
-                                        success = true
+                                        true
                                     } else {
                                         val msg = "This link isn't supported: $link"
                                         printToChat(listOf(msg))
                                         commandListener.onCommandExecuted(commandString, msg)
                                         commandJob.complete()
-                                        success = false
+                                        false
                                     }
                                 }
                                 commandListener.onCommandExecuted(commandString, output.map{ it.toString() }.toString(), links)
                                 commandJob.complete()
                                 return success
                             }
-
                             //sp-pause command
                             commandString.contains("^${commandList.commandList["sp-pause"]}$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p $spotifyPlayer pause && sleep 1")
@@ -1413,7 +1411,6 @@ class ChatReader(
                                 commandJob.complete()
                                 return true
                             }
-
                             //yt-pause command
                             commandString.contains("^${commandList.commandList["yt-pause"]}$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p mpv pause")
@@ -1474,7 +1471,6 @@ class ChatReader(
                                 commandJob.complete()
                                 return true
                             }
-
                             //sc-pause command
                             commandString.contains("^${commandList.commandList["sc-pause"]}$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p mpv pause")
@@ -1526,12 +1522,10 @@ class ChatReader(
                                 commandJob.complete()
                                 return true
                             }
-
                             else -> {
                                 commandJob.complete()
                                 return false
                             }
-
                         }
                     } else {
                         //if userName is set to __console__, allow the usage of %say command
@@ -1782,8 +1776,12 @@ class ChatReader(
         voteSkipUsers.clear()
     }
 
-    override fun onTrackPaused(player: String, track: Track) {}
-    override fun onTrackResumed(player: String, track: Track) {}
+    override fun onTrackPaused(player: String, track: Track) {
+        printToChat(listOf("Playback paused."))
+    }
+    override fun onTrackResumed(player: String, track: Track) {
+        printToChat(listOf("Playback resumed."))
+    }
 
     override fun onTrackStarted(player: String, track: Track) {
         when (player) {
