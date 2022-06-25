@@ -38,18 +38,14 @@ class SongQueue(
      * @param track song's link
      * @param position position in which the song should be added.
      */
-    fun addToQueue(
-        track: Track, position: Int = if (synchronized(songQueue) { songQueue }.isNotEmpty()) {
-            -1
-        } else {
-            0
-        }
-    ) {
+    fun addToQueue(track: Track, position: Int? = null): Boolean {
         synchronized(songQueue) {
-            if (position >= 0)
+            if (position != null)
                 songQueue.add(position, track)
             else
                 songQueue.add(track)
+
+            return songQueue.contains(track)
         }
     }
 
@@ -58,19 +54,14 @@ class SongQueue(
      * @param trackList list of tracks to add to the queue
      * @param position position in which the tracks should be added
      */
-    fun addAllToQueue(
-        trackList: TrackList, position: Int = if (synchronized(songQueue) { songQueue }.isNotEmpty()) {
-            -1
-        } else {
-            0
-        }
-    ) {
+    fun addAllToQueue(trackList: TrackList, position: Int? = null): Boolean {
         synchronized(songQueue) {
-            if (position >= 0)
+            if (position != null)
                 songQueue.addAll(position, trackList.trackList)
-            else {
+            else
                 songQueue.addAll(trackList.trackList)
-            }
+
+            return songQueue.containsAll(trackList.trackList)
         }
     }
 

@@ -10,11 +10,7 @@ import ts3_musicbot.chat.CommandListener
 import ts3_musicbot.services.SoundCloud
 import ts3_musicbot.services.Spotify
 import ts3_musicbot.services.YouTube
-import ts3_musicbot.util.CommandList
-import ts3_musicbot.util.Link
-import ts3_musicbot.util.Track
-import ts3_musicbot.util.TrackList
-import java.io.File
+import ts3_musicbot.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -29,7 +25,7 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
     private val youTubePlaylistLink = Link("https://www.youtube.com/playlist?list=PLVzaRVhV8Ebb5m6IIEpOJeOIBMKk4AVwm")
     private val soundCloudLink = Link("https://soundcloud.com/iamleeya/something-worth-dreaming-of")
     private val soundCloudPlaylistLink = Link("https://soundcloud.com/bettehem/sets/jeesjees")
-    private val chatReader = ChatReader("", File(""), this, this, "", spotifyMarket, "", "", "", 60, commandList)
+    private val chatReader = ChatReader("Test", BotSettings(), this, this, commandList)
     private var commandCompleted = Pair("", false)
 
     private fun runCommand(
@@ -45,7 +41,7 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
     fun testHelpCommand() {
         runBlocking(IO) {
             commandCompleted = Pair("", false)
-            val chatReader = ChatReader("", File(""), this@MusicBotCommandTester, object : CommandListener {
+            val chatReader = ChatReader("Test", BotSettings(), this@MusicBotCommandTester, object : CommandListener {
                 override fun onCommandExecuted(command: String, output: String, extra: Any?) {
                     if (command.substringAfter("%help").isNotEmpty()) {
                         assertEquals(commandList.helpMessages[command.substringAfter(" ")], output)
@@ -54,7 +50,9 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
                     }
                     commandCompleted = Pair(command, true)
                 }
-            }, "", spotifyMarket, "", "", "", 60, commandList)
+
+                override fun onCommandProgress(command: String, output: String, extra: Any?) {}
+            }, commandList)
             val helpUser = "test"
             runCommand(chatReader, "%help", helpUser)
             while (commandCompleted.first != "help" && !commandCompleted.second) {
@@ -90,6 +88,8 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
                                 }
                             }
                         }
+
+                        override fun onCommandProgress(command: String, output: String, extra: Any?) {}
                     }
                 )
                 while (commandCompleted.first != "%queue-add" && !commandCompleted.second) {
@@ -122,8 +122,12 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
                                         }
                                         commandCompleted = Pair(command, true)
                                     }
+
+                                    override fun onCommandProgress(command: String, output: String, extra: Any?) {}
                                 })
                     }
+
+                    override fun onCommandProgress(command: String, output: String, extra: Any?) {}
                 })
             val spotify = Spotify(spotifyMarket)
             spotify.updateToken()
@@ -157,9 +161,13 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
                                         }
                                         commandCompleted = Pair(command, true)
                                     }
+
+                                    override fun onCommandProgress(command: String, output: String, extra: Any?) {}
                                 })
                         }
                     }
+
+                    override fun onCommandProgress(command: String, output: String, extra: Any?) {}
                 })
             val spotify = Spotify(spotifyMarket)
             spotify.updateToken()
@@ -193,8 +201,12 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
                                         }
                                         commandCompleted = Pair(command, true)
                                     }
+
+                                    override fun onCommandProgress(command: String, output: String, extra: Any?) {}
                                 })
                     }
+
+                    override fun onCommandProgress(command: String, output: String, extra: Any?) {}
                 })
             val youTube = YouTube()
             list = youTube.fetchPlaylistTracks(youTubePlaylistLink).trackList.filter { it.playability.isPlayable }
@@ -227,12 +239,16 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
                                         }
                                         commandCompleted = Pair(command, true)
                                     }
+
+                                    override fun onCommandProgress(command: String, output: String, extra: Any?) {}
                                 }
                             )
                     }
+
+                    override fun onCommandProgress(command: String, output: String, extra: Any?) {}
                 })
             val soundCloud = SoundCloud()
-            list = soundCloud.getPlaylistTracks(soundCloudPlaylistLink).trackList.filter { it.playability.isPlayable }
+            list = soundCloud.fetchPlaylistTracks(soundCloudPlaylistLink).trackList.filter { it.playability.isPlayable }
             while (commandCompleted.first != "%queue-list $soundCloudPlaylistLink" && !commandCompleted.second) {
                 println("Waiting for command to complete.")
                 Thread.sleep(500)
@@ -243,5 +259,6 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
 
     override fun onChatUpdated(update: ChatUpdate) {}
     override fun onCommandExecuted(command: String, output: String, extra: Any?) {}
+    override fun onCommandProgress(command: String, output: String, extra: Any?) {}
 }
 

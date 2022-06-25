@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: com.github.bettehem:ts3j:master-SNAPSHOT">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.bettehem/ts3j/master-SNAPSHOT/be4fc45ab671777ce1ad2b43319e2fa04bbea734/ts3j-master-SNAPSHOT.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.bettehem/ts3j/master-SNAPSHOT/fc98e1307c08e508736705e2623391d122e5cd75/ts3j-master-SNAPSHOT-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

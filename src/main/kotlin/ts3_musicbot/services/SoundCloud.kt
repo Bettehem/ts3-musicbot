@@ -404,7 +404,7 @@ class SoundCloud {
      * @param link SoundCloud playlist link
      * @return returns a TrackList containing the playlist's tracks
      */
-    suspend fun getPlaylistTracks(link: Link): TrackList {
+    suspend fun fetchPlaylistTracks(link: Link): TrackList {
         val trackList = ArrayList<Track>()
         val playlistJob = Job()
         withContext(IO + playlistJob) {
@@ -899,7 +899,7 @@ class SoundCloud {
 
                                     it.has("playlist") -> {
                                         it.getJSONObject("playlist").let { playlist ->
-                                            likes.addAll(getPlaylistTracks(Link(playlist.getString("permalink_url"))).trackList)
+                                            likes.addAll(fetchPlaylistTracks(Link(playlist.getString("permalink_url"))).trackList)
                                         }
                                     }
 
@@ -1018,7 +1018,7 @@ class SoundCloud {
 
                                     it.has("playlist") -> {
                                         it.getJSONObject("playlist").let { playlist ->
-                                            likes.addAll(getPlaylistTracks(Link(playlist.getString("permalink_url"))).trackList)
+                                            likes.addAll(fetchPlaylistTracks(Link(playlist.getString("permalink_url"))).trackList)
                                         }
                                     }
 

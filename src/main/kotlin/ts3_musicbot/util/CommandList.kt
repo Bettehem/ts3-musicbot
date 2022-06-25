@@ -191,7 +191,7 @@ data class CommandList(
                         "Example - Delete all tracks matching the given link:\n" +
                         "${commandList["queue-delete"]} --all https://open.spotify.com/track/54k9d97GSM3lBXY61UagKx\n" +
                         "Example - Delete all tracks matching the given link:\n" +
-                        "${commandList["queue-delete"]} https://open.spotify.com/track/54k9d97GSM3lBXY61UagKx, https://open.spotify.com/track/6le9zgS2y7MQKvDmmGABDW\n -a"
+                        "${commandList["queue-delete"]} https://open.spotify.com/track/54k9d97GSM3lBXY61UagKx, https://open.spotify.com/track/6le9zgS2y7MQKvDmmGABDW -a"
             ),
             Pair(
                 "queue-clear", "\n" +

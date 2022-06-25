@@ -69,7 +69,7 @@ class SoundCloudTest {
         runBlocking(IO) {
             //SoundCloud link to playlist: jeesjees
             val testLink = Link("https://soundcloud.com/bettehem/sets/jeesjees")
-            val playlist = soundCloud.getPlaylistTracks(testLink)
+            val playlist = soundCloud.fetchPlaylistTracks(testLink)
             assertEquals("Louis The Child", playlist.trackList[1].artists.artists[0].name.name)
             assertEquals("Zella Day - Compass (Louis The Child Remix)", playlist.trackList[1].title.name)
         }

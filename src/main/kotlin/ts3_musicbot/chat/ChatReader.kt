@@ -1,40 +1,35 @@
 package ts3_musicbot.chat
 
+import com.github.manevolent.ts3j.event.TS3Listener
+import com.github.manevolent.ts3j.event.TextMessageEvent
 import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.IO
-import kotlinx.coroutines.Dispatchers.Main
+import ts3_musicbot.client.OfficialTSClient
 import ts3_musicbot.client.TeamSpeak
 import ts3_musicbot.services.SoundCloud
 import ts3_musicbot.services.Spotify
 import ts3_musicbot.services.YouTube
 import ts3_musicbot.util.*
-import java.io.File
 import java.util.*
 
 class ChatReader(
     private val client: Any,
-    private var chatFile: File,
+    private val botSettings: BotSettings,
     private var onChatUpdateListener: ChatUpdateListener,
     var commandListener: CommandListener,
-    private val apikey: String = "",
-    market: String = "",
-    private val spotifyPlayer: String = "spotify",
-    private val channelName: String,
-    private val botName: String,
-    private val mpvVolume: Int,
     private val commandList: CommandList = CommandList()
 ) : PlayStateListener {
 
     private var shouldRead = false
     private val commandRunner = CommandRunner()
-    private val spotify = Spotify(market)
+    private val spotify = Spotify(botSettings.market)
     private val youTube = YouTube()
     private val soundCloud = SoundCloud()
     private var voteSkipUsers = ArrayList<Pair<String, Boolean>>()
     var latestMsgUsername = ""
 
     @Volatile
-    private var songQueue = SongQueue(spotifyPlayer, mpvVolume, this)
+    private var songQueue = SongQueue(botSettings.spotifyPlayer, botSettings.mpvVolume, this)
 
     init {
         //initialise spotify token
@@ -44,25 +39,33 @@ class ChatReader(
     }
 
     private fun parseLink(link: Link): Link {
-        when (chatFile.extension) {
-            "html" -> {
-                return Link(
-                    if (link.link.contains("href=\"")) {
-                        link.link.substringAfter(link.link.split(" ".toRegex())[0])
-                            .split("href=\"".toRegex())[1].split("\">".toRegex())[0].replace(
-                            " -s",
-                            ""
+        return when (client) {
+            is OfficialTSClient -> {
+                when (client.channelFile.extension) {
+                    "html" -> {
+                        Link(
+                            if (link.link.contains("href=\"")) {
+                                link.link.substringAfter(link.link.split(" ".toRegex())[0])
+                                    .split("href=\"".toRegex())[1].split("\">".toRegex())[0].replace(
+                                    " -s",
+                                    ""
+                                )
+                            } else {
+                                link.link
+                            }
                         )
-                    } else {
-                        link.link
                     }
-                )
+                    "txt" -> {
+                        Link(link.link.replace("\\[/?URL]".toRegex(), ""))
+                    }
+                    else -> {
+                        println("This extension isn't supported! Use channel.txt or channel.html as the chat file.")
+                        link
+                    }
+                }
             }
-            "txt" -> {
-                return Link(link.link.replace("\\[/?URL]".toRegex(), ""))
-            }
+            else -> link
         }
-        return link
     }
 
     /**
@@ -71,16 +74,23 @@ class ChatReader(
     fun startReading(): Boolean {
         return when (client) {
             is TeamSpeak -> {
-                //client.addListener(this)
+                client.addListener(object : TS3Listener {
+                    override fun onTextMessage(e: TextMessageEvent?) {
+                        CoroutineScope(IO).launch {
+                            e?.let { chatUpdated(it.message, it.invokerName) }
+                        }
+                    }
+                })
                 true
             }
-            else -> {
+            is OfficialTSClient -> {
                 shouldRead = true
-                return if (chatFile.isFile) {
+                val channelFile = client.channelFile
+                return if (channelFile.isFile) {
                     CoroutineScope(IO).launch {
                         var currentLine = ""
                         while (shouldRead) {
-                            val last = chatFile.readLines().last()
+                            val last = channelFile.readLines().last()
                             if (last != currentLine) {
                                 currentLine = last
                                 chatUpdated(currentLine)
@@ -93,6 +103,7 @@ class ChatReader(
                     false
                 }
             }
+            else -> false
         }
     }
 
@@ -111,7 +122,7 @@ class ChatReader(
             val commandJob = Job()
             CoroutineScope(IO + commandJob).launch {
                 suspend fun startSpotifyPlayer() {
-                    fun killCommand() = when (spotifyPlayer) {
+                    fun killCommand() = when (botSettings.spotifyPlayer) {
                         "spotify" -> commandRunner.runCommand(
                             "pkill -9 spotify",
                             ignoreOutput = true
@@ -121,12 +132,12 @@ class ChatReader(
                             ignoreOutput = true
                         )
                         "spotifyd" -> commandRunner.runCommand("echo \"spotifyd isn't well supported yet, please kill it manually.\"")
-                        else -> commandRunner.runCommand("echo \"$spotifyPlayer is not a supported player!\" > /dev/stderr; return 2")
+                        else -> commandRunner.runCommand("echo \"${botSettings.spotifyPlayer} is not a supported player!\" > /dev/stderr; return 2")
                     }
 
-                    fun startCommand() = when (spotifyPlayer) {
+                    fun startCommand() = when (botSettings.spotifyPlayer) {
                         "spotify" -> commandRunner.runCommand(
-                            "$spotifyPlayer &",
+                            "${botSettings.spotifyPlayer} &",
                             ignoreOutput = true,
                             printCommand = true,
                             inheritIO = true
@@ -137,11 +148,11 @@ class ChatReader(
                             printCommand = true
                         )
                         "spotifyd" -> commandRunner.runCommand("echo \"spotifyd isn't well supported yet, please start it manually.\"")
-                        else -> commandRunner.runCommand("echo \"$spotifyPlayer is not a supported player!\" > /dev/stderr; return 2")
+                        else -> commandRunner.runCommand("echo \"${botSettings.spotifyPlayer} is not a supported player!\" > /dev/stderr; return 2")
                     }
 
                     fun checkProcess() = commandRunner.runCommand(
-                        "ps aux | grep $spotifyPlayer | grep -v grep",
+                        "ps aux | grep ${botSettings.spotifyPlayer} | grep -v grep",
                         printOutput = false
                     )
 
@@ -159,12 +170,12 @@ class ChatReader(
                     }
                     //wait for the spotify player to start.
                     while (commandRunner.runCommand(
-                            "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?$spotifyPlayer(\\s+\\S+)?$\" | grep -v \"grep\"",
+                            "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${botSettings.spotifyPlayer}(\\s+\\S+)?$\" | grep -v \"grep\"",
                             printOutput = false
                         ).first.outputText.isEmpty()
                     ) {
                         //do nothing
-                        println("Waiting for $spotifyPlayer to start")
+                        println("Waiting for ${botSettings.spotifyPlayer} to start")
                         delay(10)
                     }
                     delay(5000)
@@ -226,17 +237,51 @@ class ChatReader(
 
                             //queue-add and queue-playnext command
                             commandString.contains("^(${commandList.commandList["queue-add"]}|${commandList.commandList["queue-playnext"]})(\\s+-(s|(p\\s+[0-9]+)))*(\\s*(\\[URL])?((spotify:(user:\\S+:)?(track|album|playlist|show|episode|artist):\\S+)|(https?://\\S+)|((sp|spotify|yt|youtube|sc|soundcloud)\\s+(track|album|playlist|show|episode|artist|video|user)\\s+.+))(\\[/URL])?\\s*,?\\s*)+(\\s+-(s|(p\\s+[0-9]+)))*\$".toRegex()) -> {
-                                var commandSuccessful = false
+                                val trackAddedMsg = "Added track to queue."
+                                val trackNotPlayableMsg = "Track is not playable."
+                                val tracksAddedMsg = "Added tracks to queue."
+                                val tracksAddingErrorMsg = "One or more tracks couldn't be added to the queue."
+                                val someTracksNotPlayableMsg =
+                                    "Some tracks aren't playable in this list, so they won't be added."
+                                val considerDeletingTracksMsg =
+                                    "Consider removing these unplayable tracks from your list\n%s"
+                                //                                isSuccessful,     reason,   extraData
+                                val commandSuccessful = ArrayList<Pair<Boolean, Pair<String, Any?>>>()
                                 val shouldPlayNext =
                                     commandString.contains("^${commandList.commandList["queue-playnext"]}".toRegex())
                                 var shouldShuffle = false
                                 var hasCustomPosition = false
-                                var customPosition = if (shouldPlayNext) {
-                                    0
-                                } else {
-                                    -1
-                                }
+                                var customPosition = if (shouldPlayNext) 0 else null
                                 val links = ArrayList<Link>()
+
+                                /**
+                                 * filter out unplayable tracks from a TrackList
+                                 * @param trackList list to filter
+                                 * @return returns a list with only playable tracks
+                                 */
+                                fun filterList(trackList: TrackList, playlistLink: Link): TrackList {
+                                    trackList.trackList.filterNot { it.playability.isPlayable }.let {
+                                        if (it.isNotEmpty()) {
+                                            commandListener.onCommandProgress(
+                                                commandString,
+                                                trackNotPlayableMsg,
+                                                TrackList(it)
+                                            )
+                                            printToChat(
+                                                listOf(
+                                                    someTracksNotPlayableMsg,
+                                                    String.format(
+                                                        considerDeletingTracksMsg,
+                                                        playlistLink
+                                                    ),
+                                                    TrackList(it).toString()
+                                                )
+                                            )
+                                        }
+                                    }
+                                    return TrackList(trackList.trackList.filter { it.playability.isPlayable })
+                                }
+
                                 if (commandString.contains("\\s+(sp|spotify|yt|youtube|sc|soundcloud)\\s+\\w+\\s+.+".toRegex())) {
                                     when {
                                         commandString.contains("\\s+(sp|spotify)\\s+".toRegex()) ->
@@ -348,114 +393,91 @@ class ChatReader(
                                                             }"
                                                         )
                                                     )
-                                                    if (track.playability.isPlayable)
-                                                        songQueue.addToQueue(track, customPosition)
-                                                    commandSuccessful = if (songQueue.getQueue().contains(track)) {
-                                                        commandListener.onCommandExecuted(
-                                                            commandString,
-                                                            "Added track to queue.",
-                                                            track
-                                                        )
-                                                        true
-                                                    } else false
+                                                    val trackAdded =
+                                                        if (track.playability.isPlayable)
+                                                            songQueue.addToQueue(track, customPosition)
+                                                        else false
+                                                    val msg = if (trackAdded) trackAddedMsg else trackNotPlayableMsg
+                                                    commandListener.onCommandProgress(commandString, msg, track)
+                                                    commandSuccessful.add(Pair(trackAdded, Pair(msg, track)))
                                                 }
 
                                                 "album" -> {
-                                                    //get album's tracks
-                                                    val albumTracks = TrackList(
-                                                        spotify.fetchAlbumTracks(
-                                                            Link(
-                                                                "https://open.spotify.com/$type/${
-                                                                    link.link
-                                                                        .substringAfter(type).substring(1)
-                                                                        .substringAfter("[URL]")
-                                                                        .substringBefore("[/URL]")
-                                                                        .substringBefore("?")
-                                                                }"
-                                                            )
-                                                        ).trackList.filter { it.playability.isPlayable }
+                                                    //fetch album's tracks
+                                                    val albumLink =
+                                                        Link(
+                                                            "https://open.spotify.com/$type/${
+                                                                link.link
+                                                                    .substringAfter(type).substring(1)
+                                                                    .substringAfter("[URL]")
+                                                                    .substringBefore("[/URL]")
+                                                                    .substringBefore("?")
+                                                            }"
+                                                        )
+                                                    val albumTracks = filterList(
+                                                        spotify.fetchAlbumTracks(albumLink), albumLink
                                                     )
                                                     println("Album \"${albumTracks.trackList[0].album}\" has a total of ${albumTracks.trackList.size} tracks.\nAdding to queue...")
 
                                                     //add tracks to queue
                                                     val trackList =
                                                         if (shouldShuffle) TrackList(albumTracks.trackList.shuffled()) else albumTracks
-                                                    songQueue.addAllToQueue(
-                                                        trackList,
-                                                        customPosition
-                                                    )
-                                                    commandSuccessful =
-                                                        if (songQueue.getQueue().containsAll(trackList.trackList)) {
-                                                            commandListener.onCommandExecuted(
-                                                                commandString,
-                                                                "Added album to queue.",
-                                                                trackList
-                                                            )
-                                                            true
-                                                        } else false
+                                                    val albumAdded = songQueue.addAllToQueue(trackList, customPosition)
+                                                    val msg = if (albumAdded) tracksAddedMsg else tracksAddingErrorMsg
+                                                    commandListener.onCommandProgress(commandString, msg, trackList)
+                                                    commandSuccessful.add(Pair(albumAdded, Pair(msg, trackList)))
                                                 }
 
                                                 "playlist" -> {
-                                                    //get playlist's tracks
-                                                    val playlistTracks = TrackList(
-                                                        spotify.fetchPlaylistTracks(
-                                                            Link(
-                                                                "https://open.spotify.com/$type/${
-                                                                    link.link
-                                                                        .substringAfter(type).substring(1)
-                                                                        .substringAfter("[URL]")
-                                                                        .substringBefore("[/URL]")
-                                                                        .substringBefore("?")
-                                                                }"
-                                                            )
-                                                        ).trackList.filter { it.playability.isPlayable }
+                                                    //fetch playlist's tracks
+                                                    val playlistLink =
+                                                        Link(
+                                                            "https://open.spotify.com/$type/${
+                                                                link.link
+                                                                    .substringAfter(type).substring(1)
+                                                                    .substringAfter("[URL]")
+                                                                    .substringBefore("[/URL]")
+                                                                    .substringBefore("?")
+                                                            }"
+                                                        )
+                                                    val playlistTracks = filterList(
+                                                        spotify.fetchPlaylistTracks(playlistLink), playlistLink
                                                     )
                                                     println("Playlist has a total of ${playlistTracks.trackList.size} tracks.\nAdding to queue...")
                                                     //add tracks to queue
                                                     val trackList =
                                                         if (shouldShuffle) TrackList(playlistTracks.trackList.shuffled()) else playlistTracks
-                                                    songQueue.addAllToQueue(
-                                                        trackList,
-                                                        customPosition
-                                                    )
-                                                    commandSuccessful =
-                                                        if (songQueue.getQueue().containsAll(trackList.trackList)) {
-                                                            commandListener.onCommandExecuted(
-                                                                commandString,
-                                                                "Added playlist to queue.",
-                                                                trackList
-                                                            )
-                                                            true
-                                                        } else false
+                                                    val playlistAdded =
+                                                        songQueue.addAllToQueue(trackList, customPosition)
+                                                    val msg =
+                                                        if (playlistAdded) tracksAddedMsg else tracksAddingErrorMsg
+                                                    commandListener.onCommandProgress(commandString, msg, trackList)
+                                                    commandSuccessful.add(Pair(playlistAdded, Pair(msg, trackList)))
                                                 }
 
                                                 "show" -> {
                                                     //fetch show's episodes
-                                                    val episodes = TrackList(
-                                                        spotify.fetchShow(
-                                                            Link(
-                                                                "https://open.spotify.com/$type/${
-                                                                    link.link
-                                                                        .substringAfter(type).substring(1)
-                                                                        .substringAfter("[URL]")
-                                                                        .substringBefore("[/URL]")
-                                                                        .substringBefore("?")
-                                                                }"
-                                                            )
-                                                        ).episodes.toTrackList().trackList.filter { it.playability.isPlayable }
+                                                    val showLink =
+                                                        Link(
+                                                            "https://open.spotify.com/$type/${
+                                                                link.link
+                                                                    .substringAfter(type).substring(1)
+                                                                    .substringAfter("[URL]")
+                                                                    .substringBefore("[/URL]")
+                                                                    .substringBefore("?")
+                                                            }"
+                                                        )
+                                                    val episodes = filterList(
+                                                        spotify.fetchShow(showLink).episodes.toTrackList(),
+                                                        showLink
                                                     )
                                                     val trackList =
                                                         if (shouldShuffle) TrackList(episodes.trackList.shuffled()) else episodes
-                                                    songQueue.addAllToQueue(trackList)
-                                                    commandSuccessful =
-                                                        if (songQueue.getQueue().containsAll(trackList.trackList)) {
-                                                            commandListener.onCommandExecuted(
-                                                                commandString,
-                                                                "Added podcast to the queue.",
-                                                                trackList
-                                                            )
-                                                            true
-                                                        } else false
+                                                    val showAdded =
+                                                        songQueue.addAllToQueue(trackList, customPosition)
+                                                    val msg = if (showAdded) tracksAddedMsg else tracksAddingErrorMsg
+                                                    commandListener.onCommandProgress(commandString, msg, trackList)
+                                                    commandSuccessful.add(Pair(showAdded, Pair(msg, trackList)))
                                                 }
 
                                                 "episode" -> {
@@ -470,22 +492,22 @@ class ChatReader(
                                                             }"
                                                         )
                                                     )
-                                                    if (episode.playability.isPlayable)
-                                                        songQueue.addToQueue(episode.toTrack(), customPosition)
-                                                    commandSuccessful =
-                                                        if (songQueue.getQueue().contains(episode.toTrack())) {
-                                                            commandListener.onCommandExecuted(
-                                                                commandString,
-                                                                "Added podcast episode to queue.",
-                                                                episode
-                                                            )
-                                                            true
-                                                        } else false
+                                                    val episodeAdded =
+                                                        if (episode.playability.isPlayable)
+                                                            songQueue.addToQueue(episode.toTrack(), customPosition)
+                                                        else false
+                                                    val msg =
+                                                        if (episodeAdded)
+                                                            "Added podcast episode to queue."
+                                                        else
+                                                            "Episode not playable."
+                                                    commandListener.onCommandProgress(commandString, msg, episode)
+                                                    commandSuccessful.add(Pair(episodeAdded, Pair(msg, episode)))
                                                 }
 
                                                 "artist" -> {
                                                     //fetch artist's top tracks
-                                                    val topTracks = spotify.fetchArtist(
+                                                    val artistLink =
                                                         Link(
                                                             "https://open.spotify.com/$type/${
                                                                 link.link
@@ -494,21 +516,23 @@ class ChatReader(
                                                                     .substringBefore("?")
                                                             }"
                                                         )
-                                                    ).topTracks.trackList.filter { it.playability.isPlayable }
+                                                    val topTracks = filterList(
+                                                        spotify.fetchArtist(artistLink).topTracks,
+                                                        artistLink
+                                                    )
                                                     val trackList =
-                                                        if (shouldShuffle) TrackList(topTracks.shuffled()) else TrackList(
+                                                        if (shouldShuffle)
+                                                            TrackList(topTracks.trackList.shuffled())
+                                                        else
                                                             topTracks
-                                                        )
-                                                    songQueue.addAllToQueue(trackList, customPosition)
-                                                    commandSuccessful =
-                                                        if (songQueue.getQueue().containsAll(trackList.trackList)) {
-                                                            commandListener.onCommandExecuted(
-                                                                commandString,
-                                                                "Added Artist's top track to the queue.",
-                                                                trackList
-                                                            )
-                                                            true
-                                                        } else false
+                                                    val tracksAdded = songQueue.addAllToQueue(trackList, customPosition)
+                                                    val msg =
+                                                        if (tracksAdded)
+                                                            "Added Artist's top track to the queue."
+                                                        else
+                                                            tracksAddingErrorMsg
+                                                    commandListener.onCommandProgress(commandString, msg, trackList)
+                                                    commandSuccessful.add(Pair(tracksAdded, Pair(msg, trackList)))
                                                 }
                                             }
                                             println("Added to queue.")
@@ -533,39 +557,31 @@ class ChatReader(
                                             when (type) {
                                                 "track" -> {
                                                     val track = youTube.fetchVideo(Link("https://youtu.be/$id"))
-                                                    if (track.playability.isPlayable)
-                                                        songQueue.addToQueue(track, customPosition)
-                                                    commandSuccessful = if (songQueue.getQueue().contains(track)) {
-                                                        commandListener.onCommandExecuted(
-                                                            commandString,
-                                                            "Added track to queue.",
-                                                            track
-                                                        )
-                                                        true
-                                                    } else false
+                                                    val trackAdded =
+                                                        if (track.playability.isPlayable)
+                                                            songQueue.addToQueue(track, customPosition)
+                                                        else false
+                                                    val msg = if (trackAdded) trackAddedMsg else trackNotPlayableMsg
+                                                    commandListener.onCommandProgress(commandString, msg, track)
+                                                    commandSuccessful.add(Pair(trackAdded, Pair(msg, track)))
                                                 }
 
                                                 "playlist" -> {
-                                                    //get playlist tracks
-                                                    val playlistTracks = TrackList(youTube.fetchPlaylistTracks(
-                                                        Link("https://www.youtube.com/playlist?list=$id")
-                                                    ).trackList.filter { it.playability.isPlayable })
+                                                    //fetch playlist tracks
+                                                    val playlistLink = Link("https://www.youtube.com/playlist?list=$id")
+                                                    val playlistTracks = filterList(
+                                                        youTube.fetchPlaylistTracks(playlistLink),
+                                                        playlistLink
+                                                    )
                                                     println("Playlist has a total of ${playlistTracks.trackList.size} tracks.\nAdding to queue...")
                                                     val trackList =
                                                         if (shouldShuffle) TrackList(playlistTracks.trackList.shuffled()) else playlistTracks
-                                                    songQueue.addAllToQueue(
-                                                        trackList,
-                                                        customPosition
-                                                    )
-                                                    commandSuccessful =
-                                                        if (songQueue.getQueue().containsAll(trackList.trackList)) {
-                                                            commandListener.onCommandExecuted(
-                                                                commandString,
-                                                                "Added playlist to queue...",
-                                                                trackList
-                                                            )
-                                                            true
-                                                        } else false
+                                                    val playlistAdded =
+                                                        songQueue.addAllToQueue(trackList, customPosition)
+                                                    val msg =
+                                                        if (playlistAdded) tracksAddedMsg else tracksAddingErrorMsg
+                                                    commandListener.onCommandProgress(commandString, msg, trackList)
+                                                    commandSuccessful.add(Pair(playlistAdded, Pair(msg, trackList)))
                                                 }
                                             }
                                         }
@@ -591,90 +607,87 @@ class ChatReader(
                                                                 .substringBefore("?")
                                                         )
                                                     )
-                                                    if (track.playability.isPlayable)
-                                                        songQueue.addToQueue(track, customPosition)
-                                                    commandSuccessful =
-                                                        if (songQueue.getQueue().contains(track)) {
-                                                            commandListener.onCommandExecuted(
-                                                                commandString,
-                                                                "Added track to queue.",
-                                                                track
-                                                            )
-                                                            true
-                                                        } else false
+                                                    val trackAdded =
+                                                        if (track.playability.isPlayable)
+                                                            songQueue.addToQueue(track, customPosition)
+                                                        else false
+                                                    val msg = if (trackAdded) trackAddedMsg else trackNotPlayableMsg
+                                                    commandListener.onCommandProgress(commandString, msg, track)
+                                                    commandSuccessful.add(Pair(trackAdded, Pair(msg, track)))
                                                 }
 
                                                 "playlist" -> {
-                                                    //get playlist tracks
-                                                    val playlistTracks = TrackList(
-                                                        soundCloud.getPlaylistTracks(parseLink(link)).trackList
-                                                            .filter { it.playability.isPlayable }
+                                                    //fetch playlist tracks
+                                                    val playlistLink = parseLink(link)
+                                                    val playlistTracks = filterList(
+                                                        soundCloud.fetchPlaylistTracks(playlistLink),
+                                                        playlistLink
                                                     )
                                                     val trackList =
                                                         if (shouldShuffle) TrackList(playlistTracks.trackList.shuffled()) else playlistTracks
-                                                    songQueue.addAllToQueue(
-                                                        trackList,
-                                                        customPosition
-                                                    )
-                                                    commandSuccessful =
-                                                        if (songQueue.getQueue().containsAll(trackList.trackList)) {
-                                                            commandListener.onCommandExecuted(
-                                                                commandString,
-                                                                "Added playlist to queue.",
-                                                                trackList
-                                                            )
-                                                            true
-                                                        } else false
+                                                    val playlistAdded =
+                                                        songQueue.addAllToQueue(trackList, customPosition)
+                                                    val msg =
+                                                        if (playlistAdded) tracksAddedMsg else tracksAddingErrorMsg
+                                                    commandListener.onCommandExecuted(commandString, msg, trackList)
+                                                    commandSuccessful.add(Pair(playlistAdded, Pair(msg, trackList)))
                                                 }
 
                                                 "likes" -> {
-                                                    //get likes
-                                                    val likes = TrackList(
-                                                        soundCloud.fetchUserLikes(parseLink(link)).trackList
-                                                            .filter { it.playability.isPlayable }
-                                                    )
+                                                    //fetch likes
+                                                    val likesLink = parseLink(link)
+                                                    val likes =
+                                                        filterList(soundCloud.fetchUserLikes(likesLink), likesLink)
                                                     val trackList =
                                                         if (shouldShuffle) TrackList(likes.trackList.shuffled()) else likes
-                                                    songQueue.addAllToQueue(trackList, customPosition)
-                                                    commandSuccessful =
-                                                        if (songQueue.getQueue().containsAll(trackList.trackList)) {
-                                                            commandListener.onCommandExecuted(
-                                                                commandString,
-                                                                "Added user's likes to the queue.",
-                                                                trackList
-                                                            )
-                                                            true
-                                                        } else false
+                                                    val likesAdded = songQueue.addAllToQueue(trackList, customPosition)
+                                                    val msg =
+                                                        if (likesAdded)
+                                                            "Added user's likes to the queue."
+                                                        else
+                                                            tracksAddingErrorMsg
+                                                    commandListener.onCommandExecuted(commandString, msg, trackList)
+                                                    commandSuccessful.add(Pair(likesAdded, Pair(msg, trackList)))
                                                 }
 
                                                 "reposts" -> {
-                                                    val reposts = TrackList(
-                                                        soundCloud.fetchUserReposts(parseLink(link)).trackList
-                                                            .filter { it.playability.isPlayable }
+                                                    val repostsLink = parseLink(link)
+                                                    val reposts = filterList(
+                                                        soundCloud.fetchUserReposts(repostsLink),
+                                                        repostsLink
                                                     )
                                                     val trackList =
                                                         if (shouldShuffle) TrackList(reposts.trackList.shuffled()) else reposts
-                                                    songQueue.addAllToQueue(trackList, customPosition)
-                                                    commandSuccessful =
-                                                        if (songQueue.getQueue().containsAll(trackList.trackList)) {
-                                                            commandListener.onCommandExecuted(
-                                                                commandString,
-                                                                "Added user's reposts to the queue.",
-                                                                trackList
-                                                            )
-                                                            true
-                                                        } else false
+                                                    val repostsAdded =
+                                                        songQueue.addAllToQueue(trackList, customPosition)
+                                                    val msg =
+                                                        if (repostsAdded)
+                                                            "Added user's reposts to the queue."
+                                                        else
+                                                            tracksAddingErrorMsg
+                                                    commandListener.onCommandExecuted(commandString, msg, trackList)
+                                                    commandSuccessful.add(Pair(repostsAdded, Pair(msg, trackList)))
                                                 }
                                             }
                                         }
                                     }
                                 }
-                                return if (commandSuccessful) {
-                                    printToChat(listOf("Added to queue."))
+                                return if (commandSuccessful.all { it.first }) {
+                                    val msg = commandSuccessful.filter { it.first }.map { it.second.first }
+                                    printToChat(msg)
+                                    commandListener.onCommandExecuted(commandString, msg.toString(), commandSuccessful)
                                     commandJob.complete()
                                     true
                                 } else {
-                                    printToChat(listOf("One or more tracks could not be added :/"))
+                                    val unPlayableTracks = commandSuccessful.filter { !it.first }
+                                    printToChat(listOf("${unPlayableTracks.size} track${if (unPlayableTracks.size > 1) "s" else ""} could not be added :/"))
+                                    for (unplayable in unPlayableTracks)
+                                        printToChat(
+                                            listOf(
+                                                unplayable.second.first,
+                                                unplayable.second.second.toString()
+                                            )
+                                        )
                                     commandJob.complete()
                                     false
                                 }
@@ -927,7 +940,7 @@ class ChatReader(
                                 //get channel list
                                 val channelList = ArrayList<Pair<String, String>>()
                                 val tsChannelListData = commandRunner.runCommand(
-                                    "(echo auth apikey=$apikey; echo \"channellist\"; echo quit) | nc localhost 25639",
+                                    "(echo auth apikey=${botSettings.apiKey}; echo \"channellist\"; echo quit) | nc localhost 25639",
                                     printOutput = false
                                 ).first.outputText.lines()
                                 for (line in tsChannelListData) {
@@ -948,9 +961,9 @@ class ChatReader(
 
                                 //get users in current channel
                                 for (channel in channelList) {
-                                    if (channel.first == channelName.substringAfterLast("/")) {
+                                    if (channel.first == botSettings.channelName.substringAfterLast("/")) {
                                         val tsUserListData =
-                                            commandRunner.runCommand("(echo auth apikey=$apikey; echo \"clientlist\"; echo quit) | nc localhost 25639")
+                                            commandRunner.runCommand("(echo auth apikey=${botSettings.apiKey}; echo \"clientlist\"; echo quit) | nc localhost 25639")
                                                 .first.outputText.lines()
                                         for (line in tsUserListData) {
                                             if (line.contains("clid=".toRegex())) {
@@ -971,7 +984,7 @@ class ChatReader(
                                 val newList = ArrayList<Pair<String, Boolean>>()
                                 voteSkipUsers.clear()
                                 for (user in userList) {
-                                    if (user != botName) {
+                                    if (user != botSettings.nickname) {
                                         for (voteSkipUser in currentList) {
                                             if (user == voteSkipUser.first) {
                                                 if (latestMsgUsername == user) {
@@ -1190,39 +1203,51 @@ class ChatReader(
                             }
                             //info command
                             commandString.contains("^${commandList.commandList["info"]}\\s+".toRegex()) -> {
-                                val links = parseLink(Link(commandString.replace("${commandList.commandList["info"]}\\s+".toRegex(), ""))).link
-                                    .split("\\s*,\\s*".toRegex()).map{ Link(it) }
+                                val links = parseLink(
+                                    Link(
+                                        commandString.replace("${commandList.commandList["info"]}\\s+".toRegex(), "")
+                                    )
+                                ).link
+                                    .split("\\s*,\\s*".toRegex()).map { Link(it) }
 
                                 val output = ArrayList<Any>()
                                 var success = false
                                 for (link in links) {
                                     val data: Any? = when (link.linkType()) {
                                         LinkType.SPOTIFY -> when {
-                                            link.link.contains("track".toRegex()) -> spotify.fetchTrack(link).also{ output.add(it) }
-                                            link.link.contains("album".toRegex()) -> spotify.fetchAlbum(link).also{ output.add(it) }
-                                            link.link.contains("playlist".toRegex()) -> spotify.fetchPlaylist(link).also{ output.add(it) }
-                                            link.link.contains("artist".toRegex()) -> spotify.fetchArtist(link).also{ output.add(it) }
-                                            link.link.contains("show".toRegex()) -> spotify.fetchShow(link).also{ output.add(it) }
-                                            link.link.contains("episode".toRegex()) -> spotify.fetchEpisode(link).also{ output.add(it) }
-                                            link.link.contains("user".toRegex()) -> spotify.fetchUser(link).also{ output.add(it) }
+                                            link.link.contains("track".toRegex()) -> spotify.fetchTrack(link)
+                                                .also { output.add(it) }
+                                            link.link.contains("album".toRegex()) -> spotify.fetchAlbum(link)
+                                                .also { output.add(it) }
+                                            link.link.contains("playlist".toRegex()) -> spotify.fetchPlaylist(link)
+                                                .also { output.add(it) }
+                                            link.link.contains("artist".toRegex()) -> spotify.fetchArtist(link)
+                                                .also { output.add(it) }
+                                            link.link.contains("show".toRegex()) -> spotify.fetchShow(link)
+                                                .also { output.add(it) }
+                                            link.link.contains("episode".toRegex()) -> spotify.fetchEpisode(link)
+                                                .also { output.add(it) }
+                                            link.link.contains("user".toRegex()) -> spotify.fetchUser(link)
+                                                .also { output.add(it) }
                                             else -> null
                                         }
                                         LinkType.YOUTUBE -> when (youTube.resolveType(link)) {
-                                            "video" -> youTube.fetchVideo(link).also{ output.add(it) }
-                                            "playlist" -> youTube.fetchPlaylist(link).also{ output.add(it) }
-                                            "channel" -> youTube.fetchChannel(link).also{ output.add(it) }
+                                            "video" -> youTube.fetchVideo(link).also { output.add(it) }
+                                            "playlist" -> youTube.fetchPlaylist(link).also { output.add(it) }
+                                            "channel" -> youTube.fetchChannel(link).also { output.add(it) }
                                             else -> null
                                         }
                                         LinkType.SOUNDCLOUD -> when (soundCloud.resolveType(link)) {
-                                            "track" -> soundCloud.fetchTrack(link).also{ output.add(it) }
-                                            "album" -> soundCloud.fetchAlbum(link).also{ output.add(it) }
-                                            "playlist" -> soundCloud.getPlaylist(link).also{ output.add(it) }
-                                            "artist" -> soundCloud.fetchArtist(link).also{ output.add(it) }
-                                            "user" -> soundCloud.fetchUser(link).also{ output.add(it) }
+                                            "track" -> soundCloud.fetchTrack(link).also { output.add(it) }
+                                            "album" -> soundCloud.fetchAlbum(link).also { output.add(it) }
+                                            "playlist" -> soundCloud.getPlaylist(link).also { output.add(it) }
+                                            "artist" -> soundCloud.fetchArtist(link).also { output.add(it) }
+                                            "user" -> soundCloud.fetchUser(link).also { output.add(it) }
                                             else -> null
                                         }
                                         else -> {
-                                            printToChat(listOf("Link type not supported for this link: $link")).also{ output.add(it) }
+                                            printToChat(listOf("Link type not supported for this link: $link"))
+                                                .also { output.add(it) }
                                             null
                                         }
                                     }
@@ -1237,41 +1262,45 @@ class ChatReader(
                                         false
                                     }
                                 }
-                                commandListener.onCommandExecuted(commandString, output.map{ it.toString() }.toString(), links)
+                                commandListener.onCommandExecuted(
+                                    commandString,
+                                    output.map { it.toString() }.toString(),
+                                    links
+                                )
                                 commandJob.complete()
                                 return success
                             }
                             //sp-pause command
                             commandString.contains("^${commandList.commandList["sp-pause"]}$".toRegex()) -> {
-                                commandRunner.runCommand("playerctl -p $spotifyPlayer pause && sleep 1")
+                                commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} pause && sleep 1")
                                 commandJob.complete()
                                 return true
                             }
                             //sp-resume & sp-play command
                             commandString.contains("^(${commandList.commandList["sp-resume"]}|${commandList.commandList["sp-play"]})$".toRegex()) -> {
-                                commandRunner.runCommand("playerctl -p $spotifyPlayer play && sleep 1")
+                                commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} play && sleep 1")
                                 commandJob.complete()
                                 return true
                             }
                             //sp-stop command
                             //Stop spotify playback
                             commandString.contains("^${commandList.commandList["sp-stop"]}$".toRegex()) -> {
-                                if (spotifyPlayer == "ncspot")
+                                if (botSettings.spotifyPlayer == "ncspot")
                                     commandRunner.runCommand("playerctl -p ncspot stop; tmux kill-session -t ncspot")
                                 else
-                                    commandRunner.runCommand("playerctl -p $spotifyPlayer pause")
+                                    commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} pause")
                                 commandJob.complete()
                                 return true
                             }
                             //sp-skip & sp-next command
                             commandString.contains("^(${commandList.commandList["sp-skip"]}|${commandList.commandList["sp-next"]})$".toRegex()) -> {
-                                commandRunner.runCommand("playerctl -p $spotifyPlayer next && sleep 1")
+                                commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} next && sleep 1")
                                 commandJob.complete()
                                 return true
                             }
                             //sp-prev command
                             commandString.contains("^${commandList.commandList["sp-prev"]}$".toRegex()) -> {
-                                commandRunner.runCommand("playerctl -p $spotifyPlayer previous && sleep 0.1 & playerctl -p $spotifyPlayer previous")
+                                commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} previous && sleep 0.1 & playerctl -p ${botSettings.spotifyPlayer} previous")
                                 commandJob.complete()
                                 return true
                             }
@@ -1288,7 +1317,7 @@ class ChatReader(
                                             .startsWith("https://open.spotify.com/track")
                                     ) {
                                         commandRunner.runCommand(
-                                            "playerctl -p $spotifyPlayer open spotify:track:${
+                                            "playerctl -p ${botSettings.spotifyPlayer} open spotify:track:${
                                                 parseLink(Link(message)).link
                                                     .split("track/".toRegex())[1]
                                                     .split("\\?si=".toRegex())[0]
@@ -1296,7 +1325,7 @@ class ChatReader(
                                         )
                                     } else {
                                         commandRunner.runCommand(
-                                            "playerctl -p $spotifyPlayer open spotify:track:${
+                                            "playerctl -p ${botSettings.spotifyPlayer} open spotify:track:${
                                                 message.split(" ".toRegex())[1]
                                                     .split("track:".toRegex())[1]
                                             }"
@@ -1318,7 +1347,7 @@ class ChatReader(
                                     && message.split(" ".toRegex())[1].contains(":playlist:")
                                 ) {
                                     commandRunner.runCommand(
-                                        "playerctl -p $spotifyPlayer open spotify:user:${
+                                        "playerctl -p ${botSettings.spotifyPlayer} open spotify:user:${
                                             message.split(" ".toRegex())[1]
                                                 .split(":".toRegex())[2]
                                         }:playlist:${
@@ -1327,13 +1356,13 @@ class ChatReader(
                                     )
                                 } else if (message.split(" ".toRegex())[1].startsWith("spotify:playlist")) {
                                     commandRunner.runCommand(
-                                        "playerctl -p $spotifyPlayer open spotify:playlist:${
+                                        "playerctl -p ${botSettings.spotifyPlayer} open spotify:playlist:${
                                             message.substringAfter("playlist:")
                                         }"
                                     )
                                 } else if (parseLink(Link(message.substringAfter(" "))).link.startsWith("https://open.spotify.com/")) {
                                     commandRunner.runCommand(
-                                        "playerctl -p $spotifyPlayer open spotify:playlist:${
+                                        "playerctl -p ${botSettings.spotifyPlayer} open spotify:playlist:${
                                             parseLink(Link(message)).link.substringAfter("playlist/")
                                                 .substringBefore("?")
                                         }"
@@ -1347,13 +1376,13 @@ class ChatReader(
                                 startSpotifyPlayer()
                                 if (message.split(" ".toRegex())[1].startsWith("spotify:album")) {
                                     commandRunner.runCommand(
-                                        "playerctl -p $spotifyPlayer open spotify:album:${
+                                        "playerctl -p ${botSettings.spotifyPlayer} open spotify:album:${
                                             message.substringAfter("album:")
                                         }"
                                     )
                                 } else if (parseLink(Link(message.substringAfter(" "))).link.startsWith("https://open.spotify.com/")) {
                                     commandRunner.runCommand(
-                                        "playerctl -p $spotifyPlayer open spotify:album:${
+                                        "playerctl -p ${botSettings.spotifyPlayer} open spotify:album:${
                                             parseLink(Link(message)).link.substringAfter("album/")
                                                 .substringBefore("?")
                                         }"
@@ -1367,7 +1396,7 @@ class ChatReader(
                                 val lines = StringBuilder()
                                 lines.appendLine("Now playing on Spotify:")
                                 val nowPlaying = commandRunner.runCommand(
-                                    "playerctl -p $spotifyPlayer metadata",
+                                    "playerctl -p ${botSettings.spotifyPlayer} metadata",
                                     printOutput = false
                                 )
                                     .first.outputText.lines()
@@ -1438,7 +1467,7 @@ class ChatReader(
                                             "mpv --terminal=no --no-video" +
                                                     " --ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0," +
                                                     "cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" +
-                                                    " --ytdl \"$ytLink\" --volume=$mpvVolume",
+                                                    " --ytdl \"$ytLink\" --volume=${botSettings.mpvVolume}",
                                             inheritIO = true,
                                             ignoreOutput = true,
                                             printCommand = true
@@ -1495,7 +1524,7 @@ class ChatReader(
                                 if (scLink.link.isNotEmpty()) {
                                     launch {
                                         commandRunner.runCommand(
-                                            "mpv --terminal=no --no-video --ytdl \"$scLink\" --volume=$mpvVolume",
+                                            "mpv --terminal=no --no-video --ytdl \"$scLink\" --volume=${botSettings.mpvVolume}",
                                             inheritIO = true,
                                             ignoreOutput = true,
                                             printCommand = true
@@ -1528,25 +1557,11 @@ class ChatReader(
                             }
                         }
                     } else {
-                        //if userName is set to __console__, allow the usage of %say command
-                        if (latestMsgUsername == "__console__") {
-                            when {
-                                //send a message to the chat
-                                message.contains("^${commandList.commandPrefix}say(\\s+\\S+)+$".toRegex()) -> {
-                                    printToChat(
-                                        listOf(message.substringAfter("${commandList.commandPrefix}say "))
-                                    )
-                                    commandJob.complete()
-                                    return true
-                                }
-                            }
-                        } else {
-                            printToChat(
-                                listOf("Command not found! Try ${commandList.commandList["help"]} to see available commands.")
-                            )
-                            commandJob.complete()
-                            return false
-                        }
+                        printToChat(
+                            listOf("Command not found! Try ${commandList.commandList["help"]} to see available commands.")
+                        )
+                        commandJob.complete()
+                        return false
                     }
                     commandJob.complete()
                     return false
@@ -1588,186 +1603,70 @@ class ChatReader(
 
     //use TeamSpeak ClientQuery to send message(s)
     private fun printToChat(messages: List<String>) {
-        /**
-         * Send a message to the current TeamSpeak channel's chat
-         * @param message The message that should be sent. Max length is 8192 chars!
-         */
-        fun sendTeamSpeakMessage(message: String) {
-            val command = "(echo auth apikey=$apikey; " +
-                    "echo \"sendtextmessage targetmode=2 msg=$message\"; " +
-                    "echo quit) | nc localhost 25639"
-            commandRunner.runCommand(command, printOutput = false)
-        }
         if (latestMsgUsername == "__console__") {
             messages.forEach { println(it) }
         } else {
-            if (apikey.isNotEmpty()) {
-                messages.forEach { message ->
-                    //TeamSpeak's character limit is 8192 per message
-                    val tsCharLimit = 8192
-
-                    //adds correct escaping to messages
-                    fun addEscaping(msg: String): String {
-                        val distro = commandRunner.runCommand("cat /etc/issue", printOutput = false).first.outputText
-                        return when {
-                            distro.contains("(Ubuntu|Debian)".toRegex()) -> {
-                                msg.replace(" ", "\\\\\\s")
-                                    .replace("\n", "\\\\\\n")
-                                    .replace("/", "\\/")
-                                    .replace("|", "\\\\p")
-                                    .replace("'", "\\\\'")
-                                    .replace("\"", "\\\"")
-                                    .replace("`", "\\`")
-                                    .replace("&quot;", "\\\"")
-                                    .replace("$", "\\\\$")
-                            }
-
-                            else -> {
-                                msg.replace(" ", "\\s")
-                                    .replace("\n", "\\n")
-                                    .replace("/", "\\/")
-                                    .replace("|", "\\p")
-                                    .replace("'", "\\'")
-                                    .replace("\"", "\\\"")
-                                    .replace("`", "\\`")
-                                    .replace("&quot;", "\\\"")
-                                    .replace("$", "\\$")
-                            }
-                        }
-                    }
-
-                    //splits the message in to size of tsCharLimit at most
-                    //and then returns the result as a pair. First item contains the
-                    //correctly sized message, and the second part contains anything that is left over.
-                    fun splitMessage(msg: String): Pair<String, String> {
-                        val escapedLength = addEscaping(
-                            msg.substring(
-                                0,
-                                if (msg.length > tsCharLimit)
-                                    tsCharLimit + 1
-                                else
-                                    msg.lastIndex + 1
-                            )
-                        ).length
-                        val charLimit = if (escapedLength <= tsCharLimit) msg.length else {
-                            //address the extended message length that the escape characters add
-                            val compensation = escapedLength - msg.substring(
-                                0,
-                                if (msg.length > tsCharLimit)
-                                    tsCharLimit
-                                else
-                                    msg.lastIndex
-                            ).length
-                            //first split the message in to a size that fits tsCharLimit
-                            msg.substring(0, tsCharLimit - compensation + 1).let { str ->
-                                //find index where to split the string.
-                                //Only check at most 10 last lines from the message.
-                                str.lastIndexOf(
-                                    "\n\n",
-                                    "\\n".toRegex().findAll(str).map { it.range.first }.toList().let {
-                                        if (it.size < 10 && str.length < tsCharLimit - compensation + 1) 0
-                                        else it.reversed()[9]
-                                    }
-                                ).let { index ->
-                                    if (index == -1) {
-                                        //no empty lines were found so find the last newline character
-                                        //and use that as the index
-                                        str.let { text ->
-                                            text.indexOfLast { it == '\n' }.let { lastNewline ->
-                                                if (lastNewline == -1) {
-                                                    //if no newlines are found, use the last space
-                                                    text.indexOfLast { it == ' ' }.let {
-                                                        if (it == -1) tsCharLimit else it
-                                                    }
-                                                } else lastNewline
-                                            }
-                                        }
-                                    } else {
-                                        index + 1
-                                    }
-                                }
-                            }
-                        }
-                        return Pair(
-                            addEscaping(msg.substring(0, charLimit)),
-                            if (escapedLength > tsCharLimit)
-                                msg.substring(charLimit, msg.lastIndex + 1)
-                            else
-                                ""
-                        )
-                    }
-
-                    var msg = message
-                    while (true) {
-                        //add an empty line to the start of the message if there isn't one already.
-                        if ((msg.count { msg.contains('\n') }) > 1 && !msg.startsWith("\n"))
-                            msg = "\n$msg"
-                        val split = splitMessage(msg)
-                        sendTeamSpeakMessage(split.first)
-                        val escapedLength = addEscaping(
-                            split.second.substring(
-                                0,
-                                if (split.second.length > tsCharLimit)
-                                    tsCharLimit + 1
-                                else
-                                    split.second.lastIndex + 1
-                            )
-                        ).length
-                        if (escapedLength > tsCharLimit) {
-                            msg = split.second
-                        } else {
-                            if (split.second.isNotEmpty()) {
-                                sendTeamSpeakMessage(addEscaping(split.second))
-                            }
-                            break
-                        }
-                    }
+            for (message in messages) {
+                when (client) {
+                    is TeamSpeak -> client.sendMsgToChannel(message)
+                    is OfficialTSClient -> client.sendMsgToChannel(message)
                 }
             }
         }
     }
 
-    private suspend fun chatUpdated(line: String) {
-        when (chatFile.extension) {
-            "html" -> {
-                //extract message
-                latestMsgUsername = line.split("client://".toRegex())[1].split("&quot;".toRegex())[1]
-                val time = Time(Calendar.getInstance())
-                val rawTime = line.split("TextMessage_Time\">&lt;".toRegex())[1]
-                    .split("&gt;</span>".toRegex())[0]
-                    .split(":".toRegex())
-                time.hour = rawTime[0]
-                time.minute = rawTime[1]
-                time.second = rawTime[2]
-
-                val userMessage = line.split("TextMessage_Text\">".toRegex())[1].split("</span>".toRegex())[0]
-                parseLine(userMessage)
-                withContext(Main) {
-                    onChatUpdateListener.onChatUpdated(ChatUpdate(latestMsgUsername, userMessage))
+    private suspend fun chatUpdated(line: String, userName: String = "") {
+        when (client) {
+            is TeamSpeak -> {
+                withContext(IO) {
+                    parseLine(line)
+                    onChatUpdateListener.onChatUpdated(ChatUpdate(userName, line))
                 }
             }
+            is OfficialTSClient -> {
+                when (client.channelFile.extension) {
+                    "html" -> {
+                        //extract message
+                        latestMsgUsername = line.split("client://".toRegex())[1].split("&quot;".toRegex())[1]
+                        val time = Time(Calendar.getInstance())
+                        val rawTime = line.split("TextMessage_Time\">&lt;".toRegex())[1]
+                            .split("&gt;</span>".toRegex())[0]
+                            .split(":".toRegex())
+                        time.hour = rawTime[0]
+                        time.minute = rawTime[1]
+                        time.second = rawTime[2]
 
-            "txt" -> {
-                //extract message
-                if (line.startsWith("<")) {
-                    latestMsgUsername = line.substringAfter("> ").substringBeforeLast(": ")
-                    val time = Time(Calendar.getInstance())
-                    val rawTime =
-                        line.split(" ".toRegex())[0].substringAfter("<").substringBefore(">").split(":".toRegex())
-                    time.hour = rawTime[0]
-                    time.minute = rawTime[1]
-                    time.second = rawTime[2]
+                        val userMessage = line.split("TextMessage_Text\">".toRegex())[1].split("</span>".toRegex())[0]
+                        parseLine(userMessage)
+                        withContext(IO) {
+                            onChatUpdateListener.onChatUpdated(ChatUpdate(latestMsgUsername, userMessage))
+                        }
+                    }
 
-                    val userMessage = line.substringAfter("$latestMsgUsername: ")
-                    parseLine(userMessage)
-                    withContext(Main) {
-                        onChatUpdateListener.onChatUpdated(ChatUpdate(latestMsgUsername, userMessage))
+                    "txt" -> {
+                        //extract message
+                        if (line.startsWith("<")) {
+                            latestMsgUsername = line.substringAfter("> ").substringBeforeLast(": ")
+                            val time = Time(Calendar.getInstance())
+                            val rawTime =
+                                line.split(" ".toRegex())[0].substringAfter("<").substringBefore(">")
+                                    .split(":".toRegex())
+                            time.hour = rawTime[0]
+                            time.minute = rawTime[1]
+                            time.second = rawTime[2]
+
+                            val userMessage = line.substringAfter("$latestMsgUsername: ")
+                            parseLine(userMessage)
+                            withContext(IO) {
+                                onChatUpdateListener.onChatUpdated(ChatUpdate(latestMsgUsername, userMessage))
+                            }
+                        }
+                    }
+
+                    else -> {
+                        println("Error! file format \"${client.channelFile.extension}\" not supported!")
                     }
                 }
-            }
-
-            else -> {
-                println("Error! file format \"${chatFile.extension}\" not supported!")
             }
         }
     }
@@ -1779,6 +1678,7 @@ class ChatReader(
     override fun onTrackPaused(player: String, track: Track) {
         printToChat(listOf("Playback paused."))
     }
+
     override fun onTrackResumed(player: String, track: Track) {
         printToChat(listOf("Playback resumed."))
     }
@@ -1810,4 +1710,5 @@ interface ChatUpdateListener {
 
 interface CommandListener {
     fun onCommandExecuted(command: String, output: String, extra: Any? = null)
+    fun onCommandProgress(command: String, output: String, extra: Any? = null)
 }
