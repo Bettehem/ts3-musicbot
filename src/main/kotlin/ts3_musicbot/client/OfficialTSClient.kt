@@ -77,10 +77,29 @@ class OfficialTSClient(
         else ""
     }
 
-    private fun getChannelList(): List<String> {
+    /**
+     * Get current channel list.
+     * @return returns a list of Strings, each containing a channel's data
+     * A channel's data will look something like this:
+     * cid=90 pid=6 channel_order=85 channel_name=TestChannel channel_flag_are_subscribed=1 total_clients=0
+     */
+    fun getChannelList(): List<String> {
         val channels = clientQuery("channellist").lines()
         return if (channels.any { it.startsWith("cid=") })
             channels.first { it.startsWith("cid=") }.split("|")
+        else emptyList()
+    }
+
+    /**
+     * Get a list of clients on the current server.
+     * @return returns a list of Strings, each containing a client's info
+     * A client's data will look something like this
+     * clid=83 cid=8 client_database_id=100 client_nickname=TeamSpeakUser client_type=0
+     */
+    fun getClientList(): List<String> {
+        val clients = clientQuery("clientlist").lines()
+        return if (clients.any { it.startsWith("clid=") })
+            clients.first { it.startsWith("clid=") }.split("|")
         else emptyList()
     }
 
@@ -130,25 +149,27 @@ class OfficialTSClient(
      * @param channelPassword the password of the channel to join
      */
     fun joinChannel(channelName: String = settings.channelName, channelPassword: String = settings.channelPassword) {
-        if (channelPassword.isNotEmpty()) {
-            clientQuery("disconnect")
-            clientQuery(
-                "connect address=${settings.serverAddress} password=${encode(settings.serverPassword)} " +
-                        "nickname=${encode(settings.nickname)} " +
-                        "channel=${encode(channelName)} channel_pw=${encode(channelPassword)}"
-            )
-        } else {
-            val channelId = getChannelId(channelName)
-            clientQuery("clientmove cid=$channelId clid=${getCurrentUserId()}")
+        if (channelName != getCurrentChannelName()) {
+            if (channelPassword.isNotEmpty()) {
+                clientQuery("disconnect")
+                clientQuery(
+                    "connect address=${settings.serverAddress} password=${encode(settings.serverPassword)} " +
+                            "nickname=${encode(settings.nickname)} " +
+                            "channel=${encode(channelName)} channel_pw=${encode(channelPassword)}"
+                )
+            } else {
+                val channelId = getChannelId(channelName)
+                clientQuery("clientmove cid=$channelId clid=${getCurrentUserId()}")
+            }
+            updateChannelFile()
         }
-        updateChannelFile()
     }
 
     /**
      * get then name of the current channel
      * @return returns the name of the current channel
      */
-    fun getCurrentChannelName(): String =
+    private fun getCurrentChannelName(): String =
         getChannelId(decode(clientQuery("channelconnectinfo").lines().first { it.startsWith("path=") }
             .substringAfter("path=")))
 

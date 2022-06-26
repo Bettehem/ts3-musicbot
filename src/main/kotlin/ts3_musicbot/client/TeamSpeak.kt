@@ -54,8 +54,61 @@ class TeamSpeak(
         return client.isConnected
     }
 
+    /**
+     * Disconnect from current server
+     */
     fun disconnect() {
         client.disconnect()
+    }
+
+    private fun encode(message: String): String {
+        val distro =
+            CommandRunner().runCommand("cat /etc/issue", printOutput = false).first.outputText
+        return when {
+            distro.contains("(Ubuntu|Debian)".toRegex()) -> {
+                message.replace(" ", "\\\\\\s")
+                    .replace("\n", "\\\\\\n")
+                    .replace("/", "\\/")
+                    .replace("|", "\\\\p")
+                    .replace("'", "\\\\'")
+                    .replace("\"", "\\\"")
+                    .replace("&quot;", "\\\"")
+                    .replace("`", "\\`")
+                    .replace("$", "\\\\$")
+            }
+
+            else -> {
+                message.replace(" ", "\\s")
+                    .replace("\n", "\\n")
+                    .replace("/", "\\/")
+                    .replace("|", "\\p")
+                    .replace("'", "\\'")
+                    .replace("\"", "\\\"")
+                    .replace("&quot;", "\\\"")
+                    .replace("`", "\\`")
+                    .replace("$", "\\$")
+            }
+        }
+    }
+
+    /**
+     * Get current channel list
+     * @return returns a list of Strings, each containing a channel's data
+     * A channel's data will look something like this:
+     * cid=90 pid=6 channel_order=85 channel_name=Test\sChannel channel_flag_are_subscribed=1 total_clients=0
+     */
+    fun getChannelList(): List<String> = client.listChannels().map {
+        encode("cid=${it.id} pid=${it.parentChannelId} channel_order=${it.order} channel_name=${it.name} channel_flag_are_subscribed=1 total_clients=${it.totalClients}")
+    }
+
+    /**
+     * Get a list of clients on the current server.
+     * @return returns a list of Strings, each containing a client's info
+     * A client's data will look something like this
+     * clid=83 cid=8 client_database_id=100 client_nickname=TeamSpeakUser client_type=0
+     */
+    fun getClientList(): List<String> = client.listClients().map {
+        encode("clid=${it.id} cid=${it.channelId} client_database_id=${it.databaseId} client_nickname=${it.nickname} client_type=${it.type}")
     }
 
     /**
@@ -130,35 +183,6 @@ class TeamSpeak(
             }
         }
 
-        fun encode(message: String): String {
-            val distro =
-                CommandRunner().runCommand("cat /etc/issue", printOutput = false).first.outputText
-            return when {
-                distro.contains("(Ubuntu|Debian)".toRegex()) -> {
-                    message.replace(" ", "\\\\\\s")
-                        .replace("\n", "\\\\\\n")
-                        .replace("/", "\\/")
-                        .replace("|", "\\\\p")
-                        .replace("'", "\\\\'")
-                        .replace("\"", "\\\"")
-                        .replace("&quot;", "\\\"")
-                        .replace("`", "\\`")
-                        .replace("$", "\\\\$")
-                }
-
-                else -> {
-                    message.replace(" ", "\\s")
-                        .replace("\n", "\\n")
-                        .replace("/", "\\/")
-                        .replace("|", "\\p")
-                        .replace("'", "\\'")
-                        .replace("\"", "\\\"")
-                        .replace("&quot;", "\\\"")
-                        .replace("`", "\\`")
-                        .replace("$", "\\$")
-                }
-            }
-        }
 
         //splits the message in to size of tsCharLimit at most
         //and then returns the result as a pair. First item contains the

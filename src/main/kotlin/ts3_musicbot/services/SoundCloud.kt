@@ -336,7 +336,6 @@ class SoundCloud {
         )
         urlBuilder.append(id)
         urlBuilder.append("?client_id=$clientId")
-        @Suppress("BlockingMethodInNonBlockingContext")
         return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
     }
 
@@ -587,7 +586,6 @@ class SoundCloud {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$api2URL/tracks/$id")
             urlBuilder.append("?client_id=$clientId")
-            @Suppress("BlockingMethodInNonBlockingContext")
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
 
@@ -649,7 +647,6 @@ class SoundCloud {
     }
 
     private suspend fun getMultipleTracks(links: List<Link>): TrackList {
-        @Suppress("BlockingMethodInNonBlockingContext")
         suspend fun fetchTracksData(trackLinks: List<Link>): Response {
             val idsBuilder = StringBuilder()
             for (link in trackLinks) {
@@ -661,7 +658,9 @@ class SoundCloud {
                     } + ","
                 )
             }
-            val ids = URLEncoder.encode(idsBuilder.toString().substringBeforeLast(","), Charsets.UTF_8.toString())
+            val ids = withContext(IO) {
+                URLEncoder.encode(idsBuilder.toString().substringBeforeLast(","), Charsets.UTF_8.toString())
+            }
             val urlBuilder = StringBuilder()
             urlBuilder.append("$api2URL/tracks?ids=$ids")
             urlBuilder.append("&client_id=$clientId")
@@ -761,7 +760,6 @@ class SoundCloud {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$api2URL/users/$id/playlists")
             urlBuilder.append("?client_id=$clientId")
-            @Suppress("BlockingMethodInNonBlockingContext")
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
 
@@ -826,7 +824,6 @@ class SoundCloud {
                 urlBuilder.append("&${link.link.substringAfter("?")}")
             else
                 urlBuilder.append("&limit=100")
-            @Suppress("BlockingMethodInNonBlockingContext")
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }
 
@@ -944,7 +941,6 @@ class SoundCloud {
                 urlBuilder.append("&${link.link.substringAfter("?")}")
             else
                 urlBuilder.append("&limit=150")
-            @Suppress("BlockingMethodInNonBlockingContext")
 
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
         }

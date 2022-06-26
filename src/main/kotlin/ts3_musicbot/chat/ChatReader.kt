@@ -629,7 +629,7 @@ class ChatReader(
                                                         songQueue.addAllToQueue(trackList, customPosition)
                                                     val msg =
                                                         if (playlistAdded) tracksAddedMsg else tracksAddingErrorMsg
-                                                    commandListener.onCommandExecuted(commandString, msg, trackList)
+                                                    commandListener.onCommandProgress(commandString, msg, trackList)
                                                     commandSuccessful.add(Pair(playlistAdded, Pair(msg, trackList)))
                                                 }
 
@@ -646,7 +646,7 @@ class ChatReader(
                                                             "Added user's likes to the queue."
                                                         else
                                                             tracksAddingErrorMsg
-                                                    commandListener.onCommandExecuted(commandString, msg, trackList)
+                                                    commandListener.onCommandProgress(commandString, msg, trackList)
                                                     commandSuccessful.add(Pair(likesAdded, Pair(msg, trackList)))
                                                 }
 
@@ -665,7 +665,7 @@ class ChatReader(
                                                             "Added user's reposts to the queue."
                                                         else
                                                             tracksAddingErrorMsg
-                                                    commandListener.onCommandExecuted(commandString, msg, trackList)
+                                                    commandListener.onCommandProgress(commandString, msg, trackList)
                                                     commandSuccessful.add(Pair(repostsAdded, Pair(msg, trackList)))
                                                 }
                                             }
@@ -675,7 +675,7 @@ class ChatReader(
                                 return if (commandSuccessful.all { it.first }) {
                                     val msg = commandSuccessful.filter { it.first }.map { it.second.first }
                                     printToChat(msg)
-                                    commandListener.onCommandExecuted(commandString, msg.toString(), commandSuccessful)
+                                    commandListener.onCommandExecuted(commandString, msg.toString(), commandSuccessful.first().second.second)
                                     commandJob.complete()
                                     true
                                 } else {
@@ -938,33 +938,29 @@ class ChatReader(
                             commandString.contains("^${commandList.commandList["queue-voteskip"]}$".toRegex()) -> {
                                 val userList = ArrayList<String>()
                                 //get channel list
-                                val channelList = ArrayList<Pair<String, String>>()
-                                val tsChannelListData = commandRunner.runCommand(
-                                    "(echo auth apikey=${botSettings.apiKey}; echo \"channellist\"; echo quit) | nc localhost 25639",
-                                    printOutput = false
-                                ).first.outputText.lines()
-                                for (line in tsChannelListData) {
-                                    if (line.contains("cid=".toRegex())) {
-                                        val channelDataList = line.split("\\|".toRegex())
-                                        for (channel in channelDataList) {
-                                            val channelData = channel.split(" ".toRegex())
-                                            channelList.add(
-                                                Pair(
-                                                    channelData[3].split("=".toRegex())[1],
-                                                    channelData[0].split("=".toRegex())[1]
-                                                )
-                                            )
-                                        }
-                                        break
+                                val channelList = when (client) {
+                                    is TeamSpeak -> {
+                                        client.getChannelList()
                                     }
+                                    is OfficialTSClient -> {
+                                        client.getChannelList()
+                                    }
+                                    else -> emptyList()
+                                }.map {
+                                    Pair(
+                                        it.substringAfter("channel_name=").substringBefore(" "),
+                                        it.substringAfter("cid=").substringBefore(" ")
+                                    )
                                 }
 
                                 //get users in current channel
                                 for (channel in channelList) {
                                     if (channel.first == botSettings.channelName.substringAfterLast("/")) {
-                                        val tsUserListData =
-                                            commandRunner.runCommand("(echo auth apikey=${botSettings.apiKey}; echo \"clientlist\"; echo quit) | nc localhost 25639")
-                                                .first.outputText.lines()
+                                        val tsUserListData = when (client) {
+                                            is TeamSpeak -> client.getClientList()
+                                            is OfficialTSClient -> client.getClientList()
+                                            else -> emptyList()
+                                        }
                                         for (line in tsUserListData) {
                                             if (line.contains("clid=".toRegex())) {
                                                 val clientDataList = line.split("\\|".toRegex())
