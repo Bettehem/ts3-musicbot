@@ -1016,7 +1016,8 @@ class ChatReader(
                             }
                             //queue-move command
                             commandString.contains("^${commandList.commandList["queue-move"]}\\s+".toRegex()) -> {
-                                val link = Link(parseLink(Link(commandString)).link.substringBefore("?"))
+                                val link = Link(parseLink(Link(commandString)).link.substringBefore("?")
+                                    .replace("(^${commandList.commandList["queue-move"]}\\s+|\\s+.+\$)".toRegex(), ""))
                                 var position = 0
                                 //parse arguments
                                 val args = commandString.split("\\s+".toRegex())
