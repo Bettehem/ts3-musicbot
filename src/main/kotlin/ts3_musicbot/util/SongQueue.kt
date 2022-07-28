@@ -110,6 +110,27 @@ class SongQueue(
         }
     }
 
+    /**
+     * Moves a desired track to a new position
+     * @param track link to move
+     * @param newPosition new position of the track
+     */
+    fun moveTrack(track: Track, newPosition: Int) {
+        //TODO: make possible to choose which track to move if many exist in the queue
+        synchronized(songQueue) {
+            if (newPosition < songQueue.size && newPosition >= 0) {
+                for (i in songQueue.indices) {
+                    if (songQueue[i].link == track.link) {
+                        val newTrack = songQueue[i]
+                        songQueue.removeAt(i)
+                        songQueue.add(newPosition, newTrack)
+                        break
+                    }
+                }
+            }
+        }
+    }
+
     fun getQueue(): ArrayList<Track> = synchronized(songQueue) { songQueue }.toMutableList() as ArrayList<Track>
 
     fun nowPlaying(): Track {
@@ -244,27 +265,6 @@ class SongQueue(
     }
 
     override fun onAdPlaying() {}
-
-    /**
-     * Moves a desired track to a new position
-     * @param track link to move
-     * @param newPosition new position of the track
-     */
-    fun moveTrack(track: Track, newPosition: Int) {
-        //TODO: make possible to choose which track to move if many exist in the queue
-        synchronized(songQueue) {
-            if (newPosition < songQueue.size && newPosition >= 0) {
-                for (i in songQueue.indices) {
-                    if (songQueue[i].link == track.link) {
-                        val newTrack = songQueue[i]
-                        songQueue.removeAt(i)
-                        songQueue.add(newPosition, newTrack)
-                        break
-                    }
-                }
-            }
-        }
-    }
 
     private class TrackPlayer(val spotifyPlayer: String, val mpvVolume: Int, val listener: PlayStateListener) {
         var trackJob = Job()

@@ -1,4 +1,4 @@
-image: "registry.gitlab.com/twiese99/ts3-musicbot-runner-image:latest"
+image: "registry.gitlab.com/bettehem/ts3-musicbot-runner-image:latest"
 
 stages:
   - build

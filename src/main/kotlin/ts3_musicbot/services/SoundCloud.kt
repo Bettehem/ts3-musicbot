@@ -733,7 +733,8 @@ class SoundCloud {
                                     updateClientId()
                                 }
                                 HttpURLConnection.HTTP_NOT_FOUND -> {
-                                    println("Error 404! Link not found!")
+                                    println("Error 404! $linksToFetch not found!")
+                                    tracksJob.complete()
                                     return@launch
                                 }
                                 HttpURLConnection.HTTP_BAD_REQUEST -> {
@@ -1335,9 +1336,7 @@ class SoundCloud {
                         updateClientId()
                     }
                     HttpURLConnection.HTTP_NOT_FOUND -> {
-                        println("Error 404! $typeData not found!")
-                        type = ""
-                        break
+                        println("Error 404! $link not found! Trying again...")
                     }
                     else -> println("HTTP ERROR! CODE ${typeData.code.code}")
                 }
@@ -1377,7 +1376,7 @@ class SoundCloud {
                         updateClientId()
                     }
                     HttpURLConnection.HTTP_NOT_FOUND -> {
-                        println("Error 404! $idData not found!")
+                        println("Error 404! $link not found!")
                         id = ""
                         break
                     }
