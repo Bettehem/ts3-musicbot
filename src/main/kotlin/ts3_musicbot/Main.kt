@@ -121,7 +121,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "-C, --channelfile        Provide a path to a channel.html or channel.txt file. You also need to provide the channel name with -c option.\n" +
                         "-n, --nickname           The nickname of the bot.\n" +
                         "-m, --market             Specify a market/country for Spotify.\n" +
-                        "--spotify <client>       Specify a spotify client to use. Can be spotify, ncspot or spotifyd." +
+                        "--spotify <client>       Specify a spotify client to use. Can be spotify, ncspot or spotifyd.\n" +
                         "--config                 Provide a config file where to read the bot's settings from\n" +
                         "--command-config         Provide a config file where to read custom commands from\n" +
                         "--use-internal-tsclient  Use the internal TeamSpeak client instead of the official one.(WIP!)\n" +
