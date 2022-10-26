@@ -3,6 +3,7 @@ image: "registry.gitlab.com/bettehem/ts3-musicbot-runner-image:latest"
 stages:
   - build
   - test
+  - buildJar
 
 buildTS3MusicBot:
   stage: build
@@ -14,3 +15,10 @@ runTests:
   script:
     - gradle test
 
+buildJar:
+  stage: buildJar
+  script:
+    - sh build.sh
+  artifacts:
+    paths:
+      - out/artifacts/ts3_musicbot/ts3-musicbot.jar
