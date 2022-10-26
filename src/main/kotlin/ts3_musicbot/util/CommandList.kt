@@ -217,13 +217,28 @@ data class CommandList(
             Pair(
                 "queue-move", "\n" +
                         "Showing help for ${commandList["queue-move"]} command:\n" +
-                        "${commandList["queue-move"]} lets you move a song to a new position in the queue.\n" +
-                        "Counting starts from 0, so the first song is at position 0, second is at 1 and so on.\n" +
+                        "${commandList["queue-move"]} lets you move a song or songs to a new position in the queue.\n" +
+                        "If the same track is in the queue multiple times,\n" +
+                        "the bot will ask you to choose which one you want to delete\n" +
+                        "unless specified otherwise.\n" +
+                        "If you don't specify a position using -p or --position, 0 will be used by default.\n" +
                         "Available arguments:\n" +
                         "-p, --position <pos>    \tSet a position where to move the song.\n" +
-                        "Example - Move a song to position 10\n" +
-                        "${commandList["queue-move"]} https://open.spotify.com/track/6H0zRPEV1ezBHOidNXSt1D -p 10\n" +
-                        "${commandList["queue-move"]} https://open.spotify.com/track/6H0zRPEV1ezBHOidNXSt1D --position 10"
+                        "-a, --all               \tMove all matching songs to the new position.\n" +
+                        "-f, --first             \tMove the first matching song to the new position.\n" +
+                        "Example - Move all matching songs to position 10:\n" +
+                        "${commandList["queue-move"]} -a https://open.spotify.com/track/6H0zRPEV1ezBHOidNXSt1D -p 10\n" +
+                        "${commandList["queue-move"]} --all https://open.spotify.com/track/6H0zRPEV1ezBHOidNXSt1D --position 10\n" +
+                        "Example - Move a song from position 5 to position 0:\n" +
+                        "${commandList["queue-move"]} 5 -p 0\n" +
+                        "Example - Move first matching song to position 10:\n" +
+                        "${commandList["queue-move"]} -f https://open.spotify.com/track/6H0zRPEV1ezBHOidNXSt1D -p 10\n" +
+                        "${commandList["queue-move"]} --first https://open.spotify.com/track/6H0zRPEV1ezBHOidNXSt1D --position 10\n" +
+                        "Example - Move songs from position 3 and 14 to position 5:\n" +
+                        "${commandList["queue-move"]} 3, 14 -p 5\n" +
+                        "Example - Move first matches of songs to position 8:\n" +
+                        "${commandList["queue-move"]} -f https://open.spotify.com/track/54k9d97GSM3lBXY61UagKx, https://open.spotify.com/track/6le9zgS2y7MQKvDmmGABDW -p 8"
+
             ),
             Pair(
                 "queue-stop", "\n" +

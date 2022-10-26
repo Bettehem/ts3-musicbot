@@ -118,7 +118,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "-P, --serverpassword     Server's password\n" +
                         "-c, --channelname        The channel's name the bot should connect to after connecting to the server.\n" +
                         "--channelpassword        The channel's password the bot should connect to.\n" +
-                        "-C, --channelfile        Provide a path to a channel.html or channel.txt file. You also need to provide the channel name with -c option.\n" +
+                        "-C, --channelfile        Provide a path to a channel.txt file. You also need to provide the channel name with -c option.\n" +
                         "-n, --nickname           The nickname of the bot.\n" +
                         "-m, --market             Specify a market/country for Spotify.\n" +
                         "--spotify <client>       Specify a spotify client to use. Can be spotify, ncspot or spotifyd.\n" +
@@ -686,7 +686,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         when (p0?.source) {
             browseChannelFileButton -> {
                 val fileChooser = FileChooser()
-                fileChooser.title = "Select TeamSpeak chat file. (channel.txt or channel.html)"
+                fileChooser.title = "Select TeamSpeak chat file. (channel.txt)"
                 fileChooser.initialDirectory = File("${System.getProperty("user.home")}/.ts3client/chats")
                 fileChooser.selectedExtensionFilter =
                     FileChooser.ExtensionFilter("Chat File", listOf("*.html", "*.txt"))

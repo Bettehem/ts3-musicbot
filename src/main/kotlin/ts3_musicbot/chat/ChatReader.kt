@@ -38,33 +38,27 @@ class ChatReader(
         }
     }
 
-    private fun parseLink(link: Link): Link {
+    /**
+     * Removes the URL tags and commas from the given String
+     * @param text The text to remove url tags from
+     * @return Return parsed text or original if parsing is unsuccessful
+     */
+    private fun removeTags(text: String): String {
         return when (client) {
             is OfficialTSClient -> {
                 when (client.channelFile.extension) {
-                    "html" -> {
-                        Link(
-                            if (link.link.contains("href=\"")) {
-                                link.link.substringAfter(link.link.split(" ".toRegex())[0])
-                                    .split("href=\"".toRegex())[1].split("\">".toRegex())[0].replace(
-                                    " -s",
-                                    ""
-                                )
-                            } else {
-                                link.link
-                            }
-                        )
-                    }
                     "txt" -> {
-                        Link(link.link.replace("\\[/?URL]".toRegex(), ""))
+                        text.replace("(\\[/?URL]|,(\$|\\s))".toRegex(), "")
                     }
+
                     else -> {
-                        println("This extension isn't supported! Use channel.txt or channel.html as the chat file.")
-                        link
+                        println("This extension isn't supported! Use channel.txt as the chat file.")
+                        text
                     }
                 }
             }
-            else -> link
+
+            else -> text
         }
     }
 
@@ -83,6 +77,7 @@ class ChatReader(
                 })
                 true
             }
+
             is OfficialTSClient -> {
                 shouldRead = true
                 val channelFile = client.channelFile
@@ -103,6 +98,7 @@ class ChatReader(
                     false
                 }
             }
+
             else -> false
         }
     }
@@ -127,10 +123,12 @@ class ChatReader(
                             "pkill -9 spotify",
                             ignoreOutput = true
                         )
+
                         "ncspot" -> commandRunner.runCommand(
                             "playerctl -p ncspot stop; tmux kill-session -t ncspot",
                             ignoreOutput = true
                         )
+
                         "spotifyd" -> commandRunner.runCommand("echo \"spotifyd isn't well supported yet, please kill it manually.\"")
                         else -> commandRunner.runCommand("echo \"${botSettings.spotifyPlayer} is not a supported player!\" > /dev/stderr; return 2")
                     }
@@ -142,11 +140,13 @@ class ChatReader(
                             printCommand = true,
                             inheritIO = true
                         )
+
                         "ncspot" -> commandRunner.runCommand(
                             "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
                             ignoreOutput = true,
                             printCommand = true
                         )
+
                         "spotifyd" -> commandRunner.runCommand("echo \"spotifyd isn't well supported yet, please start it manually.\"")
                         else -> commandRunner.runCommand("echo \"${botSettings.spotifyPlayer} is not a supported player!\" > /dev/stderr; return 2")
                     }
@@ -236,7 +236,7 @@ class ChatReader(
                             }
 
                             //queue-add and queue-playnext command
-                            commandString.contains("^(${commandList.commandList["queue-add"]}|${commandList.commandList["queue-playnext"]})(\\s+-(s|(p\\s+[0-9]+)))*(\\s*(\\[URL])?((spotify:(user:\\S+:)?(track|album|playlist|show|episode|artist):\\S+)|(https?://\\S+)|((sp|spotify|yt|youtube|sc|soundcloud)\\s+(track|album|playlist|show|episode|artist|video|user)\\s+.+))(\\[/URL])?\\s*,?\\s*)+(\\s+-(s|(p\\s+[0-9]+)))*\$".toRegex()) -> {
+                            commandString.contains("^(${commandList.commandList["queue-add"]}|${commandList.commandList["queue-playnext"]})(\\s+-(s|(p\\s*[0-9]+)))*(\\s*(\\[URL])?((spotify:(user:\\S+:)?(track|album|playlist|show|episode|artist):\\S+)|(https?://\\S+)|((sp|spotify|yt|youtube|sc|soundcloud)\\s+(track|album|playlist|show|episode|artist|video|user)\\s+.+))(\\[/URL])?\\s*,?\\s*)+(\\s+-(s|(p\\s*[0-9]+)))*\$".toRegex()) -> {
                                 val trackAddedMsg = "Added track to queue."
                                 val trackNotPlayableMsg = "Track is not playable."
                                 val tracksAddedMsg = "Added tracks to queue."
@@ -618,7 +618,7 @@ class ChatReader(
 
                                                 "playlist" -> {
                                                     //fetch playlist tracks
-                                                    val playlistLink = parseLink(link)
+                                                    val playlistLink = Link(removeTags(link.link))
                                                     val playlistTracks = filterList(
                                                         soundCloud.fetchPlaylistTracks(playlistLink),
                                                         playlistLink
@@ -635,7 +635,7 @@ class ChatReader(
 
                                                 "likes" -> {
                                                     //fetch likes
-                                                    val likesLink = parseLink(link)
+                                                    val likesLink = Link(removeTags(link.link))
                                                     val likes =
                                                         filterList(soundCloud.fetchUserLikes(likesLink), likesLink)
                                                     val trackList =
@@ -651,7 +651,7 @@ class ChatReader(
                                                 }
 
                                                 "reposts" -> {
-                                                    val repostsLink = parseLink(link)
+                                                    val repostsLink = Link(removeTags(link.link))
                                                     val reposts = filterList(
                                                         soundCloud.fetchUserReposts(repostsLink),
                                                         repostsLink
@@ -675,7 +675,11 @@ class ChatReader(
                                 return if (commandSuccessful.all { it.first }) {
                                     val msg = commandSuccessful.filter { it.first }.map { it.second.first }
                                     printToChat(msg)
-                                    commandListener.onCommandExecuted(commandString, msg.toString(), commandSuccessful.first().second.second)
+                                    commandListener.onCommandExecuted(
+                                        commandString,
+                                        msg.toString(),
+                                        commandSuccessful.first().second.second
+                                    )
                                     commandJob.complete()
                                     true
                                 } else {
@@ -743,6 +747,7 @@ class ChatReader(
                                     currentQueue.isEmpty() -> printToChat(
                                         listOf("Queue is empty!")
                                     )
+
                                     else -> {
                                         fun formatLines(queue: List<Track>): List<String> {
                                             return queue.mapIndexed { index, track ->
@@ -774,6 +779,7 @@ class ChatReader(
                                                         "-a", "--all" -> {
                                                             formatLines(currentQueue).forEach { msg.appendLine(it) }
                                                         }
+
                                                         "-l", "--limit" -> {
                                                             val limit = commandArgs.split("\\s+".toRegex())
                                                                 .first { it.contains("[0-9]+".toRegex()) }.toInt()
@@ -785,6 +791,7 @@ class ChatReader(
                                                         }
                                                     }
                                                 }
+
                                                 else -> formatLines(currentQueue).subList(0, 15).forEach {
                                                     msg.appendLine(it)
                                                 }
@@ -803,13 +810,13 @@ class ChatReader(
                                 }
                             }
                             //queue-delete command
-                            commandString.contains("^${commandList.commandList["queue-delete"]}((\\s+(-a|--all))?(\\s+(\\[URL])?https?://\\S+,?\\s*)*(\\s+(-a|--all))?|([0-9]+,?\\s*)+)".toRegex()) -> {
+                            commandString.contains("^${commandList.commandList["queue-delete"]}((\\s+(-a|--all))?\\s+((\\[URL])?https?://\\S+,?\\s*)*(\\s+(-a|--all))?|([0-9]+,?\\s*)+)".toRegex()) -> {
                                 //get links from message
                                 val links =
                                     if (commandString.contains("^${commandList.commandList["queue-delete"]}(\\s+(-a|--all))?\\s+((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+(-a|--all))?".toRegex())) {
                                         commandString.split("(\\s+|,\\s+|,)".toRegex()).filter {
                                             it.contains("(\\[URL])?https?://\\S+,?(\\[/URL])?".toRegex())
-                                        }.map { parseLink(Link(it.replace(",\\[/URL]".toRegex(), "[/URL]"))) }
+                                        }.map { Link(removeTags(it.replace(",\\[/URL]".toRegex(), "[/URL]"))) }
                                     } else {
                                         emptyList()
                                     }
@@ -942,9 +949,11 @@ class ChatReader(
                                     is TeamSpeak -> {
                                         client.getChannelList()
                                     }
+
                                     is OfficialTSClient -> {
                                         client.getChannelList()
                                     }
+
                                     else -> emptyList()
                                 }.map {
                                     Pair(
@@ -1015,23 +1024,151 @@ class ChatReader(
                                 }
                             }
                             //queue-move command
-                            commandString.contains("^${commandList.commandList["queue-move"]}\\s+".toRegex()) -> {
-                                val link = Link(parseLink(Link(commandString)).link.substringBefore("?")
-                                    .replace("(^${commandList.commandList["queue-move"]}\\s+|\\s+.+\$)".toRegex(), ""))
-                                var position = 0
-                                //parse arguments
-                                val args = commandString.split("\\s+".toRegex())
-                                for (i in args.indices) {
-                                    when {
-                                        args[i].contains("(-p|--position)".toRegex()) -> {
-                                            if (args.size >= i + 1 && args[i + 1].contains("\\d+".toRegex())) {
-                                                position = args[i + 1].toInt()
-                                            }
-                                        }
+                            commandString.contains("^${commandList.commandList["queue-move"]}".toRegex()) -> {
+                                val availableArgs = listOf("-p", "--position", "-a", "--all", "-f", "--first")
+                                val currentList = songQueue.getQueue()
+                                val newPosition = commandString.split("\\s+".toRegex()).let { args ->
+                                    if (args.any { it.contains("(-p|--position)".toRegex()) }) {
+                                        val posIndex = args.indexOfFirst { it.contains("(-p|--position)".toRegex()) }
+                                        if (args[posIndex].contains("[0-9]+".toRegex()))
+                                            args[posIndex].replace("(-p|--position)".toRegex(), "")
+                                                .ifEmpty { "0" }.toInt()
+                                        else
+                                            args[posIndex + 1].ifEmpty { "0" }.toInt()
+                                    } else {
+                                        printToChat(listOf("You didn't specify a position using -p or --position! Defaulting to position 0."))
+                                        0
                                     }
                                 }
+                                val links =
+                                    if (commandString.contains(
+                                            "^${commandList.commandList["queue-move"]}(\\s+(${
+                                                availableArgs.joinToString("|")
+                                            }))?\\s+((\\[URL])?https?://\\S+,?\\s*(${
+                                                availableArgs.joinToString("|")
+                                            })?)".toRegex()
+                                        )
+                                    ) {
+                                        commandString.split("(\\s+|,\\s*)".toRegex()).filter {
+                                            it.contains("(\\[URL])?https?://\\S+,?(\\[/URL])?".toRegex())
+                                        }.map { Link(removeTags(it)) }
+                                    } else {
+                                        emptyList()
+                                    }
+                                val noArgsCommand = removeTags(
+                                    commandString.replace(
+                                        ("(${commandList.commandList["queue-move"]}\\s+)|" +
+                                                "(\\s*(${availableArgs.joinToString("|")})(\\s*[0-9]+)?)").toRegex(),
+                                        ""
+                                    )
+                                ).let { args ->
+                                    var newArgs = args
+                                    if (commandString.contains("https?://\\S+".toRegex())) {
+                                        //convert links to positions
+                                        if (commandString.contains("\\s+(-a|--all)\\s*".toRegex())) {
+                                            val indexList = ArrayList<Pair<Link, List<Int>>>()
+                                            printToChat(
+                                                listOf(
+                                                    "You used the -a/--all flag, so moving all matches of track(s)"
+                                                )
+                                            )
+                                            links.forEach { link ->
+                                                val indexes = ArrayList<Int>()
+                                                currentList.forEachIndexed { index, track ->
+                                                    if (track.link == link)
+                                                        indexes.add(index)
+                                                }
+                                                indexList.add(Pair(link, indexes))
+                                            }
+                                            if (indexList.isNotEmpty())
+                                                links.forEachIndexed { index, link ->
+                                                    newArgs = newArgs.replace(
+                                                        link.link,
+                                                        indexList[index].second.joinToString(",")
+                                                    )
+                                                }
+                                            else
+                                                printToChat(listOf("No matches found in the queue!"))
+
+                                        } else if (currentList.filter { track -> links.any { it == track.link } }.size > 1) {
+                                            if (commandString.contains("\\s+(-f|--first)\\s*".toRegex())) {
+                                                val indexList = ArrayList<Pair<Link, List<Int>>>()
+                                                printToChat(
+                                                    listOf("You used the -f/--first flag, so moving only first match of track(s)")
+                                                )
+                                                links.forEach { link ->
+                                                    currentList.indexOfFirst { it.link == link }.let {
+                                                        indexList.add(Pair(link, listOf(it)))
+                                                    }
+                                                }
+                                                if (indexList.isNotEmpty())
+                                                    links.forEachIndexed { index, link ->
+                                                        newArgs = newArgs.replace(
+                                                            link.link,
+                                                            indexList[index].second.joinToString(",")
+                                                        )
+                                                    }
+                                                else
+                                                    printToChat(listOf("No matches found in the queue!"))
+                                            } else {
+                                                val duplicates = ArrayList<Int>()
+                                                printToChat(
+                                                    listOf(
+                                                        "There are multiple instances of these tracks:\n" +
+                                                                currentList.mapIndexed { i, t ->
+                                                                    if (links.any { it == t.link })
+                                                                        "$i: ${t.toShortString()}".also {
+                                                                            duplicates.add(i)
+                                                                        }
+                                                                    else
+                                                                        ""
+                                                                }.let {
+                                                                    val sb = StringBuilder()
+                                                                    for (item in it) {
+                                                                        if (item.isNotEmpty())
+                                                                            sb.appendLine(item)
+                                                                    }
+                                                                    sb.toString()
+                                                                }
+                                                    )
+                                                )
+                                                printToChat(
+                                                    listOf(
+                                                        "Decide which track(s) you want to move, then run ${commandList.commandList["queue-move"]} with the new position specified.\n" +
+                                                                "For examples, run ${commandList.commandList["help"]} ${commandList.commandList["queue-move"]}\n"
+                                                    )
+                                                )
+                                            }
+                                        } else {
+                                            val indexList = ArrayList<Pair<Link, List<Int>>>()
+                                            links.forEach { link ->
+                                                currentList.indexOfFirst { it.link == link }.let {
+                                                    indexList.add(Pair(link, listOf(it)))
+                                                }
+                                            }
+                                            if (indexList.isNotEmpty())
+                                                links.forEachIndexed { index, link ->
+                                                    newArgs = newArgs.replace(
+                                                        link.link,
+                                                        indexList[index].second.joinToString(",")
+                                                    )
+                                                }
+                                            else
+                                                printToChat(listOf("No matches found in the queue!"))
+                                        }
+                                    }
+                                    newArgs
+                                }
+                                val positions: ArrayList<Int> =
+                                    if (noArgsCommand.contains("([0-9]+(,\\s*)?)+".toRegex())) {
+                                        noArgsCommand.split("(\\s+|,\\s*)".toRegex()).filter {
+                                            it.contains("^[0-9]+$".toRegex())
+                                        }.map { it.toInt() } as ArrayList<Int>
+                                    } else {
+                                        ArrayList<Int>()
+                                    }
                                 when {
-                                    position > songQueue.getQueue().size - 1 -> {
+                                    newPosition > songQueue.getQueue().size - 1 -> {
                                         printToChat(
                                             listOf("lol u think arrays start at 1?")
                                         )
@@ -1039,7 +1176,7 @@ class ChatReader(
                                         return false
                                     }
 
-                                    position < 0 -> {
+                                    newPosition < 0 -> {
                                         printToChat(
                                             listOf("What were you thinking?", "You can't do that.")
                                         )
@@ -1048,24 +1185,48 @@ class ChatReader(
                                     }
 
                                     else -> {
-                                        songQueue.moveTrack(Track(link = link), position)
-                                        return if (songQueue.getQueue()[position].link == link) {
+                                        var newPosIsOffset = false
+                                        if (positions.isNotEmpty()) {
+                                            newPosIsOffset = songQueue.moveTracks(positions, newPosition)
+                                        } else {
                                             printToChat(
-                                                listOf("Moved track to new position.")
+                                                listOf(
+                                                    "You need to specify which tracks to move!\n" +
+                                                            "You can get more help by running ${commandList.commandList["help"]} ${commandList.commandList["queue-move"]}"
+                                                )
+                                            )
+                                        }
+                                        val newList = songQueue.getQueue()
+                                        return if (
+                                            currentList.filterIndexed { index, _ -> positions.any { it == index } }
+                                                .let { tracks ->
+                                                    if (newPosIsOffset) {
+                                                        if (newPosition == 0) {
+                                                            tracks.any { it == newList[newPosition] }
+                                                        } else {
+                                                            tracks.any { it == newList[newPosition - 1] }
+                                                        }
+                                                    } else {
+                                                        tracks.any { it == newList[newPosition] }
+                                                    }
+                                                }
+                                        ) {
+                                            printToChat(
+                                                listOf("Moved track${if (positions.size > 1) "s" else ""} to new position.")
                                             )
                                             commandListener.onCommandExecuted(
                                                 commandString,
-                                                "Moved track to new position."
+                                                "Moved track${if (positions.size > 1) "s" else ""} to new position."
                                             )
                                             commandJob.complete()
                                             true
                                         } else {
                                             printToChat(
-                                                listOf("Couldn't move track to new position.")
+                                                listOf("Couldn't move track${if (positions.size > 1) "s" else ""} to new position.")
                                             )
                                             commandListener.onCommandExecuted(
                                                 commandString,
-                                                "Couldn't move track to new position."
+                                                "Couldn't move track${if (positions.size > 1) "s" else ""} to new position."
                                             )
                                             commandJob.complete()
                                             false
@@ -1088,8 +1249,10 @@ class ChatReader(
                                 when (songQueue.getState()) {
                                     SongQueue.State.QUEUE_PLAYING -> statusMessage.appendLine("Playing")
                                         .also { stateKnown = true }
+
                                     SongQueue.State.QUEUE_PAUSED -> statusMessage.appendLine("Paused")
                                         .also { stateKnown = true }
+
                                     SongQueue.State.QUEUE_STOPPED -> statusMessage.appendLine("Stopped")
                                         .also { stateKnown = true }
                                 }
@@ -1200,12 +1363,9 @@ class ChatReader(
                             }
                             //info command
                             commandString.contains("^${commandList.commandList["info"]}\\s+".toRegex()) -> {
-                                val links = parseLink(
-                                    Link(
-                                        commandString.replace("${commandList.commandList["info"]}\\s+".toRegex(), "")
-                                    )
-                                ).link
-                                    .split("\\s*,\\s*".toRegex()).map { Link(it) }
+                                val links = removeTags(
+                                    commandString.replace("${commandList.commandList["info"]}\\s+".toRegex(), "")
+                                ).split("\\s*,\\s*".toRegex()).map { Link(it) }
 
                                 val output = ArrayList<Any>()
                                 var success = false
@@ -1214,26 +1374,35 @@ class ChatReader(
                                         LinkType.SPOTIFY -> when {
                                             link.link.contains("track".toRegex()) -> spotify.fetchTrack(link)
                                                 .also { output.add(it) }
+
                                             link.link.contains("album".toRegex()) -> spotify.fetchAlbum(link)
                                                 .also { output.add(it) }
+
                                             link.link.contains("playlist".toRegex()) -> spotify.fetchPlaylist(link)
                                                 .also { output.add(it) }
+
                                             link.link.contains("artist".toRegex()) -> spotify.fetchArtist(link)
                                                 .also { output.add(it) }
+
                                             link.link.contains("show".toRegex()) -> spotify.fetchShow(link)
                                                 .also { output.add(it) }
+
                                             link.link.contains("episode".toRegex()) -> spotify.fetchEpisode(link)
                                                 .also { output.add(it) }
+
                                             link.link.contains("user".toRegex()) -> spotify.fetchUser(link)
                                                 .also { output.add(it) }
+
                                             else -> null
                                         }
+
                                         LinkType.YOUTUBE -> when (youTube.resolveType(link)) {
                                             "video" -> youTube.fetchVideo(link).also { output.add(it) }
                                             "playlist" -> youTube.fetchPlaylist(link).also { output.add(it) }
                                             "channel" -> youTube.fetchChannel(link).also { output.add(it) }
                                             else -> null
                                         }
+
                                         LinkType.SOUNDCLOUD -> when (soundCloud.resolveType(link)) {
                                             "track" -> soundCloud.fetchTrack(link).also { output.add(it) }
                                             "album" -> soundCloud.fetchAlbum(link).also { output.add(it) }
@@ -1242,6 +1411,7 @@ class ChatReader(
                                             "user" -> soundCloud.fetchUser(link).also { output.add(it) }
                                             else -> null
                                         }
+
                                         else -> {
                                             printToChat(listOf("Link type not supported for this link: $link"))
                                                 .also { output.add(it) }
@@ -1310,12 +1480,12 @@ class ChatReader(
                                     startSpotifyPlayer()
                                     println("Playing song...")
                                     if (
-                                        parseLink(Link(commandString.substringAfter("${commandList.commandList["sp-playsong"]} "))).link
+                                        Link(removeTags(commandString.substringAfter("${commandList.commandList["sp-playsong"]} "))).link
                                             .startsWith("https://open.spotify.com/track")
                                     ) {
                                         commandRunner.runCommand(
                                             "playerctl -p ${botSettings.spotifyPlayer} open spotify:track:${
-                                                parseLink(Link(message)).link
+                                                removeTags(message)
                                                     .split("track/".toRegex())[1]
                                                     .split("\\?si=".toRegex())[0]
                                             }"
@@ -1357,10 +1527,10 @@ class ChatReader(
                                             message.substringAfter("playlist:")
                                         }"
                                     )
-                                } else if (parseLink(Link(message.substringAfter(" "))).link.startsWith("https://open.spotify.com/")) {
+                                } else if (removeTags(message.substringAfter(" ")).startsWith("https://open.spotify.com/")) {
                                     commandRunner.runCommand(
                                         "playerctl -p ${botSettings.spotifyPlayer} open spotify:playlist:${
-                                            parseLink(Link(message)).link.substringAfter("playlist/")
+                                            removeTags(message).substringAfter("playlist/")
                                                 .substringBefore("?")
                                         }"
                                     )
@@ -1377,10 +1547,10 @@ class ChatReader(
                                             message.substringAfter("album:")
                                         }"
                                     )
-                                } else if (parseLink(Link(message.substringAfter(" "))).link.startsWith("https://open.spotify.com/")) {
+                                } else if (removeTags(message.substringAfter(" ")).startsWith("https://open.spotify.com/")) {
                                     commandRunner.runCommand(
                                         "playerctl -p ${botSettings.spotifyPlayer} open spotify:album:${
-                                            parseLink(Link(message)).link.substringAfter("album/")
+                                            removeTags(message).substringAfter("album/")
                                                 .substringBefore("?")
                                         }"
                                     )
@@ -1407,6 +1577,7 @@ class ChatReader(
                                                 )
                                             }"
                                         )
+
                                         "artist" -> lines.appendLine(
                                             "Artist:   \t${
                                                 line.substringAfter(
@@ -1415,6 +1586,7 @@ class ChatReader(
                                                 )
                                             }"
                                         )
+
                                         "title" -> lines.appendLine(
                                             "Title:    \t${
                                                 line.substringAfter(
@@ -1423,6 +1595,7 @@ class ChatReader(
                                                 )
                                             }"
                                         )
+
                                         "url" -> lines.appendLine(
                                             "Link:  \t${
                                                 line.substringAfter(
@@ -1457,7 +1630,7 @@ class ChatReader(
                             }
                             //yt-playsong command
                             commandString.contains("^${commandList.commandList["yt-playsong"]}\\s+".toRegex()) -> {
-                                val ytLink = parseLink(Link(message.substringAfter(" ")))
+                                val ytLink = Link(removeTags(message.substringAfter(" ")))
                                 if (ytLink.link.isNotEmpty()) {
                                     launch {
                                         commandRunner.runCommand(
@@ -1517,7 +1690,7 @@ class ChatReader(
                             }
                             //sc-playsong command
                             commandString.contains("^${commandList.commandList["sc-playsong"]}\\s+".toRegex()) -> {
-                                val scLink = parseLink(Link(message.substringAfter(" ")))
+                                val scLink = Link(removeTags(message.substringAfter(" ")))
                                 if (scLink.link.isNotEmpty()) {
                                     launch {
                                         commandRunner.runCommand(
@@ -1548,6 +1721,7 @@ class ChatReader(
                                 commandJob.complete()
                                 return true
                             }
+
                             else -> {
                                 commandJob.complete()
                                 return false
@@ -1620,6 +1794,7 @@ class ChatReader(
                     onChatUpdateListener.onChatUpdated(ChatUpdate(userName, line))
                 }
             }
+
             is OfficialTSClient -> {
                 when (client.channelFile.extension) {
                     "html" -> {

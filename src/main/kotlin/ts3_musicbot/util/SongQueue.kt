@@ -111,12 +111,12 @@ class SongQueue(
     }
 
     /**
-     * Moves a desired track to a new position
-     * @param track link to move
+     * Moves the first matching track to a new position
+     * @param track track to move
      * @param newPosition new position of the track
      */
+    @Deprecated("Use the new moveTrack(trackPosition, newPosition) function instead.")
     fun moveTrack(track: Track, newPosition: Int) {
-        //TODO: make possible to choose which track to move if many exist in the queue
         synchronized(songQueue) {
             if (newPosition < songQueue.size && newPosition >= 0) {
                 for (i in songQueue.indices) {
@@ -129,6 +129,65 @@ class SongQueue(
                 }
             }
         }
+    }
+
+    /**
+     * Moves a track to a new position
+     * @param trackPosition Position of the track to move
+     * @param newPosition New position of the track
+     */
+    fun moveTrack(trackPosition: Int, newPosition: Int) {
+        synchronized(songQueue) {
+            if (newPosition < songQueue.size && newPosition >= 0) {
+                val newTrack = songQueue[trackPosition]
+                songQueue.removeAt(trackPosition)
+                if (trackPosition < newPosition)
+                    songQueue.add(newPosition - 1, newTrack)
+                else
+                    songQueue.add(newPosition, newTrack)
+            }
+        }
+    }
+
+    /**
+     * Moves given tracks to a new position.
+     * Whenever these tracks are in a position that will be affected by the moving of the previous item,
+     * offsets are applied accordingly.
+     * @param positions an ArrayList<Int> containing the positions of the tracks to move.
+     * @param newPosition new position where to move tracks.
+     * @return returns true if newPosition has been offset due to moving a track
+     */
+    fun moveTracks(positions: ArrayList<Int>, newPosition: Int): Boolean {
+        var newPosIsOffset = false
+        var newOffset = 0
+        val trackPositions: ArrayList<Int> = positions.clone().let {
+            it as ArrayList<*>
+            it.map { pos -> pos as Int }
+        } as ArrayList<Int>
+        //loop through positions and move them to newPosition
+        for (index in trackPositions.indices) {
+            moveTrack(trackPositions[index], newPosition + newOffset)
+            if (trackPositions[index] >= newPosition)
+                newOffset++
+            else
+                newPosIsOffset = true
+
+            // if moving more than one track,
+            // apply appropriate offsets for remaining tracks to move
+            if (index != trackPositions.lastIndex) {
+                for (i in trackPositions.indices) {
+                    val pos = trackPositions[i]
+                    if (pos < trackPositions[index] && pos > newPosition) {
+                        trackPositions.removeAt(i)
+                        trackPositions.add(i, pos + 1)
+                    } else if (pos > trackPositions[index] && pos < newPosition) {
+                        trackPositions.removeAt(i)
+                        trackPositions.add(i, pos - 1)
+                    }
+                }
+            }
+        }
+        return newPosIsOffset
     }
 
     fun getQueue(): ArrayList<Track> = synchronized(songQueue) { songQueue }.toMutableList() as ArrayList<Track>
