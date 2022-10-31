@@ -10,6 +10,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import ts3_musicbot.util.*
+import java.lang.IllegalArgumentException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLDecoder
@@ -24,12 +25,12 @@ class Spotify(private val market: String = "") {
     private val apiURL = URL("https://api.spotify.com/v1")
     private var accessToken = ""
     val supportedSearchTypes = listOf(
-        SearchType.Type.TRACK,
-        SearchType.Type.PLAYLIST,
-        SearchType.Type.ALBUM,
-        SearchType.Type.ARTIST,
-        SearchType.Type.SHOW,
-        SearchType.Type.EPISODE
+        LinkType.TRACK,
+        LinkType.PLAYLIST,
+        LinkType.ALBUM,
+        LinkType.ARTIST,
+        LinkType.SHOW,
+        LinkType.EPISODE
     )
 
     private fun encode(text: String) = runBlocking {
@@ -87,11 +88,13 @@ class Spotify(private val market: String = "") {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${data.data.data} seconds.")
                         //wait for given time before next request.
                         delay(data.data.data.toLong() * 1000)
                     }
+
                     else -> println("HTTP ERROR! CODE: ${data.code}")
 
                 }
@@ -110,14 +113,7 @@ class Spotify(private val market: String = "") {
             } else {
                 urlBuilder.append("$apiURL/search?")
                 urlBuilder.append("q=${encode(searchQuery.query)}")
-                urlBuilder.append(
-                    "&type=${
-                        if (type.getType() == SearchType.Type.SHOW)
-                            type.type.replace("podcast", "show")
-                        else
-                            type.type
-                    }"
-                )
+                urlBuilder.append("&type=${type.type.replace("podcast", "show")}")
                 urlBuilder.append("&limit=$limit")
                 urlBuilder.append("&offset=$offset")
                 if (market.isNotEmpty())
@@ -131,7 +127,6 @@ class Spotify(private val market: String = "") {
         }
 
         fun parseResults(searchData: JSONObject) {
-            //token is valid, parse data
             when (type.type) {
                 "track" -> {
                     val trackList = searchData.getJSONObject("tracks").getJSONArray("items")
@@ -166,6 +161,7 @@ class Spotify(private val market: String = "") {
                         )
                     }
                 }
+
                 "album" -> {
                     val albums = searchData.getJSONObject("albums").getJSONArray("items")
                     for (album in albums) {
@@ -195,6 +191,7 @@ class Spotify(private val market: String = "") {
                         )
                     }
                 }
+
                 "playlist" -> {
                     val playlists = searchData.getJSONObject("playlists").getJSONArray("items")
                     for (listData in playlists) {
@@ -220,6 +217,7 @@ class Spotify(private val market: String = "") {
                         )
                     }
                 }
+
                 "artist" -> {
                     val artists = searchData.getJSONObject("artists").getJSONArray("items")
                     for (artistData in artists) {
@@ -247,6 +245,7 @@ class Spotify(private val market: String = "") {
                         )
                     }
                 }
+
                 "show", "podcast" -> {
                     val shows = searchData.getJSONObject("shows").getJSONArray("items")
                     for (showData in shows) {
@@ -270,6 +269,7 @@ class Spotify(private val market: String = "") {
                         )
                     }
                 }
+
                 "episode" -> {
                     val episodes = searchData.getJSONObject("episodes").getJSONArray("items")
                     for (episodeData in episodes) {
@@ -320,6 +320,7 @@ class Spotify(private val market: String = "") {
                     //check http return code
                     when (searchData.code.code) {
                         HttpURLConnection.HTTP_OK -> {
+                            //token is valid, try parsing data
                             try {
                                 val resultData = JSONObject(searchData.data.data)
                                 withContext(Default + searchJob) {
@@ -334,22 +335,26 @@ class Spotify(private val market: String = "") {
                                 searchData = searchData(link = Link(result.url.toString()))
                             }
                         }
+
                         HttpURLConnection.HTTP_UNAUTHORIZED -> {
                             //token expired, update it.
                             updateToken()
                             searchData = searchData(link = Link(result.url.toString()))
                         }
+
                         HttpURLConnection.HTTP_BAD_REQUEST -> {
                             println("Error ${searchData.code}! Bad request!!")
                             searchJob.complete()
                             return@withContext
                         }
+
                         HTTP_TOO_MANY_REQUESTS -> {
                             println("Too many requests! Waiting for ${searchData.data.data} seconds.")
                             //wait for given time before next request.
                             delay(searchData.data.data.toLong() * 1000)
                             searchData = searchData(link = Link(result.url.toString()))
                         }
+
                         else -> println("HTTP ERROR! CODE: ${searchData.code}")
                     }
                 }
@@ -362,7 +367,7 @@ class Spotify(private val market: String = "") {
         val urlBuilder = StringBuilder()
         urlBuilder.append("$apiURL/playlists/")
         urlBuilder.append(playlistLink.getId())
-        urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
+        urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
         return sendHttpRequest(
             URL(urlBuilder.toString()),
             RequestMethod("GET"),
@@ -402,15 +407,18 @@ class Spotify(private val market: String = "") {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         //token expired, update it
                         updateToken()
                     }
+
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${playlistData.data.data} seconds.")
                         //wait for given time before next request.
                         delay(playlistData.data.data.toLong() * 1000)
                     }
+
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $playlistLink not found!")
                         playlist = Playlist(
@@ -420,7 +428,7 @@ class Spotify(private val market: String = "") {
                                 Name(),
                                 Description(),
                                 Followers(),
-                                emptyList(),
+                                Playlists(),
                                 Link()
                             ),
                             Description(),
@@ -432,12 +440,14 @@ class Spotify(private val market: String = "") {
                         playlistJob.complete()
                         return@withContext
                     }
+
                     HttpURLConnection.HTTP_BAD_REQUEST -> {
                         println("Error ${playlistData.code}! Bad request!!")
                         playlist = Playlist()
                         playlistJob.complete()
                         return@withContext
                     }
+
                     else -> println("HTTP ERROR! CODE ${playlistData.code}")
                 }
             }
@@ -526,6 +536,7 @@ class Spotify(private val market: String = "") {
                                                                 )
                                                             )
                                                         }
+
                                                         "month" -> {
                                                             val formatter =
                                                                 DateTimeFormatterBuilder().appendPattern("yyyy-MM")
@@ -538,6 +549,7 @@ class Spotify(private val market: String = "") {
                                                                 )
                                                             )
                                                         }
+
                                                         else -> {
                                                             val formatter =
                                                                 DateTimeFormatterBuilder().appendPattern("yyyy")
@@ -629,15 +641,18 @@ class Spotify(private val market: String = "") {
                                     println("Failed to get data from JSON, trying again...")
                                 }
                             }
+
                             HttpURLConnection.HTTP_UNAUTHORIZED -> {
                                 //token expired, update it
                                 updateToken()
                             }
+
                             HTTP_TOO_MANY_REQUESTS -> {
                                 println("Too many requests! Waiting for ${itemData.data.data} seconds.")
                                 //wait for given time before next request.
                                 delay(itemData.data.data.toLong() * 1000)
                             }
+
                             else -> println("HTTP ERROR! CODE: ${itemData.code}")
                         }
                     }
@@ -663,20 +678,24 @@ class Spotify(private val market: String = "") {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         //token expired, update
                         updateToken()
                     }
+
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $playlistLink not found!")
                         playlistJob.complete()
                         return@withContext
                     }
+
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${playlistData.data.data} seconds.")
                         //wait for given time before next request.
                         delay(playlistData.data.data.toLong() * 1000)
                     }
+
                     else -> println("HTTP ERROR! CODE: ${playlistData.code}")
                 }
             }
@@ -688,7 +707,7 @@ class Spotify(private val market: String = "") {
         val urlBuilder = StringBuilder()
         urlBuilder.append("$apiURL/albums/")
         urlBuilder.append(albumLink.getId())
-        urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
+        urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
         return sendHttpRequest(
             URL(urlBuilder.toString()),
             RequestMethod("GET"),
@@ -716,6 +735,7 @@ class Spotify(private val market: String = "") {
                             )
                         )
                     }
+
                     "month" -> {
                         val formatter = DateTimeFormatterBuilder().appendPattern("yyyy-MM")
                             .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
@@ -726,6 +746,7 @@ class Spotify(private val market: String = "") {
                             )
                         )
                     }
+
                     else -> {
                         val formatter = DateTimeFormatterBuilder().appendPattern("yyyy")
                             .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
@@ -767,27 +788,32 @@ class Spotify(private val market: String = "") {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         //token expired, update it
                         updateToken()
                     }
+
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $albumLink not found!")
                         album = Album()
                         albumJob.complete()
                         return@withContext
                     }
+
                     HttpURLConnection.HTTP_BAD_REQUEST -> {
                         println("Error ${albumData.code}! Bad request!!")
                         album = Album()
                         albumJob.complete()
                         return@withContext
                     }
+
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${albumData.data.data} seconds.")
                         //wait for given time before next request.
                         delay(albumData.data.data.toLong() * 1000)
                     }
+
                     else -> println("HTTP ERROR! CODE ${albumData.code}")
                 }
             }
@@ -812,6 +838,7 @@ class Spotify(private val market: String = "") {
                         LocalDate.parse(albumData.getString("release_date"), formatter)
                     )
                 }
+
                 "month" -> {
                     val formatter = DateTimeFormatterBuilder().appendPattern("yyyy-MM")
                         .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
@@ -820,6 +847,7 @@ class Spotify(private val market: String = "") {
                         LocalDate.parse(albumData.getString("release_date"), formatter)
                     )
                 }
+
                 else -> {
                     val formatter = DateTimeFormatterBuilder().appendPattern("yyyy")
                         .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
@@ -843,8 +871,8 @@ class Spotify(private val market: String = "") {
                 )
             })
 
-            //Now get all tracks
-            //spotify only shows 20 items per search, so with each 20 items, listOffset will be increased
+            //Now get all tracks.
+            //Spotify only shows 20 items per search, so with each 20 items, listOffset will be incremented by 20.
             var listOffset = 0
             while (trackItems.size < trackItemsLength) {
 
@@ -908,15 +936,18 @@ class Spotify(private val market: String = "") {
                                     println("Failed to get data from JSON, trying again...")
                                 }
                             }
+
                             HttpURLConnection.HTTP_UNAUTHORIZED -> {
                                 //token expired, update it
                                 updateToken()
                             }
+
                             HTTP_TOO_MANY_REQUESTS -> {
                                 println("Too many requests! Waiting for ${albumTrackData.data.data} seconds.")
                                 //wait for given time before next request.
                                 delay(albumTrackData.data.data.toLong() * 1000)
                             }
+
                             else -> println("HTTP ERROR! CODE ${albumTrackData.code}")
                         }
                     }
@@ -942,20 +973,24 @@ class Spotify(private val market: String = "") {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         //token expired, update it
                         updateToken()
                     }
+
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $albumLink not found!")
                         albumJob.complete()
                         return@withContext
                     }
+
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${albumData.data.data} seconds.")
                         //wait for given time before next request.
                         delay(albumData.data.data.toLong() * 1000)
                     }
+
                     else -> println("HTTP ERROR! CODE ${albumData.code}")
                 }
             }
@@ -1003,6 +1038,7 @@ class Spotify(private val market: String = "") {
                             )
                         )
                     }
+
                     "month" -> {
                         val formatter = DateTimeFormatterBuilder().appendPattern("yyyy-MM")
                             .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
@@ -1013,6 +1049,7 @@ class Spotify(private val market: String = "") {
                             )
                         )
                     }
+
                     else -> {
                         val formatter = DateTimeFormatterBuilder().appendPattern("yyyy")
                             .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
@@ -1070,20 +1107,24 @@ class Spotify(private val market: String = "") {
                                     println("Failed to get data from JSON, trying again...")
                                 }
                             }
+
                             HttpURLConnection.HTTP_UNAUTHORIZED -> {
                                 updateToken()
                             }
+
                             HttpURLConnection.HTTP_NOT_FOUND -> {
                                 println("Error 404! $trackLink not found!")
                                 playable = false
                                 trackJob.complete()
                                 return@withContext
                             }
+
                             HTTP_TOO_MANY_REQUESTS -> {
                                 println("Too many requests! Waiting for ${trackData2.data.data} seconds.")
                                 //wait for given time before next request.
                                 delay(trackData2.data.data.toLong() * 1000)
                             }
+
                             else -> println("HTTP ERROR! CODE: ${trackData2.code}")
                         }
                     }
@@ -1118,15 +1159,18 @@ class Spotify(private val market: String = "") {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateToken()
                     }
+
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $trackLink not found!")
                         track = Track()
                         trackJob.complete()
                         return@withContext
                     }
+
                     HttpURLConnection.HTTP_BAD_REQUEST -> {
                         println("Error ${trackData.code}! Bad request!!")
                         track = Track()
@@ -1138,11 +1182,13 @@ class Spotify(private val market: String = "") {
                             updateToken()
                         }
                     }
+
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${trackData.data.data} seconds.")
                         //wait for given time before next request. 
                         delay(trackData.data.data.toLong() * 1000)
                     }
+
                     else -> println("HTTP ERROR! CODE: ${trackData.code}")
                 }
             }
@@ -1155,7 +1201,7 @@ class Spotify(private val market: String = "") {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/artists/")
             urlBuilder.append(artistLink.getId())
-            urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
+            urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
                 RequestMethod("GET"),
@@ -1168,7 +1214,7 @@ class Spotify(private val market: String = "") {
             urlBuilder.append("$apiURL/artists/")
             urlBuilder.append(artistLink.getId())
             urlBuilder.append("/top-tracks")
-            urlBuilder.append("?country=${market.ifEmpty { defaultMarket }}")
+            urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
                 RequestMethod("GET"),
@@ -1197,8 +1243,7 @@ class Spotify(private val market: String = "") {
             urlBuilder.append("$apiURL/artists/")
             urlBuilder.append(artistLink.getId())
             urlBuilder.append("/related-artists")
-            if (market.isNotEmpty())
-                urlBuilder.append("?country=$market")
+            urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
                 RequestMethod("GET"),
@@ -1234,6 +1279,7 @@ class Spotify(private val market: String = "") {
                                 val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
                                 LocalDate.parse(track.getJSONObject("album").getString("release_date"), formatter)
                             }
+
                             "month" -> {
                                 val formatter = DateTimeFormatterBuilder()
                                     .appendPattern("yyyy-MM")
@@ -1241,6 +1287,7 @@ class Spotify(private val market: String = "") {
                                     .toFormatter()
                                 LocalDate.parse(track.getJSONObject("album").getString("release_date"), formatter)
                             }
+
                             else -> {
                                 val formatter = DateTimeFormatterBuilder()
                                     .appendPattern("yyyy")
@@ -1292,6 +1339,7 @@ class Spotify(private val market: String = "") {
                                         )
                                     )
                                 }
+
                                 "month" -> {
                                     val formatter = DateTimeFormatterBuilder().appendPattern("yyyy-MM")
                                         .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
@@ -1302,6 +1350,7 @@ class Spotify(private val market: String = "") {
                                         )
                                     )
                                 }
+
                                 else -> {
                                     val formatter = DateTimeFormatterBuilder().appendPattern("yyyy")
                                         .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
@@ -1339,10 +1388,12 @@ class Spotify(private val market: String = "") {
                                         println("Failed to get data from JSON, trying again...")
                                     }
                                 }
+
                                 HTTP_TOO_MANY_REQUESTS -> {
                                     println("Too many requests! Waiting for ${albumsResponse.data.data} seconds.")
                                     delay(albumsResponse.data.data.toLong() * 1000)
                                 }
+
                                 HttpURLConnection.HTTP_UNAUTHORIZED -> updateToken()
                                 else -> println("HTTP ERROR! CODE: ${albumsResponse.code}")
                             }
@@ -1397,14 +1448,17 @@ class Spotify(private val market: String = "") {
                                             println("Failed to get data from JSON, trying again...")
                                         }
                                     }
+
                                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                                         updateToken()
                                     }
+
                                     HTTP_TOO_MANY_REQUESTS -> {
                                         println("Too many requests! Waiting for ${topTracksData.data.data} seconds.")
                                         //wait for given time before next request.
                                         delay(topTracksData.data.data.toLong() * 1000)
                                     }
+
                                     else -> println("HTTP ERROR! CODE: ${topTracksData.code.code}")
                                 }
                             }
@@ -1424,11 +1478,13 @@ class Spotify(private val market: String = "") {
                                             println("Failed to get data from JSON, trying again...")
                                         }
                                     }
+
                                     HttpURLConnection.HTTP_UNAUTHORIZED -> updateToken()
                                     HTTP_TOO_MANY_REQUESTS -> {
                                         println("Too many requests! Waiting for ${albumsData.data.data} seconds.")
                                         delay(albumsData.data.data.toLong() * 1000)
                                     }
+
                                     else -> println("HTTP ERROR! CODE: ${albumsData.code.code}")
                                 }
                             }
@@ -1448,14 +1504,17 @@ class Spotify(private val market: String = "") {
                                             println("Failed to get data from JSON, trying again...")
                                         }
                                     }
+
                                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                                         updateToken()
                                     }
+
                                     HTTP_TOO_MANY_REQUESTS -> {
                                         println("Too many requests! Waiting for ${relatedArtistsData.data.data} seconds.")
                                         //wait for given time before next request.
                                         delay(relatedArtistsData.data.data.toLong() * 1000)
                                     }
+
                                     else -> println("HTTP ERROR! CODE: ${relatedArtistsData.code.code}")
                                 }
                             }
@@ -1468,17 +1527,20 @@ class Spotify(private val market: String = "") {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $artistLink not found!")
                         artist = Artist()
                         artistJob.complete()
                         return@withContext
                     }
+
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${artistData.data.data} seconds.")
                         //wait for given time before next request.
                         delay(artistData.data.data.toLong() * 1000)
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> updateToken()
                     HttpURLConnection.HTTP_BAD_REQUEST -> {
                         println("Error ${artistData.code}! Bad request!!")
@@ -1486,6 +1548,7 @@ class Spotify(private val market: String = "") {
                         artistJob.complete()
                         return@withContext
                     }
+
                     else -> println("HTTP ERROR! CODE: ${artistData.code}")
                 }
             }
@@ -1499,7 +1562,7 @@ class Spotify(private val market: String = "") {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/users/")
             urlBuilder.append(userLink.getId())
-            urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
+            urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
                 RequestMethod("GET"),
@@ -1537,7 +1600,7 @@ class Spotify(private val market: String = "") {
                                             Name(it.getJSONObject("owner").getString("id")),
                                             Description(),
                                             Followers(),
-                                            emptyList(),
+                                            Playlists(),
                                             Link(
                                                 it.getJSONObject("owner").getJSONObject("external_urls")
                                                     .getString("spotify"), it.getJSONObject("owner").getString("id")
@@ -1558,14 +1621,17 @@ class Spotify(private val market: String = "") {
                                 println("Failed to get data from JSON, trying again...")
                             }
                         }
+
                         HttpURLConnection.HTTP_UNAUTHORIZED -> {
                             updateToken()
                         }
+
                         HTTP_TOO_MANY_REQUESTS -> {
                             println("Too many requests! Waiting for ${playlistsData.data.data} seconds.")
                             //wait for given time before next request.
                             delay(playlistsData.data.data.toLong() * 1000)
                         }
+
                         else -> println("HTTP ERROR! CODE: ${playlistsData.code.code}")
                     }
                 }
@@ -1575,7 +1641,7 @@ class Spotify(private val market: String = "") {
                 Name(userData.getString("id")),
                 Description(),
                 Followers(userData.getJSONObject("followers").getInt("total")),
-                playlists,
+                Playlists(playlists),
                 Link(userData.getJSONObject("external_urls").getString("spotify"))
             )
         }
@@ -1598,18 +1664,22 @@ class Spotify(private val market: String = "") {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateToken()
                     }
+
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $userLink not found!")
                         user = User()
                     }
+
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${userData.data.data} seconds.")
                         //wait for given time before next request.
                         delay(userData.data.data.toLong() * 1000)
                     }
+
                     else -> println("HTTP ERROR! CODE: ${userData.code}")
                 }
             }
@@ -1621,7 +1691,7 @@ class Spotify(private val market: String = "") {
         val urlBuilder = StringBuilder()
         urlBuilder.append("$apiURL/shows/")
         urlBuilder.append(showLink.getId())
-        urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
+        urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
         return sendHttpRequest(
             URL(urlBuilder.toString()),
             RequestMethod("GET"),
@@ -1640,7 +1710,7 @@ class Spotify(private val market: String = "") {
                 urlBuilder.append("$apiURL/shows/")
                 urlBuilder.append(showLink.getId())
                 urlBuilder.append("/episodes")
-                urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
+                urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
                 urlBuilder.append("&limit=50")
                 urlBuilder.append("&offset=$offset")
                 return sendHttpRequest(
@@ -1667,6 +1737,7 @@ class Spotify(private val market: String = "") {
                                             val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
                                             LocalDate.parse(item.getString("release_date"), formatter)
                                         }
+
                                         "month" -> {
                                             val formatter = DateTimeFormatterBuilder()
                                                 .appendPattern("yyyy-MM")
@@ -1674,6 +1745,7 @@ class Spotify(private val market: String = "") {
                                                 .toFormatter()
                                             LocalDate.parse(item.getString("release_date"), formatter)
                                         }
+
                                         else -> {
                                             val formatter = DateTimeFormatterBuilder()
                                                 .appendPattern("yyyy")
@@ -1746,14 +1818,17 @@ class Spotify(private val market: String = "") {
                                 println("Failed to get data from JSON, trying again...")
                             }
                         }
+
                         HttpURLConnection.HTTP_UNAUTHORIZED -> {
                             updateToken()
                         }
+
                         HTTP_TOO_MANY_REQUESTS -> {
                             println("Too many requests! Waiting for ${episodesData.data.data} seconds.")
                             //wait for given time before next request.
                             delay(episodesData.data.data.toLong() * 1000)
                         }
+
                         else -> println("HTTP ERROR! CODE: ${episodesData.code.code}")
                     }
                 }
@@ -1789,26 +1864,31 @@ class Spotify(private val market: String = "") {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateToken()
                     }
+
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $showLink not found!")
                         show = Show()
                         showJob.complete()
                         return@withContext
                     }
+
                     HttpURLConnection.HTTP_BAD_REQUEST -> {
                         println("Error ${showData.code}! Bad request!!")
                         show = Show()
                         showJob.complete()
                         return@withContext
                     }
+
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${showData.data.data} seconds.")
                         //wait for given time before next request.
                         delay(showData.data.data.toLong() * 1000)
                     }
+
                     else -> println("HTTP ERROR! CODE: ${showData.code}")
                 }
             }
@@ -1823,7 +1903,7 @@ class Spotify(private val market: String = "") {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/episodes/")
             urlBuilder.append(episodeLink.getId())
-            urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
+            urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
                 RequestMethod("GET"),
@@ -1841,6 +1921,7 @@ class Spotify(private val market: String = "") {
                             val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
                             LocalDate.parse(episodeData.getString("release_date"), formatter)
                         }
+
                         "month" -> {
                             val formatter = DateTimeFormatterBuilder()
                                 .appendPattern("yyyy-MM")
@@ -1848,6 +1929,7 @@ class Spotify(private val market: String = "") {
                                 .toFormatter()
                             LocalDate.parse(episodeData.getString("release_date"), formatter)
                         }
+
                         else -> {
                             val formatter = DateTimeFormatterBuilder()
                                 .appendPattern("yyyy")
@@ -1883,26 +1965,31 @@ class Spotify(private val market: String = "") {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateToken()
                     }
+
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $episodeLink not found!")
                         episode = Episode()
                         episodeJob.complete()
                         return@withContext
                     }
+
                     HttpURLConnection.HTTP_BAD_REQUEST -> {
                         println("Error ${episodeData.code}! Bad request!!")
                         episode = Episode()
                         episodeJob.complete()
                         return@withContext
                     }
+
                     HTTP_TOO_MANY_REQUESTS -> {
                         println("Too many requests! Waiting for ${episodeData.data.data} seconds.")
                         //wait for given time before next request.
                         delay(episodeData.data.data.toLong() * 1000)
                     }
+
                     else -> println("HTTP ERROR! CODE: ${episodeData.code}")
                 }
             }
@@ -1910,4 +1997,13 @@ class Spotify(private val market: String = "") {
         return episode
     }
 
+    fun resolveType(spotifyLink: Link): LinkType {
+        val type = spotifyLink.link.substringBeforeLast("/").substringAfterLast("/")
+        return try {
+            LinkType.valueOf(type.uppercase())
+        } catch (e: IllegalArgumentException) {
+            println("Link type \"$type\" not supported")
+            LinkType.OTHER
+        }
+    }
 }

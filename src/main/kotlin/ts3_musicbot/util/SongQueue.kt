@@ -251,10 +251,10 @@ class SongQueue(
         synchronized(songQueue) {
             if (songQueue.isNotEmpty()) {
                 var firstTrack = songQueue.first()
-                when (firstTrack.linkType) {
-                    LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> {
+                when (firstTrack.service) {
+                    Service.YOUTUBE, Service.SOUNDCLOUD -> {
                         //check if youtube-dl is able to download the track
-                        while (songQueue.isNotEmpty() && (firstTrack.linkType == LinkType.YOUTUBE || firstTrack.linkType == LinkType.SOUNDCLOUD)
+                        while (songQueue.isNotEmpty() && (firstTrack.service == Service.YOUTUBE || firstTrack.service == Service.SOUNDCLOUD)
                             && CommandRunner().runCommand(
                                 "youtube-dl -s \"${firstTrack.link}\"",
                                 printOutput = false,
@@ -278,6 +278,7 @@ class SongQueue(
                             stopQueue()
                         }
                     }
+
                     else -> playTrack(firstTrack)
                 }
             } else {
@@ -337,9 +338,9 @@ class SongQueue(
         /**
          * get the player suitable for playing the current track
          */
-        fun getPlayer() = when (track.linkType) {
-            LinkType.SPOTIFY -> spotifyPlayer
-            LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> "mpv"
+        fun getPlayer() = when (track.service) {
+            Service.SPOTIFY -> spotifyPlayer
+            Service.YOUTUBE, Service.SOUNDCLOUD -> "mpv"
             else -> ""
         }
 
@@ -368,6 +369,7 @@ class SongQueue(
                         "playerctl -p ncspot stop; tmux kill-session -t ncspot",
                         ignoreOutput = true
                     )
+
                     "spotifyd" -> commandRunner.runCommand("echo \"spotifyd isn't well supported yet, please kill it manually.\"")
                     else -> commandRunner.runCommand("echo \"$spotifyPlayer is not a supported player!\" > /dev/stderr; return 2")
                 }
@@ -379,11 +381,13 @@ class SongQueue(
                         printCommand = true,
                         inheritIO = true
                     )
+
                     "ncspot" -> commandRunner.runCommand(
                         "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
                         ignoreOutput = true,
                         printCommand = true
                     )
+
                     "spotifyd" -> commandRunner.runCommand("echo \"spotifyd isn't well supported yet, please start it manually.\"")
                     else -> commandRunner.runCommand("echo \"$spotifyPlayer is not a supported player!\" > /dev/stderr; return 2")
                 }
@@ -454,8 +458,8 @@ class SongQueue(
                 }
 
                 //wait for track to start
-                when (track.linkType) {
-                    LinkType.SPOTIFY -> {
+                when (track.service) {
+                    Service.SPOTIFY -> {
                         //check active processes and wait for the spotify player to start
                         val player = getPlayer()
                         while (commandRunner.runCommand(
@@ -491,13 +495,14 @@ class SongQueue(
                             }
                         }
                     }
-                    LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> {
+
+                    Service.YOUTUBE, Service.SOUNDCLOUD -> {
                         suspend fun startMPV(job: Job) {
                             val mpvRunnable = Runnable {
                                 commandRunner.runCommand(
                                     "mpv --terminal=no --no-video" +
                                             " --ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0" +
-                                            (if (track.linkType == LinkType.YOUTUBE) ",cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" else "") +
+                                            (if (track.service == Service.YOUTUBE) ",cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" else "") +
                                             " --ytdl \"${track.link}\" --volume=$mpvVolume &",
                                     inheritIO = true,
                                     ignoreOutput = true, printCommand = true
@@ -545,6 +550,7 @@ class SongQueue(
                             }
                         }
                     }
+
                     else -> {
                         println("Error: ${track.link} is not a supported link type!")
                         synchronized(SongQueue::javaClass) {
@@ -591,6 +597,7 @@ class SongQueue(
                                     delay(2000)
                                 }
                             }
+
                             "Paused" -> {
                                 if (trackPosition >= trackLength - 10) {
                                     //Song ended
@@ -608,6 +615,7 @@ class SongQueue(
                                     listener.onTrackPaused(getPlayer(), track)
                                 }
                             }
+
                             "Stopped" -> {
                                 if (trackPosition >= trackLength - 10) {
                                     trackPositionJob.cancel()
@@ -625,6 +633,7 @@ class SongQueue(
                                     }
                                 }
                             }
+
                             else -> {
                                 if (status.second.errorText != "No players found") {
                                     //player has stopped, proceed to next song
@@ -661,19 +670,21 @@ class SongQueue(
                 }
             }
 
-            when (track.link.linkType()) {
-                LinkType.SPOTIFY -> {
+            when (track.link.service()) {
+                Service.SPOTIFY -> {
                     CoroutineScope(IO + synchronized(trackJob) { trackJob }).launch {
                         if (playerStatus().second.errorText == "No players found")
                             startSpotifyPlayer()
                         openTrack()
                     }
                 }
-                LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> {
+
+                Service.YOUTUBE, Service.SOUNDCLOUD -> {
                     CoroutineScope(IO + synchronized(trackJob) { trackJob }).launch {
                         openTrack()
                     }
                 }
+
                 else -> {
                     println("Link type not supported!\n${track.link}")
                 }

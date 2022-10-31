@@ -15,16 +15,16 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class SoundCloud {
-    var clientId = "xJmsHs37dLKGnKYrWkjl2xQYMEtUp1nz"
+    var clientId = "ZzQw5OLejAQys1cYAUI2nUbLtZbBe5Lg"
     private val commandRunner = CommandRunner()
     private val api2URL = URL("https://api-v2.soundcloud.com")
     val apiURL = URL("https://api.soundcloud.com")
     val supportedSearchTypes = listOf(
-        SearchType.Type.TRACK,
-        SearchType.Type.PLAYLIST,
-        SearchType.Type.ALBUM,
-        SearchType.Type.USER,
-        SearchType.Type.ARTIST
+        LinkType.TRACK,
+        LinkType.PLAYLIST,
+        LinkType.ALBUM,
+        LinkType.USER,
+        LinkType.ARTIST
     )
 
     /**
@@ -35,7 +35,7 @@ class SoundCloud {
         println("Updating SoundCloud ClientId")
         val lines = commandRunner.runCommand(
             "curl https://soundcloud.com 2> /dev/null " +
-                    "| grep -E \"<script crossorigin src=\\\"https:\\/\\/\\S*\\.js\\\"></script>\"",
+                    "| grep -E \"<script crossorigin src=\\\"https://\\S*\\.js\\\"></script>\"",
             printOutput = false
         ).first.outputText.lines()
         for (line in lines) {
@@ -109,6 +109,7 @@ class SoundCloud {
                         )
                     }
                 }
+
                 "playlist" -> {
                     val playlists = searchData.getJSONArray("collection")
                     for (playlistData in playlists) {
@@ -213,16 +214,22 @@ class SoundCloud {
                             Link(userData.getString("permalink_url"))
                         )
                         searchResults.add(
-                            SearchResult(
-                                "Name:   \t\t\t${user.name}\n" +
-                                        "Username:   \t${user.userName}\n" +
-                                        if (user.description.isNotEmpty()) {
-                                            "Description:\n${user.description}\n"
-                                        } else {
-                                            ""
-                                        } +
-                                        "Followers:  \t${user.followers}\n" +
-                                        "Link:      \t\t\t${user.link}\n",
+                            SearchResult("\n" +
+                                    "Name:   \t\t\t${user.name}\n" +
+                                    "Username:   \t${user.userName}\n" +
+                                    "Description:\n${
+                                        user.description.ifNotEmpty {
+                                            if (it.lines().size <= 5)
+                                                it
+                                            else
+                                                Description(
+                                                    "WARNING! Very long description! Showing only the first 5 lines:\n" +
+                                                            it.lines().subList(0, 5).joinToString("\n")
+                                                )
+                                        }
+                                    }\n" +
+                                    "Followers:  \t${user.followers}\n" +
+                                    "Link:      \t\t\t${user.link}\n",
                                 user.link
                             )
                         )
@@ -252,11 +259,17 @@ class SoundCloud {
                         searchResults.add(
                             SearchResult(
                                 "Artist:    \t\t\t${artist.name}\n" +
-                                        if (artist.description.isNotEmpty()) {
-                                            "Description:\n${artist.description}\n"
-                                        } else {
-                                            ""
-                                        } +
+                                        "Description:\n${
+                                            artist.description.ifNotEmpty {
+                                                if (it.lines().size <= 5)
+                                                    it
+                                                else
+                                                    Description(
+                                                        "WARNING! Very long description! Showing only first 5 lines\n" +
+                                                                it.lines().subList(0, 5).joinToString("\n")
+                                                    )
+                                            }
+                                        }\n" +
                                         "Followers:  \t${artist.followers}\n" +
                                         "Link:      \t\t\t${artist.link}\n",
                                 artist.link
@@ -271,7 +284,7 @@ class SoundCloud {
         val searches = ArrayList<Pair<Int, Int>>()
         var remainingResults = resultLimit
         var resultOffset = 0
-        //SoundClouds allows a maximum of 200 results, so we have to do searches in smaller chunks in case the user wants more than 200 results.
+        //SoundCloud allows a maximum of 200 results, so we have to do searches in smaller chunks in case the user wants more than 200 results.
         val maxResults = 200
         while (true) {
             if (remainingResults > maxResults) {
@@ -308,10 +321,17 @@ class SoundCloud {
                                 searchData = searchData(link = Link(result.url.toString()))
                             }
                         }
+
                         HttpURLConnection.HTTP_UNAUTHORIZED -> {
                             updateClientId()
-                            searchData = searchData(link = Link(result.url.toString().replace("client_id=[a-zA-Z0-9]+".toRegex(), "client_id=$clientId")))
+                            searchData = searchData(
+                                link = Link(
+                                    result.url.toString()
+                                        .replace("client_id=[a-zA-Z0-9]+".toRegex(), "client_id=$clientId")
+                                )
+                            )
                         }
+
                         else -> {
                             println("HTTP ERROR! CODE ${searchData.code}")
                         }
@@ -388,9 +408,11 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateClientId()
                     }
+
                     else -> println("HTTP ERROR! CODE ${playlistData.code.code}")
                 }
             }
@@ -440,9 +462,11 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateClientId()
                     }
+
                     else -> println("HTTP ERROR! CODE ${playlistData.code.code}")
                 }
             }
@@ -507,9 +531,11 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateClientId()
                     }
+
                     else -> println("HTTP ERROR! CODE ${albumData.code.code}")
                 }
             }
@@ -559,9 +585,11 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateClientId()
                     }
+
                     else -> println("HTTP ERROR! CODE ${albumData.code.code}")
                 }
             }
@@ -630,15 +658,18 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateClientId()
                     }
+
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $link not found!")
                         track = Track()
                         trackJob.complete()
                         return@withContext
                     }
+
                     else -> println("HTTP ERROR! CODE ${trackData.code}")
                 }
             }
@@ -729,18 +760,22 @@ class SoundCloud {
                                         println("Failed to get data from JSON, trying again...")
                                     }
                                 }
+
                                 HttpURLConnection.HTTP_UNAUTHORIZED -> {
                                     updateClientId()
                                 }
+
                                 HttpURLConnection.HTTP_NOT_FOUND -> {
                                     println("Error 404! $linksToFetch not found!")
                                     tracksJob.complete()
                                     return@launch
                                 }
+
                                 HttpURLConnection.HTTP_BAD_REQUEST -> {
                                     println("Bad request!")
                                     return@launch
                                 }
+
                                 else -> println("HTTP ERROR! CODE ${tracksData.code}")
                             }
                         }
@@ -752,7 +787,7 @@ class SoundCloud {
         return tracks.await()
     }
 
-    private suspend fun fetchUserPlaylists(userLink: Link): List<Playlist> {
+    private suspend fun fetchUserPlaylists(userLink: Link): Playlists {
         suspend fun fetchData(): Response {
             val id = if (userLink.link.startsWith("$apiURL/users/"))
                 userLink.link.substringAfterLast("/")
@@ -805,11 +840,12 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     else -> println("HTTP ERROR! CODE ${playlistsData.code}")
                 }
             }
         }
-        return playlists
+        return Playlists(playlists)
     }
 
     suspend fun fetchUserLikes(userLink: Link): TrackList {
@@ -919,9 +955,11 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateClientId()
                     }
+
                     else -> println("HTTP ERROR! CODE ${likesData.code}")
                 }
             }
@@ -1037,14 +1075,17 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateClientId()
                     }
+
                     HttpURLConnection.HTTP_BAD_GATEWAY -> {
                         println("HTTP ERROR! CODE ${likesData.code} BAD GATEWAY")
                         likesJob.complete()
                         return@withContext
                     }
+
                     else -> println("HTTP ERROR! CODE ${likesData.code}")
                 }
             }
@@ -1121,9 +1162,11 @@ class SoundCloud {
                                 println("Failed to get data from JSON, trying again...")
                             }
                         }
+
                         HttpURLConnection.HTTP_UNAUTHORIZED -> {
                             updateClientId()
                         }
+
                         else -> println("HTTP ERROR! CODE: ${tracksData.code.code}")
                     }
                 }
@@ -1178,9 +1221,11 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateClientId()
                     }
+
                     else -> println("HTTP ERROR! CODE: ${userData.code}")
                 }
             }
@@ -1281,9 +1326,11 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateClientId()
                     }
+
                     else -> println("HTTP ERROR! CODE: ${artistData.code.code}")
                 }
             }
@@ -1291,63 +1338,75 @@ class SoundCloud {
         return artist
     }
 
-    private fun fetchResolvedData(link: Link): Response {
+    private fun fetchResolvedData(url: String): Response {
         val urlBuilder = StringBuilder()
         urlBuilder.append("$api2URL/resolve?")
         urlBuilder.append("client_id=$clientId")
-        urlBuilder.append("&url=${link.link}")
+        urlBuilder.append("&url=$url")
         return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
     }
 
-    suspend fun resolveType(link: Link): String {
+    suspend fun resolveType(link: Link): LinkType {
         val resolveJob = Job()
         val deferredType = CoroutineScope(IO + resolveJob).async {
-            lateinit var type: String
-            while (true) {
-                val typeData = fetchResolvedData(link)
-                when (typeData.code.code) {
-                    HttpURLConnection.HTTP_OK -> {
-                        try {
-                            val data = JSONObject(typeData.data.data)
-                            type = when (val kind = data.getString("kind")) {
-                                "playlist" -> {
-                                    if (data.getBoolean("is_album"))
-                                        "album"
-                                    else
-                                        kind
+            when {
+                link.link.contains("(https?://)?soundcloud\\.com/[a-z0-9-_]+/(?!sets|likes|reposts)\\S+".toRegex()) -> LinkType.TRACK
+                link.link.contains("(https?://)?soundcloud\\.com/[a-z0-9-_]+/likes".toRegex()) -> LinkType.LIKES
+                link.link.contains("(https?://)?soundcloud\\.com/[a-z0-9-_]+/reposts".toRegex()) -> LinkType.REPOSTS
+                else -> {
+                    lateinit var type: LinkType
+                    while (true) {
+                        val typeData = fetchResolvedData(link.link.substringBefore("?"))
+                        when (typeData.code.code) {
+                            HttpURLConnection.HTTP_OK -> {
+                                try {
+                                    val data = JSONObject(typeData.data.data)
+                                    type = when (val kind = data.getString("kind").uppercase()) {
+                                        "PLAYLIST" -> {
+                                            if (data.getBoolean("is_album"))
+                                                LinkType.ALBUM
+                                            else
+                                                LinkType.valueOf(kind)
+                                        }
+
+                                        "USER" -> {
+                                            if (data.getInt("track_count") > 0)
+                                                LinkType.ARTIST
+                                            else
+                                                LinkType.valueOf(kind)
+                                        }
+
+                                        else -> LinkType.valueOf(kind)
+                                    }
+                                    resolveJob.complete()
+                                    break
+                                } catch (e: JSONException) {
+                                    //JSON broken, try getting the data again
+                                    println("Failed JSON:\n${typeData.data}\n")
+                                    println("Failed to get data from JSON, trying again...")
                                 }
-                                "user" -> {
-                                    if (data.getInt("track_count") > 0)
-                                        "artist"
-                                    else
-                                        kind
-                                }
-                                else -> kind
                             }
-                            resolveJob.complete()
-                            break
-                        } catch (e: JSONException) {
-                            //JSON broken, try getting the data again
-                            println("Failed JSON:\n${typeData.data}\n")
-                            println("Failed to get data from JSON, trying again...")
+
+                            HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                                updateClientId()
+                            }
+
+                            HttpURLConnection.HTTP_NOT_FOUND -> {
+                                println("Error 404! $link not found! Trying again...")
+                            }
+
+                            else -> println("HTTP ERROR! CODE ${typeData.code.code}")
                         }
                     }
-                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                        updateClientId()
-                    }
-                    HttpURLConnection.HTTP_NOT_FOUND -> {
-                        println("Error 404! $link not found! Trying again...")
-                    }
-                    else -> println("HTTP ERROR! CODE ${typeData.code.code}")
+                    type
                 }
             }
-            type
         }
         return deferredType.await()
     }
 
     /**
-     * Resolves the given SoundCloud link and returns it's id
+     * Resolves the given SoundCloud link and returns its id
      * @param link link to resolve
      * @return returns the corresponding id for the given link as a String
      */
@@ -1356,7 +1415,7 @@ class SoundCloud {
         val deferredId = CoroutineScope(IO + resolveJob).async {
             lateinit var id: String
             while (true) {
-                val idData = fetchResolvedData(link)
+                val idData = fetchResolvedData(link.link.substringBefore("?"))
                 when (idData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
@@ -1372,14 +1431,17 @@ class SoundCloud {
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
+
                     HttpURLConnection.HTTP_UNAUTHORIZED -> {
                         updateClientId()
                     }
+
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $link not found!")
                         id = ""
                         break
                     }
+
                     else -> println("HTTP ERROR! CODE ${idData.code}")
                 }
             }

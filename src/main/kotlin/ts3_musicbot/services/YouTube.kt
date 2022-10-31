@@ -20,10 +20,10 @@ class YouTube {
     private val apiKey1 = "AIzaSyB_FpJTYVMuQ2I_DxaidXUd7z4Q-ScMv6Y"
     private val apiKey2 = "AIzaSyCQBDN5QIpKCub2nNMR7WJiZY7_LYiZImA"
     val supportedSearchTypes = listOf(
-        SearchType.Type.TRACK,
-        SearchType.Type.VIDEO,
-        SearchType.Type.PLAYLIST,
-        SearchType.Type.CHANNEL,
+        LinkType.TRACK,
+        LinkType.VIDEO,
+        LinkType.PLAYLIST,
+        LinkType.CHANNEL,
     )
 
     /**
@@ -40,7 +40,7 @@ class YouTube {
         fun sendRequest(part: String = "snippet,status", key: String = apiKey1): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiUrl/videos?")
-            urlBuilder.append("id=${videoLink.link.substringAfterLast("/").substringAfter("?v=").substringBefore("&")}")
+            urlBuilder.append("id=${videoLink.getId()}")
             urlBuilder.append("&part=${part.replace(",", "%2C")}")
             urlBuilder.append("&key=$key")
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
@@ -88,6 +88,7 @@ class YouTube {
                             println("broken JSON, trying again")
                         }
                     }
+
                     HttpURLConnection.HTTP_FORBIDDEN -> {
                         if (key == apiKey1) {
                             //try with another api key
@@ -98,6 +99,7 @@ class YouTube {
                             return@withContext
                         }
                     }
+
                     else -> {
                         println("HTTP ERROR! CODE: ${response.code}")
                         ytJob.complete()
@@ -151,6 +153,7 @@ class YouTube {
                             break
                         }
                     }
+
                     HttpURLConnection.HTTP_FORBIDDEN -> {
                         if (key == apiKey1) {
                             //try with another api key
@@ -160,6 +163,7 @@ class YouTube {
                             break
                         }
                     }
+
                     else -> {
                         println("HTTP ERROR! CODE: ${playlistData.code.code}")
                         break
@@ -192,7 +196,7 @@ class YouTube {
         ): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiUrl/playlistItems?")
-            urlBuilder.append("playlistId=${link.link.substringAfter("list=")}")
+            urlBuilder.append("playlistId=${link.getId()}")
             urlBuilder.append("&part=${part.replace(",", "%2C")}")
             urlBuilder.append("&key=$apiKey")
             urlBuilder.append("&maxResults=$maxResults")
@@ -252,7 +256,11 @@ class YouTube {
                                                         item.getJSONObject("snippet").let { artist ->
                                                             Artist(
                                                                 Name(artist.getString("videoOwnerChannelTitle")),
-                                                                Link("https://www.youtube.com/channel/${artist.getString("videoOwnerChannelId")}")
+                                                                Link(
+                                                                    "https://www.youtube.com/channel/${
+                                                                        artist.getString("videoOwnerChannelId")
+                                                                    }"
+                                                                )
                                                             )
                                                         }
                                                     )
@@ -271,6 +279,7 @@ class YouTube {
                                         return@withContext
                                     }
                                 }
+
                                 HttpURLConnection.HTTP_FORBIDDEN -> {
                                     if (key == apiKey1)
                                         key = apiKey2
@@ -280,6 +289,7 @@ class YouTube {
                                         return@withContext
                                     }
                                 }
+
                                 else -> {
                                     println("HTTP ERROR! CODE: ${result.code}")
                                     getPageJob.complete()
@@ -346,6 +356,7 @@ class YouTube {
                                 playlistJob.complete()
                                 return@withContext
                             }
+
                             HttpURLConnection.HTTP_FORBIDDEN -> {
                                 if (key == apiKey1)
                                     key = apiKey2
@@ -355,6 +366,7 @@ class YouTube {
                                     return@withContext
                                 }
                             }
+
                             else -> {
                                 println("HTTP ERROR! CODE: ${result.code}")
                                 playlistJob.complete()
@@ -385,6 +397,7 @@ class YouTube {
                             println("Error! Broken JSON!")
                         }
                     }
+
                     HttpURLConnection.HTTP_FORBIDDEN -> {
                         if (key == apiKey1)
                             key = apiKey2
@@ -394,6 +407,7 @@ class YouTube {
                             return@withContext
                         }
                     }
+
                     else -> {
                         println("HTTP ERROR! CODE: ${response.code}")
                         playlistJob.complete()
@@ -410,7 +424,7 @@ class YouTube {
      * @param channelLink link to a YouTube channel
      * @return returns a list of the channel's playlists.
      */
-    private suspend fun fetchChannelPlaylists(channelLink: Link): List<Playlist> {
+    private suspend fun fetchChannelPlaylists(channelLink: Link): Playlists {
         fun fetchPlaylistsData(apiKey: String = apiKey1, pageToken: String = ""): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiUrl/playlists")
@@ -448,6 +462,7 @@ class YouTube {
                                         break
                                     }
                                 }
+
                                 HttpURLConnection.HTTP_FORBIDDEN -> {
                                     if (key == apiKey1)
                                         key = apiKey2
@@ -456,6 +471,7 @@ class YouTube {
                                         break
                                     }
                                 }
+
                                 else -> {
                                     println("HTTP ERROR! CODE: ${newPageData.code.code}")
                                     break
@@ -500,6 +516,7 @@ class YouTube {
                             break
                         }
                     }
+
                     HttpURLConnection.HTTP_FORBIDDEN -> {
                         if (key == apiKey1)
                             key = apiKey2
@@ -508,13 +525,14 @@ class YouTube {
                             break
                         }
                     }
+
                     else -> {
                         println("HTTP ERROR! CODE: ${playlistsData.code.code}")
                         break
                     }
                 }
             }
-            lists
+            Playlists(lists)
         }
     }
 
@@ -559,6 +577,7 @@ class YouTube {
                             break
                         }
                     }
+
                     HttpURLConnection.HTTP_FORBIDDEN -> {
                         if (key == apiKey1)
                             key = apiKey2
@@ -567,6 +586,7 @@ class YouTube {
                             break
                         }
                     }
+
                     else -> {
                         println("HTTP ERROR! CODE: ${channelData.code.code}")
                         break
@@ -585,7 +605,7 @@ class YouTube {
      * @param resultLimit limit how many results are retrieved.
      * @return returns results from the search
      */
-    suspend fun searchYoutube(searchType: SearchType, searchQuery: SearchQuery, resultLimit: Int = 10): SearchResults {
+    suspend fun searchYouTube(searchType: SearchType, searchQuery: SearchQuery, resultLimit: Int = 10): SearchResults {
         fun encode(text: String) = runBlocking {
             withContext(IO) {
                 URLEncoder.encode(text, Charsets.UTF_8.toString())
@@ -608,7 +628,7 @@ class YouTube {
             apiKey: String = apiKey1,
             limit: Int = resultLimit,
             pageToken: String = "",
-            link: Link = Link("")
+            link: Link = Link()
         ): Response {
             val urlBuilder = StringBuilder()
             if (link.isNotEmpty()) {
@@ -662,6 +682,7 @@ class YouTube {
                                         )
                                     }
                                 }
+
                                 "playlist" -> {
                                     val results = responseData.getJSONArray("items")
                                     for (resultData in results) {
@@ -685,12 +706,14 @@ class YouTube {
                                         )
                                     }
                                 }
+
                                 "channel" -> {
                                     val results = responseData.getJSONArray("items")
                                     for (resultData in results) {
                                         resultData as JSONObject
 
-                                        val channelTitle = decode(resultData.getJSONObject("snippet").getString("title"))
+                                        val channelTitle =
+                                            decode(resultData.getJSONObject("snippet").getString("title"))
                                         val channelLink =
                                             "https://www.youtube.com/channel/${
                                                 resultData.getJSONObject("id").getString("channelId")
@@ -698,7 +721,7 @@ class YouTube {
                                         searchResults.add(
                                             SearchResult(
                                                 "Channel: $channelTitle\n" +
-                                                "Link:    $channelLink\n",
+                                                        "Link:    $channelLink\n",
                                                 Link(channelLink)
                                             )
                                         )
@@ -722,6 +745,7 @@ class YouTube {
                             return@withContext
                         }
                     }
+
                     HttpURLConnection.HTTP_FORBIDDEN -> {
                         if (key == apiKey1) {
                             key = apiKey2
@@ -732,6 +756,7 @@ class YouTube {
                             return@withContext
                         }
                     }
+
                     else -> {
                         println("HTTP ERROR! CODE: ${searchData.code}")
                         searchJob.complete()
@@ -748,7 +773,7 @@ class YouTube {
      * @param link link to be resolved
      * @return returns a String containing the type of link. Possible values: video, channel, playlist
      */
-    suspend fun resolveType(link: Link): String {
+    suspend fun resolveType(link: Link): LinkType {
         fun fetchData(apiKey: String = apiKey1): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiUrl/search?")
@@ -761,10 +786,12 @@ class YouTube {
         val resolveJob = Job()
         var key = apiKey1
         return when {
-            link.link.contains("\\S+/playlist/\\S+".toRegex()) -> "playlist"
-            link.link.contains("\\S+/c(hannel)?/\\S+".toRegex()) -> "channel"
+            link.link.contains("\\S+/playlist\\?\\S+".toRegex()) -> LinkType.PLAYLIST
+            link.link.contains("\\S+/c(hannel)?/\\S+".toRegex()) -> LinkType.CHANNEL
+            link.link.contains("(youtu.be|\\S+((\\w*\\?)?\\S*(vi?))[=/]\\S+)".toRegex()) -> LinkType.VIDEO
             else -> withContext(IO + resolveJob) {
-                var linkType = ""
+                //Attempt to resolve the track type via YouTube API
+                var linkType = LinkType.OTHER
                 while (true) {
                     val linkData = fetchData(key)
                     when (linkData.code.code) {
@@ -778,7 +805,9 @@ class YouTube {
                                     } == link.getId()
                                 }.let { itemData ->
                                     itemData as JSONObject
-                                    itemData.getJSONObject("id").getString("kind").substringAfter("#")
+                                    LinkType.valueOf(
+                                        itemData.getJSONObject("id").getString("kind").substringAfter("#").uppercase()
+                                    )
                                 }
                                 break
                             } catch (e: JSONException) {
@@ -786,14 +815,16 @@ class YouTube {
                                 println("Error! Broken JSON!")
                             }
                         }
+
                         HttpURLConnection.HTTP_FORBIDDEN -> {
                             if (key == apiKey1)
-                            key = apiKey2
+                                key = apiKey2
                             else {
                                 println("HTTP ERROR! CODE: ${linkData.code.code}")
                                 break
                             }
                         }
+
                         else -> {
                             println("HTTP ERROR! CODE: ${linkData.code.code}")
                             break
@@ -835,7 +866,8 @@ class YouTube {
                                 id = resultsJSON.getJSONArray("items").first {
                                     it as JSONObject
                                     it.getJSONObject("id").getString("kind").substringAfter("#") == "channel"
-                                    && it.getJSONObject("snippet").getString("title").replace(" ", "") == channelLink.link.substringAfterLast("/")
+                                            && it.getJSONObject("snippet").getString("title")
+                                        .replace(" ", "") == channelLink.link.substringAfterLast("/")
                                 }.let {
                                     it as JSONObject
                                     it.getJSONObject("id").getString("channelId")
@@ -847,14 +879,16 @@ class YouTube {
                                 break
                             }
                         }
+
                         HttpURLConnection.HTTP_FORBIDDEN -> {
                             if (key == apiKey1)
-                            key = apiKey2
+                                key = apiKey2
                             else {
                                 println("HTTP ERROR! CODE: ${channelData.code.code}")
                                 break
                             }
                         }
+
                         else -> {
                             println("HTTP ERROR! CODE: ${channelData.code.code}")
                             break

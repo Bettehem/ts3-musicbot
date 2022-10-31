@@ -255,7 +255,8 @@ class ChatReader(
                                 val links = ArrayList<Link>()
 
                                 /**
-                                 * filter out unplayable tracks from a TrackList
+                                 * Filter out unplayable tracks from a TrackList
+                                 * and inform user if unplayable tracks are found.
                                  * @param trackList list to filter
                                  * @return returns a list with only playable tracks
                                  */
@@ -300,7 +301,7 @@ class ChatReader(
                                             }
 
                                         commandString.contains("\\s+(yt|youtube)\\s+".toRegex()) ->
-                                            youTube.searchYoutube(
+                                            youTube.searchYouTube(
                                                 SearchType(
                                                     commandString.split("\\s+(yt|youtube)\\s+".toRegex()).last()
                                                         .substringBefore(" ")
@@ -349,12 +350,13 @@ class ChatReader(
                                             }
                                         }
 
-                                        args[i].contains("((\\[URL])?(https?://(open\\.spotify\\.com|soundcloud\\.com|youtu\\.be|((m|www)\\.)?youtube\\.com))(\\[/URL])?.+)|(spotify:(track|album|playlist|show|episode|artist):.+)".toRegex()) -> {
+                                        args[i].contains("((\\[URL])?((https?://)?(open\\.spotify\\.com|soundcloud\\.com|((m|www)\\.)?youtu\\.?be(\\.com)?)).+(\\[/URL])?)|(spotify:(track|album|playlist|show|episode|artist):.+)".toRegex()) -> {
                                             //add links to ArrayList
                                             if (args[i].contains(",\\s*".toRegex()))
-                                                links.addAll(args[i].split(",\\s*".toRegex()).map { Link(it) })
+                                                links.addAll(
+                                                    args[i].split(",\\s*".toRegex()).map { Link(removeTags(it)) })
                                             else
-                                                links.add(Link(args[i]))
+                                                links.add(Link(removeTags(args[i])))
                                         }
                                     }
                                 }
@@ -368,30 +370,16 @@ class ChatReader(
                                 for (link in links) {
                                     when {
                                         //Spotify
-                                        link.link.contains("(https?://open\\.spotify\\.com/)|(spotify:(user:\\S+:)?(album|track|playlist|show|episode|artist):.+)".toRegex()) -> {
+                                        link.link.contains("((https?://)?open\\.spotify\\.com/)|(spotify:(user:\\S+:)?(album|track|playlist|show|episode|artist):.+)".toRegex()) -> {
                                             //get link type
-                                            val type = when {
-                                                link.link.contains("(spotify:track:.+)|(open\\.spotify\\.com/track/)".toRegex()) -> "track"
-                                                link.link.contains("(spotify:album:.+)|(open\\.spotify\\.com/album/)".toRegex()) -> "album"
-                                                link.link.contains("(spotify:(user:\\S+:)?playlist:.+)|(open\\.spotify\\.com/(user/\\S+/)?playlist/)".toRegex()) -> "playlist"
-                                                link.link.contains("(spotify:show:.+)|(open\\.spotify\\.com/show/)".toRegex()) -> "show"
-                                                link.link.contains("(spotify:episode:.+)|(open\\.spotify\\.com/episode/)".toRegex()) -> "episode"
-                                                link.link.contains("(spotify:artist:.+)|(open\\.spotify\\.com/artist/)".toRegex()) -> "artist"
-                                                else -> "Not supported!"
-                                            }
-                                            println("Spotify link: $link\nLink type: $type")
+                                            val type = link.linkType(spotify)
+                                            val id = link.getId()
+                                            println("Spotify link: $link\nLink type: $type\nLink id: $id")
                                             //check type
                                             when (type) {
-                                                "track" -> {
+                                                LinkType.TRACK -> {
                                                     val track = spotify.fetchTrack(
-                                                        Link(
-                                                            "https://open.spotify.com/$type/${
-                                                                link.link
-                                                                    .substringAfter(type).substring(1)
-                                                                    .substringAfter("[URL]").substringBefore("[/URL]")
-                                                                    .substringBefore("?")
-                                                            }"
-                                                        )
+                                                        Link("https://open.spotify.com/track/$id", id)
                                                     )
                                                     val trackAdded =
                                                         if (track.playability.isPlayable)
@@ -402,18 +390,9 @@ class ChatReader(
                                                     commandSuccessful.add(Pair(trackAdded, Pair(msg, track)))
                                                 }
 
-                                                "album" -> {
+                                                LinkType.ALBUM -> {
                                                     //fetch album's tracks
-                                                    val albumLink =
-                                                        Link(
-                                                            "https://open.spotify.com/$type/${
-                                                                link.link
-                                                                    .substringAfter(type).substring(1)
-                                                                    .substringAfter("[URL]")
-                                                                    .substringBefore("[/URL]")
-                                                                    .substringBefore("?")
-                                                            }"
-                                                        )
+                                                    val albumLink = Link("https://open.spotify.com/album/$id", id)
                                                     val albumTracks = filterList(
                                                         spotify.fetchAlbumTracks(albumLink), albumLink
                                                     )
@@ -428,18 +407,9 @@ class ChatReader(
                                                     commandSuccessful.add(Pair(albumAdded, Pair(msg, trackList)))
                                                 }
 
-                                                "playlist" -> {
+                                                LinkType.PLAYLIST -> {
                                                     //fetch playlist's tracks
-                                                    val playlistLink =
-                                                        Link(
-                                                            "https://open.spotify.com/$type/${
-                                                                link.link
-                                                                    .substringAfter(type).substring(1)
-                                                                    .substringAfter("[URL]")
-                                                                    .substringBefore("[/URL]")
-                                                                    .substringBefore("?")
-                                                            }"
-                                                        )
+                                                    val playlistLink = Link("https://open.spotify.com/playlist/$id", id)
                                                     val playlistTracks = filterList(
                                                         spotify.fetchPlaylistTracks(playlistLink), playlistLink
                                                     )
@@ -455,18 +425,9 @@ class ChatReader(
                                                     commandSuccessful.add(Pair(playlistAdded, Pair(msg, trackList)))
                                                 }
 
-                                                "show" -> {
+                                                LinkType.SHOW -> {
                                                     //fetch show's episodes
-                                                    val showLink =
-                                                        Link(
-                                                            "https://open.spotify.com/$type/${
-                                                                link.link
-                                                                    .substringAfter(type).substring(1)
-                                                                    .substringAfter("[URL]")
-                                                                    .substringBefore("[/URL]")
-                                                                    .substringBefore("?")
-                                                            }"
-                                                        )
+                                                    val showLink = Link("https://open.spotify.com/show/$id", id)
                                                     val episodes = filterList(
                                                         spotify.fetchShow(showLink).episodes.toTrackList(),
                                                         showLink
@@ -480,17 +441,10 @@ class ChatReader(
                                                     commandSuccessful.add(Pair(showAdded, Pair(msg, trackList)))
                                                 }
 
-                                                "episode" -> {
+                                                LinkType.EPISODE -> {
                                                     //fetch episode
                                                     val episode = spotify.fetchEpisode(
-                                                        Link(
-                                                            "https://open.spotify.com/$type/${
-                                                                link.link
-                                                                    .substringAfter(type).substring(1)
-                                                                    .substringAfter("[URL]").substringBefore("[/URL]")
-                                                                    .substringBefore("?")
-                                                            }"
-                                                        )
+                                                        Link("https://open.spotify.com/episode/$id", id)
                                                     )
                                                     val episodeAdded =
                                                         if (episode.playability.isPlayable)
@@ -505,17 +459,9 @@ class ChatReader(
                                                     commandSuccessful.add(Pair(episodeAdded, Pair(msg, episode)))
                                                 }
 
-                                                "artist" -> {
+                                                LinkType.ARTIST -> {
                                                     //fetch artist's top tracks
-                                                    val artistLink =
-                                                        Link(
-                                                            "https://open.spotify.com/$type/${
-                                                                link.link
-                                                                    .substringAfter(type).substring(1)
-                                                                    .substringAfter("[URL]").substringBefore("[/URL]")
-                                                                    .substringBefore("?")
-                                                            }"
-                                                        )
+                                                    val artistLink = Link("https://open.spotify.com/artist/$id", id)
                                                     val topTracks = filterList(
                                                         spotify.fetchArtist(artistLink).topTracks,
                                                         artistLink
@@ -534,29 +480,26 @@ class ChatReader(
                                                     commandListener.onCommandProgress(commandString, msg, trackList)
                                                     commandSuccessful.add(Pair(tracksAdded, Pair(msg, trackList)))
                                                 }
+
+                                                else -> {
+                                                    val msg = "Link type \"$type\" for link $link is not supported!"
+                                                    commandListener.onCommandProgress(commandString, msg, link)
+                                                    commandSuccessful.add(Pair(false, Pair(msg, link)))
+                                                }
                                             }
-                                            println("Added to queue.")
                                         }
 
                                         //YouTube
-                                        link.link.contains("https?://(youtu\\.be|((m|www)\\.)?youtube\\.com)".toRegex()) -> {
+                                        link.link.contains("(https?://)?((m|www)\\.)?youtu\\.?be(\\.com)?".toRegex()) -> {
                                             //get link type
-                                            val type = when {
-                                                link.link.contains("https?://(((m|www)\\.)?youtube\\.com/watch\\?v=|youtu\\.be/\\S+)".toRegex()) -> "track"
-                                                link.link.contains("https?://(((m|www)\\.)?youtube\\.com/playlist\\?list=\\S+)".toRegex()) -> "playlist"
-                                                else -> ""
-                                            }
+                                            val type = link.linkType(youTube)
                                             println("YouTube link: $link\nLink type: $type")
-                                            //get track/playlist id
-                                            val id =
-                                                link.link.split("(((m|www)\\.)?youtube\\.com/(watch|playlist)\\?(v|list)=)|(youtu.be/)".toRegex())[1]
-                                                    .substringAfter("[URL]")
-                                                    .substringBefore("[/URL]")
-                                                    .substringBefore("&")
+                                            //video/playlist id
+                                            val id = link.getId()
                                             //check type
                                             when (type) {
-                                                "track" -> {
-                                                    val track = youTube.fetchVideo(Link("https://youtu.be/$id"))
+                                                LinkType.VIDEO -> {
+                                                    val track = youTube.fetchVideo(Link("https://youtu.be/$id", id))
                                                     val trackAdded =
                                                         if (track.playability.isPlayable)
                                                             songQueue.addToQueue(track, customPosition)
@@ -566,9 +509,10 @@ class ChatReader(
                                                     commandSuccessful.add(Pair(trackAdded, Pair(msg, track)))
                                                 }
 
-                                                "playlist" -> {
+                                                LinkType.PLAYLIST -> {
                                                     //fetch playlist tracks
-                                                    val playlistLink = Link("https://www.youtube.com/playlist?list=$id")
+                                                    val playlistLink =
+                                                        Link("https://www.youtube.com/playlist?list=$id", id)
                                                     val playlistTracks = filterList(
                                                         youTube.fetchPlaylistTracks(playlistLink),
                                                         playlistLink
@@ -583,30 +527,24 @@ class ChatReader(
                                                     commandListener.onCommandProgress(commandString, msg, trackList)
                                                     commandSuccessful.add(Pair(playlistAdded, Pair(msg, trackList)))
                                                 }
+
+                                                else -> {
+                                                    val msg = "Link type \"$type\" for link $link is not supported!"
+                                                    commandListener.onCommandProgress(commandString, msg, link)
+                                                    commandSuccessful.add(Pair(false, Pair(msg, link)))
+                                                }
                                             }
                                         }
 
                                         //SoundCloud
-                                        link.link.contains("https?://soundcloud\\.com/".toRegex()) -> {
+                                        link.link.contains("(https?://)?soundcloud\\.com/".toRegex()) -> {
                                             //get link type
-                                            val type = when {
-                                                link.link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/(?!sets)(?!likes)(?!reposts)\\S+".toRegex()) -> "track"
-                                                link.link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/sets/\\S+".toRegex()) -> "playlist"
-                                                link.link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/likes".toRegex()) -> "likes"
-                                                link.link.contains("https?://soundcloud\\.com/[a-z0-9-_]+/reposts".toRegex()) -> "reposts"
-                                                else -> ""
-                                            }
+                                            val type = link.linkType(soundCloud)
                                             println("SoundCloud link: $link\nLink type: $type")
                                             //check type
                                             when (type) {
-                                                "track" -> {
-                                                    val track = soundCloud.fetchTrack(
-                                                        Link(
-                                                            link.link.substringAfter("[URL]")
-                                                                .substringBefore("[/URL]")
-                                                                .substringBefore("?")
-                                                        )
-                                                    )
+                                                LinkType.TRACK -> {
+                                                    val track = soundCloud.fetchTrack(link)
                                                     val trackAdded =
                                                         if (track.playability.isPlayable)
                                                             songQueue.addToQueue(track, customPosition)
@@ -616,13 +554,10 @@ class ChatReader(
                                                     commandSuccessful.add(Pair(trackAdded, Pair(msg, track)))
                                                 }
 
-                                                "playlist" -> {
+                                                LinkType.PLAYLIST -> {
                                                     //fetch playlist tracks
-                                                    val playlistLink = Link(removeTags(link.link))
-                                                    val playlistTracks = filterList(
-                                                        soundCloud.fetchPlaylistTracks(playlistLink),
-                                                        playlistLink
-                                                    )
+                                                    val playlistTracks =
+                                                        filterList(soundCloud.fetchPlaylistTracks(link), link)
                                                     val trackList =
                                                         if (shouldShuffle) TrackList(playlistTracks.trackList.shuffled()) else playlistTracks
                                                     val playlistAdded =
@@ -633,11 +568,9 @@ class ChatReader(
                                                     commandSuccessful.add(Pair(playlistAdded, Pair(msg, trackList)))
                                                 }
 
-                                                "likes" -> {
+                                                LinkType.LIKES -> {
                                                     //fetch likes
-                                                    val likesLink = Link(removeTags(link.link))
-                                                    val likes =
-                                                        filterList(soundCloud.fetchUserLikes(likesLink), likesLink)
+                                                    val likes = filterList(soundCloud.fetchUserLikes(link), link)
                                                     val trackList =
                                                         if (shouldShuffle) TrackList(likes.trackList.shuffled()) else likes
                                                     val likesAdded = songQueue.addAllToQueue(trackList, customPosition)
@@ -650,12 +583,8 @@ class ChatReader(
                                                     commandSuccessful.add(Pair(likesAdded, Pair(msg, trackList)))
                                                 }
 
-                                                "reposts" -> {
-                                                    val repostsLink = Link(removeTags(link.link))
-                                                    val reposts = filterList(
-                                                        soundCloud.fetchUserReposts(repostsLink),
-                                                        repostsLink
-                                                    )
+                                                LinkType.REPOSTS -> {
+                                                    val reposts = filterList(soundCloud.fetchUserReposts(link), link)
                                                     val trackList =
                                                         if (shouldShuffle) TrackList(reposts.trackList.shuffled()) else reposts
                                                     val repostsAdded =
@@ -667,6 +596,12 @@ class ChatReader(
                                                             tracksAddingErrorMsg
                                                     commandListener.onCommandProgress(commandString, msg, trackList)
                                                     commandSuccessful.add(Pair(repostsAdded, Pair(msg, trackList)))
+                                                }
+
+                                                else -> {
+                                                    val msg = "Link type \"$type\" for link $link is not supported!"
+                                                    commandListener.onCommandProgress(commandString, msg, link)
+                                                    commandSuccessful.add(Pair(false, Pair(msg, link)))
                                                 }
                                             }
                                         }
@@ -692,6 +627,11 @@ class ChatReader(
                                                 unplayable.second.second.toString()
                                             )
                                         )
+                                    commandListener.onCommandExecuted(
+                                        commandString,
+                                        unPlayableTracks.joinToString("\n") { it.second.first },
+                                        unPlayableTracks
+                                    )
                                     commandJob.complete()
                                     false
                                 }
@@ -730,7 +670,7 @@ class ChatReader(
                                     }
                                     printToChat(
                                         listOf(
-                                            if (track.linkType == LinkType.YOUTUBE) {
+                                            if (track.service == Service.YOUTUBE) {
                                                 "Currently playing:\n${track.title} : ${track.link.link}"
                                             } else {
                                                 "Currently playing:\n${
@@ -753,13 +693,13 @@ class ChatReader(
                                             return queue.mapIndexed { index, track ->
                                                 val strBuilder = StringBuilder()
                                                 strBuilder.append("${if (index < 10) "$index: " else "$index:"} ")
-                                                if (track.link.linkType() != LinkType.YOUTUBE) {
+                                                if (track.link.service() != Service.YOUTUBE) {
                                                     track.artists.artists.forEach { strBuilder.append("${it.name}, ") }
                                                 } else {
                                                     strBuilder.append("${track.title},")
                                                 }
                                                 "${strBuilder.toString().substringBeforeLast(",")} " +
-                                                        if (track.link.linkType() != LinkType.YOUTUBE) {
+                                                        if (track.link.service() != Service.YOUTUBE) {
                                                             "- ${track.title} "
                                                         } else {
                                                             ""
@@ -1271,13 +1211,13 @@ class ChatReader(
                                         messageLines.appendLine("Album Name:  \t${currentTrack.album.name}")
                                     if (currentTrack.album.link.link.isNotEmpty())
                                         messageLines.appendLine("Album Link:  \t\t${currentTrack.album.link}")
-                                    if (currentTrack.link.link.contains("(youtube|youtu\\.be|soundcloud)".toRegex()))
+                                    if (currentTrack.link.link.contains("(youtu\\.?be|soundcloud)".toRegex()))
                                         messageLines.appendLine("Upload Date:   \t${currentTrack.album.releaseDate.date}")
                                     else
                                         messageLines.appendLine("Release:     \t\t\t${currentTrack.album.releaseDate.date}")
 
                                     if (currentTrack.artists.artists.isNotEmpty()) {
-                                        if (currentTrack.link.link.contains("(youtube|youtu\\.be|soundcloud\\.com)".toRegex()))
+                                        if (currentTrack.link.link.contains("(youtu\\.?be|soundcloud\\.com)".toRegex()))
                                             messageLines.appendLine("Uploader: \t\t\t${currentTrack.artists.artists[0].name}")
                                         else
                                             messageLines.appendLine("Artists:\n${currentTrack.artists}")
@@ -1303,38 +1243,53 @@ class ChatReader(
                                 commandJob.complete()
                                 return true
                             }
-                            //sp-search/yt-search/sc-search command
-                            commandString.contains("^(${commandList.commandList["sp-search"]}|${commandList.commandList["yt-search"]}|${commandList.commandList["sc-search"]})\\s+".toRegex()) -> {
-                                val service = when (commandString.substringBefore(" ")) {
-                                    commandList.commandList["sp-search"] -> "sp"
-                                    commandList.commandList["yt-search"] -> "yt"
-                                    commandList.commandList["sc-search"] -> "sc"
-                                    else -> ""
+                            //search command
+                            commandString.contains("^${commandList.commandList["search"]}\\s+".toRegex()) -> {
+                                val searchCommand = commandList.commandList["search"]
+                                val serviceText = commandString.replace("^$searchCommand\\s+".toRegex(), "")
+                                    .replace("\\s+.*$".toRegex(), "")
+                                val service = when (serviceText) {
+                                    "sc", "soundcloud" -> Service.SOUNDCLOUD
+                                    "sp", "spotify" -> Service.SPOTIFY
+                                    "yt", "youtube" -> Service.YOUTUBE
+                                    else -> Service.OTHER
                                 }
-                                val searchType =
-                                    SearchType(commandString.substringAfter(" ").substringBefore(" "))
-                                if (searchType.getType() != SearchType.Type.OTHER && when (service) {
-                                        "sp" -> spotify.supportedSearchTypes.contains(searchType.getType())
-                                        "yt" -> youTube.supportedSearchTypes.contains(searchType.getType())
-                                        "sc" -> soundCloud.supportedSearchTypes.contains(searchType.getType())
+                                val searchType = SearchType(
+                                    commandString.replace("^$searchCommand\\s+$serviceText\\s+".toRegex(), "")
+                                        .replace("\\s+.*$".toRegex(), "")
+                                )
+                                if (
+                                    when (service) {
+                                        Service.SPOTIFY -> spotify.supportedSearchTypes.contains(searchType.getType())
+                                        Service.YOUTUBE -> youTube.supportedSearchTypes.contains(searchType.getType())
+                                        Service.SOUNDCLOUD -> soundCloud.supportedSearchTypes.contains(searchType.getType())
                                         else -> false
                                     }
                                 ) {
-                                    val limit = if (commandString.contains("(-l|--limit)\\s+[0-9]+".toRegex())) {
-                                        commandString.split("\\s+(-l|--limit)\\s+".toRegex()).last()
-                                            .substringBefore(" ").toInt()
-                                    } else {
-                                        10
-                                    }
+                                    val limit =
+                                        if (commandString.contains("(-l|--limit)\\s+[0-9]+".toRegex()))
+                                            commandString.split("\\s+(-l|--limit)\\s+".toRegex()).last()
+                                                .replace("\\s+.*$".toRegex(), "").toInt()
+                                        else
+                                            10
+
                                     val searchQuery = SearchQuery(
-                                        commandString.substringAfter("$searchType ")
+                                        commandString.replace(
+                                            "^$searchCommand\\s+$serviceText\\s+$searchType\\s+".toRegex(),
+                                            ""
+                                        )
                                             .replace("(-l|--limit)\\s+[0-9]+".toRegex(), "")
                                     )
                                     printToChat(listOf("Searching, please wait..."))
                                     val results = when (service) {
-                                        "sp" -> spotify.searchSpotify(searchType, searchQuery, limit)
-                                        "yt" -> youTube.searchYoutube(searchType, searchQuery, limit)
-                                        "sc" -> soundCloud.searchSoundCloud(searchType, searchQuery, limit)
+                                        Service.SOUNDCLOUD -> soundCloud.searchSoundCloud(
+                                            searchType,
+                                            searchQuery,
+                                            limit
+                                        )
+
+                                        Service.SPOTIFY -> spotify.searchSpotify(searchType, searchQuery, limit)
+                                        Service.YOUTUBE -> youTube.searchYouTube(searchType, searchQuery, limit)
                                         else -> SearchResults(emptyList())
                                     }
                                     return if (results.isNotEmpty()) {
@@ -1354,7 +1309,7 @@ class ChatReader(
                                     }
                                 } else {
                                     printToChat(
-                                        listOf("Search type not supported! Run ${commandList.commandList["help"]} ${commandList.commandList["$service-search"]} to see more information on this command.")
+                                        listOf("Search type not supported! Run ${commandList.commandList["help"]} $searchCommand to see more information on this command.")
                                     )
                                     commandListener.onCommandExecuted(commandString, "Not supported", searchType)
                                     commandJob.complete()
@@ -1370,47 +1325,34 @@ class ChatReader(
                                 val output = ArrayList<Any>()
                                 var success = false
                                 for (link in links) {
-                                    val data: Any? = when (link.linkType()) {
-                                        LinkType.SPOTIFY -> when {
-                                            link.link.contains("track".toRegex()) -> spotify.fetchTrack(link)
-                                                .also { output.add(it) }
-
-                                            link.link.contains("album".toRegex()) -> spotify.fetchAlbum(link)
-                                                .also { output.add(it) }
-
-                                            link.link.contains("playlist".toRegex()) -> spotify.fetchPlaylist(link)
-                                                .also { output.add(it) }
-
-                                            link.link.contains("artist".toRegex()) -> spotify.fetchArtist(link)
-                                                .also { output.add(it) }
-
-                                            link.link.contains("show".toRegex()) -> spotify.fetchShow(link)
-                                                .also { output.add(it) }
-
-                                            link.link.contains("episode".toRegex()) -> spotify.fetchEpisode(link)
-                                                .also { output.add(it) }
-
-                                            link.link.contains("user".toRegex()) -> spotify.fetchUser(link)
-                                                .also { output.add(it) }
-
+                                    @Suppress("IMPLICIT_CAST_TO_ANY")
+                                    val data: Any? = when (link.service()) {
+                                        Service.SPOTIFY -> when (link.linkType()) {
+                                            LinkType.TRACK -> spotify.fetchTrack(link)
+                                            LinkType.ALBUM -> spotify.fetchAlbum(link)
+                                            LinkType.PLAYLIST -> spotify.fetchPlaylist(link)
+                                            LinkType.ARTIST -> spotify.fetchArtist(link)
+                                            LinkType.SHOW -> spotify.fetchShow(link)
+                                            LinkType.EPISODE -> spotify.fetchEpisode(link)
+                                            LinkType.USER -> spotify.fetchUser(link)
                                             else -> null
-                                        }
+                                        }.also { if (it != null) output.add(it) }
 
-                                        LinkType.YOUTUBE -> when (youTube.resolveType(link)) {
-                                            "video" -> youTube.fetchVideo(link).also { output.add(it) }
-                                            "playlist" -> youTube.fetchPlaylist(link).also { output.add(it) }
-                                            "channel" -> youTube.fetchChannel(link).also { output.add(it) }
+                                        Service.YOUTUBE -> when (link.linkType()) {
+                                            LinkType.VIDEO -> youTube.fetchVideo(link)
+                                            LinkType.PLAYLIST -> youTube.fetchPlaylist(link)
+                                            LinkType.CHANNEL -> youTube.fetchChannel(link)
                                             else -> null
-                                        }
+                                        }.also { if (it != null) output.add(it) }
 
-                                        LinkType.SOUNDCLOUD -> when (soundCloud.resolveType(link)) {
-                                            "track" -> soundCloud.fetchTrack(link).also { output.add(it) }
-                                            "album" -> soundCloud.fetchAlbum(link).also { output.add(it) }
-                                            "playlist" -> soundCloud.getPlaylist(link).also { output.add(it) }
-                                            "artist" -> soundCloud.fetchArtist(link).also { output.add(it) }
-                                            "user" -> soundCloud.fetchUser(link).also { output.add(it) }
+                                        Service.SOUNDCLOUD -> when (link.linkType()) {
+                                            LinkType.TRACK -> soundCloud.fetchTrack(link)
+                                            LinkType.ALBUM -> soundCloud.fetchAlbum(link)
+                                            LinkType.PLAYLIST -> soundCloud.getPlaylist(link)
+                                            LinkType.ARTIST -> soundCloud.fetchArtist(link)
+                                            LinkType.USER -> soundCloud.fetchUser(link)
                                             else -> null
-                                        }
+                                        }.also { if (it != null) output.add(it) }
 
                                         else -> {
                                             printToChat(listOf("Link type not supported for this link: $link"))
@@ -1486,8 +1428,8 @@ class ChatReader(
                                         commandRunner.runCommand(
                                             "playerctl -p ${botSettings.spotifyPlayer} open spotify:track:${
                                                 removeTags(message)
-                                                    .split("track/".toRegex())[1]
-                                                    .split("\\?si=".toRegex())[0]
+                                                    .substringAfterLast("/")
+                                                    .substringBefore("?")
                                             }"
                                         )
                                     } else {

@@ -22,6 +22,7 @@ data class CommandList(
             Pair("queue-pause", "%queue-pause"),
             Pair("queue-resume", "%queue-resume"),
             Pair("info", "%info"),
+            Pair("search", "%search"),
             Pair("sp-pause", "%sp-pause"),
             Pair("sp-resume", "%sp-resume"),
             Pair("sp-play", "%sp-play"),
@@ -33,21 +34,18 @@ data class CommandList(
             Pair("sp-playlist", "%sp-playlist"),
             Pair("sp-playalbum", "%sp-playalbum"),
             Pair("sp-nowplaying", "%sp-nowplaying"),
-            Pair("sp-search", "%sp-search"),
             Pair("yt-pause", "%yt-pause"),
             Pair("yt-resume", "%yt-resume"),
             Pair("yt-play", "%yt-play"),
             Pair("yt-stop", "%yt-stop"),
             Pair("yt-playsong", "%yt-playsong"),
             Pair("yt-nowplaying", "%yt-nowplaying"),
-            Pair("yt-search", "%yt-search"),
             Pair("sc-pause", "%sc-pause"),
             Pair("sc-resume", "%sc-resume"),
             Pair("sc-play", "%sc-play"),
             Pair("sc-stop", "%sc-stop"),
             Pair("sc-playsong", "%sc-playsong"),
             Pair("sc-nowplaying", "%sc-nowplaying"),
-            Pair("sc-search", "%sc-search"),
         ).toMutableMap()
 ) {
     var helpMessages = createHelpMessages()
@@ -224,8 +222,8 @@ data class CommandList(
                         "If you don't specify a position using -p or --position, 0 will be used by default.\n" +
                         "Available arguments:\n" +
                         "-p, --position <pos>    \tSet a position where to move the song.\n" +
-                        "-a, --all               \tMove all matching songs to the new position.\n" +
-                        "-f, --first             \tMove the first matching song to the new position.\n" +
+                        "-a, --all             \t\tMove all matching songs to the new position.\n" +
+                        "-f, --first           \t\tMove the first matching song to the new position.\n" +
                         "Example - Move all matching songs to position 10:\n" +
                         "${commandList["queue-move"]} -a https://open.spotify.com/track/6H0zRPEV1ezBHOidNXSt1D -p 10\n" +
                         "${commandList["queue-move"]} --all https://open.spotify.com/track/6H0zRPEV1ezBHOidNXSt1D --position 10\n" +
@@ -267,55 +265,6 @@ data class CommandList(
                         "${commandList["queue-resume"]} resumes playback if the song queue is paused."
             ),
             Pair(
-                "sp-search", "\n" +
-                        "Showing help for ${commandList["sp-search"]} command:\n" +
-                        "${commandList["sp-search"]} can be used to search for tracks, albums, playlists, artists, shows and episodes on Spotify.\n" +
-                        "To perform a search, you need to provide a search type followed by keywords.\n" +
-                        "Available options:\n" +
-                        "-l, --limit    \tSet amount of search results to show.\n" +
-                        "Example - Search for a Spotify track with the keywords \"Tesseract Exile\":\n" +
-                        "${commandList["sp-search"]} track Tesseract Exile\n" +
-                        "Example - Search for a Spotify album with the keywords \"The Algorithm Brute Force\" and set a limit to show only 5 search results:\n" +
-                        "${commandList["sp-search"]} album The Algorithm Brute Force --limit 10"
-            ),
-            Pair(
-                "yt-search", "\n" +
-                        "Showing help for ${commandList["yt-search"]} command:\n" +
-                        "${commandList["yt-search"]} can be used to search for tracks/videos and playlists on YouTube.\n" +
-                        "When searching, you need to specify what type of search you are doing.\n" +
-                        "Available search types:\n" +
-                        "video    \t\tSearch for a YouTube video.\n" +
-                        "track    \t\tSame as video.\n" +
-                        "playlist    \tSearch for a YouTube playlist.\n" +
-                        "channel   \tSearch for a YouTube channel.\n" +
-                        "Available options:\n" +
-                        "-l, --limit    \tSet amount of search results to show.\n" +
-                        "Example - Search on YouTube for a video with the name \"Jinjer Pisces\":\n" +
-                        "${commandList["yt-search"]} track Jinjer Pisces\n" +
-                        "Example - search for \"Jinjer Pisces\" and set a limit to show 20 search results:\n" +
-                        "${commandList["yt-search"]} video Jinjer Pisces -l 20"
-            ),
-            Pair(
-                "sc-search", "\n" +
-                        "Showing help for ${commandList["sc-search"]} command:\n" +
-                        "${commandList["sc-search"]} can be used to search for tracks, playlists and users on SoundCloud.\n" +
-                        "When searching, you need to specify what type of search you are doing.\n" +
-                        "Available search types:\n" +
-                        "track    \t\tSearch for a SoundCloud track.\n" +
-                        "playlist    \tSearch for a SoundCloud playlist.\n" +
-                        "user     \t\tSearch for a SoundCloud user.\n" +
-                        "album    \t\tSearch for a SoundCloud album.\n" +
-                        "artist   \t\tSearch for a SoundCloud artist.\n" +
-                        "Available options:\n" +
-                        "-l, --limit    \tSet amount of search results to show.\n" +
-                        "Example - Search on SoundCloud for a track with the name \"leeya - something worth dreaming of\":\n" +
-                        "${commandList["sc-search"]} track leeya something worth dreaming of\n" +
-                        "Example 2 - Search on SoundCloud for a playlist with the name \"jeesjees\" and set a limit to show 10 search results:\n" +
-                        "${commandList["sc-search"]} playlist jeesjees --limit 10\n" +
-                        "Example 3 - Search on SoundCloud for a user with the name \"bettehem\":\n" +
-                        "${commandList["sc-search"]} user bettehem"
-            ),
-            Pair(
                 "info", "\n" +
                         "Showing help for ${commandList["info"]} command:\n" +
                         "${commandList["info"]} shows information on a given link.\n" +
@@ -326,9 +275,43 @@ data class CommandList(
                         "Example 3 - Get info on SoundCloud track link:\n" +
                         "${commandList["info"]} https://soundcloud.com/iamleeya/something-worth-dreaming-of\n" +
                         "Example 4 - Get info on YouTube track link:\n" +
-                        "${commandList["info"]} https://youtu.be/IKZnGWxJN3I\n" +
+                        "${commandList["info"]} https://www.youtube.com/watch?v=IKZnGWxJN3I\n" +
                         "Example 5 - Get info on YouTube and SoundCloud link:\n" +
                         "${commandList["info"]} https://youtu.be/IKZnGWxJN3I,https://soundcloud.com/iamleeya/something-worth-dreaming-of\n"
+            ),
+            Pair(
+                "search", "\n" +
+                        "Showing help for ${commandList["search"]} command:\n" +
+                        "${commandList["search"]} can be used to search for tracks, playlists and users on Spotify, Youtube and SoundCloud.\n" +
+                        "When searching, you first need to specify which service you want to search on.\n" +
+                        "Available services:\n" +
+                        "sp, spotify    \t\tDo a Spotify search.\n" +
+                        "sc, soundcloud \t\tDo a SoundCloud search.\n" +
+                        "yt, youtube    \t\tDo a YouTube search.\n" +
+                        "After that, specify what type of search you are doing.\n" +
+                        "Available search types:\n" +
+                        "track    \t\tSearch for a track. (Spotify, YouTube, SoundCloud)\n" +
+                        "playlist    \tSearch for a playlist. (Spotify, YouTube, SoundCloud)\n" +
+                        "user      \t\tSearch for a user. (SoundCloud)\n" +
+                        "album   \t\tSearch for an album. (Spotify, SoundCloud)\n" +
+                        "artist   \t\tSearch for an artist. (Spotify, SoundCloud)\n" +
+                        "podcast  \t\tSearch for a podcast. (Spotify)\n" +
+                        "show     \t\tSame as podcast. (Spotify)\n" +
+                        "episode  \t\tSearch for a podcast episode. (Spotify)\n" +
+                        "video    \t\tSearch for a video. Same as track. (YouTube)\n" +
+                        "channel   \tSearch for a channel. (YouTube)\n" +
+                        "Available options:\n" +
+                        "-l, --limit    \tSet amount of search results to show.\n" +
+                        "Example - Search on SoundCloud for a track with the name \"leeya - something worth dreaming of\":\n" +
+                        "${commandList["search"]} sc track leeya something worth dreaming of\n" +
+                        "Example 2 - Search on SoundCloud for a playlist with the name \"jeesjees\" and set a limit to show 10 search results:\n" +
+                        "${commandList["search"]} sc playlist jeesjees --limit 10\n" +
+                        "Example 3 - Search on SoundCloud for a user with the name \"bettehem\":\n" +
+                        "${commandList["search"]} soundcloud user bettehem\n" +
+                        "Example - Search for a Spotify album with the keywords \"The Algorithm Brute Force\" and set a limit to show only 5 search results:\n" +
+                        "${commandList["search"]} album The Algorithm Brute Force --limit 5\n" +
+                        "Example - Search on YouTube for a video with the name \"Jinjer Pisces\":\n" +
+                        "${commandList["search"]} track Jinjer Pisces"
             ),
             Pair(
                 "sp-pause", "\n" +

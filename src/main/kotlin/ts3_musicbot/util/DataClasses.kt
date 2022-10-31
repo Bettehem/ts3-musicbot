@@ -2,13 +2,30 @@ package ts3_musicbot.util
 
 import kotlinx.coroutines.runBlocking
 import ts3_musicbot.services.SoundCloud
+import ts3_musicbot.services.Spotify
 import ts3_musicbot.services.YouTube
+import java.lang.IllegalArgumentException
 import java.time.LocalDate
 
-enum class LinkType {
+enum class Service {
+    SOUNDCLOUD,
     SPOTIFY,
     YOUTUBE,
-    SOUNDCLOUD,
+    OTHER
+}
+
+enum class LinkType {
+    ALBUM,
+    ARTIST,
+    CHANNEL,
+    EPISODE,
+    LIKES,
+    PLAYLIST,
+    REPOSTS,
+    SHOW,
+    TRACK,
+    USER,
+    VIDEO,
     OTHER
 }
 
@@ -19,22 +36,14 @@ data class Track(
     val link: Link = Link(),
     val playability: Playability = Playability(),
     val likes: Likes = Likes(),
-    val linkType: LinkType = link.linkType(),
+    val service: Service = link.service(),
     val description: Description = Description()
 ) {
     override fun toString() = "$album\n" +
-            if (artists.isNotEmpty()) {
-                "Track Artists:\n$artists\n"
-            } else {
-                ""
-            } +
+            artists.ifNotEmpty { "Track Artists:\n$it\n" } +
             "Title:      \t\t\t\t$title\n" +
             "Link:       \t\t\t\t$link\n" +
-            if (description.isNotEmpty()) {
-                "Description:\n$description\n"
-            } else {
-                ""
-            }
+            description.ifNotEmpty { "Description:\n$it\n" }
 
     fun toShortString() = "${artists.toShortString()} - $title : $link"
 
@@ -65,26 +74,11 @@ data class Episode(
 }
 
 data class SearchType(val type: String) {
-    enum class Type {
-        TRACK, VIDEO, EPISODE,
-        ALBUM, PLAYLIST,
-        ARTIST, CHANNEL,
-        USER,
-        SHOW,
-        OTHER;
-    }
 
-    fun getType() = when (type.lowercase()) {
-        "track" -> Type.TRACK
-        "video" -> Type.VIDEO
-        "episode" -> Type.EPISODE
-        "album" -> Type.ALBUM
-        "playlist" -> Type.PLAYLIST
-        "artist" -> Type.ARTIST
-        "channel" -> Type.CHANNEL
-        "user" -> Type.USER
-        "show", "podcast" -> Type.SHOW
-        else -> Type.OTHER
+    fun getType() = try {
+        LinkType.valueOf(type.uppercase())
+    } catch (e: IllegalArgumentException) {
+        LinkType.OTHER
     }
 
     override fun toString() = type
@@ -116,39 +110,70 @@ data class SearchResults(val results: List<SearchResult>) {
 
 data class Name(val name: String = "") {
     override fun toString() = name
-
     fun isEmpty() = name.isEmpty()
     fun isNotEmpty() = name.isNotEmpty()
+    fun ifNotEmpty(fn: (name: Name) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
 data class Link(val link: String = "", val linkId: String = "") {
-    fun linkType() = when {
-        link.contains("spotify") -> LinkType.SPOTIFY
-        link.contains("(\\S+youtube\\S+|\\S+youtu.be\\S+)".toRegex()) -> LinkType.YOUTUBE
-        link.contains("\\S+soundcloud\\S+".toRegex()) -> LinkType.SOUNDCLOUD
+    fun service() = when {
+        link.contains("\\S+soundcloud\\S+".toRegex()) -> Service.SOUNDCLOUD
+        link.contains("spotify") -> Service.SPOTIFY
+        link.contains("\\S+youtu\\.?be\\S+".toRegex()) -> Service.YOUTUBE
+        else -> Service.OTHER
+    }
+
+    /** Get the link's LinkType.
+     * @param serviceClass Optionally provide a service class to be used.
+     *                     If none provided, a new instance will be created.
+     * @return Returns the link's LinkType
+     */
+    fun linkType(serviceClass: Any = Any()) = when (service()) {
+        Service.SOUNDCLOUD -> {
+            if (serviceClass is SoundCloud)
+                runBlocking { serviceClass.resolveType(this@Link) }
+            else
+                runBlocking { SoundCloud().resolveType(this@Link) }
+        }
+        Service.SPOTIFY -> {
+            if (serviceClass is Spotify)
+                serviceClass.resolveType(this)
+            else
+                Spotify().resolveType(this)
+        }
+        Service.YOUTUBE -> {
+            if (serviceClass is YouTube)
+                runBlocking { serviceClass.resolveType(this@Link) }
+            else
+                runBlocking { YouTube().resolveType(this@Link) }
+        }
         else -> LinkType.OTHER
     }
 
-    fun getId() = when (linkType()) {
-        LinkType.SPOTIFY -> {
-            linkId.ifEmpty {
-                link.substringAfterLast(":").substringBefore("?si=")
+    fun getId() = linkId.ifEmpty {
+        when (service()) {
+            Service.SPOTIFY -> {
+                link.substringAfterLast(":").substringBefore("?")
                     .substringAfterLast("/")
             }
-        }
-        LinkType.YOUTUBE -> {
-            linkId.ifEmpty {
-                if (link.contains("https?://(www\\.)?youtube\\.com/c(hannel)?/\\S+".toRegex())) {
+
+            Service.YOUTUBE -> {
+                if (linkType() == LinkType.CHANNEL) {
                     runBlocking { YouTube().resolveChannelId(Link(link)) }
                 } else {
-                    link.substringAfterLast("/").substringAfter("?v=").substringBefore("&")
-                        .substringAfter("?list=")
+                    val idFrom = when (linkType()) {
+                        LinkType.VIDEO -> "(vi?)"
+                        LinkType.PLAYLIST -> "(list)"
+                        else -> ""
+                    }
+                    link.substringAfterLast("/")
+                        .replace("(\\w*\\?\\S*$idFrom=)?".toRegex(), "")
+                        .replace("[&?]\\S+".toRegex(), "")
                 }
             }
-        }
-        LinkType.SOUNDCLOUD -> {
-            runBlocking {
-                linkId.ifEmpty {
+
+            Service.SOUNDCLOUD -> {
+                runBlocking {
                     val soundCloud = SoundCloud()
                     if (link.startsWith("${soundCloud.apiURL}/"))
                         link.substringAfterLast("/")
@@ -156,21 +181,24 @@ data class Link(val link: String = "", val linkId: String = "") {
                         soundCloud.resolveId(Link(link))
                 }
             }
+
+            Service.OTHER -> ""
         }
-        LinkType.OTHER -> ""
     }
 
     override fun toString() = link
 
     fun isEmpty() = link.isEmpty()
     fun isNotEmpty() = link.isNotEmpty()
+    fun ifNotEmpty(fn: (link: Link) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
 data class Description(val text: String = "") {
     override fun toString() = text
-
+    fun lines() = text.lines()
     fun isEmpty() = text.isEmpty()
     fun isNotEmpty() = text.isNotEmpty()
+    fun ifNotEmpty(fn: (description: Description) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
 data class Publicity(val isPublic: Boolean? = false)
@@ -209,6 +237,7 @@ data class Artists(val artists: List<Artist> = emptyList()) {
 
     fun isEmpty() = artists.isEmpty()
     fun isNotEmpty() = artists.isNotEmpty()
+    fun ifNotEmpty(fn: (artists: Artists) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
 data class Albums(val albums: List<Album> = emptyList()) {
@@ -241,9 +270,11 @@ data class TrackList(val trackList: List<Track> = emptyList()) {
 
     fun isEmpty() = trackList.isEmpty()
     fun isNotEmpty() = trackList.isNotEmpty()
+    fun ifNotEmpty(fn: (tracks: TrackList) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
 data class EpisodeList(val episodes: List<Episode> = emptyList()) {
+    val size = episodes.size
     fun toTrackList() = TrackList(episodes.map {
         Track(
             title = it.name,
@@ -264,6 +295,7 @@ data class EpisodeList(val episodes: List<Episode> = emptyList()) {
 
     fun isEmpty() = episodes.isEmpty()
     fun isNotEmpty() = episodes.isNotEmpty()
+    fun ifNotEmpty(fn: (episodes: EpisodeList) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
 data class ReleaseDate(val date: LocalDate = LocalDate.now())
@@ -286,7 +318,7 @@ data class Artist(
     val albums: Albums = Albums()
 ) {
     override fun toString() =
-        "${if (link.linkType() == LinkType.YOUTUBE) "Uploader:" else "Artist:\t\t"}     \t\t$name\n" +
+        "${if (link.service() == Service.YOUTUBE) "Uploader:" else "Artist:\t\t"}     \t\t$name\n" +
                 "Link:        \t\t\t\t$link\n" +
                 if (description.isNotEmpty()) "Description:\n$description\n" else {
                     ""
@@ -319,27 +351,15 @@ data class Album(
     val genres: Genres = Genres()
 ) {
     override fun toString() = "" +
-            if (name.isNotEmpty()) {
-                "Album Name:  \t${name.name}\n"
-            } else {
-                ""
-            } +
-            when (link.linkType()) {
-                LinkType.YOUTUBE, LinkType.SOUNDCLOUD -> "Upload Date:  \t\t${releaseDate.date}\n"
-                LinkType.SPOTIFY -> "Release:    \t\t\t${releaseDate.date}\n"
+            name.ifNotEmpty { "Album Name:  \t${name.name}\n" } +
+            when (link.service()) {
+                Service.YOUTUBE, Service.SOUNDCLOUD -> "Upload Date:  \t\t${releaseDate.date}\n"
+                Service.SPOTIFY -> "Release:    \t\t\t${releaseDate.date}\n"
                 else -> "Date:      \t\t\t\t${releaseDate.date}\n"
             } +
-            if (link.isNotEmpty()) {
-                "Album Link:  \t\t$link\n"
-            } else {
-                ""
-            } +
-            if (artists.isNotEmpty()) {
-                "Album Artists:\n$artists"
-            } else {
-                ""
-            } +
-            if (tracks.trackList.isNotEmpty()) "Tracks:\n$tracks" else ""
+            link.ifNotEmpty { "Album Link:  \t\t$link\n" } +
+            artists.ifNotEmpty { "Album Artists:\n$artists" } +
+            tracks.ifNotEmpty { "Tracks:\n$tracks" }
 
     fun isEmpty() = name.isEmpty() && artists.isEmpty() && tracks.isEmpty() && link.isEmpty() && genres.isEmpty()
     fun isNotEmpty() =
@@ -351,7 +371,7 @@ data class User(
     val userName: Name = Name(),
     val description: Description = Description(),
     val followers: Followers = Followers(),
-    val playlists: List<Playlist> = emptyList(),
+    val playlists: Playlists = Playlists(),
     val link: Link = Link()
 ) {
     override fun toString() = "Name: \t\t\t\t\t\t${name.name}\n" +
@@ -361,28 +381,26 @@ data class User(
             } else {
                 ""
             } +
-            if (link.linkType() == LinkType.YOUTUBE) {
+            if (link.service() == Service.YOUTUBE) {
                 "Subscribers: \t\t    ${followers.amount}\n"
             } else {
                 "Followers: \t\t${followers.amount}\n"
             } +
-            if (link.linkType() == LinkType.YOUTUBE) {
+            if (link.service() == Service.YOUTUBE) {
                 "Channel Link: \t\t  ${link.link}\n"
             } else {
                 "Link: \t\t\t\t\t\t${link.link}"
             } +
-            if (playlists.isNotEmpty()) {
+            playlists.ifNotEmpty {
                 val listsBuilder = StringBuilder()
-                listsBuilder.appendLine((if (playlists.size > 10) "First 10 " else "") + "Playlists:")
+                listsBuilder.appendLine((if (it.size > 10) "First 10 " else "") + "Playlists:")
                 val lists = ArrayList<String>()
-                playlists.forEach {
+                it.lists.forEach { list ->
                     if (lists.size < 10)
-                        lists.add(it.toString())
+                        lists.add(list.toString())
                 }
-                lists.forEach { listsBuilder.appendLine(it) }
+                lists.forEach { list -> listsBuilder.appendLine(list) }
                 listsBuilder.toString()
-            } else {
-                ""
             }
 
     fun isEmpty() = name.isEmpty() && userName.isEmpty() && followers.isEmpty() && link.isEmpty()
@@ -400,18 +418,16 @@ data class Playlist(
 ) {
     override fun toString() = "Playlist Name: \t\t${name.name}\n" +
             "Owner:       \t\t\t\t${owner.name}\n" +
-            if (description.isNotEmpty()) {
+            description.ifNotEmpty {
                 "Description:\n${description.text}\n"
-            } else {
-                ""
             } +
-            if (link.linkType() == LinkType.YOUTUBE) {
+            if (link.service() == Service.YOUTUBE) {
                 ""
             } else {
                 "Followers:\t\t\t\t${followers.amount}\n"
             } +
             "Is Public:   \t\t\t\t ${publicity.isPublic}\n" +
-            if (link.linkType() == LinkType.YOUTUBE) {
+            if (link.service() == Service.YOUTUBE) {
                 ""
             } else {
                 "Is Collaborative: \t${collaboration.isCollaborative}\n"
@@ -421,6 +437,13 @@ data class Playlist(
     fun isEmpty() = name.isEmpty() && owner.isEmpty() && description.isEmpty() && followers.isEmpty() && link.isEmpty()
     fun isNotEmpty() =
         name.isNotEmpty() || owner.isNotEmpty() || description.isNotEmpty() || followers.isNotEmpty() || link.isNotEmpty()
+}
+
+data class Playlists(val lists: List<Playlist> = emptyList()) {
+    val size = lists.size
+    fun isEmpty() = lists.isEmpty()
+    fun isNotEmpty() = lists.isNotEmpty()
+    fun ifNotEmpty(fn: (lists: Playlists) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
 data class Show(
@@ -433,20 +456,11 @@ data class Show(
     override fun toString() = "Show Name:  \t\t\t\t$name\n" +
             "Publisher:    \t\t\t\t\t${publisher.name}\n" +
             "Description:\n$description\n\n" +
-            "This podcast has  ${episodes.episodes.size}  episodes.\n" +
-            if (episodes.episodes.isNotEmpty()) {
-                "${if (episodes.episodes.size > 10) "First 10 " else ""} Episodes:\n" +
-                        "${
-                            EpisodeList(
-                                episodes.episodes.subList(
-                                    0,
-                                    if (episodes.episodes.size > 10) 10 else episodes.episodes.size - 1
-                                )
-                            )
-                        }\n" +
+            "This podcast has ${episodes.size} episodes.\n" +
+            episodes.ifNotEmpty {
+                "${if (it.size > 10) "First 10 " else ""} Episodes:\n" +
+                        "${EpisodeList(it.episodes.subList(0, if (it.size > 10) 10 else it.size - 1))}\n" +
                         "Show Link:       \t\t\t\t\t$link"
-            } else {
-                ""
             }
 
     fun isEmpty() =
