@@ -111,7 +111,7 @@ data class CommandList(
                         "Showing help for ${commandList["queue-add"]} command:\n" +
                         "${commandList["queue-add"]} lets you add songs, albums and playlists to the end of the song queue.\n" +
                         "You can also pass in a link to an artist, which will result in the artist's top tracks getting added to the queue.\n" +
-                        "Instead of using links, you can search like with the ${commandList["sp-search"]}, ${commandList["yt-search"]} and ${commandList["sc-search"]} commands,\n" +
+                        "Instead of using links, you can search like with the ${commandList["search"]} command,\n" +
                         "but the first search result will be automatically added to the queue.\n" +
                         "Counting starts from 0, so the first song is at position 0, second is at 1 and so on.\n" +
                         "You can add options either before or after song link(s).\n" +
@@ -134,7 +134,7 @@ data class CommandList(
                         "Showing help for ${commandList["queue-playnext"]} command:\n" +
                         "${commandList["queue-playnext"]} lets you add songs, albums and playlists to the start of the song queue.\n" +
                         "You can also pass in a link to an artist, which will result in the artist's top tracks getting added to the queue.\n" +
-                        "Instead of using links, you can search like with the ${commandList["sp-search"]}, ${commandList["yt-search"]} and ${commandList["sc-search"]} commands,\n" +
+                        "Instead of using links, you can search like with the ${commandList["search"]} command,\n" +
                         "but the first search result will be automatically added to the queue.\n" +
                         "Counting starts from 0, so the first song is at position 0, second is at 1 and so on.\n" +
                         "You can add options either before or after song link(s).\n" +
