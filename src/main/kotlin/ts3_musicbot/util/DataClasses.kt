@@ -252,6 +252,8 @@ data class Albums(val albums: List<Album> = emptyList()) {
 }
 
 data class TrackList(val trackList: List<Track> = emptyList()) {
+    val size = trackList.size
+
     override fun toString(): String {
         val strBuilder = StringBuilder()
         if (trackList.isNotEmpty()) {
@@ -267,6 +269,8 @@ data class TrackList(val trackList: List<Track> = emptyList()) {
         }
         return strBuilder.toString()
     }
+
+    fun shuffled() = TrackList(trackList.shuffled())
 
     fun isEmpty() = trackList.isEmpty()
     fun isNotEmpty() = trackList.isNotEmpty()

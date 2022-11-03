@@ -19,7 +19,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
 
-    implementation("org.json:json:20220320")
+    implementation("org.json:json:20220924")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.6.3-native-mt")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.6.3-native-mt")
     implementation("com.github.bettehem:ts3j:master-SNAPSHOT")

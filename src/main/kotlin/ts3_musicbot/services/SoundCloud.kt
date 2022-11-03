@@ -359,7 +359,7 @@ class SoundCloud {
         return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
     }
 
-    suspend fun getPlaylist(link: Link): Playlist {
+    suspend fun fetchPlaylist(link: Link): Playlist {
         lateinit var playlist: Playlist
         fun parsePlaylistData(playlistData: JSONObject): Playlist {
             return Playlist(
@@ -1362,6 +1362,7 @@ class SoundCloud {
                                 try {
                                     val data = JSONObject(typeData.data.data)
                                     type = when (val kind = data.getString("kind").uppercase()) {
+                                        //if LinkType is PLAYLIST, check if it is also an album.
                                         "PLAYLIST" -> {
                                             if (data.getBoolean("is_album"))
                                                 LinkType.ALBUM
@@ -1370,6 +1371,7 @@ class SoundCloud {
                                         }
 
                                         "USER" -> {
+                                            //if LinkType is USER, check if it is also an artist.
                                             if (data.getInt("track_count") > 0)
                                                 LinkType.ARTIST
                                             else

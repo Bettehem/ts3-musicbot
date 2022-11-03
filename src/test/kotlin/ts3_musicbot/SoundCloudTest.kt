@@ -58,7 +58,7 @@ class SoundCloudTest {
         runBlocking(IO) {
             //SoundCloud link to playlist: jeesjees
             val testLink = Link("https://soundcloud.com/bettehem/sets/jeesjees")
-            val playlist = soundCloud.getPlaylist(testLink)
+            val playlist = soundCloud.fetchPlaylist(testLink)
             assertEquals("jeesjees", playlist.name.name)
             assertEquals("Just chill out..", playlist.description.text)
         }
