@@ -48,7 +48,7 @@ class ChatReader(
             is OfficialTSClient -> {
                 when (client.channelFile.extension) {
                     "txt" -> {
-                        text.replace("(\\[/?URL]|,(\$|\\s))".toRegex(), "")
+                        text.replace("\\[/?URL]|,(\$|\\s)".toRegex(), "")
                     }
 
                     else -> {
@@ -58,7 +58,12 @@ class ChatReader(
                 }
             }
 
-            else -> text
+            is TeamSpeak -> text.replace("\\[/?URL]|,(\$|\\s)".toRegex(), "")
+
+            else -> {
+                println("Couldn't remove tags!\n$client is not supported!")
+                text
+            }
         }
     }
 

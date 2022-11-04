@@ -58,7 +58,7 @@ class TeamSpeak(
      * Disconnect from current server
      */
     fun disconnect() {
-        client.disconnect()
+        client.disconnect("Disconnecting")
     }
 
     private fun encode(message: String): String {
@@ -168,7 +168,7 @@ class TeamSpeak(
      * @param message the message to send
      */
     fun sendMsgToChannel(message: String) {
-        val tsCharLimit = 500
+        val tsCharLimit = 8192
 
         /**
          * Send a message to the current TeamSpeak channel's chat via the official client.
@@ -247,9 +247,9 @@ class TeamSpeak(
 
         var msg = message
         while (true) {
-            //add an empty line to the start of the message if there isn't one already.
-            if (msg.lines().size > 1 && !msg.startsWith("\n"))
-                msg = "\n$msg"
+            //If msg has more tha one line, add an empty line to the start of the message if there isn't one already.
+            if (msg.lines().size > 1)
+                msg = msg.replace("^\n?".toRegex(), ":\n")
             val split = splitMessage(msg)
             sendTeamSpeakMessage(split.first)
             val escapedLength = split.second.substring(
@@ -263,7 +263,7 @@ class TeamSpeak(
                 msg = split.second
             } else {
                 if (split.second.isNotEmpty()) {
-                    sendTeamSpeakMessage(split.second)
+                    sendTeamSpeakMessage(split.second.replace("^\n".toRegex(), ":\n"))
                 }
                 break
             }
