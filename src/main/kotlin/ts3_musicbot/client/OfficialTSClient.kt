@@ -196,7 +196,7 @@ class OfficialTSClient(
                 ignoreOutput = true,
                 command = "teamspeak3 -nosingleinstance" +
                         (if (settings.serverAddress.isNotEmpty()) " \"ts3server://${settings.serverAddress}" else "") +
-                        "?port=${settings.serverPassword}" +
+                        "?port=${settings.serverPort}" +
                         "&nickname=${
                             withContext(Dispatchers.IO) {
                                 URLEncoder.encode(settings.nickname, Charsets.UTF_8.toString())
