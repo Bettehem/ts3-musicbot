@@ -1,0 +1,11 @@
+Usage: servergroupclientlist sgid={groupID} [-names]
+
+Displays the IDs of all clients currently residing in the server group 
+specified with sgid. If you're using the -names option, the output will 
+also contain the last known nickname and the unique identifier of the 
+clients.
+
+Example:
+   servergroupclientlist sgid=16
+   cldbid=7|cldbid=8|cldbid=9|cldbid=11|cldbid=13|cldbid=16|cldbid=18
+   error id=0 msg=ok

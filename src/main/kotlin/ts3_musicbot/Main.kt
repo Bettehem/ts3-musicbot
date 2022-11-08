@@ -135,60 +135,74 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             print(helpMessage)
                             exitProcess(0)
                         }
+
                         "-a", "--apikey" -> {
                             //"if (args.size >= argPos +1)" is a safe check
                             //in case a user provides a flag, but no argument
                             if (args.size >= argPos + 1)
                                 apiKey = args[argPos + 1]
                         }
+
                         "-s", "--serveraddress" -> {
                             if (args.size >= argPos + 1)
                                 serverAddress = args[argPos + 1]
                         }
+
                         "-p", "--serverport" -> {
                             if (args.size >= argPos + 1)
                                 serverPort = args[argPos + 1].toInt()
                         }
+
                         "-P", "--serverpassword" -> {
                             if (args.size >= argPos + 1)
                                 serverPassword = args[argPos + 1]
                         }
+
                         "-c", "--channelname" -> {
                             if (args.size >= argPos + 1)
                                 channelName = args[argPos + 1]
                         }
+
                         "--channelpassword" -> {
                             if (args.size >= argPos + 1)
                                 channelPassword = args[argPos + 1]
                         }
+
                         "-C", "--channelfile" -> {
                             if (args.size >= argPos + 1)
                                 channelFilePath = args[argPos + 1]
                         }
+
                         "-n", "--nickname" -> {
                             if (args.size >= argPos + 1)
                                 nickname = args[argPos + 1]
                         }
+
                         "-m", "--market" -> {
                             if (args.size >= argPos + 1)
                                 market = args[argPos + 1]
                         }
+
                         "--spotify" -> {
                             if (args.size >= argPos + 1)
                                 spotifyPlayer = args[argPos + 1]
                         }
+
                         "--config" -> {
                             if (args.size >= argPos + 1)
                                 configFile = args[argPos + 1]
                         }
+
                         "--command-config" -> {
                             if (args.size >= argPos + 1)
                                 commandConfig = args[argPos + 1]
                         }
+
                         "--use-internal-tsclient" -> {
                             if (args.size >= argPos + 1)
                                 useOfficialTsClient = false
                         }
+
                         "--mpv-volume" -> {
                             if (args.size >= argPos + 1)
                                 mpvVolume = args[argPos + 1].toInt()
@@ -227,7 +241,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     println("Using ${botSettings.nickname} as the bot\'s nickname.")
                     officialTSClient = OfficialTSClient(botSettings)
                     CoroutineScope(IO).launch {
-                        if (officialTSClient.startTeamSpeak()) {
+                        if (!File("${officialTSClient.tsClientDirPath}/settings.db").exists())
+                            officialTSClient.exportTeamSpeakSettings()
+
+                        if (officialTSClient.startTeamSpeak(true)) {
                             officialTSClient.joinChannel()
                             chatReader = ChatReader(
                                 officialTSClient,
@@ -255,7 +272,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                                 console.startConsole()
                             } else print("Error: Bot wasn't able start reading the chat!")
                         } else {
-                            println("Error!\nOptions -a and -s are required. See -h or --help for more information")
+                            println("Error!\nOption -s is required. See -h or --help for more information")
                             exitProcess(0)
                         }
                     }
@@ -358,16 +375,19 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             val port = line.substringAfter("=").replace(" ", "")
                             settings.serverPort = if (port.isNotEmpty()) port.toInt() else settings.serverPort
                         }
+
                         "SERVER_PASSWORD" -> settings.serverPassword = line.substringAfter("=")
                         "CHANNEL_NAME" -> settings.channelName = line.substringAfter("=")
                         "CHANNEL_PASSWORD" -> settings.channelPassword = line.substringAfter("=")
                         "CHANNEL_FILE_PATH" -> settings.channelFilePath =
                             line.substringAfter("=").substringBeforeLast(" ")
+
                         "NICKNAME" -> settings.nickname = line.substringAfter("=").replace("\\s+$".toRegex(), "")
                         "MARKET" -> settings.market = line.substringAfter("=").replace(" ", "")
                         "SPOTIFY_PLAYER" -> settings.spotifyPlayer = line.substringAfter("=").replace(" ", "")
                         "USE_OFFICIAL_TSCLIENT" -> settings.useOfficialTsClient =
                             line.substringAfter("=").replace(" ", "").toBoolean()
+
                         "MPV_VOLUME" -> settings.mpvVolume = line.substringAfter("=").replace(" ", "").toInt()
                     }
                 }
@@ -461,6 +481,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         serverPasswordEditText.text = serverPasswordVisibleEditText.text
                     }
                 }
+
                 showAdvancedSettingsRadioButton -> {
                     showAdvancedSettingsRadioButton.isSelected = true
                     hideAdvancedSettingsRadioButton.isSelected = false
@@ -766,11 +787,13 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             ncspotRadioButton.isSelected = false
                             spotifydRadioButton.isSelected = false
                         }
+
                         "ncspot" -> {
                             spotifyRadioButton.isSelected = false
                             ncspotRadioButton.isSelected = true
                             spotifydRadioButton.isSelected = false
                         }
+
                         "spotifyd" -> {
                             spotifyRadioButton.isSelected = false
                             ncspotRadioButton.isSelected = false
@@ -796,7 +819,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 if (settings.useOfficialTsClient) {
                     officialTSClient = OfficialTSClient(settings)
                     CoroutineScope(IO).launch {
-                        if (officialTSClient.startTeamSpeak()) {
+                        if (!File("${officialTSClient.tsClientDirPath}/settings.db").exists())
+                            officialTSClient.exportTeamSpeakSettings()
+
+                        if (officialTSClient.startTeamSpeak(true)) {
                             statusTextView.text = "Status: Connected."
                             startBotButton.isManaged = false
                             startBotButton.isVisible = false
@@ -836,7 +862,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             }
                         } else {
                             statusTextView.text =
-                                "Error!\nYou need to provide at least the api key and server address for the bot."
+                                "Error!\nYou need to provide at least the server address where the bot should connect to."
                             println("Error!\nOptions -a, -s and -n are required. See -h or --help for more information")
                         }
                     }

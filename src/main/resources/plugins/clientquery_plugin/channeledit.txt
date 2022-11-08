@@ -1,0 +1,7 @@
+Usage: channeledit cid={channelID} [channel_properties...]
+
+Changes a channels configuration using given properties.
+
+Example:
+   channeledit cid=15 channel_codec_quality=3 channel_description=My\stext
+   error id=0 msg=ok

@@ -1,0 +1,7 @@
+Usage: auth apikey={string}
+
+Authenticates connecting application with API key of user.
+
+Example:
+   auth apikey=AAAA-BBBB-CCCC-DDDD-EEEE
+   error id=0 msg=ok

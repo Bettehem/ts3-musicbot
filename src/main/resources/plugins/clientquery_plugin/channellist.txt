@@ -1,0 +1,10 @@
+Usage: channellist [-topic] [-flags] [-voice] [-icon] [-limits]
+
+Displays a list of channels on a server you are connected to including their
+ID, order, name, etc. The output can be modified using several command options.
+
+Example:
+   channellist -topic
+   cid=23 pid=0 channel_order=0 channel_name=Default\/Channel
+   channel_topic=Default\sChannel\shas\sno\stopic channel_flag_are_subscribed=0
+   error id=0 msg=ok

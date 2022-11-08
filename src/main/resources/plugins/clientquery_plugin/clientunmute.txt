@@ -1,0 +1,7 @@
+Usage: clientunmute clid={clientID1}...
+
+Unmutes one or more clients specified with clid.
+
+Example:
+   clientunmute clid=5|clid=6
+   error id=0 msg=ok

@@ -1,0 +1,8 @@
+Usage: serverconnectionhandlerlist
+
+Displays a list of all currently active server connection handlers.
+
+Example:
+   serverconnectionhandlerlist
+   schandlerid=2|schandlerid=3|schandlerid=4
+   error id=0 msg=ok

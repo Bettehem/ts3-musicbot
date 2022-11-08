@@ -1,0 +1,15 @@
+Usage: ftinitupload clientftfid={clientFileTransferID} name={filePath} 
+       cid={channelID} cpw={channelPassword} size={fileSize} overwrite={1|0} 
+	     resume={1|0}
+
+Initializes a file transfer upload. clientftfid is an arbitrary ID to identify 
+the file transfer on client-side. On success, the server generates a new ftkey 
+which is required to start uploading the file through TeamSpeak 3's file 
+transfer interface.
+
+Example:
+   ftinitupload clientftfid=1 name=\/image.iso cid=5 cpw= size=673460224 
+   overwrite=1 resume=0
+   clientftfid=1 serverftfid=6 ftkey=itRNdsIOvcBiBg\/Xj4Ge51ZSrsShHuid 
+   port=30033 seekpos=0
+   error id=0 msg=ok

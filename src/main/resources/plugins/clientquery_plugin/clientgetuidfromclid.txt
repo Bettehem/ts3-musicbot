@@ -1,0 +1,9 @@
+Usage: clientgetuidfromclid clid={clientID}
+
+Displays the unique identifier and nickname associated with the client
+specified by the clid parameter.
+
+Example:
+   clientgetuidfromclid clid=7
+   notifyclientuidfromclid schandlerid=5 clid=7 cluid=Fp430hbE43dHtZklxfiHkWJeQBg= nickname=TheInvisibleMan
+   error id=0 msg=ok

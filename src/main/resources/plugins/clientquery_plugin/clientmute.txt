@@ -1,0 +1,8 @@
+Usage: clientmute clid={clientID1}...
+
+Mutes one or more clients specified with clid. Also adds the specified client
+to the FriendFoe list to make sure this mute is permanent...
+
+Example:
+   clientmute clid=5|clid=6
+   error id=0 msg=ok

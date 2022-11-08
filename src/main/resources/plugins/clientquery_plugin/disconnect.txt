@@ -1,0 +1,7 @@
+Usage: disconnect [msg={msg}]
+
+Connects from a server on the currently selected connection handler.
+
+Example:
+   disconnect msg=Bye!
+   error id=0 msg=ok

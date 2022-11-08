@@ -1,16 +1,22 @@
 package ts3_musicbot.client
 
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import ts3_musicbot.util.BotSettings
 import ts3_musicbot.util.CommandRunner
 import java.io.File
+import java.io.FileOutputStream
 import java.net.URLEncoder
+import kotlin.properties.Delegates
+import kotlin.system.exitProcess
 
 class OfficialTSClient(
     private val settings: BotSettings
 ) {
+    val tsClientDirPath = "${System.getProperty("user.home")}/.ts3client"
     lateinit var channelFile: File
     lateinit var serverName: String
     private val commandRunner = CommandRunner()
@@ -174,44 +180,54 @@ class OfficialTSClient(
             .substringAfter("path=")))
 
     /**
+     * Start the TeamSpeak Client
+     * @param connectToServer Set to true if you want to connect to the server too.
      * @return returns true if starting teamspeak is successful, false if requirements aren't met
      */
-    suspend fun startTeamSpeak(): Boolean {
-        if (settings.apiKey.isNotEmpty() && settings.serverAddress.isNotEmpty()) {
+    suspend fun startTeamSpeak(connectToServer: Boolean): Boolean {
+        if (connectToServer && settings.apiKey.isEmpty())
+            settings.apiKey = getApiKey()
+
+        if (settings.serverAddress.isNotEmpty()) {
             /**
              * get the current TeamSpeak server's name
              * @return returns current server name when connected and empty string if not
              */
             fun getVirtualServerName(): String {
                 val query = clientQuery("servervariable virtualserver_name").lines()
-                val name = if (query.any { it.startsWith("virtualserver_name=") }) {
+                return if (query.any { it.startsWith("virtualserver_name=") }) {
                     decode(query.first { it.startsWith("virtualserver_name=") }.substringAfter("virtualserver_name="))
                 } else ""
-                return name
             }
 
 
             //start teamspeak
             commandRunner.runCommand(
                 ignoreOutput = true,
-                command = "teamspeak3 -nosingleinstance" +
-                        (if (settings.serverAddress.isNotEmpty()) " \"ts3server://${settings.serverAddress}" else "") +
-                        "?port=${settings.serverPort}" +
-                        "&nickname=${
-                            withContext(Dispatchers.IO) {
-                                URLEncoder.encode(settings.nickname, Charsets.UTF_8.toString())
-                            }.replace("+", "%20")
-                        }" +
-                        (if ((settings.serverPassword.isNotEmpty()))
-                            "&password=${
-                                withContext(Dispatchers.IO) {
-                                    URLEncoder.encode(
-                                        settings.serverPassword,
-                                        Charsets.UTF_8.toString().replace("+", "%20")
-                                    )
-                                }
-                            }"
-                        else "") + "\" &"
+                command = "xvfb-run teamspeak3 -nosingleinstance " +
+                        (if (connectToServer)
+                            " \"" +
+                                    (if (settings.serverAddress.isNotEmpty()) "ts3server://${settings.serverAddress}" else "") +
+                                    "?port=${settings.serverPort}" +
+                                    "&nickname=${
+                                        withContext(IO) {
+                                            URLEncoder.encode(settings.nickname, Charsets.UTF_8.toString())
+                                        }.replace("+", "%20")
+                                    }" +
+                                    (if ((settings.serverPassword.isNotEmpty()))
+                                        "&password=${
+                                            withContext(IO) {
+                                                URLEncoder.encode(
+                                                    settings.serverPassword,
+                                                    Charsets.UTF_8.toString().replace("+", "%20")
+                                                )
+                                            }
+                                        }"
+                                    else "") +
+                                    "\""
+                        else "")
+                        + "&"
+
             )
             delay(1000)
             //wait for teamspeak to start
@@ -219,19 +235,205 @@ class OfficialTSClient(
                     .first.outputText.contains("ts3client_linux".toRegex())
             ) {
                 println("Waiting for TeamSpeak process to start...")
-            }
-            while (getVirtualServerName().isEmpty()) {
-                println("Waiting for TeamSpeak to connect to server...")
                 delay(1000)
             }
-            println("Getting server name...")
-            serverName = getVirtualServerName()
-            println("Server name: $serverName")
+            if (connectToServer) {
+                while (getVirtualServerName().isEmpty()) {
+                    println("Waiting for TeamSpeak to connect to server...")
+                    delay(1000)
+                }
+                println("Getting server name...")
+                serverName = getVirtualServerName()
+                println("Server name: $serverName")
+                audioSetup()
+            }
             delay(1000)
+            println("TeamSpeak is ready.")
             return true
         } else {
             return false
         }
+    }
+
+    private suspend fun getApiKey(): String {
+        println("Getting ClientQuery api key from $tsClientDirPath/clientquery.ini")
+        val clientQueryIni = File("$tsClientDirPath/clientquery.ini")
+        while (!clientQueryIni.exists()) {
+            println("ClientQuery file doesn't exist!\nStarting TeamSpeak client to generate the file...")
+            stopTeamSpeak()
+            startTeamSpeak(false)
+        }
+        stopTeamSpeak()
+        return clientQueryIni.readLines().first { it.startsWith("api_key=") }.substringAfter("=")
+    }
+
+    suspend fun exportTeamSpeakSettings() {
+        val tsClientDir = File(tsClientDirPath)
+        while (!tsClientDir.isDirectory)
+            tsClientDir.mkdir()
+
+        suspend fun exportFile(filePath: String) {
+            println("Exporting $filePath to $tsClientDirPath")
+            val data = javaClass.classLoader.getResource(filePath)
+            if (data != null) {
+                val outputFile = File("$tsClientDirPath/$filePath")
+                withContext(IO) {
+                    val outputStream = FileOutputStream(outputFile)
+                    val inputData = data.readBytes()
+                    outputStream.write(inputData)
+                    outputStream.close()
+                }
+            }
+        }
+
+        File("$tsClientDirPath/cache").mkdir()
+        File("$tsClientDirPath/plugins").mkdir()
+        File("$tsClientDirPath/plugins/clientquery_plugin").mkdir()
+
+
+        exportFile("cache/license_5_en.html")
+        println(
+            "By continuing to use the Official TeamSpeak Client,\n" +
+                    "you must accept the license located at $tsClientDirPath/cache/license_5_en.html\n"
+        )
+        var licenseAccepted by Delegates.notNull<Boolean>()
+        while (true) {
+            when (System.console().readLine("Do you accept the license? [y/n]: ").lowercase()) {
+                "y", "yes" -> {
+                    licenseAccepted = true
+                    break
+                }
+
+                "n", "no" -> {
+                    licenseAccepted = false
+                    break
+                }
+            }
+        }
+        if (!licenseAccepted) {
+            println("License not Accepted! Exiting.")
+            exitProcess(1)
+        }
+
+        exportFile("addons.ini")
+        exportFile("settings.db")
+
+        exportFile("plugins/clientquery_plugin/auth.txt")
+        exportFile("plugins/clientquery_plugin/banadd.txt")
+        exportFile("plugins/clientquery_plugin/banclient.txt")
+        exportFile("plugins/clientquery_plugin/bandel.txt")
+        exportFile("plugins/clientquery_plugin/bandelall.txt")
+        exportFile("plugins/clientquery_plugin/banlist.txt")
+        exportFile("plugins/clientquery_plugin/channeladdperm.txt")
+        exportFile("plugins/clientquery_plugin/channelclientaddperm.txt")
+        exportFile("plugins/clientquery_plugin/channelclientdelperm.txt")
+        exportFile("plugins/clientquery_plugin/channelclientlist.txt")
+        exportFile("plugins/clientquery_plugin/channelclientpermlist.txt")
+        exportFile("plugins/clientquery_plugin/channelconnectinfo.txt")
+        exportFile("plugins/clientquery_plugin/channelcreate.txt")
+        exportFile("plugins/clientquery_plugin/channeldelete.txt")
+        exportFile("plugins/clientquery_plugin/channeldelperm.txt")
+        exportFile("plugins/clientquery_plugin/channeledit.txt")
+        exportFile("plugins/clientquery_plugin/channelgroupadd.txt")
+        exportFile("plugins/clientquery_plugin/channelgroupaddperm.txt")
+        exportFile("plugins/clientquery_plugin/channelgroupclientlist.txt")
+        exportFile("plugins/clientquery_plugin/channelgroupdel.txt")
+        exportFile("plugins/clientquery_plugin/channelgroupdelperm.txt")
+        exportFile("plugins/clientquery_plugin/channelgrouplist.txt")
+        exportFile("plugins/clientquery_plugin/channelgrouppermlist.txt")
+        exportFile("plugins/clientquery_plugin/channellist.txt")
+        exportFile("plugins/clientquery_plugin/channelmove.txt")
+        exportFile("plugins/clientquery_plugin/channelpermlist.txt")
+        exportFile("plugins/clientquery_plugin/channelvariable.txt")
+        exportFile("plugins/clientquery_plugin/clientaddperm.txt")
+        exportFile("plugins/clientquery_plugin/clientdbdelete.txt")
+        exportFile("plugins/clientquery_plugin/clientdbedit.txt")
+        exportFile("plugins/clientquery_plugin/clientdblist.txt")
+        exportFile("plugins/clientquery_plugin/clientdelperm.txt")
+        exportFile("plugins/clientquery_plugin/clientgetdbidfromuid.txt")
+        exportFile("plugins/clientquery_plugin/clientgetids.txt")
+        exportFile("plugins/clientquery_plugin/clientgetnamefromdbid.txt")
+        exportFile("plugins/clientquery_plugin/clientgetnamefromuid.txt")
+        exportFile("plugins/clientquery_plugin/clientgetuidfromclid.txt")
+        exportFile("plugins/clientquery_plugin/clientkick.txt")
+        exportFile("plugins/clientquery_plugin/clientlist.txt")
+        exportFile("plugins/clientquery_plugin/clientmove.txt")
+        exportFile("plugins/clientquery_plugin/clientmute.txt")
+        exportFile("plugins/clientquery_plugin/clientnotifyregister.txt")
+        exportFile("plugins/clientquery_plugin/clientnotifyunregister.txt")
+        exportFile("plugins/clientquery_plugin/clientpermlist.txt")
+        exportFile("plugins/clientquery_plugin/clientpoke.txt")
+        exportFile("plugins/clientquery_plugin/clientunmute.txt")
+        exportFile("plugins/clientquery_plugin/clientupdate.txt")
+        exportFile("plugins/clientquery_plugin/clientvariable.txt")
+        exportFile("plugins/clientquery_plugin/complainadd.txt")
+        exportFile("plugins/clientquery_plugin/complaindel.txt")
+        exportFile("plugins/clientquery_plugin/complaindelall.txt")
+        exportFile("plugins/clientquery_plugin/complainlist.txt")
+        exportFile("plugins/clientquery_plugin/connect.txt")
+        exportFile("plugins/clientquery_plugin/currentschandlerid.txt")
+        exportFile("plugins/clientquery_plugin/disconnect.txt")
+        exportFile("plugins/clientquery_plugin/ftcreatedir.txt")
+        exportFile("plugins/clientquery_plugin/ftdeletefile.txt")
+        exportFile("plugins/clientquery_plugin/ftgetfileinfo.txt")
+        exportFile("plugins/clientquery_plugin/ftgetfilelist.txt")
+        exportFile("plugins/clientquery_plugin/ftinitdownload.txt")
+        exportFile("plugins/clientquery_plugin/ftinitupload.txt")
+        exportFile("plugins/clientquery_plugin/ftlist.txt")
+        exportFile("plugins/clientquery_plugin/ftrenamefile.txt")
+        exportFile("plugins/clientquery_plugin/ftstop.txt")
+        exportFile("plugins/clientquery_plugin/hashpassword.txt")
+        exportFile("plugins/clientquery_plugin/help.txt")
+        exportFile("plugins/clientquery_plugin/messageadd.txt")
+        exportFile("plugins/clientquery_plugin/messagedel.txt")
+        exportFile("plugins/clientquery_plugin/messageget.txt")
+        exportFile("plugins/clientquery_plugin/messagelist.txt")
+        exportFile("plugins/clientquery_plugin/messageupdateflag.txt")
+        exportFile("plugins/clientquery_plugin/permoverview.txt")
+        exportFile("plugins/clientquery_plugin/quit.txt")
+        exportFile("plugins/clientquery_plugin/README.txt")
+        exportFile("plugins/clientquery_plugin/sendtextmessage.txt")
+        exportFile("plugins/clientquery_plugin/serverconnectinfo.txt")
+        exportFile("plugins/clientquery_plugin/serverconnectionhandlerlist.txt")
+        exportFile("plugins/clientquery_plugin/servergroupadd.txt")
+        exportFile("plugins/clientquery_plugin/servergroupaddclient.txt")
+        exportFile("plugins/clientquery_plugin/servergroupaddperm.txt")
+        exportFile("plugins/clientquery_plugin/servergroupclientlist.txt")
+        exportFile("plugins/clientquery_plugin/servergroupdel.txt")
+        exportFile("plugins/clientquery_plugin/servergroupdelclient.txt")
+        exportFile("plugins/clientquery_plugin/servergroupdelperm.txt")
+        exportFile("plugins/clientquery_plugin/servergrouplist.txt")
+        exportFile("plugins/clientquery_plugin/servergrouppermlist.txt")
+        exportFile("plugins/clientquery_plugin/servergroupsbyclientid.txt")
+        exportFile("plugins/clientquery_plugin/servervariable.txt")
+        exportFile("plugins/clientquery_plugin/setclientchannelgroup.txt")
+        exportFile("plugins/clientquery_plugin/tokenadd.txt")
+        exportFile("plugins/clientquery_plugin/tokendelete.txt")
+        exportFile("plugins/clientquery_plugin/tokenlist.txt")
+        exportFile("plugins/clientquery_plugin/tokenuse.txt")
+        exportFile("plugins/clientquery_plugin/use.txt")
+        exportFile("plugins/clientquery_plugin/verifychannelpassword.txt")
+        exportFile("plugins/clientquery_plugin/verifyserverpassword.txt")
+        exportFile("plugins/clientquery_plugin/whoami.txt")
+        exportFile("plugins/libclientquery_plugin_linux_amd64.so")
+    }
+
+    /**
+     * First disconnects from the server and then closes the client
+     */
+    suspend fun stopTeamSpeak() {
+        clientQuery("disconnect")
+        delay(200)
+        commandRunner.runCommand("pkill -9 ts3client_linux", printCommand = false, printOutput = false)
+    }
+
+    /**
+     * restart teamspeak client and reconnect to current server
+     * @return returns true if starting teamspeak is successful
+     */
+    suspend fun restartClient(): Boolean {
+        stopTeamSpeak()
+        return startTeamSpeak(true)
     }
 
     /**
@@ -239,7 +441,7 @@ class OfficialTSClient(
      * This should be called always when switching channels or making a new connection
      * @return returns the channel file
      */
-    private fun updateChannelFile(){
+    private fun updateChannelFile() {
         var file = File("")
         if (settings.channelFilePath.isEmpty()) {
             //get a path to the channel.txt file
@@ -375,5 +577,48 @@ class OfficialTSClient(
                 break
             }
         }
+    }
+
+    private fun audioSetup() {
+        println("Setting up audio.")
+        //Mute teamspeak output
+        val sinkInputs = JSONArray(
+            commandRunner.runCommand(
+                "pactl -f json list sink-inputs",
+                printOutput = false, printCommand = false
+            ).first.outputText
+        )
+        val tsSinkInputId = sinkInputs.first {
+            it as JSONObject
+            it.getJSONObject("properties").getString("application.name") == "TeamSpeak3"
+        }.let {
+            it as JSONObject
+            it.getInt("index")
+        }
+        commandRunner.runCommand(
+            "pactl set-sink-input-mute $tsSinkInputId 1",
+            printCommand = false,
+            printOutput = false
+        )
+
+        //set teamspeak to monitor output from default sink
+        val tsSourceOutputs = JSONArray(
+            commandRunner.runCommand(
+                "pactl -f json list source-outputs",
+                printOutput = false, printCommand = false
+            ).first.outputText
+        )
+        val tsSourceOutputId = tsSourceOutputs.first {
+            it as JSONObject
+            it.getJSONObject("properties").getString("application.name") == "TeamSpeak3"
+        }.let {
+            it as JSONObject
+            it.getInt("index")
+        }
+        commandRunner.runCommand(
+            "pactl move-source-output $tsSourceOutputId \$(pactl get-default-sink).monitor",
+            printCommand = false, printOutput = false
+        )
+        println("Audio setup done.")
     }
 }

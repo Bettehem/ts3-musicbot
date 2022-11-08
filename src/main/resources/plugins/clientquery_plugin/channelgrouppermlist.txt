@@ -1,0 +1,9 @@
+Usage: channelgrouppermlist cgid={groupID} [-permsid]
+
+Displays a list of permissions assigned to the channel group specified 
+with cgid.
+
+Example:
+   channelgrouppermlist cgid=13
+   permid=8470 permvalue=1 permnegated=0 permskip=0|permid=8475 ...
+   error id=0 msg=ok

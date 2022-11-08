@@ -1,0 +1,23 @@
+Usage: clientupdate ident=value...
+
+Sets one or more values concerning your own client, and makes them available
+to other clients through the server where applicable. Available idents are:
+
+client_nickname:             set a new nickname
+client_away:                 0 or 1, set us away or back available
+client_away_message:         what away message to display when away
+client_input_muted:          0 or 1, mutes or unmutes microphone
+client_output_muted:         0 or 1, mutes or unmutes speakers/headphones
+client_input_deactivated:    0 or 1, same as input_muted, but invisible to
+                             other clients
+client_is_channel_commander: 0 or 1, sets or removes channel commander
+client_nickname_phonetic:    set your phonetic nickname
+client_flag_avatar:          set your avatar
+client_meta_data:            any string that is passed to all clients that
+                             have vision of you.
+client_default_token:        privilege key to be used for the next server
+                             connect
+
+Example:
+  clientupdate client_nickname=me~brb client_away=1
+  error id=0 msg=ok

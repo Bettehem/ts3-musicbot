@@ -1,0 +1,10 @@
+Usage: clientaddperm cldbid={clientDBID} ( permid={permID}|permsid={permName} 
+       permvalue={permValue} permskip={1|0} )...
+
+Adds a set of specified permissions to a client. Multiple permissions can be 
+added by providing the three parameters of each permission. A permission can 
+be specified by permid or permsid.
+
+Example:
+   clientaddperm cldbid=16 permsid=i_client_talk_power permvalue=5 permskip=1
+   error id=0 msg=ok
