@@ -241,7 +241,7 @@ class ChatReader(
                             }
 
                             //queue-add and queue-playnext command
-                            commandString.contains("^(${commandList.commandList["queue-add"]}|${commandList.commandList["queue-playnext"]})(\\s+-(s|(p\\s*[0-9]+)))*(\\s*(\\[URL])?((spotify:(user:\\S+:)?(track|album|playlist|show|episode|artist):\\S+)|(https?://\\S+)|((sp|spotify|yt|youtube|sc|soundcloud)\\s+(track|album|playlist|show|episode|artist|video|user)\\s+.+))(\\[/URL])?\\s*,?\\s*)+(\\s+-(s|(p\\s*[0-9]+)))*\$".toRegex()) -> {
+                            commandString.contains("^(${commandList.commandList["queue-add"]}|${commandList.commandList["queue-playnext"]})(\\s+-(r|s|(p\\s*[0-9]+)))*(\\s*(\\[URL])?((spotify:(user:\\S+:)?(track|album|playlist|show|episode|artist):\\S+)|(https?://\\S+)|((sp|spotify|yt|youtube|sc|soundcloud)\\s+(track|album|playlist|show|episode|artist|video|user)\\s+.+))(\\[/URL])?\\s*,?\\s*)+(\\s+-(r|s|(p\\s*[0-9]+)))*\$".toRegex()) -> {
                                 val trackAddedMsg = "Added track to queue."
                                 val trackNotPlayableMsg = "Track is not playable."
                                 val tracksAddedMsg = "Added tracks to queue."
@@ -256,6 +256,7 @@ class ChatReader(
                                     commandString.contains("^${commandList.commandList["queue-playnext"]}".toRegex())
                                 var shouldShuffle = false
                                 var hasCustomPosition = false
+                                var shouldReverse = false
                                 var customPosition = if (shouldPlayNext) 0 else null
                                 val links = ArrayList<Link>()
 
@@ -355,6 +356,8 @@ class ChatReader(
                                             }
                                         }
 
+                                        args[i].contentEquals("-r") -> shouldReverse = true
+
                                         args[i].contains("((\\[URL])?((https?://)?(open\\.spotify\\.com|soundcloud\\.com|((m|www)\\.)?youtu\\.?be(\\.com)?)).+(\\[/URL])?)|(spotify:(track|album|playlist|show|episode|artist):.+)".toRegex()) -> {
                                             //add links to ArrayList
                                             if (args[i].contains(",\\s*".toRegex()))
@@ -378,7 +381,8 @@ class ChatReader(
                                     if (trackCache.any { it.first.getId() == id }) {
                                         val tracks =
                                             filterList(trackCache.first { it.first.getId() == id }.second, link)
-                                        val trackList = if (shouldShuffle) tracks.shuffled() else tracks
+                                        var trackList = if (shouldReverse) tracks.reversed() else tracks
+                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
                                         val tracksAdded = songQueue.addAllToQueue(trackList, customPosition)
                                         val msg = if (tracksAdded) {
                                             if (trackList.size == 1) {
@@ -428,8 +432,8 @@ class ChatReader(
                                                         println("Album \"${albumTracks.trackList[0].album}\" has a total of ${albumTracks.size} tracks.\nAdding to queue...")
 
                                                         //add tracks to queue
-                                                        val trackList =
-                                                            if (shouldShuffle) albumTracks.shuffled() else albumTracks
+                                                        var trackList = if (shouldReverse) albumTracks.reversed() else albumTracks
+                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
                                                         val albumAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -448,8 +452,8 @@ class ChatReader(
                                                         )
                                                         println("Playlist has a total of ${playlistTracks.size} tracks.\nAdding to queue...")
                                                         //add tracks to queue
-                                                        val trackList =
-                                                            if (shouldShuffle) playlistTracks.shuffled() else playlistTracks
+                                                        var trackList = if (shouldReverse) playlistTracks.reversed() else playlistTracks
+                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
                                                         val playlistAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -467,8 +471,8 @@ class ChatReader(
                                                             spotify.fetchShow(showLink).episodes.toTrackList(),
                                                             showLink
                                                         )
-                                                        val trackList =
-                                                            if (shouldShuffle) episodes.shuffled() else episodes
+                                                        var trackList = if (shouldReverse) episodes.reversed() else episodes
+                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
                                                         val showAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -506,8 +510,8 @@ class ChatReader(
                                                             spotify.fetchArtist(artistLink).topTracks,
                                                             artistLink
                                                         )
-                                                        val trackList =
-                                                            if (shouldShuffle) topTracks.shuffled() else topTracks
+                                                        var trackList = if (shouldReverse) topTracks.reversed() else topTracks
+                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
                                                         val tracksAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -558,8 +562,8 @@ class ChatReader(
                                                             playlistLink
                                                         )
                                                         println("Playlist has a total of ${playlistTracks.trackList.size} tracks.\nAdding to queue...")
-                                                        val trackList =
-                                                            if (shouldShuffle) TrackList(playlistTracks.trackList.shuffled()) else playlistTracks
+                                                        var trackList = if (shouldReverse) playlistTracks.reversed() else playlistTracks
+                                                        trackList =  if (shouldShuffle) trackList.shuffled() else trackList
                                                         val playlistAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -602,8 +606,8 @@ class ChatReader(
                                                         //fetch playlist tracks
                                                         val playlistTracks =
                                                             filterList(soundCloud.fetchPlaylistTracks(link), link)
-                                                        val trackList =
-                                                            if (shouldShuffle) TrackList(playlistTracks.trackList.shuffled()) else playlistTracks
+                                                        var trackList = if (shouldReverse) playlistTracks.reversed() else playlistTracks
+                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
                                                         val playlistAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -617,8 +621,8 @@ class ChatReader(
                                                     LinkType.LIKES -> {
                                                         //fetch likes
                                                         val likes = filterList(soundCloud.fetchUserLikes(link), link)
-                                                        val trackList =
-                                                            if (shouldShuffle) TrackList(likes.trackList.shuffled()) else likes
+                                                        var trackList = if (shouldReverse) likes.reversed() else likes
+                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
                                                         val likesAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -635,8 +639,8 @@ class ChatReader(
                                                     LinkType.REPOSTS -> {
                                                         val reposts =
                                                             filterList(soundCloud.fetchUserReposts(link), link)
-                                                        val trackList =
-                                                            if (shouldShuffle) TrackList(reposts.trackList.shuffled()) else reposts
+                                                        var trackList = if (shouldReverse) reposts.reversed() else reposts
+                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
                                                         val repostsAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =

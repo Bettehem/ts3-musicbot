@@ -1,0 +1,8 @@
+Usage: complaindel tcldbid={targetClientDBID} fcldbid={fromClientDBID}
+
+Deletes the complaint about the client with database ID tcldbid submitted by 
+the client with database ID fcldbid from the server.
+
+Example:
+   complaindel tcldbid=3 fcldbid=4
+   error id=0 msg=ok

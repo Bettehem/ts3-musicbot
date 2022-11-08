@@ -1,0 +1,8 @@
+Usage: channeldelperm cid=123 permid={permID}|permsid={permName}...
+
+Removes a set of specified permissions from a channel. Multiple permissions 
+can be removed at once. A permission can be specified by permid or permsid.
+
+Example:
+   channeldelperm cid=16 permsid=i_icon_id|permsid=i_client_needed_talk_power
+   error id=0 msg=ok

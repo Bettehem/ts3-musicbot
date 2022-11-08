@@ -1,0 +1,15 @@
+Usage: banclient clid={clientID}|cldbid={clientDatabaseID}|uid={clientUID} \
+                 [time={timeInSeconds}] [banreason={text}]
+
+Bans the client specified with ID clid from the server. Please note that this 
+will create two separate ban rules for the targeted clients IP address and his 
+unique identifier.
+
+Note that banning via cldbid parameter requires a 3.0.1 server version.
+Note that banning via uid parameter requires a 3.0.2 server version.
+
+Example:
+   banclient clid=4 time=3600
+   banid=2
+   banid=3
+   error id=0 msg=ok

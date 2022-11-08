@@ -1,0 +1,101 @@
+TeamSpeak 3 Client :: ClientQuery
+(c) TeamSpeak Systems GmbH
+
+Command Overview:
+   help                        | read help files
+   quit                        | close connection
+   use                         | select server connection handler
+   auth                        | authenticate telnet connection with users API key
+
+   banadd                      | add a new ban rule to the server
+   banclient                   | ban a client from the server 
+   bandelall                   | delete all active ban rules
+   bandel                      | delete an active ban rule from the server
+   banlist                     | list all active ban rules
+   channeladdperm              | add a permission to a channel
+   channelclientaddperm        | add a channel-client permisison to a client and specified channel id
+   channelclientdelperm        | delete a channel-client permisison from a client and specified channel id
+   channelclientlist           | displays a list of clients that are in the channel specified by the cid parameter
+   channelclientpermlist       | list all assigned channel-client permisisons for a client and specified channel id
+   channelconnectinfo          | channel connect information
+   channelcreate               | create a channel
+   channeldelete               | delete a channel
+   channeldelperm              | delete a from a channel
+   channeledit                 | edit a channel
+   channelgroupadd             | create a channel group
+   channelgroupaddperm         | add a permission to a channel group
+   channelgroupclientlist      | list all assigned channel groups for the specified channel id
+   channelgroupdel             | delete a channel group
+   channelgroupdelperm         | delete a permission from a channel group
+   channelgrouplist            | list all available channel groups
+   channelgrouppermlist        | list all assigned permissions from a channel group
+   channellist                 | list of all channels
+   channelmove                 | assign a new parent channel to a channel
+   channelpermlist             | list all assigned permissions for a channel
+   channelvariable             | retrieve specific information about a channel
+   clientaddperm               | add a permission to a clientDBID
+   clientdbdelete              | delete a client from the server database
+   clientdbedit                | edit a clients properties identified by clientDBID
+   clientdblist                | list all clients stored in the server database
+   clientdelperm               | delete a permission from a clientDBID
+   clientgetdbidfromuid        | get the clientDBIDs for a certain client unique id
+   clientgetids                | get the clientIDs for a certain client unique id
+   clientgetnamefromdbid       | get the nickname from a client database id
+   clientgetnamefromuid        | get the nickname from a client unique id
+   clientgetuidfromclid        | get the unique id from a clientID
+   clientkick                  | kick a client
+   clientlist                  | list known clients
+   clientmove                  | move a client or switch channel ourself
+   clientmute                  | mute all voice data from a client
+   clientunmute                | unmute a previously muted client
+   clientnotifyregister        | register to receive client notifications
+   clientnotifyunregister      | unregister from receiving client notifications
+   clientpermlist              | list all assigned permissions from a clientDBID
+   clientpoke                  | poke a client
+   clientupdate                | set personal client variables, like your nickname
+   clientvariable              | retrieve specific information about a client
+   complainadd                 | submit a complaint about a clientDBID
+   complaindelall              | delete all complaints from a clientDBID
+   complaindel                 | delete a complaint from the server
+   complainlist                | list all complaints from a server or for a clientDBID
+   connect                     | connects to a server in current server tab
+   currentschandlerid          | server connection handler ID of current server tab
+   disconnect                  | disconnects from server in current server tab
+   ftcreatedir                 | create a new directory
+   ftdeletefile                | delete one or more files
+   ftgetfileinfo               | get informations about the specified file
+   ftgetfilelist               | list all files for the specified channel and filepath
+   ftinitdownload              | initialise a filetransfer download
+   ftinitupload                | initialise a filetransfer upload
+   ftlist                      | get a list of all file transfers currently running on the server  notifyfiletransferlist
+   ftrenamefile                | rename the specified file
+   ftstop                      | stop an running file transfer progress
+   hashpassword                | create a password hash
+   messageadd                  | send an offline message to a clientDBID
+   messagedel                  | delete an existing offline message from your inbox
+   messageget                  | display an existing offline message from your inbox   
+   messagelist                 | list all offline messages from your inbox
+   messageupdateflag           | mark or unmark an offline message as read
+   permoverview                | list all assigned permissons
+   sendtextmessage             | send a chat message
+   serverconnectinfo           | server connect information
+   serverconnectionhandlerlist | list available server connection handlers
+   servergroupaddclient        | add a client to a server group
+   servergroupadd              | create a server group
+   servergroupaddperm          | add a permission to a server group
+   servergroupclientlist       | list all client database ids from a server group
+   servergroupdelclient        | delete a client from a server group
+   servergroupdel              | delete a server group
+   servergroupdelperm          | delete a permission from a server group
+   servergrouplist             | get a list of server groups
+   servergrouppermlist         | list all assigned permission from a server group
+   servergroupsbyclientid      | get all assigned server groups from a clientDBID
+   servervariable              | retrieve specific information about a server
+   setclientchannelgroup       | assign a channel group to a client database id
+   tokenadd                    | add a token to a server- or channel group
+   tokendelete                 | delete an existing token from the server
+   tokenlist                   | lists all tokens available on the server
+   tokenuse                    | use a token to gain access to the server
+   verifychannelpassword       | check if we know the current password of a channel
+   verifyserverpassword        | check if we know the current server password
+   whoami                      | display information about ourself

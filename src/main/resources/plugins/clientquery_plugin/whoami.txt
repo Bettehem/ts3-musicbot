@@ -1,0 +1,12 @@
+Usage: whoami
+
+Retrieves information about ourself:
+- ClientID (if connected)
+- ChannelID of the channel we are in (if connected)
+
+If not connected, an error is returned.
+
+Example:
+   whoami
+   clid=56 cid=1
+   error id=0 msg=ok

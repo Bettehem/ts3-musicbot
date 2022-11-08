@@ -271,6 +271,7 @@ data class TrackList(val trackList: List<Track> = emptyList()) {
     }
 
     fun shuffled() = TrackList(trackList.shuffled())
+    fun reversed() = TrackList(trackList.reversed())
 
     fun isEmpty() = trackList.isEmpty()
     fun isNotEmpty() = trackList.isNotEmpty()

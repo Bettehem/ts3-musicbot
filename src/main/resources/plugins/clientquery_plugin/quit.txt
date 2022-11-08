@@ -1,0 +1,7 @@
+Usage: quit
+
+Closes the ClientQuery connection to the TeamSpeak 3 Client instance.
+
+Example:
+   quit
+   error id=0 msg=ok

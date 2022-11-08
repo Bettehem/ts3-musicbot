@@ -1,0 +1,7 @@
+Usage: clientdbedit cldbid={clientDBID} [client_properties...]
+
+Changes a clients settings using given properties.
+
+Example:
+   clientdbedit cldbid=56 client_description=Best\sguy\sever!
+   error id=0 msg=ok

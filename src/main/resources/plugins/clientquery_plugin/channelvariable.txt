@@ -1,0 +1,39 @@
+Usage: channelvariable ( cid={channelID} properties )...
+
+Retrieves channel variables from the client (no network usage). For each channel
+you can specify one or more properties that should be queried, and this whole
+block of channelID and properties can be repeated to get information about
+multiple channels with one call of channelvariable.
+
+Available properties are:
+channel_name
+channel_topic
+channel_description
+channel_codec
+channel_codec_quality
+channel_order
+channel_maxclients
+channel_maxfamilyclients
+channel_flag_permanent
+channel_flag_semi_permanent
+channel_flag_default
+channel_flag_password
+channel_codec_latency_factor
+channel_codec_is_unencrypted
+channel_flag_maxclients_unlimited
+channel_flag_maxfamilyclients_unlimited
+channel_flag_maxfamilyclients_inherited
+channel_flag_are_subscribed
+channel_needed_talk_power
+channel_forced_silence
+channel_name_phonetic
+channel_icon_id
+
+Example:
+   channelvariable cid=5 channel_topic channel_flag_permanent channel_codec
+   cid=5 channel_topic=123 channel_flag_permanent=1 channel_codec=1
+   error id=0 msg=ok
+
+   channelvariable cid=5 channel_codec_quality|cid=1 channel_codec_quality
+   cid=5 channel_codec_quality=7|cid=1 channel_codec_quality=10
+   error id=0 msg=ok

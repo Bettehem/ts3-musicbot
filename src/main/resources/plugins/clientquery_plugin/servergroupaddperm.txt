@@ -1,0 +1,11 @@
+Usage: servergroupaddperm sgid={groupID} ( permid={permID}|permsid={permName}
+       permvalue={permValue} permnegated={1|0} )...
+       permskip={1|0}...
+
+Adds a set of specified permissions to the server group specified with sgid. 
+Multiple permissions can be added by providing the four parameters of each 
+permission. A permission can be specified by permid or permsid.
+
+Example:
+   servergroupaddperm sgid=13 permsid=i_channel_join_power permvalue=50 permnegated=0 permskip=0|permsid=i_client_talk_power permvalue=75 permnegated=0 permskip=0
+   error id=0 msg=ok

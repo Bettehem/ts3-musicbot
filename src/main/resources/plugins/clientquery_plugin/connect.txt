@@ -1,0 +1,11 @@
+Usage: connect address={address} [password={password}] [nickname={nickname}]
+       [channel={channel}] [channel_pw={channel_pw}] [token={token}]
+
+
+Connects to a server on the currently selected connection handler. Note, that
+you should register for 'notifyconnectstatuschange' events to check wether or
+not the connection was established successfully.
+
+Example:
+   connect address=127.0.0.1 nickname=ClientQuery
+   error id=0 msg=ok

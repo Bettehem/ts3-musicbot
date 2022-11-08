@@ -1,0 +1,9 @@
+Usage: serverconnectinfo
+
+Get server connection information for the currently selected server connection
+handler.
+
+Example:
+   serverconnectinfo
+   ip=localhost port=9987 password=secret
+   error id=0 msg=ok

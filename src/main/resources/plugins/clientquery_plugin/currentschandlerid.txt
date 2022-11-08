@@ -1,0 +1,8 @@
+Usage: currentschandlerid
+
+Get server connection handler ID of current server tab.
+
+Example:
+   currentschandlerid
+   schandlerid=1
+   error id=0 msg=ok

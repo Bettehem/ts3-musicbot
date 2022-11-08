@@ -21,7 +21,7 @@ class Console(
         println("Enter command \"help\" for all commands.")
         loop@ while (true) {
             val userCommand = console.readLine("Command: ")
-            when (val command = userCommand.substringBefore(" ")) {
+            when (val command = userCommand.replace("\\s+.*$".toRegex(), "")) {
                 "help" -> {
                     println(
                         "\n\nTS3 MusicBot help:\n\n" +
@@ -32,17 +32,19 @@ class Console(
                                 "save-settings\t\t\t\tSaves current settings in to a config file.\n" +
                                 "clear\t\t\t\t\tClears the screen.\n" +
                                 "exit\t\t\t\t\tExits the program.\n" +
-                                "quit\t\t\t\t\tSame as exit\n" +
-                                "join-channel, jc <channel> <password>\tJoin a channel\n" +
-                                ""
+                                "quit\t\t\t\t\tSame as exit.\n" +
+                                "join-channel, jc <channel> <password>\tJoin a channel.\n" +
+                                "restart <ts/teamspeak>\t\tRestarts the teamspeak client.\n"
                     )
                 }
+
                 "say" -> {
                     when (teamSpeak) {
                         is TeamSpeak -> teamSpeak.sendMsgToChannel(userCommand.replace("^say\\s+".toRegex(), ""))
                         is OfficialTSClient -> teamSpeak.sendMsgToChannel(userCommand.replace("^say\\s+".toRegex(), ""))
                     }
                 }
+
                 "save-settings" -> consoleUpdateListener.onCommandIssued(command)
                 "clear" -> print("\u001b[H\u001b[2J")
                 "exit" -> exit(command)
@@ -57,6 +59,7 @@ class Console(
                                 else ""
                             )
                         }
+
                         is OfficialTSClient -> {
                             teamSpeak.joinChannel(
                                 userCommand.replace("(^\\S+\\s+|\\s+\\S+$)".toRegex(), ""),
@@ -67,6 +70,24 @@ class Console(
                         }
                     }
                 }
+
+                "restart" -> {
+                    when (userCommand.replace("$command\\s+".toRegex(), "").replace("\\s+.*$", "").lowercase()) {
+                        "ts", "teamspeak" -> {
+                            CoroutineScope(IO).launch {
+                                when (teamSpeak) {
+                                    is OfficialTSClient -> launch { teamSpeak.restartClient() }
+                                    is TeamSpeak -> launch { teamSpeak.reconnect() }
+                                }
+                            }
+                        }
+
+                        else -> {
+                            println("Specify either ts or teamspeak!")
+                        }
+                    }
+                }
+
                 "" -> continue@loop
                 else -> {
                     if (command.startsWith(commandList.commandPrefix) && !command.startsWith("${commandList.commandPrefix}say"))
@@ -87,17 +108,12 @@ class Console(
             val exitTeamSpeak = console.readLine("Close TeamSpeak? [Y/n]: ").lowercase()
             if (exitTeamSpeak.contentEquals("y") || exitTeamSpeak.contentEquals("yes") || exitTeamSpeak.contentEquals("")) {
                 confirmed = true
-                when (teamSpeak) {
-                    is TeamSpeak -> CoroutineScope(IO).launch {
-                        launch {
-                            teamSpeak.disconnect()
-                        }
-                        delay(1000)
+                CoroutineScope(IO).launch {
+                    when (teamSpeak) {
+                        is TeamSpeak -> launch { teamSpeak.disconnect() }
+                        is OfficialTSClient -> launch { teamSpeak.stopTeamSpeak() }
                     }
-                    is OfficialTSClient -> commandRunner.runCommand(
-                        "wmctrl -c TeamSpeak; sleep 2; wmctrl -c TeamSpeak; sleep 2; pkill -9 ts3client_linux",
-                        ignoreOutput = true
-                    )
+                    delay(1000)
                 }
             } else if (exitTeamSpeak.contentEquals("n") || exitTeamSpeak.contentEquals("no")) {
                 break

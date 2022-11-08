@@ -1,0 +1,66 @@
+Usage: clientvariable ( clid={clientID} properties )...
+
+Retrieves client variables from the client (no network usage). For each client
+you can specify one or more properties that should be queried, and this whole
+block of clientID and properties can be repeated to get information about
+multiple clients with one call of clientvariable.
+
+Available properties are:
+client_unique_identifier
+client_nickname
+client_input_muted
+client_output_muted
+client_outputonly_muted
+client_input_hardware
+client_output_hardware
+client_meta_data
+client_is_recording
+client_database_id
+client_channel_group_id
+client_servergroups
+client_away
+client_away_message
+client_type
+client_flag_avatar
+client_talk_power
+client_talk_request
+client_talk_request_msg
+client_description
+client_is_talker
+client_is_priority_speaker
+client_unread_messages
+client_nickname_phonetic
+client_needed_serverquery_view_power
+client_icon_id
+client_is_channel_commander
+client_country
+client_channel_group_inherited_channel_id
+client_flag_talking
+client_is_muted
+client_volume_modificator
+
+These properties are always available for yourself, but need to be requested
+for other clients. Currently you cannot request these variables via
+clientquery:
+client_version
+client_platform
+client_login_name
+client_created
+client_lastconnected
+client_totalconnections
+client_month_bytes_uploaded
+client_month_bytes_downloaded
+client_total_bytes_uploaded
+client_total_bytes_downloaded
+
+These properties are available only for yourself:
+client_input_deactivated
+
+Example:
+   clientvariable clid=4 client_nickname client_input_muted
+   clid=4 client_nickname=ScP client_input_muted=0
+   error id=0 msg=ok
+
+   clientvariable clid=1449 client_country|clid=83 client_country
+   clid=1449 client_country=DE|clid=83 client_country=IT
+   error id=0 msg=ok

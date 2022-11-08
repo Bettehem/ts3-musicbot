@@ -1,0 +1,8 @@
+Usage: servergrouppermlist sgid={groupID} [-permsid]
+
+Displays a list of permissions assigned to the server group specified with sgid.
+
+Example:
+   servergrouppermlist sgid=13
+   permid=8470 permvalue=1 permnegated=0 permskip=0|permid=8475 permvalue=1
+   error id=0 msg=ok

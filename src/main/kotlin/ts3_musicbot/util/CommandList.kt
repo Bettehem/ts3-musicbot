@@ -116,8 +116,9 @@ data class CommandList(
                         "Counting starts from 0, so the first song is at position 0, second is at 1 and so on.\n" +
                         "You can add options either before or after song link(s).\n" +
                         "Available options:\n" +
-                        "-s    \t-Shuffle the playlist/album before adding to the queue.\n" +
+                        "-s    \t-Shuffle the playlist/album etc. before adding to the queue.\n" +
                         "-p    \t-Add track(s) to a specific position in the queue.\n" +
+                        "-r    \t-Reverse playlist/album etc. before adding to the queue.\n" +
                         "Example - Add playlist to queue at position 15 and shuffle it before that:\n" +
                         "${commandList["queue-add"]} -s https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt -p 15\n" +
                         "Example - Search for an album on spotify and add it to the queue:\n" +
@@ -141,6 +142,7 @@ data class CommandList(
                         "Available options:\n" +
                         "-s    \t-Shuffle the playlist/album before adding to the queue.\n" +
                         "-p    \t-Add track(s) to a specific position in the queue.\n" +
+                        "-r    \t-Reverse playlist/album etc. before adding to the queue.\n" +
                         "Example - Add playlist to queue at position 15 and shuffle it before that:\n" +
                         "${commandList["queue-playnext"]} -s https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt -p 15" +
                         "Example - Search for an album on spotify and add it to the queue:\n" +

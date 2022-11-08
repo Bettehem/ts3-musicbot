@@ -1,0 +1,8 @@
+Usage: channeldelperm cldbid={clientDBID} permid={permID}|permsid={permName}...
+
+Removes a set of specified permissions from a client. Multiple permissions 
+can be removed at once. A permission can be specified by permid or permsid.
+
+Example:
+   clientdelperm cldbid=16 permsid=i_icon_id|permsid=b_icon_manage
+   error id=0 msg=ok

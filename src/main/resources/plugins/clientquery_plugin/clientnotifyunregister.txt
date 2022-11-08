@@ -1,0 +1,7 @@
+Usage: clientnotifyunregister
+
+Unregisters from all previously registered client notifications.
+
+Example:
+   clientnotifyunregister
+   error id=0 msg=ok

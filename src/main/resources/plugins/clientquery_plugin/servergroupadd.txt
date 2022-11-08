@@ -1,0 +1,10 @@
+Usage: servergroupadd name={groupName} [type={groupDbType}]
+
+Creates a new server group using the name specified with name and displays 
+its ID. The optional type parameter can be used to create ServerQuery groups 
+and template groups.
+
+Example:
+   servergroupadd name=Server\sAdmin
+   sgid=13
+   error id=0 msg=ok

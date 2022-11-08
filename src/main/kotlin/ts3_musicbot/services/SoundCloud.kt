@@ -1394,7 +1394,9 @@ class SoundCloud {
                             }
 
                             HttpURLConnection.HTTP_NOT_FOUND -> {
-                                println("Error 404! $link not found! Trying again...")
+                                println("Error 404! $link not found!")
+                                type = LinkType.OTHER
+                                break
                             }
 
                             else -> println("HTTP ERROR! CODE ${typeData.code.code}")

@@ -1,0 +1,13 @@
+Usage: ftinitdownload clientftfid={clientFileTransferID} name={filePath} 
+       cid={channelID} cpw={channelPassword} seekpos={seekPosition}
+
+Initializes a file transfer download. clientftfid is an arbitrary ID to 
+identify the file transfer on client-side. On success, the server generates 
+a new ftkey which is required to start downloading the file through 
+TeamSpeak 3's file transfer interface.
+
+Example:
+   ftinitdownload clientftfid=1 name=\/image.iso cid=5 cpw= seekpos=0
+   clientftfid=1 serverftfid=7 ftkey=NrOga\/4d2GpYC5oKgxuclTO37X83ca\/1 
+   port=30033 size=673460224
+   error id=0 msg=ok

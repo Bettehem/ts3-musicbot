@@ -1,0 +1,11 @@
+Usage: channelmove cid={channelID} cpid={channelParentID} 
+       [order={channelSortOrder}]
+
+Moves a channel to a new parent channel with the ID cpid. If order is 
+specified, the channel will be sorted right under the channel with the 
+specified ID. If order is set to 0, the channel will be sorted right below 
+the new parent.
+
+Example:
+   channelmove cid=16 cpid=1 order=0
+   error id=0 msg=ok

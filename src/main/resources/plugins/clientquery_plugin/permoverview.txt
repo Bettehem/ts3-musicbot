@@ -1,0 +1,19 @@
+Usage: permoverview cid={channelID} cldbid={clientDBID} permid={permID}
+
+Displays all permissions assigned to a client for the channel specified with 
+cid. If permid is set to 0, all permissions will be displayed.
+The output follows the following format:
+( t={PermGroupType} id1={id1} id2={id2} p={permissionID} v={permissionValue}
+  n={permissionNegated} s={permissionSkip} )...
+
+Possible PermGroupType Values:
+0: Server Group;      id1=serverGroupID, id2=0
+1: Global Client;     id1=clientDBID,    id2=0
+2: Channel;           id1=channelID,     id2=0
+3: Channel Group;     id1=channelID,     id2=channelGroupID
+4: Channel Client;    id1=channelID,     id2=clientDBID
+
+Example:
+   permoverview cldbid=57 cid=74 permid=0
+   t=0 id1=5 id2=0 p=37 v=1 n=0 s=0|t=0 id1=5 id2=0 p=38 v=1 n=0 s=0 ...
+   error id=0 msg=ok

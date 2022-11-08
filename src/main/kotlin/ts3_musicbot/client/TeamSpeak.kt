@@ -61,6 +61,14 @@ class TeamSpeak(
         client.disconnect("Disconnecting")
     }
 
+    /**
+     * Reconnect to the current server
+     */
+    fun reconnect() {
+        disconnect()
+        connect()
+    }
+
     private fun encode(message: String): String {
         val distro =
             CommandRunner().runCommand("cat /etc/issue", printOutput = false).first.outputText
