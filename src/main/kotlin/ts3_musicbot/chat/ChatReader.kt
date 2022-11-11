@@ -700,11 +700,12 @@ class ChatReader(
                                         printToChat(
                                             listOf(
                                                 "Queue is already active!\n" +
-                                                        "Did you mean to type ${commandList.commandList["queue-resume"]} instead?"
+                                                "Running ${commandList.commandList["queue-resume"]} instead."
                                             )
                                         )
+                                        executeCommand("${commandList.commandList["queue-resume"]}")
                                         commandJob.complete()
-                                        false
+                                        true
                                     } else {
                                         printToChat(listOf("Playing Queue."))
                                         songQueue.startQueue()

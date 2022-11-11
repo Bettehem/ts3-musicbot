@@ -452,7 +452,7 @@ class SongQueue(
                         while (job.isActive) {
                             delay(985)
                             trackPosition += 1
-                            println("Track Position: $trackPosition/$trackLength")
+                            println("Track Position: $trackPosition/$trackLength seconds")
                         }
                     }
                 }
