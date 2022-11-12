@@ -254,12 +254,12 @@ class SongQueue(
                 when (firstTrack.service) {
                     Service.YOUTUBE, Service.SOUNDCLOUD -> {
                         //check if youtube-dl is able to download the track
-                        while (songQueue.isNotEmpty() && (firstTrack.service == Service.YOUTUBE || firstTrack.service == Service.SOUNDCLOUD)
-                            && CommandRunner().runCommand(
-                                "youtube-dl -s \"${firstTrack.link}\"",
+                        while (songQueue.isNotEmpty() && !CommandRunner().runCommand(
+                                "youtube-dl --extract-audio --audio-format best --audio-quality 0 " +
+                                        "--cookies youtube-dl.cookies --force-ipv4 --age-limit 21 --geo-bypass -s \"${firstTrack.link}\"",
                                 printOutput = false,
                                 printErrors = false
-                            ).second.errorText.isNotEmpty()
+                            ).first.outputText.contains("\\[info] ${firstTrack.link.getId()}: Downloading [0-9]+ format\\(s\\):".toRegex())
                         ) {
                             println(
                                 "youtube-dl cannot download this track! Skipping...\n" +
@@ -428,19 +428,19 @@ class SongQueue(
                  * @return track length in seconds
                  */
                 fun getTrackLength(): Int {
-                    val lengthMicroseconds = try {
+                    val lengthMicroseconds: Long = try {
                         commandRunner.runCommand(
                             "playerctl -p ${getPlayer()} metadata --format '{{ mpris:length }}'",
                             printOutput = false
-                        ).first.outputText.toInt()
+                        ).first.outputText.toLong()
                     } catch (e: Exception) {
                         //track hasn't started
-                        0
+                        0L
                     }
                     val minutes = lengthMicroseconds / 1000000 / 60
                     val seconds = lengthMicroseconds / 1000000 % 60
                     //convert to seconds
-                    return minutes * 60 + seconds
+                    return (minutes * 60 + seconds).toInt()
                 }
 
                 var trackLength = getTrackLength()

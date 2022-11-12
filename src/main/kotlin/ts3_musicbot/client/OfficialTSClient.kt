@@ -442,7 +442,6 @@ class OfficialTSClient(
     /**
      * Updates the channelFile variable. It is used to read the chat from the current channel
      * This should be called always when switching channels or making a new connection
-     * @return returns the channel file
      */
     private fun updateChannelFile() {
         var file = File("")
