@@ -350,7 +350,19 @@ class SongQueue(
             printErrors = false
         ).first.outputText
 
+        fun refreshPulseAudio() {
+            //if using pulseaudio, refresh it using pasuspender
+            if (
+                commandRunner.runCommand("command -v pasuspender", printOutput = false, printErrors = false)
+                    .first.outputText.isNotEmpty()
+            )
+                commandRunner.runCommand("pasuspender true", printOutput = false, printErrors = false)
+        }
+
+
         fun startTrack() {
+            refreshPulseAudio()
+
             synchronized(this) {
                 trackPositionJob.cancel()
                 trackPosition = 0
@@ -697,8 +709,10 @@ class SongQueue(
         }
 
         fun resumeTrack() {
-            if (track.isNotEmpty())
+            if (track.isNotEmpty()) {
+                refreshPulseAudio()
                 commandRunner.runCommand("playerctl -p ${getPlayer()} play", ignoreOutput = true)
+            }
         }
 
         fun stopTrack() {
