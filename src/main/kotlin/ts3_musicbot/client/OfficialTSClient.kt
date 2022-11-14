@@ -433,7 +433,7 @@ class OfficialTSClient(
      */
     suspend fun restartClient(): Boolean {
         stopTeamSpeak()
-        return if (startTeamSpeak(true)){
+        return if (startTeamSpeak(true)) {
             joinChannel()
             true
         } else false
@@ -583,13 +583,94 @@ class OfficialTSClient(
 
     private fun audioSetup() {
         println("Setting up audio.")
+        /**
+         * Converts a pactl output string to a JSONArray.
+         * This is required because pactl has a built-in json formatter only from version 16.0 onwards.
+         * @param stringToConvert The string you want to convert
+         * @return Returns a JSONArray which was parsed from stringToConvert
+         */
+        fun convertToJSON(stringToConvert: String): JSONArray {
+            /**
+             * Parse a line
+             * @param line The line to parse
+             * @return Returns a Pair containing the amount of indentation and the cleaned up line
+             */
+            fun indentations(line: String): Pair<Int, String> {
+                var newLine = line
+                var indentation = 0
+                while (newLine.startsWith("\t")) {
+                    newLine = newLine.substringAfter("\t")
+                    indentation += 1
+                }
+                return Pair(indentation, newLine)
+            }
+
+            val pactlOutput = stringToConvert.replace("\\\"", "")
+            val pactlMap = emptyMap<String, MutableMap<String, Any>>().toMutableMap()
+            var index = ""
+            var objectName = ""
+            for (rawLine in pactlOutput.lines()) {
+                if (rawLine == "") continue
+                val (indentation, line) = indentations(rawLine)
+                when (indentation) {
+                    0 -> { //get the object's index
+                        index = line.substringAfter("#")
+                        pactlMap[index] = mapOf(Pair("index", index)).toMutableMap()
+                    }
+
+                    1 -> { //get object's data
+                        if (line.startsWith("        ")) {
+                            val trimmed = line.trim()
+                            pactlMap[index]?.set(
+                                trimmed.substringBefore(" "),
+                                trimmed.substringAfter(" ")
+                            )
+                        } else {
+                            objectName = line.substringBefore(":").trim().lowercase()
+                            val value = line.substringAfter(":").trim()
+                            pactlMap[index]?.set(objectName, value)
+                        }
+                    }
+
+                    2 -> { //get sink object's properties
+                        if (pactlMap[index]?.get(objectName) == "")
+                            pactlMap[index]?.set(objectName, emptyMap<String, String>().toMutableMap())
+                        var (propName, value) = line.split("=").let { Pair(it.first().trim(), it.last().trim()) }
+                        if (value.first() == '"' && value.last() == '"')
+                            value = value.replace("(^\"|\"$)".toRegex(), "")
+                        val props = pactlMap[index]?.get(objectName).let {
+                            it as Map<*, *>
+                            it
+                        }.toMutableMap()
+                        props[propName] = value
+                        pactlMap[index]?.set(objectName, props)
+                    }
+                }
+            }
+            val pactlJSON = JSONObject(pactlMap)
+            return pactlJSON.toJSONArray(pactlJSON.names())
+        }
         //Mute teamspeak output
-        val sinkInputs = JSONArray(
-            commandRunner.runCommand(
-                "pactl -f json list sink-inputs",
-                printOutput = false, printCommand = false
-            ).first.outputText
-        )
+        val sinkInputs = if (
+            commandRunner.runCommand("pactl --version", printOutput = false, printCommand = false)
+                .first.outputText.lines().first().replace("^pactl\\s+".toRegex(), "")
+                .toFloat() < 16.0
+        ) {
+            convertToJSON(
+                commandRunner.runCommand(
+                    "pactl list sink-inputs",
+                    printOutput = false, printCommand = false
+                ).first.outputText
+            )
+        } else {
+            JSONArray(
+                commandRunner.runCommand(
+                    "pactl -f json list sink-inputs",
+                    printOutput = false, printCommand = false
+                ).first.outputText
+            )
+        }
+
         val tsSinkInputId = sinkInputs.first {
             it as JSONObject
             it.getJSONObject("properties").getString("application.name") == "TeamSpeak3"
@@ -604,12 +685,25 @@ class OfficialTSClient(
         )
 
         //set teamspeak to monitor output from default sink
-        val tsSourceOutputs = JSONArray(
-            commandRunner.runCommand(
-                "pactl -f json list source-outputs",
-                printOutput = false, printCommand = false
-            ).first.outputText
-        )
+        val tsSourceOutputs = if (
+            commandRunner.runCommand("pactl --version", printOutput = false, printCommand = false)
+                .first.outputText.lines().first().replace("^pactl\\s+".toRegex(), "")
+                .toFloat() < 16.0
+        ) {
+            convertToJSON(
+                commandRunner.runCommand(
+                    "pactl list source-outputs",
+                    printOutput = false, printCommand = false
+                ).first.outputText
+            )
+        } else {
+            JSONArray(
+                commandRunner.runCommand(
+                    "pactl -f json list source-outputs",
+                    printOutput = false, printCommand = false
+                ).first.outputText
+            )
+        }
         val tsSourceOutputId = tsSourceOutputs.first {
             it as JSONObject
             it.getJSONObject("properties").getString("application.name") == "TeamSpeak3"
