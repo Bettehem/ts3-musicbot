@@ -654,7 +654,7 @@ class OfficialTSClient(
         val sinkInputs = if (
             commandRunner.runCommand("pactl --version", printOutput = false, printCommand = false)
                 .first.outputText.lines().first().replace("^pactl\\s+".toRegex(), "")
-                .toFloat() < 16.0
+                .substringBefore(".").toInt() < 16
         ) {
             convertToJSON(
                 commandRunner.runCommand(
@@ -688,7 +688,7 @@ class OfficialTSClient(
         val tsSourceOutputs = if (
             commandRunner.runCommand("pactl --version", printOutput = false, printCommand = false)
                 .first.outputText.lines().first().replace("^pactl\\s+".toRegex(), "")
-                .toFloat() < 16.0
+                .substringBefore(".").toInt() < 16
         ) {
             convertToJSON(
                 commandRunner.runCommand(
