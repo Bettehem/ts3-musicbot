@@ -259,7 +259,7 @@ class SongQueue(
                                         "--cookies youtube-dl.cookies --force-ipv4 --age-limit 21 --geo-bypass -s \"${firstTrack.link}\"",
                                 printOutput = false,
                                 printErrors = false
-                            ).first.outputText.contains("\\[info] ${firstTrack.link.getId()}: Downloading [0-9]+ format\\(s\\):".toRegex())
+                            ).first.outputText.lines().last().contains("\\[(info|youtube)] ${firstTrack.link.getId()}: Downloading ([0-9]+ format\\(s\\):|webpage|API JSON)".toRegex())
                         ) {
                             println(
                                 "youtube-dl cannot download this track! Skipping...\n" +
