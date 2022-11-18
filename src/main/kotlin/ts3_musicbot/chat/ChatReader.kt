@@ -507,8 +507,7 @@ class ChatReader(
                                                         //fetch artist's top tracks
                                                         val artistLink = Link("https://open.spotify.com/artist/$id", id)
                                                         val topTracks = filterList(
-                                                            spotify.fetchArtist(artistLink).topTracks,
-                                                            artistLink
+                                                            spotify.fetchArtist(artistLink).topTracks, artistLink
                                                         )
                                                         var trackList = if (shouldReverse) topTracks.reversed() else topTracks
                                                         trackList = if (shouldShuffle) trackList.shuffled() else trackList
@@ -516,7 +515,7 @@ class ChatReader(
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
                                                             if (tracksAdded)
-                                                                "Added Artist's top track to the queue."
+                                                                "Added Artist's top tracks to the queue."
                                                             else
                                                                 tracksAddingErrorMsg
                                                         if (tracksAdded)
@@ -616,6 +615,26 @@ class ChatReader(
                                                             trackCache.add(Pair(link, playlistTracks))
                                                         commandListener.onCommandProgress(commandString, msg, trackList)
                                                         commandSuccessful.add(Pair(playlistAdded, Pair(msg, trackList)))
+                                                    }
+
+                                                    LinkType.ARTIST -> {
+                                                        //fetch artist's top tracks
+                                                        val topTracks = filterList(
+                                                            soundCloud.fetchArtist(link).topTracks, link
+                                                        )
+                                                        var trackList = if (shouldReverse) topTracks.reversed() else topTracks
+                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
+                                                        val tracksAdded =
+                                                            songQueue.addAllToQueue(trackList, customPosition)
+                                                        val msg =
+                                                            if (tracksAdded)
+                                                                "Added Artist's top tracks to the queue."
+                                                            else
+                                                                tracksAddingErrorMsg
+                                                        if (tracksAdded)
+                                                            trackCache.add(Pair(link, topTracks))
+                                                        commandListener.onCommandProgress(commandString, msg, trackList)
+                                                        commandSuccessful.add(Pair(tracksAdded, Pair(msg, trackList)))
                                                     }
 
                                                     LinkType.LIKES -> {
