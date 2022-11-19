@@ -5,7 +5,10 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 
-data class RequestMethod(val method: String)
+enum class RequestMethod {
+    POST,
+    GET
+}
 data class DefaultProperties(val properties: List<String>)
 data class ExtraProperties(val properties: List<String>)
 data class PostData(val data: List<String>)
@@ -27,7 +30,7 @@ const val HTTP_TOO_MANY_REQUESTS = 429
  */
 fun sendHttpRequest(
     url: URL,
-    requestMethod: RequestMethod,
+    requestMethod: RequestMethod = RequestMethod.GET,
     extraProperties: ExtraProperties = ExtraProperties(emptyList()),
     postData: PostData = PostData(emptyList()),
     defaultProperties: DefaultProperties = DefaultProperties(
@@ -38,7 +41,7 @@ fun sendHttpRequest(
     )
 ): Response{
     val connection = url.openConnection() as HttpURLConnection
-    connection.requestMethod = requestMethod.method
+    connection.requestMethod = requestMethod.name
     for (property in defaultProperties.properties) {
         val p = property.split(": ".toRegex())
         connection.setRequestProperty(p[0], p[1])
@@ -47,7 +50,7 @@ fun sendHttpRequest(
         val p = property.split(":".toRegex())
         connection.setRequestProperty(p[0], p[1])
     }
-    if (connection.requestMethod == "POST") {
+    if (connection.requestMethod == RequestMethod.POST.name) {
         connection.doOutput = true
         val outputStream = connection.outputStream
         for (data in postData.data) {
@@ -64,7 +67,7 @@ fun sendHttpRequest(
                     var output = bufferedReader.readLine()
                     val readyOutput = StringBuilder()
                     while (output != null) {
-                        readyOutput.append(output)
+                        readyOutput.appendLine(output)
                         output = bufferedReader.readLine()
                     }
                     readyOutput.toString()

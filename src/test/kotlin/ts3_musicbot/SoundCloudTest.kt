@@ -17,7 +17,7 @@ class SoundCloudTest {
     fun testUpdatingId() {
         val currentId = soundCloud.clientId
         val newId = soundCloud.updateClientId()
-        assert(currentId == newId || newId.contains("^[a-zA-Z0-9]+$".toRegex()))
+        assert(currentId == newId || newId.contains("^[0-9A-z-_]+$".toRegex()))
     }
 
     @Test

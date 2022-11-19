@@ -15,8 +15,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class SoundCloud {
-    var clientId = "ZzQw5OLejAQys1cYAUI2nUbLtZbBe5Lg"
-    private val commandRunner = CommandRunner()
+    var clientId = "8m4K5d2x4mNmUHLhLmsGq9vxE3dDkxCm"
     private val api2URL = URL("https://api-v2.soundcloud.com")
     val apiURL = URL("https://api.soundcloud.com")
     val supportedSearchTypes = listOf(
@@ -33,24 +32,17 @@ class SoundCloud {
      */
     fun updateClientId(): String {
         println("Updating SoundCloud ClientId")
-        val lines = commandRunner.runCommand(
-            "curl https://soundcloud.com 2> /dev/null " +
-                    "| grep -E \"<script crossorigin src=\\\"https://\\S*\\.js\\\"></script>\"",
-            printOutput = false
-        ).first.outputText.lines()
-        for (line in lines) {
-            val url = line.substringAfter("\"").substringBefore("\"")
-            val data = commandRunner.runCommand(
-                "curl $url 2> /dev/null | grep -E \"client_id=[0-9A-Za-z\\-_]+\"",
-                printOutput = false,
-                printErrors = false
-            ).first.outputText
-            if (data.isNotEmpty()) {
-                val id = data.replace("^.*client_id=".toRegex(), "").replace("(&|\"?\\),).*$".toRegex(), "")
-                synchronized(clientId) { clientId = id }
-                break
-            }
-        }
+        val lines = sendHttpRequest(URL("https://soundcloud.com")).data.data.lines()
+            .filter { it.contains("^<script crossorigin src=\"https://\\S+\\.js\"></script>".toRegex()) }
+        for (line in lines)
+            sendHttpRequest(URL(line.substringAfter('"').substringBefore('"')))
+                .data.data.let { data ->
+                    if (data.contains("client_id=[0-9A-z-_]+\"".toRegex())) {
+                        val idLine = data.lines().first{ it.contains("client_id=[0-9A-z-_]+\"".toRegex()) }
+                        val id = idLine.replace("^.*client_id=".toRegex(), "").replace("(&|\"?\\),).*$".toRegex(), "")
+                        synchronized(clientId) { clientId = id }
+                    }
+                }
         return clientId
     }
 
@@ -72,7 +64,7 @@ class SoundCloud {
                 urlBuilder.append("&offset=$offset")
                 urlBuilder.append("&client_id=$clientId")
             }
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
         suspend fun parseResults(searchData: JSONObject) {
@@ -356,7 +348,7 @@ class SoundCloud {
         )
         urlBuilder.append(id)
         urlBuilder.append("?client_id=$clientId")
-        return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
     }
 
     suspend fun fetchPlaylist(link: Link): Playlist {
@@ -486,7 +478,7 @@ class SoundCloud {
         )
         urlBuilder.append(id)
         urlBuilder.append("?client_id=$clientId")
-        return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
     }
 
     suspend fun fetchAlbum(link: Link): Album {
@@ -614,7 +606,7 @@ class SoundCloud {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$api2URL/tracks/$id")
             urlBuilder.append("?client_id=$clientId")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
         fun parseTrackData(trackData: JSONObject): Track {
@@ -695,7 +687,7 @@ class SoundCloud {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$api2URL/tracks?ids=$ids")
             urlBuilder.append("&client_id=$clientId")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
         fun parseTracksData(tracksData: JSONArray): TrackList {
@@ -796,7 +788,7 @@ class SoundCloud {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$api2URL/users/$id/playlists")
             urlBuilder.append("?client_id=$clientId")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
         val playlists = ArrayList<Playlist>()
@@ -861,7 +853,7 @@ class SoundCloud {
                 urlBuilder.append("&${link.link.substringAfter("?")}")
             else
                 urlBuilder.append("&limit=100")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
         val likes = ArrayList<Track>()
@@ -981,7 +973,7 @@ class SoundCloud {
             else
                 urlBuilder.append("&limit=150")
 
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
         val likes = ArrayList<Track>()
@@ -1106,7 +1098,7 @@ class SoundCloud {
             urlBuilder.append("$api2URL/users/$userId/tracks")
             urlBuilder.append("?limit=$tracksAmount")
             urlBuilder.append("&client_id=$clientId")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
         return if (tracksAmount > 0) {
             val tracksJob = Job()
@@ -1182,7 +1174,7 @@ class SoundCloud {
         val urlBuilder = StringBuilder()
         urlBuilder.append("$api2URL/users/$userId")
         urlBuilder.append("?client_id=$clientId")
-        return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
     }
 
     suspend fun fetchUser(link: Link): User {
@@ -1248,7 +1240,7 @@ class SoundCloud {
                 val urlBuilder = StringBuilder()
                 urlBuilder.append("$api2URL/users/$id/relatedartists")
                 urlBuilder.append("?client_id=$clientId")
-                return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+                return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
             }
 
             val artistsTracks = fetchUserTracks(id, artistData.getInt("track_count"))
@@ -1343,31 +1335,41 @@ class SoundCloud {
         urlBuilder.append("$api2URL/resolve?")
         urlBuilder.append("client_id=$clientId")
         urlBuilder.append("&url=$url")
-        return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+        return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
     }
 
     suspend fun resolveType(link: Link): LinkType {
         val resolveJob = Job()
+        var linkToSolve = link
+        val urlStart = "(https?://)?soundcloud\\.com/[a-z0-9-_]+"
         val deferredType = CoroutineScope(IO + resolveJob).async {
             when {
-                link.link.contains("(https?://)?soundcloud\\.com/[a-z0-9-_]+/(?!sets|likes|reposts)\\S+".toRegex()) -> LinkType.TRACK
-                link.link.contains("(https?://)?soundcloud\\.com/[a-z0-9-_]+/likes".toRegex()) -> LinkType.LIKES
-                link.link.contains("(https?://)?soundcloud\\.com/[a-z0-9-_]+/reposts".toRegex()) -> LinkType.REPOSTS
+                linkToSolve.link.contains("$urlStart/(?!sets|likes|reposts)\\S+".toRegex()) -> LinkType.TRACK
+                linkToSolve.link.contains("$urlStart/likes".toRegex()) -> LinkType.LIKES
+                linkToSolve.link.contains("$urlStart/reposts".toRegex()) -> LinkType.REPOSTS
                 else -> {
                     lateinit var type: LinkType
                     while (true) {
-                        val typeData = fetchResolvedData(link.link.substringBefore("?"))
+                        if (linkToSolve.link.contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex()))
+                            linkToSolve = Link(
+                                sendHttpRequest(URL(linkToSolve.link), RequestMethod.GET).data.data.lines()
+                                    .first{ it.contains("<meta property=\"og:url\"".toRegex()) }
+                                    .replace(".*<meta property=\"og:url\"".toRegex(), "")
+                                    .replace("^\\s*content=\"|\">.*$".toRegex(), "")
+                            )
+                        val typeData = fetchResolvedData(linkToSolve.link.substringBefore('?'))
                         when (typeData.code.code) {
                             HttpURLConnection.HTTP_OK -> {
                                 try {
                                     val data = JSONObject(typeData.data.data)
                                     type = when (val kind = data.getString("kind").uppercase()) {
-                                        //if LinkType is PLAYLIST, check if it is also an album.
                                         "PLAYLIST" -> {
-                                            if (data.getBoolean("is_album"))
+                                            //if LinkType is PLAYLIST, check if it is also an album.
+                                            if (data.getBoolean("is_album")) {
                                                 LinkType.ALBUM
-                                            else
+                                            } else {
                                                 LinkType.valueOf(kind)
+                                            }
                                         }
 
                                         "USER" -> {
@@ -1378,9 +1380,10 @@ class SoundCloud {
                                                 LinkType.valueOf(kind)
                                         }
 
-                                        else -> LinkType.valueOf(kind)
+                                        else -> {
+                                            LinkType.valueOf(kind)
+                                        }
                                     }
-                                    resolveJob.complete()
                                     break
                                 } catch (e: JSONException) {
                                     //JSON broken, try getting the data again
@@ -1394,7 +1397,7 @@ class SoundCloud {
                             }
 
                             HttpURLConnection.HTTP_NOT_FOUND -> {
-                                println("Error 404! $link not found!")
+                                println("Error 404! $linkToSolve not found!")
                                 type = LinkType.OTHER
                                 break
                             }
@@ -1418,8 +1421,16 @@ class SoundCloud {
         val resolveJob = Job()
         val deferredId = CoroutineScope(IO + resolveJob).async {
             lateinit var id: String
+            var linkToSolve = link
+            if (linkToSolve.link.contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex()))
+                linkToSolve = Link(
+                    sendHttpRequest(URL(linkToSolve.link), RequestMethod.GET).data.data.lines()
+                        .first{ it.contains("<meta property=\"og:url\"".toRegex()) }
+                        .replace(".*<meta property=\"og:url\"".toRegex(), "")
+                        .replace("^\\s*content=\"|\">.*$".toRegex(), "")
+                )
             while (true) {
-                val idData = fetchResolvedData(link.link.substringBefore("?"))
+                val idData = fetchResolvedData(linkToSolve.link.substringBefore("?"))
                 when (idData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {

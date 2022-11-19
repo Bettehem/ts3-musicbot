@@ -43,7 +43,7 @@ class YouTube {
             urlBuilder.append("id=${videoLink.getId()}")
             urlBuilder.append("&part=${part.replace(",", "%2C")}")
             urlBuilder.append("&key=$key")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
         val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
@@ -123,7 +123,7 @@ class YouTube {
             urlBuilder.append("?part=snippet%2Cstatus")
             urlBuilder.append("&id=${playlistLink.getId()}")
             urlBuilder.append("&key=$apiKey")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
         val playlistJob = Job()
@@ -202,7 +202,7 @@ class YouTube {
             urlBuilder.append("&maxResults=$maxResults")
             if (pageToken.isNotEmpty())
                 urlBuilder.append("&pageToken=$pageToken")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
         suspend fun parseItems(data: JSONObject): TrackList {
@@ -433,7 +433,7 @@ class YouTube {
             urlBuilder.append("&key=$apiKey")
             if (pageToken.isNotEmpty())
                 urlBuilder.append("&pageToken=$pageToken")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
         suspend fun parsePlaylistsData(playlistsData: JSONObject): List<Playlist> {
@@ -548,7 +548,7 @@ class YouTube {
             urlBuilder.append("?id=${link.getId()}")
             urlBuilder.append("&part=snippet%2Cstatistics")
             urlBuilder.append("&key=$apiKey")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
         val channelJob = Job()
@@ -644,7 +644,7 @@ class YouTube {
                     urlBuilder.append("&pageToken=$pageToken")
                 urlBuilder.append("&key=$apiKey")
             }
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
         val searchResults = ArrayList<SearchResult>()
@@ -780,7 +780,7 @@ class YouTube {
             urlBuilder.append("q=${link.getId()}")
             urlBuilder.append("&part=snippet")
             urlBuilder.append("&key=$apiKey")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
         val resolveJob = Job()
@@ -847,7 +847,7 @@ class YouTube {
             urlBuilder.append("&part=snippet")
             urlBuilder.append("&type=channel")
             urlBuilder.append("&key=$apiKey")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod("GET"))
+            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
         return if (channelLink.link.contains("\\S+/channel/\\S+".toRegex())) {

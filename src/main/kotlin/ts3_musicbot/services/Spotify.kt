@@ -63,7 +63,7 @@ class Spotify(private val market: String = "") {
             val auth = "ZGUzZGFlNGUxZTE3NGRkNGFjYjY0YWYyMjcxMWEwYmI6ODk5OGQxMmJjZDBlNDAzM2E2Mzg2ZTg4Y2ZjZTk2NDg="
             return sendHttpRequest(
                 URL("https://accounts.spotify.com/api/token"),
-                RequestMethod("POST"),
+                RequestMethod.POST,
                 ExtraProperties(listOf("Authorization: Basic $auth")),
                 PostData(listOf("grant_type=client_credentials"))
             )
@@ -121,7 +121,7 @@ class Spotify(private val market: String = "") {
             }
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
-                RequestMethod("GET"),
+                RequestMethod.GET,
                 ExtraProperties(listOf("Authorization: Bearer $accessToken"))
             )
         }
@@ -370,7 +370,7 @@ class Spotify(private val market: String = "") {
         urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
         return sendHttpRequest(
             URL(urlBuilder.toString()),
-            RequestMethod("GET"),
+            RequestMethod.GET,
             ExtraProperties(listOf("Authorization: Bearer $accessToken"))
         )
     }
@@ -475,7 +475,7 @@ class Spotify(private val market: String = "") {
                     val listUrl = URL(listUrlBuilder.toString())
                     return sendHttpRequest(
                         listUrl,
-                        RequestMethod("GET"),
+                        RequestMethod.GET,
                         ExtraProperties(listOf("Authorization: Bearer $accessToken"))
                     )
                 }
@@ -710,7 +710,7 @@ class Spotify(private val market: String = "") {
         urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
         return sendHttpRequest(
             URL(urlBuilder.toString()),
-            RequestMethod("GET"),
+            RequestMethod.GET,
             ExtraProperties(listOf("Authorization: Bearer $accessToken"))
         )
     }
@@ -886,7 +886,7 @@ class Spotify(private val market: String = "") {
                         albumUrlBuilder.append("&market=$market")
                     return sendHttpRequest(
                         URL(albumUrlBuilder.toString()),
-                        RequestMethod("GET"),
+                        RequestMethod.GET,
                         ExtraProperties(listOf("Authorization: Bearer $accessToken"))
                     )
                 }
@@ -1007,7 +1007,7 @@ class Spotify(private val market: String = "") {
                 urlBuilder.append("?market=$spMarket")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
-                RequestMethod("GET"),
+                RequestMethod.GET,
                 ExtraProperties(listOf("Authorization: Bearer $accessToken"))
             )
         }
@@ -1204,7 +1204,7 @@ class Spotify(private val market: String = "") {
             urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
-                RequestMethod("GET"),
+                RequestMethod.GET,
                 ExtraProperties(listOf("Authorization: Bearer $accessToken"))
             )
         }
@@ -1217,7 +1217,7 @@ class Spotify(private val market: String = "") {
             urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
-                RequestMethod("GET"),
+                RequestMethod.GET,
                 ExtraProperties(listOf("Authorization: Bearer $accessToken"))
             )
         }
@@ -1233,7 +1233,7 @@ class Spotify(private val market: String = "") {
             urlBuilder.append("&offset=$offset")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
-                RequestMethod("GET"),
+                RequestMethod.GET,
                 ExtraProperties(listOf("Authorization: Bearer $accessToken"))
             )
         }
@@ -1246,7 +1246,7 @@ class Spotify(private val market: String = "") {
             urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
-                RequestMethod("GET"),
+                RequestMethod.GET,
                 ExtraProperties(listOf("Authorization: Bearer $accessToken"))
             )
         }
@@ -1565,7 +1565,7 @@ class Spotify(private val market: String = "") {
             urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
-                RequestMethod("GET"),
+                RequestMethod.GET,
                 ExtraProperties(listOf("Authorization: Bearer $accessToken"))
             )
         }
@@ -1576,7 +1576,7 @@ class Spotify(private val market: String = "") {
             urlBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
-                RequestMethod("GET"),
+                RequestMethod.GET,
                 ExtraProperties(listOf("Authorization: Bearer $accessToken"))
             )
         }
@@ -1694,7 +1694,7 @@ class Spotify(private val market: String = "") {
         urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
         return sendHttpRequest(
             URL(urlBuilder.toString()),
-            RequestMethod("GET"),
+            RequestMethod.GET,
             ExtraProperties(listOf("Authorization: Bearer $accessToken"))
         )
     }
@@ -1715,7 +1715,7 @@ class Spotify(private val market: String = "") {
                 urlBuilder.append("&offset=$offset")
                 return sendHttpRequest(
                     URL(urlBuilder.toString()),
-                    RequestMethod("GET"),
+                    RequestMethod.GET,
                     ExtraProperties(listOf("Authorization: Bearer $accessToken"))
                 )
             }
@@ -1906,7 +1906,7 @@ class Spotify(private val market: String = "") {
             urlBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
                 URL(urlBuilder.toString()),
-                RequestMethod("GET"),
+                RequestMethod.GET,
                 ExtraProperties(listOf("Authorization: Bearer $accessToken"))
             )
         }

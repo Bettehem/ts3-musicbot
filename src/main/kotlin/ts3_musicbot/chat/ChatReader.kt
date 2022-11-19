@@ -61,7 +61,8 @@ class ChatReader(
             is TeamSpeak -> text.replace("\\[/?URL]|,(\$|\\s)".toRegex(), "")
 
             else -> {
-                println("Couldn't remove tags!\n$client is not supported!")
+                println("Couldn't remove tags!\n$client is not a supported client!")
+                println("Returning original text...")
                 text
             }
         }
