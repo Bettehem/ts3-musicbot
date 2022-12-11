@@ -3,19 +3,21 @@
 # This script lets you easily test ts3 clientquery commands on your musicbot system.
 printf "Enter TeamSpeak ClientQuery API key (defaults to whatever is in ~/.ts3client/clientquery.ini): "
 read -r API_KEY
+CLIENTQUERY_FILE="$HOME/.ts3client/clientquery.ini"
 if [ -z "$API_KEY" ]; then
-  while [ ! -f "$HOME/.ts3client/clientquery.ini" ]; do
+  while [ ! -f "$CLIENTQUERY_FILE" ]; do
       # shellcheck disable=SC2088
-      echo "~/.ts3client/clientquery.ini doesn't exist! Starting teamspeak client to generate the file."
+      echo "~/.ts3client/clientquery.ini doesn't exist! Starting TeamSpeak client to generate the file."
     pkill -9 ts3client_linux
     xvfb-run teamspeak3 &
-    while [ -z "${$(ps aux | grep ts3client | grep -v grep)##*ts3client_linux*}" ]; do
+    while [ -z "$(pgrep -l ts3client)" ]; do
       echo "Waiting for TeamSpeak to start"
-      sleep 1
+      sleep 10
     done
-    API_KEY="$(grep api_key  | cut -d= -f2)"
   done
+  pkill -9 ts3client_linux
 fi
+API_KEY="$(grep api_key "$CLIENTQUERY_FILE" | cut -d= -f2)"
 
 printf "Enter teamspeak client address (defaults to localhost): "
 read -r TS_ADDRESS

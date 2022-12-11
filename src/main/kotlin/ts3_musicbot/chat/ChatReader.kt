@@ -29,7 +29,7 @@ class ChatReader(
     var latestMsgUsername = ""
 
     @Volatile
-    private var songQueue = SongQueue(botSettings.spotifyPlayer, botSettings.mpvVolume, this)
+    private var songQueue = SongQueue(botSettings.spotifyPlayer, botSettings.mpvVolume, client, this)
 
     init {
         //initialise spotify token

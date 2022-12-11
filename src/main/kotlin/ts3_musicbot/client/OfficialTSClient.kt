@@ -18,7 +18,7 @@ class OfficialTSClient(
 ) {
     val tsClientDirPath = "${System.getProperty("user.home")}/.ts3client"
     lateinit var channelFile: File
-    lateinit var serverName: String
+    private lateinit var serverName: String
     private val commandRunner = CommandRunner()
 
     private fun encode(message: String): String {
@@ -248,7 +248,6 @@ class OfficialTSClient(
                 audioSetup()
             }
             delay(1000)
-            println("TeamSpeak is ready.")
             return true
         } else {
             return false
@@ -581,8 +580,25 @@ class OfficialTSClient(
         }
     }
 
-    private fun audioSetup() {
-        println("Setting up audio.")
+    /**
+     * Check if TeamSpeak is listed in pulseaudio's sink inputs.
+     * If not, this means that you won't be able to hear any audio.
+     * @return Returns true if TeamSpeak can be found in pulseaudio's sink inputs,
+     *         which means audio is probably working.
+     */
+    fun audioIsWorking(): Boolean {
+        return runPactlCommand("list sink-inputs").any{
+            it as JSONObject
+            it.getJSONObject("properties").getString("application.name") == "TeamSpeak3"
+        }
+    }
+
+    /**
+     * Runs the given pactl command and returns the output as a JSONArray.
+     * @param command The pactl command to run.
+     * @return Returns the command's output as a JSONArray.
+     */
+    private fun runPactlCommand(command: String): JSONArray {
         /**
          * Converts a pactl output string to a JSONArray.
          * This is required because pactl has a built-in json formatter only from version 16.0 onwards.
@@ -650,27 +666,32 @@ class OfficialTSClient(
             val pactlJSON = JSONObject(pactlMap)
             return pactlJSON.toJSONArray(pactlJSON.names())
         }
-        //Mute teamspeak output
-        val sinkInputs = if (
+
+        return if (
             commandRunner.runCommand("pactl --version", printOutput = false, printCommand = false)
                 .first.outputText.lines().first().replace("^pactl\\s+".toRegex(), "")
                 .substringBefore(".").toInt() < 16
         ) {
             convertToJSON(
                 commandRunner.runCommand(
-                    "pactl list sink-inputs",
+                    "pactl $command",
                     printOutput = false, printCommand = false
                 ).first.outputText
             )
         } else {
             JSONArray(
                 commandRunner.runCommand(
-                    "pactl -f json list sink-inputs",
+                    "pactl -f json $command",
                     printOutput = false, printCommand = false
                 ).first.outputText
             )
         }
+    }
 
+    private fun audioSetup() {
+        println("Setting up audio.")
+        //Mute teamspeak output
+        val sinkInputs = runPactlCommand("list sink-inputs")
         val tsSinkInputId = sinkInputs.first {
             it as JSONObject
             it.getJSONObject("properties").getString("application.name") == "TeamSpeak3"
@@ -679,31 +700,11 @@ class OfficialTSClient(
             it.getInt("index")
         }
         commandRunner.runCommand(
-            "pactl set-sink-input-mute $tsSinkInputId 1",
-            printCommand = false,
-            printOutput = false
+            "pactl set-sink-input-mute $tsSinkInputId 1", printCommand = false, printOutput = false
         )
 
         //set teamspeak to monitor output from default sink
-        val tsSourceOutputs = if (
-            commandRunner.runCommand("pactl --version", printOutput = false, printCommand = false)
-                .first.outputText.lines().first().replace("^pactl\\s+".toRegex(), "")
-                .substringBefore(".").toInt() < 16
-        ) {
-            convertToJSON(
-                commandRunner.runCommand(
-                    "pactl list source-outputs",
-                    printOutput = false, printCommand = false
-                ).first.outputText
-            )
-        } else {
-            JSONArray(
-                commandRunner.runCommand(
-                    "pactl -f json list source-outputs",
-                    printOutput = false, printCommand = false
-                ).first.outputText
-            )
-        }
+        val tsSourceOutputs = runPactlCommand("list source-outputs")
         val tsSourceOutputId = tsSourceOutputs.first {
             it as JSONObject
             it.getJSONObject("properties").getString("application.name") == "TeamSpeak3"

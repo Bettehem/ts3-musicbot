@@ -4,12 +4,14 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.IO
 import java.util.*
 import kotlin.collections.ArrayList
+import ts3_musicbot.client.OfficialTSClient
 
 private var songQueue = Collections.synchronizedList(ArrayList<Track>())
 
 class SongQueue(
     spotifyPlayer: String = "spotify",
     mpvVolume: Int,
+    teamSpeak: Any,
     private val playStateListener: PlayStateListener
 ) : PlayStateListener {
     private var queueState = State.QUEUE_STOPPED
@@ -28,7 +30,7 @@ class SongQueue(
 
     fun getState() = synchronized(queueState) { queueState }
 
-    private val trackPlayer = TrackPlayer(spotifyPlayer, mpvVolume, this)
+    private val trackPlayer = TrackPlayer(spotifyPlayer, mpvVolume, teamSpeak, this)
 
     private fun setCurrent(track: Track) = synchronized(trackPlayer) { trackPlayer.track = track }
     private fun getCurrent() = synchronized(trackPlayer) { trackPlayer.track }
@@ -326,7 +328,7 @@ class SongQueue(
 
     override fun onAdPlaying() {}
 
-    private class TrackPlayer(val spotifyPlayer: String, val mpvVolume: Int, val listener: PlayStateListener) {
+    private class TrackPlayer(val spotifyPlayer: String, val mpvVolume: Int, val teamSpeak: Any, val listener: PlayStateListener) {
         var trackJob = Job()
         var trackPositionJob = Job()
 
@@ -359,15 +361,25 @@ class SongQueue(
                 commandRunner.runCommand("pasuspender true", printOutput = false, printErrors = false)
         }
 
+        fun checkTeamSpeakAudio(trackJob: Job) {
+            //check if the teamspeak is outputting audio, if not, restart the client.
+            if (teamSpeak is OfficialTSClient)
+                if (!teamSpeak.audioIsWorking()) {
+                    println("TeamSpeak audio is broken, restarting client.")
+                    runBlocking(trackJob + IO) {
+                        teamSpeak.restartClient() 
+                    }
+                }
+        }
 
         fun startTrack() {
-            refreshPulseAudio()
-
             synchronized(this) {
                 trackPositionJob.cancel()
                 trackPosition = 0
                 trackJob.cancel()
                 trackJob = Job()
+                refreshPulseAudio()
+                checkTeamSpeakAudio(trackJob)
             }
 
             fun playerStatus() = commandRunner.runCommand(
@@ -711,6 +723,7 @@ class SongQueue(
         fun resumeTrack() {
             if (track.isNotEmpty()) {
                 refreshPulseAudio()
+                checkTeamSpeakAudio(trackJob)
                 commandRunner.runCommand("playerctl -p ${getPlayer()} play", ignoreOutput = true)
             }
         }
