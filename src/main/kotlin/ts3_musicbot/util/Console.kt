@@ -34,7 +34,7 @@ class Console(
                                 "exit\t\t\t\t\tExits the program.\n" +
                                 "quit\t\t\t\t\tSame as exit.\n" +
                                 "join-channel, jc <channel> <password>\tJoin a channel.\n" +
-                                "restart <ts/teamspeak>\t\tRestarts the teamspeak client.\n"
+                                "restart <ts/teamspeak/ncspot>\t\tRestarts the teamspeak/ncspot client.\n"
                     )
                 }
 
@@ -82,8 +82,23 @@ class Console(
                             }
                         }
 
+                        "ncspot" -> {
+                            CoroutineScope(IO).launch {
+                                commandRunner.runCommand(
+                                    "playerctl -p ncspot stop; tmux kill-session -t ncspot",
+                                    ignoreOutput = true
+                                )
+                                delay(100)
+                                commandRunner.runCommand(
+                                    "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
+                                    ignoreOutput = true,
+                                    printCommand = true
+                                )
+                            }
+                        }
+
                         else -> {
-                            println("Specify either ts or teamspeak!")
+                            println("Specify either ts,teamspeak or ncspot!")
                         }
                     }
                 }

@@ -187,7 +187,12 @@ class ChatReader(
                     delay(5000)
                 }
 
-                suspend fun executeCommand(commandString: String): Boolean {
+                /**
+                 * Execute a musicbot command.
+                 * @param commandString The command to execute
+                 * @return Returns a Pair containing a boolean value indicating whether the command was successful, and any extra data.
+                 */
+                suspend fun executeCommand(commandString: String): Pair<Boolean, Any?> {
                     //parse and execute commands
                     if (commandList.commandList.any { commandString.startsWith(it.value) } || commandString.startsWith("%help")) {
                         println("Running command $commandString")
@@ -205,7 +210,7 @@ class ChatReader(
                                         commandList.helpMessages["help"].orEmpty()
                                     )
                                     commandJob.complete()
-                                    return true
+                                    return Pair(true, commandList.helpMessages["help"])
                                 } else {
                                     //get extra arguments
                                     var args =
@@ -225,7 +230,7 @@ class ChatReader(
                                             args
                                         )
                                         commandJob.complete()
-                                        true
+                                        Pair(true, args)
                                     } else {
                                         printToChat(
                                             listOf("Command doesn't exist! See ${commandList.commandList["help"]} for available commands.")
@@ -236,7 +241,7 @@ class ChatReader(
                                             args
                                         )
                                         commandJob.complete()
-                                        false
+                                        Pair(false, args)
                                     }
                                 }
                             }
@@ -433,8 +438,10 @@ class ChatReader(
                                                         println("Album \"${albumTracks.trackList[0].album}\" has a total of ${albumTracks.size} tracks.\nAdding to queue...")
 
                                                         //add tracks to queue
-                                                        var trackList = if (shouldReverse) albumTracks.reversed() else albumTracks
-                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
+                                                        var trackList =
+                                                            if (shouldReverse) albumTracks.reversed() else albumTracks
+                                                        trackList =
+                                                            if (shouldShuffle) trackList.shuffled() else trackList
                                                         val albumAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -447,14 +454,17 @@ class ChatReader(
 
                                                     LinkType.PLAYLIST -> {
                                                         //fetch playlist's tracks
-                                                        val playlistLink = Link("https://open.spotify.com/playlist/$id", id)
+                                                        val playlistLink =
+                                                            Link("https://open.spotify.com/playlist/$id", id)
                                                         val playlistTracks = filterList(
                                                             spotify.fetchPlaylistTracks(playlistLink), playlistLink
                                                         )
                                                         println("Playlist has a total of ${playlistTracks.size} tracks.\nAdding to queue...")
                                                         //add tracks to queue
-                                                        var trackList = if (shouldReverse) playlistTracks.reversed() else playlistTracks
-                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
+                                                        var trackList =
+                                                            if (shouldReverse) playlistTracks.reversed() else playlistTracks
+                                                        trackList =
+                                                            if (shouldShuffle) trackList.shuffled() else trackList
                                                         val playlistAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -472,8 +482,10 @@ class ChatReader(
                                                             spotify.fetchShow(showLink).episodes.toTrackList(),
                                                             showLink
                                                         )
-                                                        var trackList = if (shouldReverse) episodes.reversed() else episodes
-                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
+                                                        var trackList =
+                                                            if (shouldReverse) episodes.reversed() else episodes
+                                                        trackList =
+                                                            if (shouldShuffle) trackList.shuffled() else trackList
                                                         val showAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -499,7 +511,9 @@ class ChatReader(
                                                             else
                                                                 "Episode not playable."
                                                         if (episodeAdded)
-                                                            trackCache.add(Pair(episode.link, TrackList(listOf(episode.toTrack()))))
+                                                            trackCache.add(
+                                                                Pair(episode.link, TrackList(listOf(episode.toTrack())))
+                                                            )
                                                         commandListener.onCommandProgress(commandString, msg, episode)
                                                         commandSuccessful.add(Pair(episodeAdded, Pair(msg, episode)))
                                                     }
@@ -510,8 +524,10 @@ class ChatReader(
                                                         val topTracks = filterList(
                                                             spotify.fetchArtist(artistLink).topTracks, artistLink
                                                         )
-                                                        var trackList = if (shouldReverse) topTracks.reversed() else topTracks
-                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
+                                                        var trackList =
+                                                            if (shouldReverse) topTracks.reversed() else topTracks
+                                                        trackList =
+                                                            if (shouldShuffle) trackList.shuffled() else trackList
                                                         val tracksAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -562,8 +578,10 @@ class ChatReader(
                                                             playlistLink
                                                         )
                                                         println("Playlist has a total of ${playlistTracks.trackList.size} tracks.\nAdding to queue...")
-                                                        var trackList = if (shouldReverse) playlistTracks.reversed() else playlistTracks
-                                                        trackList =  if (shouldShuffle) trackList.shuffled() else trackList
+                                                        var trackList =
+                                                            if (shouldReverse) playlistTracks.reversed() else playlistTracks
+                                                        trackList =
+                                                            if (shouldShuffle) trackList.shuffled() else trackList
                                                         val playlistAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -606,8 +624,10 @@ class ChatReader(
                                                         //fetch playlist tracks
                                                         val playlistTracks =
                                                             filterList(soundCloud.fetchPlaylistTracks(link), link)
-                                                        var trackList = if (shouldReverse) playlistTracks.reversed() else playlistTracks
-                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
+                                                        var trackList =
+                                                            if (shouldReverse) playlistTracks.reversed() else playlistTracks
+                                                        trackList =
+                                                            if (shouldShuffle) trackList.shuffled() else trackList
                                                         val playlistAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -623,8 +643,10 @@ class ChatReader(
                                                         val topTracks = filterList(
                                                             soundCloud.fetchArtist(link).topTracks, link
                                                         )
-                                                        var trackList = if (shouldReverse) topTracks.reversed() else topTracks
-                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
+                                                        var trackList =
+                                                            if (shouldReverse) topTracks.reversed() else topTracks
+                                                        trackList =
+                                                            if (shouldShuffle) trackList.shuffled() else trackList
                                                         val tracksAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -642,7 +664,8 @@ class ChatReader(
                                                         //fetch likes
                                                         val likes = filterList(soundCloud.fetchUserLikes(link), link)
                                                         var trackList = if (shouldReverse) likes.reversed() else likes
-                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
+                                                        trackList =
+                                                            if (shouldShuffle) trackList.shuffled() else trackList
                                                         val likesAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -659,8 +682,10 @@ class ChatReader(
                                                     LinkType.REPOSTS -> {
                                                         val reposts =
                                                             filterList(soundCloud.fetchUserReposts(link), link)
-                                                        var trackList = if (shouldReverse) reposts.reversed() else reposts
-                                                        trackList = if (shouldShuffle) trackList.shuffled() else trackList
+                                                        var trackList =
+                                                            if (shouldReverse) reposts.reversed() else reposts
+                                                        trackList =
+                                                            if (shouldShuffle) trackList.shuffled() else trackList
                                                         val repostsAdded =
                                                             songQueue.addAllToQueue(trackList, customPosition)
                                                         val msg =
@@ -693,7 +718,7 @@ class ChatReader(
                                         commandSuccessful.first().second.second
                                     )
                                     commandJob.complete()
-                                    true
+                                    Pair(true, commandSuccessful.first().second.second)
                                 } else {
                                     val unPlayableTracks = commandSuccessful.filter { !it.first }
                                     printToChat(listOf("${unPlayableTracks.size} track${if (unPlayableTracks.size > 1) "s" else ""} could not be added :/"))
@@ -710,7 +735,7 @@ class ChatReader(
                                         unPlayableTracks
                                     )
                                     commandJob.complete()
-                                    false
+                                    Pair(false, unPlayableTracks)
                                 }
                             }
                             //queue-play command
@@ -720,22 +745,22 @@ class ChatReader(
                                         printToChat(
                                             listOf(
                                                 "Queue is already active!\n" +
-                                                "Running ${commandList.commandList["queue-resume"]} instead."
+                                                        "Running ${commandList.commandList["queue-resume"]} instead."
                                             )
                                         )
                                         executeCommand("${commandList.commandList["queue-resume"]}")
                                         commandJob.complete()
-                                        true
+                                        Pair(true, null)
                                     } else {
                                         printToChat(listOf("Playing Queue."))
                                         songQueue.startQueue()
                                         commandJob.complete()
-                                        true
+                                        Pair(true, null)
                                     }
                                 } else {
                                     printToChat(listOf("Queue is empty!"))
                                     commandJob.complete()
-                                    return false
+                                    return Pair(false, null)
                                 }
                             }
                             //queue-list command
@@ -823,7 +848,7 @@ class ChatReader(
                                             TrackList(currentQueue)
                                         )
                                         commandJob.complete()
-                                        return true
+                                        return Pair(true, TrackList(currentQueue))
                                     }
                                 }
                             }
@@ -933,31 +958,34 @@ class ChatReader(
                             //queue-clear command
                             commandString.contains("^${commandList.commandList["queue-clear"]}$".toRegex()) -> {
                                 songQueue.clearQueue()
-                                return if (songQueue.getQueue().isEmpty()) {
-                                    printToChat(listOf("Cleared the queue."))
-                                    commandListener.onCommandExecuted(commandString, "Cleared the queue.")
-                                    commandJob.complete()
-                                    true
-                                } else {
-                                    printToChat(listOf("Could not clear the queue!"))
-                                    commandListener.onCommandExecuted(commandString, "Could not clear the queue!")
-                                    commandJob.complete()
-                                    false
-                                }
+                                return Pair(
+                                    if (songQueue.getQueue().isEmpty()) {
+                                        printToChat(listOf("Cleared the queue."))
+                                        commandListener.onCommandExecuted(commandString, "Cleared the queue.")
+                                        commandJob.complete()
+                                        true
+                                    } else {
+                                        printToChat(listOf("Could not clear the queue!"))
+                                        commandListener.onCommandExecuted(commandString, "Could not clear the queue!")
+                                        commandJob.complete()
+                                        false
+                                    },
+                                    null
+                                )
                             }
                             //queue-shuffle command
                             commandString.contains("^${commandList.commandList["queue-shuffle"]}$".toRegex()) -> {
                                 songQueue.shuffleQueue()
                                 printToChat(listOf("Shuffled the queue."))
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //queue-skip command
                             commandString.contains("^${commandList.commandList["queue-skip"]}$".toRegex()) -> {
                                 voteSkipUsers.clear()
                                 songQueue.skipSong()
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //queue-voteskip command
                             commandString.contains("^${commandList.commandList["queue-voteskip"]}$".toRegex()) -> {
@@ -1023,14 +1051,16 @@ class ChatReader(
                                     }
                                 }
                                 voteSkipUsers.addAll(newList)
+                                val currentSong = songQueue.nowPlaying()
                                 if (voteSkipUsers.any { !it.second }) {
                                     printToChat(
                                         listOf("\nAll users have not voted yet.\nWaiting for more votes...")
                                     )
+                                    commandJob.complete()
+                                    return Pair(false, currentSong)
                                 } else {
                                     printToChat(listOf("Skipping current song."))
                                     voteSkipUsers.clear()
-                                    val currentSong = songQueue.nowPlaying()
                                     songQueue.skipSong()
                                     commandListener.onCommandExecuted(
                                         commandString,
@@ -1038,7 +1068,7 @@ class ChatReader(
                                         currentSong
                                     )
                                     commandJob.complete()
-                                    return true
+                                    return Pair(true, currentSong)
                                 }
                             }
                             //queue-move command
@@ -1191,7 +1221,7 @@ class ChatReader(
                                             listOf("lol u think arrays start at 1?")
                                         )
                                         commandJob.complete()
-                                        return false
+                                        return Pair(false, newPosition)
                                     }
 
                                     newPosition < 0 -> {
@@ -1199,7 +1229,7 @@ class ChatReader(
                                             listOf("What were you thinking?", "You can't do that.")
                                         )
                                         commandJob.complete()
-                                        return false
+                                        return Pair(false, newPosition)
                                     }
 
                                     else -> {
@@ -1215,40 +1245,43 @@ class ChatReader(
                                             )
                                         }
                                         val newList = songQueue.getQueue()
-                                        return if (
-                                            currentList.filterIndexed { index, _ -> positions.any { it == index } }
-                                                .let { tracks ->
-                                                    if (newPosIsOffset) {
-                                                        if (newPosition == 0) {
-                                                            tracks.any { it == newList[newPosition] }
+                                        return Pair(
+                                            if (
+                                                currentList.filterIndexed { index, _ -> positions.any { it == index } }
+                                                    .let { tracks ->
+                                                        if (newPosIsOffset) {
+                                                            if (newPosition == 0) {
+                                                                tracks.any { it == newList[newPosition] }
+                                                            } else {
+                                                                tracks.any { it == newList[newPosition - 1] }
+                                                            }
                                                         } else {
-                                                            tracks.any { it == newList[newPosition - 1] }
+                                                            tracks.any { it == newList[newPosition] }
                                                         }
-                                                    } else {
-                                                        tracks.any { it == newList[newPosition] }
                                                     }
-                                                }
-                                        ) {
-                                            printToChat(
-                                                listOf("Moved track${if (positions.size > 1) "s" else ""} to new position.")
-                                            )
-                                            commandListener.onCommandExecuted(
-                                                commandString,
-                                                "Moved track${if (positions.size > 1) "s" else ""} to new position."
-                                            )
-                                            commandJob.complete()
-                                            true
-                                        } else {
-                                            printToChat(
-                                                listOf("Couldn't move track${if (positions.size > 1) "s" else ""} to new position.")
-                                            )
-                                            commandListener.onCommandExecuted(
-                                                commandString,
-                                                "Couldn't move track${if (positions.size > 1) "s" else ""} to new position."
-                                            )
-                                            commandJob.complete()
-                                            false
-                                        }
+                                            ) {
+                                                printToChat(
+                                                    listOf("Moved track${if (positions.size > 1) "s" else ""} to new position.")
+                                                )
+                                                commandListener.onCommandExecuted(
+                                                    commandString,
+                                                    "Moved track${if (positions.size > 1) "s" else ""} to new position."
+                                                )
+                                                commandJob.complete()
+                                                true
+                                            } else {
+                                                printToChat(
+                                                    listOf("Couldn't move track${if (positions.size > 1) "s" else ""} to new position.")
+                                                )
+                                                commandListener.onCommandExecuted(
+                                                    commandString,
+                                                    "Couldn't move track${if (positions.size > 1) "s" else ""} to new position."
+                                                )
+                                                commandJob.complete()
+                                                false
+                                            },
+                                            newPosition
+                                        )
                                     }
                                 }
                             }
@@ -1257,14 +1290,15 @@ class ChatReader(
                                 songQueue.stopQueue()
                                 printToChat(listOf("Stopped the queue."))
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //queue-status command
                             commandString.contains("^${commandList.commandList["queue-status"]}$".toRegex()) -> {
                                 val statusMessage = StringBuilder()
                                 statusMessage.append("Queue Status: ")
                                 var stateKnown = false
-                                when (songQueue.getState()) {
+                                val state = songQueue.getState()
+                                when (state) {
                                     SongQueue.State.QUEUE_PLAYING -> statusMessage.appendLine("Playing")
                                         .also { stateKnown = true }
 
@@ -1277,12 +1311,12 @@ class ChatReader(
                                 printToChat(statusMessage.toString().lines())
                                 commandListener.onCommandExecuted(commandString, statusMessage.toString())
                                 commandJob.complete()
-                                return stateKnown
+                                return Pair(stateKnown, state)
                             }
                             //queue-nowplaying command
                             commandString.contains("^${commandList.commandList["queue-nowplaying"]}$".toRegex()) -> {
-                                if (songQueue.nowPlaying().title.name.isNotEmpty()) {
-                                    val currentTrack = songQueue.nowPlaying()
+                                val currentTrack = songQueue.nowPlaying()
+                                if (currentTrack.title.name.isNotEmpty()) {
                                     val messageLines = StringBuilder()
                                     messageLines.appendLine("Now playing:")
                                     if (currentTrack.album.name.name.isNotEmpty())
@@ -1307,19 +1341,19 @@ class ChatReader(
                                     printToChat(listOf("No song playing!"))
                                 }
                                 commandJob.complete()
-                                return true
+                                return Pair(true, currentTrack)
                             }
                             //queue-pause command
                             commandString.contains("^${commandList.commandList["queue-pause"]}$".toRegex()) -> {
                                 songQueue.pausePlayback()
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //queue-resume command
                             commandString.contains("^${commandList.commandList["queue-resume"]}$".toRegex()) -> {
                                 songQueue.resumePlayback()
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //search command
                             commandString.contains("^${commandList.commandList["search"]}\\s+".toRegex()) -> {
@@ -1378,12 +1412,12 @@ class ChatReader(
                                         )
                                         commandListener.onCommandExecuted(commandString, results.toString(), results)
                                         commandJob.complete()
-                                        true
+                                        Pair(true, results)
                                     } else {
                                         printToChat(listOf("No results found!"))
                                         commandListener.onCommandExecuted(commandString, results.toString(), results)
                                         commandJob.complete()
-                                        false
+                                        Pair(false, results)
                                     }
                                 } else {
                                     printToChat(
@@ -1391,15 +1425,31 @@ class ChatReader(
                                     )
                                     commandListener.onCommandExecuted(commandString, "Not supported", searchType)
                                     commandJob.complete()
-                                    return false
+                                    return Pair(false, searchType)
                                 }
                             }
                             //info command
                             commandString.contains("^${commandList.commandList["info"]}\\s+".toRegex()) -> {
-                                val links = removeTags(
-                                    commandString.replace("${commandList.commandList["info"]}\\s+".toRegex(), "")
-                                ).split("\\s*,\\s*".toRegex()).map { Link(it) }
-
+                                val services = listOf("sp", "spotify", "yt", "youtube", "sc", "soundcloud")
+                                val links = if (commandString.contains(
+                                        "^${commandList.commandList["info"]}\\s+(${
+                                            services.joinToString("|")
+                                        })\\s+\\w+\\s+".toRegex()
+                                    )
+                                ) {
+                                    latestMsgUsername = "__console__"
+                                    executeCommand("${commandList.commandList["search"]}${commandString.substringAfter("${commandList.commandList["info"]}")}").second.let { results ->
+                                        latestMsgUsername = ""
+                                        if (results is SearchResults)
+                                            listOf(results.results.first().link)
+                                        else
+                                            emptyList()
+                                    }
+                                } else {
+                                    removeTags(
+                                        commandString.replace("${commandList.commandList["info"]}\\s+".toRegex(), "")
+                                    ).split("\\s*,\\s*".toRegex()).map { Link(it) }
+                                }
                                 val output = ArrayList<Any>()
                                 var success = false
                                 for (link in links) {
@@ -1455,19 +1505,19 @@ class ChatReader(
                                     links
                                 )
                                 commandJob.complete()
-                                return success
+                                return Pair(success, links)
                             }
                             //sp-pause command
                             commandString.contains("^${commandList.commandList["sp-pause"]}$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} pause && sleep 1")
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //sp-resume & sp-play command
                             commandString.contains("^(${commandList.commandList["sp-resume"]}|${commandList.commandList["sp-play"]})$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} play && sleep 1")
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //sp-stop command
                             //Stop spotify playback
@@ -1477,19 +1527,19 @@ class ChatReader(
                                 else
                                     commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} pause")
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //sp-skip & sp-next command
                             commandString.contains("^(${commandList.commandList["sp-skip"]}|${commandList.commandList["sp-next"]})$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} next && sleep 1")
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //sp-prev command
                             commandString.contains("^${commandList.commandList["sp-prev"]}$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} previous && sleep 0.1 & playerctl -p ${botSettings.spotifyPlayer} previous")
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //sp-playsong command
                             //Play Spotify song based on link or URI
@@ -1519,11 +1569,11 @@ class ChatReader(
                                         )
                                     }
                                     commandJob.complete()
-                                    return true
+                                    return Pair(true, null)
                                 } else {
                                     printToChat(listOf("Error! Please provide a song to play!"))
                                     commandJob.complete()
-                                    return false
+                                    return Pair(false, null)
                                 }
                             }
                             //sp-playlist command
@@ -1556,7 +1606,7 @@ class ChatReader(
                                     )
                                 }
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //sp-playalbum command
                             commandString.contains("^${commandList.commandList["sp-playalbum"]}\\s+".toRegex()) -> {
@@ -1576,7 +1626,7 @@ class ChatReader(
                                     )
                                 }
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //sp-nowplaying command
                             commandString.contains("^${commandList.commandList["sp-nowplaying"]}$".toRegex()) -> {
@@ -1628,25 +1678,25 @@ class ChatReader(
                                 }
                                 printToChat(listOf(lines.toString()))
                                 commandJob.complete()
-                                return true
+                                return Pair(true, lines)
                             }
                             //yt-pause command
                             commandString.contains("^${commandList.commandList["yt-pause"]}$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p mpv pause")
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //yt-resume and yt-play commands
                             commandString.contains("^(${commandList.commandList["yt-resume"]}|${commandList.commandList["yt-play"]})$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p mpv play")
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //yt-stop command
                             commandString.contains("^${commandList.commandList["yt-stop"]}$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p mpv stop")
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //yt-playsong command
                             commandString.contains("^${commandList.commandList["yt-playsong"]}\\s+".toRegex()) -> {
@@ -1665,48 +1715,44 @@ class ChatReader(
                                     }
                                     commandListener.onCommandExecuted(commandString, "Playing song", ytLink)
                                     commandJob.complete()
-                                    return true
+                                    return Pair(true, ytLink)
                                 } else {
                                     commandListener.onCommandExecuted(commandString, "Couldn't play song", ytLink)
                                     commandJob.complete()
-                                    return false
+                                    return Pair(false, ytLink)
                                 }
                             }
                             //yt-nowplaying command
                             commandString.contains("^${commandList.commandList["yt-nowplaying"]}$".toRegex()) -> {
-                                printToChat(
-                                    listOf(
-                                        "Now playing on YouTube:\n" +
-                                                youTube.fetchVideo(
-                                                    Link(
-                                                        commandRunner.runCommand(
-                                                            "playerctl -p mpv metadata --format '{{ xesam:url }}'",
-                                                            printOutput = false
-                                                        ).first.outputText
-                                                    )
-                                                )
+                                val nowPlaying = youTube.fetchVideo(
+                                    Link(
+                                        commandRunner.runCommand(
+                                            "playerctl -p mpv metadata --format '{{ xesam:url }}'",
+                                            printOutput = false
+                                        ).first.outputText
                                     )
                                 )
+                                printToChat(listOf("Now playing on YouTube:\n$nowPlaying"))
                                 commandJob.complete()
-                                return true
+                                return Pair(true, nowPlaying)
                             }
                             //sc-pause command
                             commandString.contains("^${commandList.commandList["sc-pause"]}$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p mpv pause")
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //sc-resume and sc-play commands
                             commandString.contains("^(${commandList.commandList["sc-resume"]}|${commandList.commandList["sc-play"]})$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p mpv play")
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //sc-stop command
                             commandString.contains("^${commandList.commandList["sc-stop"]}$".toRegex()) -> {
                                 commandRunner.runCommand("playerctl -p mpv stop")
                                 commandJob.complete()
-                                return true
+                                return Pair(true, null)
                             }
                             //sc-playsong command
                             commandString.contains("^${commandList.commandList["sc-playsong"]}\\s+".toRegex()) -> {
@@ -1722,29 +1768,26 @@ class ChatReader(
                                     }
                                     commandListener.onCommandExecuted(commandString, "Playing song", scLink)
                                     commandJob.complete()
-                                    return true
+                                    return Pair(true, scLink)
                                 } else {
                                     commandListener.onCommandExecuted(commandString, "Couldn't play song", scLink)
                                     commandJob.complete()
-                                    return false
+                                    return Pair(false, scLink)
                                 }
 
                             }
                             //sc-nowplaying command
                             commandString.contains("^${commandList.commandList["sc-nowplaying"]}$".toRegex()) -> {
-                                printToChat(
-                                    listOf(
-                                        "Now playing on SoundCloud:\n" +
-                                                soundCloud.fetchTrack(Link(commandRunner.runCommand("playerctl -p mpv metadata --format '{{ xesam:url }}'").first.outputText))
-                                    )
-                                )
+                                val nowPlaying =
+                                    soundCloud.fetchTrack(Link(commandRunner.runCommand("playerctl -p mpv metadata --format '{{ xesam:url }}'").first.outputText))
+                                printToChat(listOf("Now playing on SoundCloud:\n$nowPlaying"))
                                 commandJob.complete()
-                                return true
+                                return Pair(true, nowPlaying)
                             }
 
                             else -> {
                                 commandJob.complete()
-                                return false
+                                return Pair(false, null)
                             }
                         }
                     } else {
@@ -1752,10 +1795,10 @@ class ChatReader(
                             listOf("Command not found! Try ${commandList.commandList["help"]} to see available commands.")
                         )
                         commandJob.complete()
-                        return false
+                        return Pair(false, "Command Not found")
                     }
                     commandJob.complete()
-                    return false
+                    return Pair(false, null)
                 }
 
                 //check for commands in message and add to list
@@ -1771,7 +1814,7 @@ class ChatReader(
                         command.contains("\\s+&{2}\\s+${commandList.commandPrefix}.+(-?.+)".toRegex()) -> {
                             //run commands
                             for (cmd in command.split("\\s+&{2}\\s+".toRegex())) {
-                                if (executeCommand(cmd)) {
+                                if (executeCommand(cmd).first) {
                                     //command was successful, continue to next command
                                     continue
                                 } else {

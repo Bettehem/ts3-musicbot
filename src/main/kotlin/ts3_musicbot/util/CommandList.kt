@@ -72,7 +72,7 @@ data class CommandList(
                         "${commandList["queue-pause"]}                                 -Pauses playback\n" +
                         "${commandList["queue-resume"]}                                -Resumes playback\n" +
                         "${commandList["search"]} <service> <type> <text> <limit>      -Search on SoundCloud, Spotify or YouTube. Shows 10 first results by default. <type> can be track, video, playlist or channel. You can set the amount of results with the -l/--limit flag.\n" +
-                        "${commandList["info"]} <link>                                 -Shows info on the given link(s). <link> can be one or more Spotify, YouTube or SoundCloud links, separated by a comma.\n" +
+                        "${commandList["info"]} <link/search query>                    -Shows info on the given search query or link(s). <link> can be one or more Spotify, YouTube or SoundCloud links, separated by a comma.\n" +
                         "\n\n" +
                         "Player specific commands:\n" +
                         "(These aren't normally needed. Using the commands above is recommended instead)\n" +
@@ -267,7 +267,9 @@ data class CommandList(
             Pair(
                 "info", "\n" +
                         "Showing help for ${commandList["info"]} command:\n" +
-                        "${commandList["info"]} shows information on a given link.\n" +
+                        "${commandList["info"]} shows information on a given search query or link(s).\n" +
+                        "You can either use 1 or more links,\n" +
+                        "or search for something on Spotify/YouTube/SoundCloud using the same syntax as with the ${commandList["search"]} command.\n" +
                         "Example 1 - Get info on Spotify track link:\n" +
                         "${commandList["info"]} https://open.spotify.com/track/2igwFfvr1OAGX9SKDCPBwO\n" +
                         "Example 2 - Get info on Spotify URI:\n" +
@@ -277,7 +279,9 @@ data class CommandList(
                         "Example 4 - Get info on YouTube track link:\n" +
                         "${commandList["info"]} https://www.youtube.com/watch?v=IKZnGWxJN3I\n" +
                         "Example 5 - Get info on YouTube and SoundCloud link:\n" +
-                        "${commandList["info"]} https://youtu.be/IKZnGWxJN3I,https://soundcloud.com/iamleeya/something-worth-dreaming-of\n"
+                        "${commandList["info"]} https://youtu.be/IKZnGWxJN3I,https://soundcloud.com/iamleeya/something-worth-dreaming-of\n" +
+                        "Example 6 - Show info on the Spotify artist \"The Algorithm\":\n" +
+                        "${commandList["info"]} sp artist the algorithm"
             ),
             Pair(
                 "search", "\n" +

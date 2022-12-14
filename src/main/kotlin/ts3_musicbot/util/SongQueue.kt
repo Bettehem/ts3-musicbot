@@ -421,6 +421,8 @@ class SongQueue(
                     printOutput = false
                 )
 
+                killCommand()
+                delay(100)
                 startCommand()
                 //sometimes the spotify player has problems starting, so ensure it actually starts.
                 while (checkProcess().first.outputText.isEmpty()) {

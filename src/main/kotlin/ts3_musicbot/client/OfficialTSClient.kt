@@ -226,7 +226,7 @@ class OfficialTSClient(
                                     else "") +
                                     "\""
                         else "")
-                        + "&"
+                        + " &"
 
             )
             delay(1000)
