@@ -710,8 +710,12 @@ class ChatReader(
                                     }
                                 }
                                 return if (commandSuccessful.all { it.first }) {
-                                    msgBuilder.appendLine(commandSuccessful.filter { it.first }
-                                        .joinToString("\n") { it.second.first })
+                                    val msg = commandSuccessful.filter { it.first }
+                                                .joinToString("\n") { it.second.first }
+                                    if (msgBuilder.lines().size <= 1)
+                                        msgBuilder.append(msg)
+                                    else 
+                                        msgBuilder.appendLine(msg)
                                     printToChat(listOf(msgBuilder.toString()))
                                     commandListener.onCommandExecuted(
                                         commandString,

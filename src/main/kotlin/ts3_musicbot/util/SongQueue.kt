@@ -113,32 +113,11 @@ class SongQueue(
     }
 
     /**
-     * Moves the first matching track to a new position
-     * @param track track to move
-     * @param newPosition new position of the track
-     */
-    @Deprecated("Use the new moveTrack(trackPosition, newPosition) function instead.")
-    fun moveTrack(track: Track, newPosition: Int) {
-        synchronized(songQueue) {
-            if (newPosition < songQueue.size && newPosition >= 0) {
-                for (i in songQueue.indices) {
-                    if (songQueue[i].link == track.link) {
-                        val newTrack = songQueue[i]
-                        songQueue.removeAt(i)
-                        songQueue.add(newPosition, newTrack)
-                        break
-                    }
-                }
-            }
-        }
-    }
-
-    /**
      * Moves a track to a new position
      * @param trackPosition Position of the track to move
      * @param newPosition New position of the track
      */
-    fun moveTrack(trackPosition: Int, newPosition: Int) {
+    private fun moveTrack(trackPosition: Int, newPosition: Int) {
         synchronized(songQueue) {
             if (newPosition < songQueue.size && newPosition >= 0) {
                 val newTrack = songQueue[trackPosition]

@@ -480,6 +480,10 @@ class OfficialTSClient(
         channelFile = file
     }
 
+    /**
+     * Sends a message to the current Channel
+     * @param message The message to send
+     */
     fun sendMsgToChannel(message: String) {
         //TeamSpeak's character limit is 8192 per message
         val tsCharLimit = 8192
