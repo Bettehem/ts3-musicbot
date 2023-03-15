@@ -35,6 +35,8 @@ class OfficialTSClient(
                     .replace("&quot;", "\\\"")
                     .replace("`", "\\`")
                     .replace("$", "\\\\$")
+                    .replace("[", "\\\\\\\\\\[")
+                    .replace("]", "\\\\\\\\\\]")
             }
 
             else -> {
@@ -47,6 +49,8 @@ class OfficialTSClient(
                     .replace("&quot;", "\\\"")
                     .replace("`", "\\`")
                     .replace("$", "\\$")
+                    .replace("[", "\\\\\\[")
+                    .replace("]", "\\\\\\]")
             }
         }
     }

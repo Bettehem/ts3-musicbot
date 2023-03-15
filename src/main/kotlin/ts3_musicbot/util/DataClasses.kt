@@ -257,13 +257,13 @@ data class TrackList(val trackList: List<Track> = emptyList()) {
     override fun toString(): String {
         val strBuilder = StringBuilder()
         if (trackList.isNotEmpty()) {
-            trackList.forEach {
-                for (artist in it.artists.artists) {
-                    strBuilder.append("${artist.name}, ")
+            trackList.forEachIndexed { i, track ->
+                for (artist in track.artists.artists) {
+                    strBuilder.append("${i+1}: ${artist.name}, ")
                 }
-                if (it.artists.artists.isNotEmpty()) {
+                if (track.artists.artists.isNotEmpty()) {
                     strBuilder.delete(strBuilder.length - 2, strBuilder.length - 1)
-                    strBuilder.appendLine(" - ${it.title} : ${it.link}")
+                    strBuilder.appendLine(" - ${track.title} : ${track.link}")
                 }
             }
         }

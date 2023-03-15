@@ -144,7 +144,7 @@ data class CommandList(
                         "-p    \t-Add track(s) to a specific position in the queue.\n" +
                         "-r    \t-Reverse playlist/album etc. before adding to the queue.\n" +
                         "Example - Add playlist to queue at position 15 and shuffle it before that:\n" +
-                        "${commandList["queue-playnext"]} -s https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt -p 15" +
+                        "${commandList["queue-playnext"]} -s https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt -p 15\n" +
                         "Example - Search for an album on spotify and add it to the queue:\n" +
                         "${commandList["queue-playnext"]} spotify album Haken Affinity:\n" +
                         "Example - Search for a podcast on spotify and add it to the queue:\n" +
