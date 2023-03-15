@@ -30,14 +30,14 @@ Go to [Wiki](https://gitlab.com/Bettehem/ts3-musicbot/wikis/home) for instructio
 <h4>Commands:</h4>
 
 - All commands start with the "%" character. You have to enter these in the chat of the channel your bot is connected to.<br>
-- Check Command List wiki page for list of commands: https://gitlab.com/Bettehem/ts3-musicbot/wikis/command-list<br>
+- Check Command List wiki page for a list of commands: https://gitlab.com/Bettehem/ts3-musicbot/wikis/command-list<br>
 
 <br>
 <br>
 <br>
 <br>
 
-*Other bots which claim to support Spotify, only will search for a song's data on Spotify, then enter it in a YouTube search and plays the first result. This is especially problematic if you're trying to play a Spotify song what doesn't exist on YouTube. What you will get is some random video starts playling (not your song!) and it might just have a similar name as your song. And even if the bot happens to find a correct match for your song on YouTube, the audio quality might be a lot worse on YouTube than on Spotify.<br>
+*Other bots which claim to support Spotify, will only search for a song's data on Spotify, then enter it in a YouTube search and play the first result. This is especially problematic if you're trying to play a Spotify song that doesn't exist on YouTube. What you will get is a random video (not your song!) that might just have a similar name as your song. And even if the bot happens to find the correct match for your song on YouTube, the audio quality might still be a lot worse on YouTube than on Spotify.<br>
 This problem doesn't exist on this bot, as it will search for the relevant Spotify data using their API, and then uses either the official Spotify client, or if the user so chooses, ncspot to play the songs straight from Spotify.<br>
 <br>
 If you like my work and feel like it's worth your money, you can donate via PayPal. More options may come in the future. Thanks for your support!<br>
