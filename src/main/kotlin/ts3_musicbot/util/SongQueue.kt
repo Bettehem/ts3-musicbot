@@ -379,7 +379,7 @@ class SongQueue(
 
                 fun startCommand() = when (spotifyPlayer) {
                     "spotify" -> commandRunner.runCommand(
-                        "$spotifyPlayer &",
+                        "xvfb-run spotify --no-zygote &",
                         ignoreOutput = true,
                         printCommand = true,
                         inheritIO = true
@@ -408,7 +408,7 @@ class SongQueue(
                     delay(7000)
                     if (checkProcess().first.outputText.isEmpty()) {
                         repeat(2) { killCommand() }
-                        delay(500)
+                        delay(1000)
                         startCommand()
                         delay(2000)
                     }
@@ -473,7 +473,7 @@ class SongQueue(
                             ).first.outputText.isEmpty()
                         ) {
                             println("Waiting for $player to start.")
-                            delay(100)
+                            delay(500)
                         }
                         //Try to start playing song
                         var attempts = 0
@@ -492,7 +492,7 @@ class SongQueue(
                                         }", printCommand = true
                                     )
                                 }
-                                delay(2000)
+                                delay(5000)
                                 attempts++
                             } else {
                                 attempts = 0
