@@ -33,7 +33,7 @@ class Console(
                                 "clear\t\t\t\t\tClears the screen.\n" +
                                 "exit\t\t\t\t\tExits the program.\n" +
                                 "quit\t\t\t\t\tSame as exit.\n" +
-                                "join-channel, jc <channel> <password>\tJoin a channel.\n" +
+                                "join-channel, jc <channel> -p <password>\tJoin a channel.\n" +
                                 "restart <ts/teamspeak/ncspot>\t\tRestarts the teamspeak/ncspot client.\n"
                     )
                 }
@@ -50,24 +50,14 @@ class Console(
                 "exit" -> exit(command)
                 "quit" -> exit(command)
                 "join-channel", "jc" -> {
+                    val channelName = userCommand.replace("(^\\S+\\s+|\\s+(-p).*$)".toRegex(), "")
+                    val channelPassword =
+                        if (userCommand.contains("^\\S+\\s+.*\\s+-p\\s+.*\\S+$".toRegex()))
+                            userCommand.replace("^\\S+\\s+.*\\s+-p\\s+".toRegex(), "")
+                        else ""
                     when (teamSpeak) {
-                        is TeamSpeak -> {
-                            teamSpeak.joinChannel(
-                                userCommand.replace("(^\\S+\\s+|\\s+\\S+$)".toRegex(), ""),
-                                if (userCommand.contains("^\\S+\\s+\\S+\\s+\\S+$".toRegex()))
-                                    userCommand.replace("^\\S+\\s+\\S+\\s+".toRegex(), "")
-                                else ""
-                            )
-                        }
-
-                        is OfficialTSClient -> {
-                            teamSpeak.joinChannel(
-                                userCommand.replace("(^\\S+\\s+|\\s+\\S+$)".toRegex(), ""),
-                                if (userCommand.contains("^\\S+\\s+\\S+\\s+\\S+$".toRegex()))
-                                    userCommand.replace("^\\S+\\s+\\S+\\s+".toRegex(), "")
-                                else ""
-                            )
-                        }
+                        is TeamSpeak -> teamSpeak.joinChannel(channelName, channelPassword)
+                        is OfficialTSClient -> teamSpeak.joinChannel(channelName, channelPassword)
                     }
                 }
 

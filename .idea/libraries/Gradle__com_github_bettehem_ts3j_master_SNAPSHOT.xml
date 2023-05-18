@@ -1,5 +1,5 @@
 <component name="libraryTable">
-  <library name="Gradle: com.github.bettehem:ts3j:master-SNAPSHOT">
+  <library name="Gradle: com.github.bettehem:ts3j:master-SNAPSHOT" external-system-id="GRADLE">
     <CLASSES>
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.bettehem/ts3j/master-SNAPSHOT/b646c9dbc16ad12cc79c33229f327b02180ca7d/ts3j-master-SNAPSHOT.jar!/" />
     </CLASSES>

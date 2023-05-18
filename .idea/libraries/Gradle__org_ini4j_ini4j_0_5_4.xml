@@ -1,5 +1,5 @@
 <component name="libraryTable">
-  <library name="Gradle: org.ini4j:ini4j:0.5.4">
+  <library name="Gradle: org.ini4j:ini4j:0.5.4" external-system-id="GRADLE">
     <CLASSES>
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.ini4j/ini4j/0.5.4/4a3ee4146a90c619b20977d65951825f5675b560/ini4j-0.5.4.jar!/" />
     </CLASSES>

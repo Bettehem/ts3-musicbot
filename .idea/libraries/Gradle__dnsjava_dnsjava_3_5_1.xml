@@ -1,5 +1,5 @@
 <component name="libraryTable">
-  <library name="Gradle: dnsjava:dnsjava:3.5.1">
+  <library name="Gradle: dnsjava:dnsjava:3.5.1" external-system-id="GRADLE">
     <CLASSES>
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/dnsjava/dnsjava/3.5.1/eaf35f867896a7dc9d6ba15899a3d7834e0e2abe/dnsjava-3.5.1.jar!/" />
     </CLASSES>

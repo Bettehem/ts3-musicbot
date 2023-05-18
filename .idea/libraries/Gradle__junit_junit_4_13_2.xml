@@ -1,5 +1,5 @@
 <component name="libraryTable">
-  <library name="Gradle: junit:junit:4.13.2">
+  <library name="Gradle: junit:junit:4.13.2" external-system-id="GRADLE">
     <ANNOTATIONS>
       <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/externalAnnotations/junit/junit/4.12-an1/junit-4.12-an1-annotations.zip!/" />
     </ANNOTATIONS>

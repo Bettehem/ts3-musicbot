@@ -121,15 +121,15 @@ class OfficialTSClient(
     private fun getChannelId(channelName: String): String {
         val targetChannel = channelName.substringAfterLast("/")
         val channelList = getChannelList()
-        val channels = if (channelList.any { it.contains("channel_name=$targetChannel".toRegex()) })
-            channelList.filter { it.contains("channel_name=$targetChannel") }
+        val channels = if (channelList.any { it.contains("channel_name=${encode(targetChannel)}") })
+            channelList.filter { it.contains("channel_name=${encode(targetChannel)}") }
         else emptyList()
 
         var targetCid = "0"
         channelLoop@ for (channelData in channels) {
-            fun getChannelId(): String = channelData.substringAfter("cid=").substringBefore(" ")
+            fun getChannelId(): String = channelData.substringAfter("cid=").substringBefore(' ')
 
-            val subChannels = channelName.split("/")
+            val subChannels = channelName.split('/')
             val channelPath = ArrayList<String>()
             channelPath.addAll(subChannels.reversed())
             channelPath.removeFirst()
@@ -137,12 +137,12 @@ class OfficialTSClient(
             var pid = channelData.substringAfter("pid=").substringBefore(" ")
             while (channelPath.isNotEmpty()) {
                 fun getChannelName(cid: String) =
-                    channelList.first { it.contains("cid=$cid".toRegex()) }
-                        .substringAfter("channel_name=").substringBefore(" ")
+                    channelList.first { it.contains("cid=$cid(\\s+|$)".toRegex()) }
+                        .substringAfter("channel_name=").substringBefore(' ')
 
                 fun checkPid(pid: String, name: String) = getChannelName(pid) == name
                 if (checkPid(pid, channelPath.first())) {
-                    pid = getChannelList().first { it.contains("cid=$pid") }.substringAfter("pid=").substringBefore(" ")
+                    pid = getChannelList().first { it.contains("cid=$pid") }.substringAfter("pid=").substringBefore(' ')
                     channelPath.removeFirst()
                 } else {
                     continue@channelLoop
@@ -159,6 +159,7 @@ class OfficialTSClient(
      * @param channelPassword the password of the channel to join
      */
     fun joinChannel(channelName: String = settings.channelName, channelPassword: String = settings.channelPassword) {
+        println("Attempting to join a channel at \"$channelName\"" + if (channelPassword.isNotEmpty()) "with the password \"$channelPassword\"" else "")
         if (channelName != getCurrentChannelName()) {
             if (channelPassword.isNotEmpty()) {
                 clientQuery("disconnect")
@@ -180,8 +181,10 @@ class OfficialTSClient(
      * @return returns the name of the current channel
      */
     private fun getCurrentChannelName(): String =
-        getChannelId(decode(clientQuery("channelconnectinfo").lines().first { it.startsWith("path=") }
-            .substringAfter("path=")))
+        decode(
+            clientQuery("channelconnectinfo").lines().first { it.startsWith("path=") }
+                .substringAfter("path=").substringBefore(' ')
+        )
 
     /**
      * Start the TeamSpeak Client
@@ -595,7 +598,7 @@ class OfficialTSClient(
      *         which means audio is probably working.
      */
     fun audioIsWorking(): Boolean {
-        return runPactlCommand("list sink-inputs").any{
+        return runPactlCommand("list sink-inputs").any {
             it as JSONObject
             it.getJSONObject("properties").getString("application.name") == "TeamSpeak3"
         }

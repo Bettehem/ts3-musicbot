@@ -1,5 +1,5 @@
 <component name="libraryTable">
-  <library name="Gradle: org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.10">
+  <library name="Gradle: org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.10" external-system-id="GRADLE">
     <CLASSES>
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib-jdk8/1.8.10/7c002ac41f547a82e81dfebd2a20577a738dbf3f/kotlin-stdlib-jdk8-1.8.10.jar!/" />
     </CLASSES>

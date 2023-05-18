@@ -222,6 +222,9 @@ class SongQueue(
     }
 
 
+    /**
+     * Plays the next track in the queue.
+     **/
     private fun playNext() {
         fun playTrack(track: Track) {
             synchronized(trackPlayer) {
@@ -240,7 +243,8 @@ class SongQueue(
                                         "--cookies youtube-dl.cookies --force-ipv4 --age-limit 21 --geo-bypass -s \"${firstTrack.link}\"",
                                 printOutput = false,
                                 printErrors = false
-                            ).first.outputText.lines().last().contains("\\[(info|youtube)] ${firstTrack.link.getId()}: Downloading ([0-9]+ format\\(s\\):|webpage|API JSON)".toRegex())
+                            ).first.outputText.lines().last()
+                                .contains("\\[(info|youtube)] ${firstTrack.link.getId()}: Downloading ([0-9]+ format\\(s\\):|webpage|API JSON)".toRegex())
                         ) {
                             println(
                                 "youtube-dl cannot download this track! Skipping...\n" +
@@ -307,7 +311,12 @@ class SongQueue(
 
     override fun onAdPlaying() {}
 
-    private class TrackPlayer(val spotifyPlayer: String, val mpvVolume: Int, val teamSpeak: Any, val listener: PlayStateListener) {
+    private class TrackPlayer(
+        val spotifyPlayer: String,
+        val mpvVolume: Int,
+        val teamSpeak: Any,
+        val listener: PlayStateListener
+    ) {
         var trackJob = Job()
         var trackPositionJob = Job()
 
@@ -346,7 +355,7 @@ class SongQueue(
                 if (!teamSpeak.audioIsWorking()) {
                     println("TeamSpeak audio is broken, restarting client.")
                     runBlocking(trackJob + IO) {
-                        teamSpeak.restartClient() 
+                        teamSpeak.restartClient()
                     }
                 }
         }
@@ -421,9 +430,17 @@ class SongQueue(
                 ) {
                     //do nothing
                     println("Waiting for $spotifyPlayer to start")
-                    delay(10)
+                    delay(50)
                 }
                 delay(5000)
+
+                //now that the spotify player is started, in case of the official client, disable some settings:
+                //autoplay and automix needs to be disabled so the spotify client doesn't start playing stuff on its own.
+                //friend feed is and notifications are disabled just for performance.
+                if (spotifyPlayer == "spotify")
+                    commandRunner.runCommand(
+                        "sed -i '/.\\(track_notifications_enabled\\|show_friend_feed\\|auto\\(mix\\|play\\)\\)/s/true/false/g' ~/.config/spotify/Users/*/prefs"
+                    )
             }
 
             //starts playing the track

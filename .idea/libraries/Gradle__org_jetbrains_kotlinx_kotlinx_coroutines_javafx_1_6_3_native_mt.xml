@@ -1,5 +1,5 @@
 <component name="libraryTable">
-  <library name="Gradle: org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.6.3-native-mt">
+  <library name="Gradle: org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.6.3-native-mt" external-system-id="GRADLE">
     <CLASSES>
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-coroutines-javafx/1.6.3-native-mt/962b31978ade7f071fa72caca41ac5b085e5642e/kotlinx-coroutines-javafx-1.6.3-native-mt.jar!/" />
     </CLASSES>
