@@ -10,7 +10,7 @@ before_script:
   - archlinux-java set java-11-openjdk
   - useradd -m -g users -G wheel -s /bin/bash build
   - 'sed -i "\|# %wheel ALL=(ALL:ALL) NOPASSWD: ALL|s|#\s\+||g" /etc/sudoers'
-  - su -c "mkdir -p /home/build/.cache/paru/clone && cd /home/build/.cache/paru/clone && git clone https://aur.archlinux.org/paru-bin.git && cd paru && makepkg -si --noconfirm && paru -Syu java11-openjfx yt-dlp-drop-in --noconfirm" - build
+  - su -c "mkdir -p /home/build/.cache/paru/clone && cd /home/build/.cache/paru/clone && git clone https://aur.archlinux.org/paru-bin.git && cd paru-bin && makepkg -si --noconfirm && paru -Syu java11-openjfx yt-dlp-drop-in --noconfirm" - build
   - paccache -rk0
   - rm -rf /home/build/.cache/paru/clone/*
   
