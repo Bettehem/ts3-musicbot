@@ -8,7 +8,7 @@ stages:
 before_script:
   - pacman -Syu base-devel pacman-contrib kotlin jdk11-openjdk git yt-dlp --noconfirm --needed
   - archlinux-java set java-11-openjdk
-  - useradd -m -g build -G users,wheel -s /bin/bash build
+  - useradd -m -g users -G wheel -s /bin/bash build
   - 'sed -i "\|# %wheel ALL=(ALL:ALL) NOPASSWD: ALL|s|#\s\+||g" /etc/sudoers'
   - su -c "mkdir -p /home/build/.cache/paru/clone && cd /home/build/.cache/paru/clone && git clone https://aur.archlinux.org/paru-bin.git && cd paru && makepkg -si --noconfirm && paru -Syu java11-openjfx yt-dlp-drop-in --noconfirm" - build
   - paccache -rk0
