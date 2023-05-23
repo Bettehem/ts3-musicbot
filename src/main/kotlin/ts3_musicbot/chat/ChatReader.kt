@@ -711,10 +711,10 @@ class ChatReader(
                                 }
                                 return if (commandSuccessful.all { it.first }) {
                                     val msg = commandSuccessful.filter { it.first }
-                                                .joinToString("\n") { it.second.first }
+                                        .joinToString("\n") { it.second.first }
                                     if (msgBuilder.lines().size <= 1)
                                         msgBuilder.append(msg)
-                                    else 
+                                    else
                                         msgBuilder.appendLine(msg)
                                     printToChat(listOf(msgBuilder.toString()))
                                     commandListener.onCommandExecuted(
@@ -1558,10 +1558,19 @@ class ChatReader(
                             //sp-stop command
                             //Stop spotify playback
                             commandString.contains("^${commandList.commandList["sp-stop"]}$".toRegex()) -> {
-                                if (botSettings.spotifyPlayer == "ncspot")
-                                    commandRunner.runCommand("playerctl -p ncspot stop; tmux kill-session -t ncspot")
-                                else
-                                    commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} pause")
+                                when (botSettings.spotifyPlayer) {
+                                    "ncspot" -> {
+                                        commandRunner.runCommand("playerctl -p ncspot stop; tmux kill-session -t ncspot")
+                                    }
+
+                                    "spotify" -> {
+                                        commandRunner.runCommand("pkill -9 spotify")
+                                    }
+
+                                    else -> {
+                                        commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} pause")
+                                    }
+                                }
                                 commandJob.complete()
                                 return Pair(true, null)
                             }

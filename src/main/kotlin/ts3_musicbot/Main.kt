@@ -921,7 +921,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 if (settings.useOfficialTsClient) {
                     commandRunner.runCommand("wmctrl -c TeamSpeak; sleep 2; wmctrl -c TeamSpeak", ignoreOutput = true)
                     commandRunner.runCommand(
-                        "killall mpv; killall ncspot; tmux kill-session -t ncspot",
+                        "pkill mpv; pkill ncspot; tmux kill-session -t ncspot",
                         ignoreOutput = true
                     )
                 } else {

@@ -125,8 +125,8 @@ class Console(
             }
         }
 
-        commandRunner.runCommand("killall mpv", ignoreOutput = true)
-        commandRunner.runCommand("killall ncspot", ignoreOutput = true)
+        commandRunner.runCommand("pkill mpv", ignoreOutput = true)
+        commandRunner.runCommand("pkill ncspot", ignoreOutput = true)
         commandRunner.runCommand("pkill -9 spotify", ignoreOutput = true)
         commandRunner.runCommand("tmux kill-session -t ncspot", ignoreOutput = true)
         commandRunner.runCommand("playerctl -p spotifyd stop", ignoreOutput = true)

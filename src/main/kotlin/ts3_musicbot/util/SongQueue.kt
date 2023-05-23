@@ -388,7 +388,7 @@ class SongQueue(
 
                 fun startCommand() = when (spotifyPlayer) {
                     "spotify" -> commandRunner.runCommand(
-                        "xvfb-run spotify --no-zygote &",
+                        "xvfb-run -a spotify --no-zygote --disable-gpu &",
                         ignoreOutput = true,
                         printCommand = true,
                         inheritIO = true
@@ -424,13 +424,13 @@ class SongQueue(
                 }
                 //wait for the spotify player to start.
                 while (trackJob.isActive && commandRunner.runCommand(
-                        "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?$spotifyPlayer(\\s+\\S+)?$\" | grep -v \"grep\"",
+                        "ps aux | grep -E \"[0-9]+:[0-9]+ .*(\\s+)?$spotifyPlayer(\\s+.*)?$\" | grep -v \"grep\"",
                         printOutput = false
                     ).first.outputText.isEmpty()
                 ) {
                     //do nothing
                     println("Waiting for $spotifyPlayer to start")
-                    delay(50)
+                    delay(150)
                 }
                 delay(5000)
 
@@ -439,7 +439,9 @@ class SongQueue(
                 //friend feed is and notifications are disabled just for performance.
                 if (spotifyPlayer == "spotify")
                     commandRunner.runCommand(
-                        "sed -i '/.\\(track_notifications_enabled\\|show_friend_feed\\|auto\\(mix\\|play\\)\\)/s/true/false/g' ~/.config/spotify/Users/*/prefs"
+                        "sed -i '/.\\(track_notifications_enabled\\|show_friend_feed\\|auto\\(mix\\|play\\)\\)/s/true/false/g' ~/.config/spotify/Users/*/prefs || " +
+                                "echo 'Please log in to your Spotify account.'",
+                        printErrors = false
                     )
             }
 

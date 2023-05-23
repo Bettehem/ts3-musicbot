@@ -211,7 +211,7 @@ class OfficialTSClient(
             //start teamspeak
             commandRunner.runCommand(
                 ignoreOutput = true,
-                command = "xvfb-run teamspeak3 -nosingleinstance " +
+                command = "xvfb-run -a teamspeak3 -nosingleinstance " +
                         (if (connectToServer)
                             " \"" +
                                     (if (settings.serverAddress.isNotEmpty()) "ts3server://${settings.serverAddress}" else "") +
@@ -429,8 +429,19 @@ class OfficialTSClient(
      */
     suspend fun stopTeamSpeak() {
         clientQuery("disconnect")
-        delay(200)
-        commandRunner.runCommand("pkill -9 ts3client_linux", printCommand = false, printOutput = false)
+        delay(500)
+        commandRunner.runCommand(
+            "pkill -9 ts3client_linux",
+            ignoreOutput = true,
+            printCommand = false,
+            printOutput = false
+        )
+        commandRunner.runCommand(
+            "pkill -9 ts3client_linux",
+            ignoreOutput = true,
+            printCommand = false,
+            printOutput = false
+        )
     }
 
     /**
@@ -683,12 +694,14 @@ class OfficialTSClient(
                 .first.outputText.lines().first().replace("^pactl\\s+".toRegex(), "")
                 .substringBefore(".").toInt() < 16
         ) {
-            convertToJSON(
-                commandRunner.runCommand(
-                    "pactl $command",
-                    printOutput = false, printCommand = false
-                ).first.outputText
-            )
+            val output = commandRunner.runCommand(
+                "pactl $command",
+                printOutput = false, printCommand = false
+            ).first.outputText
+            if (output.isNotEmpty())
+                convertToJSON(output)
+            else
+                JSONArray("[]")
         } else {
             JSONArray(
                 commandRunner.runCommand(
@@ -699,34 +712,45 @@ class OfficialTSClient(
         }
     }
 
-    private fun audioSetup() {
+    private suspend fun audioSetup() {
         println("Setting up audio.")
-        //Mute teamspeak output
-        val sinkInputs = runPactlCommand("list sink-inputs")
-        val tsSinkInputId = sinkInputs.first {
-            it as JSONObject
-            it.getJSONObject("properties").getString("application.name") == "TeamSpeak3"
-        }.let {
-            it as JSONObject
-            it.getInt("index")
-        }
+        //check if pulseaudio exists, then start it if not already running
         commandRunner.runCommand(
-            "pactl set-sink-input-mute $tsSinkInputId 1", printCommand = false, printOutput = false
+            "command -v pulseaudio && (pulseaudio --check || pulseaudio --start && sleep 2)",
+            printOutput = false
         )
 
-        //set teamspeak to monitor output from default sink
-        val tsSourceOutputs = runPactlCommand("list source-outputs")
-        val tsSourceOutputId = tsSourceOutputs.first {
-            it as JSONObject
-            it.getJSONObject("properties").getString("application.name") == "TeamSpeak3"
-        }.let {
-            it as JSONObject
-            it.getInt("index")
+        if (audioIsWorking()) {
+            //Mute teamspeak output
+            val sinkInputs = runPactlCommand("list sink-inputs")
+            val tsSinkInputId = sinkInputs.first {
+                it as JSONObject
+                it.getJSONObject("properties").getString("application.name") == "TeamSpeak3"
+            }.let {
+                it as JSONObject
+                it.getInt("index")
+            }
+            commandRunner.runCommand(
+                "pactl set-sink-input-mute $tsSinkInputId 1", printCommand = false, printOutput = false
+            )
+
+            //set teamspeak to monitor output from default sink
+            val tsSourceOutputs = runPactlCommand("list source-outputs")
+            val tsSourceOutputId = tsSourceOutputs.first {
+                it as JSONObject
+                it.getJSONObject("properties").getString("application.name") == "TeamSpeak3"
+            }.let {
+                it as JSONObject
+                it.getInt("index")
+            }
+            commandRunner.runCommand(
+                "pactl move-source-output $tsSourceOutputId \$(pactl get-default-sink).monitor",
+                printCommand = false, printOutput = false
+            )
+            println("Audio setup done.")
+        } else {
+            println("TeamSpeak's audio is broken, restarting client.")
+            restartClient()
         }
-        commandRunner.runCommand(
-            "pactl move-source-output $tsSourceOutputId \$(pactl get-default-sink).monitor",
-            printCommand = false, printOutput = false
-        )
-        println("Audio setup done.")
     }
 }
