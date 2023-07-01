@@ -611,7 +611,7 @@ class OfficialTSClient(
     fun audioIsWorking(): Boolean {
         return runPactlCommand("list sink-inputs").any {
             it as JSONObject
-            it.getJSONObject("properties").getString("application.name") == "TeamSpeak3"
+            it.getJSONObject("properties").getString("application.name").contains("TeamSpeak3?".toRegex())
         }
     }
 
@@ -725,7 +725,7 @@ class OfficialTSClient(
             val sinkInputs = runPactlCommand("list sink-inputs")
             val tsSinkInputId = sinkInputs.first {
                 it as JSONObject
-                it.getJSONObject("properties").getString("application.name") == "TeamSpeak3"
+                it.getJSONObject("properties").getString("application.name").contains("TeamSpeak3?".toRegex())
             }.let {
                 it as JSONObject
                 it.getInt("index")
@@ -738,7 +738,7 @@ class OfficialTSClient(
             val tsSourceOutputs = runPactlCommand("list source-outputs")
             val tsSourceOutputId = tsSourceOutputs.first {
                 it as JSONObject
-                it.getJSONObject("properties").getString("application.name") == "TeamSpeak3"
+                it.getJSONObject("properties").getString("application.name").contains("TeamSpeak3?".toRegex())
             }.let {
                 it as JSONObject
                 it.getInt("index")
