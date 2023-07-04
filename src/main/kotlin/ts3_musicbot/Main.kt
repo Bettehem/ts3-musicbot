@@ -66,12 +66,18 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
 
     private var showServerPasswordCheckBox = CheckBox()
     private var showChannelPasswordCheckBox = CheckBox()
+    private var showSpPasswordCheckBox = CheckBox()
     private var browseChannelFileButton = Button()
     private var selectSpotifyPlayerTextView = Label()
     private var spotifyPlayerRadioGroup = ToggleGroup()
     private var spotifyRadioButton = RadioButton()
     private var ncspotRadioButton = RadioButton()
     private var spotifydRadioButton = RadioButton()
+    private var enterSpUsernameTextView = Label()
+    private var spUsernameEditText = TextField()
+    private var enterSpPasswordTextView = Label()
+    private var spPasswordEditText = PasswordField()
+    private var spPasswordVisibleEditText = TextField()
     private var selectTsClientTextView = Label()
     private var tsClientRadioGroup = ToggleGroup()
     private var tsClientInternalRadioButton = RadioButton()
@@ -93,10 +99,11 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
 
             //check if command line arguments are provided
             if (args.isNotEmpty()) {
+                val defaultSettings = BotSettings()
                 var apiKey = ""
                 var serverAddress = ""
-                var serverPort = BotSettings().serverPort
-                var nickname = BotSettings().nickname
+                var serverPort = defaultSettings.serverPort
+                var nickname = defaultSettings.nickname
                 var serverPassword = ""
                 var channelName = ""
                 var channelPassword = ""
@@ -104,8 +111,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 var market = ""
                 var configFile = ""
                 var commandConfig = ""
-                var spotifyPlayer = BotSettings().spotifyPlayer
-                var mpvVolume = BotSettings().mpvVolume
+                var spotifyPlayer = defaultSettings.spotifyPlayer
+                var spotifyUsername = defaultSettings.spotifyUsername
+                var spotifyPassword = defaultSettings.spotifyPassword
+                var mpvVolume = defaultSettings.mpvVolume
                 var useOfficialTsClient = true
 
                 val helpMessage = "\n" +
@@ -122,6 +131,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "-n, --nickname           The nickname of the bot.\n" +
                         "-m, --market             Specify a market/country for Spotify.\n" +
                         "--spotify <client>       Specify a spotify client to use. Can be spotify, ncspot or spotifyd.\n" +
+                        "--sp-user <username>     Specify the username to use in the official spotify client.\n" +
+                        "--sp-pass <password>     Specify the password to use in the official spotify client.\n" +
                         "--config                 Provide a config file where to read the bot's settings from\n" +
                         "--command-config         Provide a config file where to read custom commands from\n" +
                         "--use-internal-tsclient  Use the internal TeamSpeak client instead of the official one.(WIP!)\n" +
@@ -188,6 +199,16 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                                 spotifyPlayer = args[argPos + 1]
                         }
 
+                        "--sp-user" -> {
+                            if (args.size >= argPos + 1)
+                                spotifyUsername = args[argPos + 1]
+                        }
+
+                        "--sp-pass" -> {
+                            if (args.size >= argPos + 1)
+                                spotifyPassword = args[argPos + 1]
+                        }
+
                         "--config" -> {
                             if (args.size >= argPos + 1)
                                 configFile = args[argPos + 1]
@@ -225,6 +246,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             nickname,
                             market,
                             spotifyPlayer,
+                            spotifyUsername,
+                            spotifyPassword,
                             useOfficialTsClient,
                             mpvVolume
                         )
@@ -356,6 +379,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 fileWriter.println("NICKNAME=${botSettings.nickname}")
                 fileWriter.println("MARKET=${botSettings.market}")
                 fileWriter.println("SPOTIFY_PLAYER=${botSettings.spotifyPlayer}")
+                fileWriter.println("SPOTIFY_USERNAME=${botSettings.spotifyUsername}")
+                fileWriter.println("SPOTIFY_PASSWORD=${botSettings.spotifyPassword}")
                 fileWriter.println("USE_OFFICIAL_TSCLIENT=${botSettings.useOfficialTsClient}")
                 fileWriter.println("MPV_VOLUME=${botSettings.mpvVolume}")
                 fileWriter.println()
@@ -385,6 +410,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "NICKNAME" -> settings.nickname = line.substringAfter("=").replace("\\s+$".toRegex(), "")
                         "MARKET" -> settings.market = line.substringAfter("=").replace(" ", "")
                         "SPOTIFY_PLAYER" -> settings.spotifyPlayer = line.substringAfter("=").replace(" ", "")
+                        "SPOTIFY_USERNAME" -> settings.spotifyUsername =
+                            line.substringAfter("=").replace("\\s+".toRegex(), "")
+
+                        "SPOTIFY_PASSWORD" -> settings.spotifyPassword = line.substringAfter("=")
                         "USE_OFFICIAL_TSCLIENT" -> settings.useOfficialTsClient =
                             line.substringAfter("=").replace(" ", "").toBoolean()
 
@@ -447,7 +476,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
     }
 
     private fun variables() {
-        enterApiKeyTextView.text = "Enter ClientQuery API key"
+        enterApiKeyTextView.text = "Enter ClientQuery API key(optional)"
         enterServerAddressTextView.text = "Enter server address"
         enterChannelNameTextView.text = "Enter channel name"
         enterChannelPasswordTextView.text = "Enter channel password(optional)"
@@ -456,8 +485,32 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         enterServerPasswordTextView.text = "Enter server password(optional)"
         enterMarketTextView.text = "Enter ISO 3166 standard country code(HIGHLY RECOMMENDED!)"
         enterChannelFilePathTextView.text = "Enter Channel file path(optional)  [channel.txt or channel.html]"
+        enterSpUsernameTextView.text = "Enter Spotify username"
+        enterSpPasswordTextView.text = "Enter Spotify password"
 
         showAdvancedOptions(false)
+
+        fun CheckBox.handlePasswordVisibility(pwField: PasswordField, textField: TextField) {
+            val showPwText = "Show password"
+            textField.isManaged = false
+            textField.isVisible = false
+            this.text = showPwText
+            this.onAction = EventHandler {
+                if (this.isSelected) {
+                    pwField.isManaged = false
+                    pwField.isVisible = false
+                    textField.text = pwField.text
+                    textField.isManaged = true
+                    textField.isVisible = true
+                } else {
+                    textField.isManaged = false
+                    textField.isVisible = false
+                    pwField.text = textField.text
+                    pwField.isManaged = true
+                    pwField.isVisible = true
+                }
+            }
+        }
 
         hideAdvancedSettingsRadioButton.text = "Hide advanced settings"
         hideAdvancedSettingsRadioButton.toggleGroup = advancedSettingsRadioGroup
@@ -480,6 +533,13 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         serverPasswordVisibleEditText.isVisible = false
                         serverPasswordEditText.text = serverPasswordVisibleEditText.text
                     }
+
+                    if (showSpPasswordCheckBox.isSelected) {
+                        showSpPasswordCheckBox.isSelected = false
+                        spPasswordVisibleEditText.isManaged = false
+                        spPasswordVisibleEditText.isVisible = false
+                        spPasswordEditText.text = spPasswordVisibleEditText.text
+                    }
                 }
 
                 showAdvancedSettingsRadioButton -> {
@@ -490,45 +550,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 }
             }
         }
-        val showPwText = "Show password"
 
-        channelPasswordVisibleEditText.isManaged = false
-        channelPasswordVisibleEditText.isVisible = false
-        showChannelPasswordCheckBox.text = showPwText
-        showChannelPasswordCheckBox.onAction = EventHandler {
-            if (showChannelPasswordCheckBox.isSelected) {
-                channelPasswordEditText.isManaged = false
-                channelPasswordEditText.isVisible = false
-                channelPasswordVisibleEditText.text = channelPasswordEditText.text
-                channelPasswordVisibleEditText.isManaged = true
-                channelPasswordVisibleEditText.isVisible = true
-            } else {
-                channelPasswordVisibleEditText.isManaged = false
-                channelPasswordVisibleEditText.isVisible = false
-                channelPasswordEditText.text = channelPasswordVisibleEditText.text
-                channelPasswordEditText.isManaged = true
-                channelPasswordEditText.isVisible = true
-            }
-        }
-
-        serverPasswordVisibleEditText.isManaged = false
-        serverPasswordVisibleEditText.isVisible = false
-        showServerPasswordCheckBox.text = showPwText
-        showServerPasswordCheckBox.onAction = EventHandler {
-            if (showServerPasswordCheckBox.isSelected) {
-                serverPasswordEditText.isManaged = false
-                serverPasswordEditText.isVisible = false
-                serverPasswordVisibleEditText.text = serverPasswordEditText.text
-                serverPasswordVisibleEditText.isManaged = true
-                serverPasswordVisibleEditText.isVisible = true
-            } else {
-                serverPasswordVisibleEditText.isManaged = false
-                serverPasswordVisibleEditText.isVisible = false
-                serverPasswordEditText.text = serverPasswordVisibleEditText.text
-                serverPasswordEditText.isManaged = true
-                serverPasswordEditText.isVisible = true
-            }
-        }
+        showChannelPasswordCheckBox.handlePasswordVisibility(channelPasswordEditText, channelPasswordVisibleEditText)
+        showServerPasswordCheckBox.handlePasswordVisibility(serverPasswordEditText, serverPasswordVisibleEditText)
 
         enterMarketTextView.isManaged = false
         enterMarketTextView.isVisible = false
@@ -553,7 +577,43 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 ncspotRadioButton -> settings.spotifyPlayer = "ncspot"
                 spotifydRadioButton -> settings.spotifyPlayer = "spotifyd"
             }
+            if (spotifyPlayerRadioGroup.selectedToggle == spotifyRadioButton) {
+                enterSpUsernameTextView.isVisible = true
+                enterSpUsernameTextView.isManaged = true
+                spUsernameEditText.isVisible = true
+                spUsernameEditText.isManaged = true
+                enterSpPasswordTextView.isVisible = true
+                enterSpPasswordTextView.isManaged = true
+                if (showSpPasswordCheckBox.isSelected) {
+                    spPasswordEditText.isVisible = false
+                    spPasswordEditText.isManaged = false
+                    spPasswordVisibleEditText.isVisible = true
+                    spPasswordVisibleEditText.isManaged = true
+                } else {
+                    spPasswordEditText.isVisible = true
+                    spPasswordEditText.isManaged = true
+                    spPasswordVisibleEditText.isVisible = false
+                    spPasswordVisibleEditText.isManaged = false
+                }
+                showSpPasswordCheckBox.isVisible = true
+                showSpPasswordCheckBox.isManaged = true
+            } else {
+                enterSpUsernameTextView.isVisible = false
+                enterSpUsernameTextView.isManaged = false
+                spUsernameEditText.isVisible = false
+                spUsernameEditText.isManaged = false
+                enterSpPasswordTextView.isVisible = false
+                enterSpPasswordTextView.isManaged = false
+                spPasswordEditText.isVisible = false
+                spPasswordEditText.isManaged = false
+                spPasswordVisibleEditText.isVisible = false
+                spPasswordVisibleEditText.isManaged = false
+                showSpPasswordCheckBox.isVisible = false
+                showSpPasswordCheckBox.isManaged = false
+            }
         }
+
+        showSpPasswordCheckBox.handlePasswordVisibility(spPasswordEditText, spPasswordVisibleEditText)
 
         selectTsClientTextView.text = "Select TeamSpeak client to use"
         tsClientInternalRadioButton.text = "Internal/Built-in client(WIP!)"
@@ -616,6 +676,20 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         spotifyRadioButton.isVisible = showAdvanced
         ncspotRadioButton.isVisible = showAdvanced
         spotifydRadioButton.isVisible = showAdvanced
+        selectSpotifyPlayerTextView.isManaged = showAdvanced
+        spotifyRadioButton.isManaged = showAdvanced
+        ncspotRadioButton.isManaged = showAdvanced
+        spotifydRadioButton.isManaged = showAdvanced
+        enterSpUsernameTextView.isVisible = showAdvanced
+        enterSpPasswordTextView.isManaged = showAdvanced
+        spUsernameEditText.isVisible = showAdvanced
+        spUsernameEditText.isManaged = showAdvanced
+        enterSpPasswordTextView.isManaged = showAdvanced
+        enterSpPasswordTextView.isVisible = showAdvanced
+        spPasswordEditText.isVisible = showAdvanced
+        spPasswordEditText.isManaged = showAdvanced
+        showSpPasswordCheckBox.isManaged = showAdvanced
+        showSpPasswordCheckBox.isVisible = showAdvanced
         selectTsClientTextView.isVisible = showAdvanced
         tsClientInternalRadioButton.isVisible = showAdvanced
         tsClientOfficialRadioButton.isVisible = showAdvanced
@@ -679,6 +753,12 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             spotifyRadioButton,
             ncspotRadioButton,
             spotifydRadioButton,
+            enterSpUsernameTextView,
+            spUsernameEditText,
+            enterSpPasswordTextView,
+            spPasswordEditText,
+            spPasswordVisibleEditText,
+            showSpPasswordCheckBox,
             selectTsClientTextView,
             tsClientInternalRadioButton,
             tsClientOfficialRadioButton,
@@ -728,40 +808,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 commandList = loadCommands(file)
             }
 
-            saveSettingsButton -> {
-                val apiKey = apiKeyEditText.text
-                val serverAddress = serverAddressEditText.text
-                val serverPort = serverPortEditText.text.ifEmpty { "${BotSettings().serverPort}" }.toInt()
-                val serverPassword = if (showServerPasswordCheckBox.isSelected) {
-                    serverPasswordVisibleEditText.text
-                } else {
-                    serverPasswordEditText.text
-                }
-                val channelName = channelNameEditText.text
-                val channelPassword = channelPasswordEditText.text
-                val channelFilePath = channelFilePathEditText.text
-                val nickname = nicknameEditText.text
-                val market = marketEditText.text
-                val mpvVolume = mpvVolumeEditText.text.ifEmpty { "${BotSettings().mpvVolume}" }.toInt()
-
-
-                saveSettings(
-                    BotSettings(
-                        apiKey,
-                        serverAddress,
-                        serverPort,
-                        serverPassword,
-                        channelName,
-                        channelPassword,
-                        channelFilePath,
-                        nickname,
-                        market,
-                        settings.spotifyPlayer,
-                        settings.useOfficialTsClient,
-                        mpvVolume
-                    ), true
-                )
-            }
+            saveSettingsButton -> saveSettings(getSettings(), true)
 
             loadSettingsButton -> {
                 val fileChooser = FileChooser()
@@ -800,6 +847,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             spotifydRadioButton.isSelected = true
                         }
                     }
+                    spUsernameEditText.text = settings.spotifyUsername
+                    spPasswordEditText.text = settings.spotifyPassword
                     if (settings.useOfficialTsClient) {
                         tsClientInternalRadioButton.isSelected = false
                         tsClientOfficialRadioButton.isSelected = true
@@ -953,6 +1002,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             spotifydRadioButton -> "spotifyd"
             else -> BotSettings().spotifyPlayer
         },
+        spUsernameEditText.text,
+        spPasswordEditText.text,
         tsClientRadioGroup.selectedToggle == tsClientOfficialRadioButton,
         mpvVolumeEditText.text.ifEmpty { "${BotSettings().mpvVolume}" }.toInt()
     )

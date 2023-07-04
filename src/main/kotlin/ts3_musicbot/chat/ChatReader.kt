@@ -29,7 +29,7 @@ class ChatReader(
     var latestMsgUsername = ""
 
     @Volatile
-    private var songQueue = SongQueue(botSettings.spotifyPlayer, botSettings.mpvVolume, client, this)
+    private var songQueue = SongQueue(botSettings, client, this)
 
     init {
         //initialise spotify token
@@ -130,10 +130,10 @@ class ChatReader(
                             ignoreOutput = true
                         )
 
-                        "ncspot" -> commandRunner.runCommand(
-                            "playerctl -p ncspot stop; tmux kill-session -t ncspot",
-                            ignoreOutput = true
-                        )
+                        "ncspot" -> {
+                            playerctl(botSettings.spotifyPlayer, "stop")
+                            commandRunner.runCommand("tmux kill-session -t ncspot", ignoreOutput = true)
+                        }
 
                         "spotifyd" -> commandRunner.runCommand("echo \"spotifyd isn't well supported yet, please kill it manually.\"")
                         else -> commandRunner.runCommand("echo \"${botSettings.spotifyPlayer} is not a supported player!\" > /dev/stderr; return 2")
@@ -141,7 +141,10 @@ class ChatReader(
 
                     fun startCommand() = when (botSettings.spotifyPlayer) {
                         "spotify" -> commandRunner.runCommand(
-                            "${botSettings.spotifyPlayer} &",
+                            "xvfb-run -a spotify --no-zygote --disable-gpu" +
+                                    if (botSettings.spotifyUsername.isNotEmpty() && botSettings.spotifyPassword.isNotEmpty()) {
+                                        " --username=${botSettings.spotifyUsername} --password=${botSettings.spotifyPassword}"
+                                    } else { "" } + " &",
                             ignoreOutput = true,
                             printCommand = true,
                             inheritIO = true
@@ -1545,13 +1548,15 @@ class ChatReader(
                             }
                             //sp-pause command
                             commandString.contains("^${commandList.commandList["sp-pause"]}$".toRegex()) -> {
-                                commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} pause && sleep 1")
+                                playerctl(botSettings.spotifyPlayer, "pause")
+                                delay(1000)
                                 commandJob.complete()
                                 return Pair(true, null)
                             }
                             //sp-resume & sp-play command
                             commandString.contains("^(${commandList.commandList["sp-resume"]}|${commandList.commandList["sp-play"]})$".toRegex()) -> {
-                                commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} play && sleep 1")
+                                playerctl(botSettings.spotifyPlayer, "play")
+                                delay(1000)
                                 commandJob.complete()
                                 return Pair(true, null)
                             }
@@ -1560,7 +1565,8 @@ class ChatReader(
                             commandString.contains("^${commandList.commandList["sp-stop"]}$".toRegex()) -> {
                                 when (botSettings.spotifyPlayer) {
                                     "ncspot" -> {
-                                        commandRunner.runCommand("playerctl -p ncspot stop; tmux kill-session -t ncspot")
+                                        playerctl(botSettings.spotifyPlayer, "stop")
+                                        commandRunner.runCommand("tmux kill-session -t ncspot")
                                     }
 
                                     "spotify" -> {
@@ -1568,7 +1574,7 @@ class ChatReader(
                                     }
 
                                     else -> {
-                                        commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} pause")
+                                        playerctl(botSettings.spotifyPlayer, "pause")
                                     }
                                 }
                                 commandJob.complete()
@@ -1576,13 +1582,16 @@ class ChatReader(
                             }
                             //sp-skip & sp-next command
                             commandString.contains("^(${commandList.commandList["sp-skip"]}|${commandList.commandList["sp-next"]})$".toRegex()) -> {
-                                commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} next && sleep 1")
+                                playerctl(botSettings.spotifyPlayer, "next")
+                                delay(1000)
                                 commandJob.complete()
                                 return Pair(true, null)
                             }
                             //sp-prev command
                             commandString.contains("^${commandList.commandList["sp-prev"]}$".toRegex()) -> {
-                                commandRunner.runCommand("playerctl -p ${botSettings.spotifyPlayer} previous && sleep 0.1 & playerctl -p ${botSettings.spotifyPlayer} previous")
+                                playerctl(botSettings.spotifyPlayer, "previous")
+                                delay(100)
+                                playerctl(botSettings.spotifyPlayer, "previous")
                                 commandJob.complete()
                                 return Pair(true, null)
                             }
@@ -1594,25 +1603,20 @@ class ChatReader(
                                 ) {
                                     startSpotifyPlayer()
                                     println("Playing song...")
-                                    if (
-                                        Link(removeTags(commandString.substringAfter("${commandList.commandList["sp-playsong"]} "))).link
-                                            .startsWith("https://open.spotify.com/track")
-                                    ) {
-                                        commandRunner.runCommand(
-                                            "playerctl -p ${botSettings.spotifyPlayer} open spotify:track:${
-                                                removeTags(message)
-                                                    .substringAfterLast("/")
-                                                    .substringBefore("?")
-                                            }"
-                                        )
-                                    } else {
-                                        commandRunner.runCommand(
-                                            "playerctl -p ${botSettings.spotifyPlayer} open spotify:track:${
-                                                message.split(" ".toRegex())[1]
-                                                    .split("track:".toRegex())[1]
-                                            }"
-                                        )
-                                    }
+                                    playerctl(
+                                        botSettings.spotifyPlayer, "open",
+                                        "spotify:track:" + if (
+                                            Link(removeTags(commandString.substringAfter("${commandList.commandList["sp-playsong"]} "))).link
+                                                .startsWith("https://open.spotify.com/track")
+                                        ) {
+                                            removeTags(message)
+                                                .substringAfterLast("/")
+                                                .substringBefore("?")
+                                        } else {
+                                            message.split(" ".toRegex())[1]
+                                                .split("track:".toRegex())[1]
+                                        }
+                                    )
                                     commandJob.complete()
                                     return Pair(true, null)
                                 } else {
@@ -1625,51 +1629,35 @@ class ChatReader(
                             //Play Spotify playlist based on link or URI
                             commandString.contains("^${commandList.commandList["sp-playlist"]}\\s+".toRegex()) -> {
                                 startSpotifyPlayer()
-                                if (message.split(" ".toRegex())[1].startsWith("spotify:user:")
-                                    && message.split(" ".toRegex())[1].contains(":playlist:")
-                                ) {
-                                    commandRunner.runCommand(
-                                        "playerctl -p ${botSettings.spotifyPlayer} open spotify:user:${
-                                            message.split(" ".toRegex())[1]
-                                                .split(":".toRegex())[2]
-                                        }:playlist:${
-                                            message.split(":".toRegex()).last()
-                                        }"
-                                    )
-                                } else if (message.split(" ".toRegex())[1].startsWith("spotify:playlist")) {
-                                    commandRunner.runCommand(
-                                        "playerctl -p ${botSettings.spotifyPlayer} open spotify:playlist:${
-                                            message.substringAfter("playlist:")
-                                        }"
-                                    )
-                                } else if (removeTags(message.substringAfter(" ")).startsWith("https://open.spotify.com/")) {
-                                    commandRunner.runCommand(
-                                        "playerctl -p ${botSettings.spotifyPlayer} open spotify:playlist:${
-                                            removeTags(message).substringAfter("playlist/")
-                                                .substringBefore("?")
-                                        }"
-                                    )
-                                }
+                                playerctl(
+                                    botSettings.spotifyPlayer, "open", "spotify:" +
+                                            if (message.split(" ".toRegex())[1].startsWith("spotify:user:")
+                                                && message.split(" ".toRegex())[1].contains(":playlist:")
+                                            ) {
+                                                "user:${message.split(" ".toRegex())[1].split(":".toRegex())[2]}" +
+                                                        ":playlist:${message.split(":".toRegex()).last()}"
+                                            } else if (message.split(" ".toRegex())[1].startsWith("spotify:playlist")) {
+                                                "playlist:${message.substringAfter("playlist:")}"
+                                            } else if (removeTags(message.substringAfter(" ")).startsWith("https://open.spotify.com/")) {
+                                                "playlist:${
+                                                    removeTags(message).substringAfter("playlist/").substringBefore("?")
+                                                }"
+                                            } else ""
+                                )
                                 commandJob.complete()
                                 return Pair(true, null)
                             }
                             //sp-playalbum command
                             commandString.contains("^${commandList.commandList["sp-playalbum"]}\\s+".toRegex()) -> {
                                 startSpotifyPlayer()
-                                if (message.split(" ".toRegex())[1].startsWith("spotify:album")) {
-                                    commandRunner.runCommand(
-                                        "playerctl -p ${botSettings.spotifyPlayer} open spotify:album:${
-                                            message.substringAfter("album:")
-                                        }"
-                                    )
-                                } else if (removeTags(message.substringAfter(" ")).startsWith("https://open.spotify.com/")) {
-                                    commandRunner.runCommand(
-                                        "playerctl -p ${botSettings.spotifyPlayer} open spotify:album:${
-                                            removeTags(message).substringAfter("album/")
-                                                .substringBefore("?")
-                                        }"
-                                    )
-                                }
+                                playerctl(
+                                    botSettings.spotifyPlayer, "open", "spotify:album:" +
+                                            if (message.split(" ".toRegex())[1].startsWith("spotify:album")) {
+                                                message.substringAfter("album:")
+                                            } else if (removeTags(message.substringAfter(" ")).startsWith("https://open.spotify.com/")) {
+                                                removeTags(message).substringAfter("album/").substringBefore("?")
+                                            } else ""
+                                )
                                 commandJob.complete()
                                 return Pair(true, null)
                             }
@@ -1677,10 +1665,7 @@ class ChatReader(
                             commandString.contains("^${commandList.commandList["sp-nowplaying"]}$".toRegex()) -> {
                                 val lines = StringBuilder()
                                 lines.appendLine("Now playing on Spotify:")
-                                val nowPlaying = commandRunner.runCommand(
-                                    "playerctl -p ${botSettings.spotifyPlayer} metadata",
-                                    printOutput = false
-                                )
+                                val nowPlaying = playerctl(botSettings.spotifyPlayer, "metadata")
                                     .first.outputText.lines()
                                 for (line in nowPlaying) {
                                     when (line.substringAfter("xesam:").split("\\s+".toRegex())[0]) {
@@ -1727,19 +1712,19 @@ class ChatReader(
                             }
                             //yt-pause command
                             commandString.contains("^${commandList.commandList["yt-pause"]}$".toRegex()) -> {
-                                commandRunner.runCommand("playerctl -p mpv pause")
+                                playerctl("mpv", "pause")
                                 commandJob.complete()
                                 return Pair(true, null)
                             }
                             //yt-resume and yt-play commands
                             commandString.contains("^(${commandList.commandList["yt-resume"]}|${commandList.commandList["yt-play"]})$".toRegex()) -> {
-                                commandRunner.runCommand("playerctl -p mpv play")
+                                playerctl("mpv", "play")
                                 commandJob.complete()
                                 return Pair(true, null)
                             }
                             //yt-stop command
                             commandString.contains("^${commandList.commandList["yt-stop"]}$".toRegex()) -> {
-                                commandRunner.runCommand("playerctl -p mpv stop")
+                                playerctl("mpv", "stop")
                                 commandJob.complete()
                                 return Pair(true, null)
                             }
@@ -1769,33 +1754,39 @@ class ChatReader(
                             }
                             //yt-nowplaying command
                             commandString.contains("^${commandList.commandList["yt-nowplaying"]}$".toRegex()) -> {
-                                val nowPlaying = youTube.fetchVideo(
-                                    Link(
-                                        commandRunner.runCommand(
-                                            "playerctl -p mpv metadata --format '{{ xesam:url }}'",
-                                            printOutput = false
-                                        ).first.outputText
+                                val metadata = playerctl("mpv", "metadata")
+                                if (metadata.second.errorText.isEmpty()) {
+                                    val nowPlaying = youTube.fetchVideo(
+                                        Link(
+                                            metadata.first.outputText.lines()
+                                                .first { it.contains("xesam:url") }
+                                                .replace("(^.+\\s+\"?|\"?$)".toRegex(), "")
+                                        )
                                     )
-                                )
-                                printToChat(listOf("Now playing on YouTube:\n$nowPlaying"))
-                                commandJob.complete()
-                                return Pair(true, nowPlaying)
+                                    printToChat(listOf("Now playing from YouTube:\n$nowPlaying"))
+                                    commandJob.complete()
+                                    return Pair(true, nowPlaying)
+                                } else {
+                                    println("Failed to fetch metadata!\n${metadata.second.errorText}")
+                                    commandJob.complete()
+                                    return Pair(true, metadata.second.errorText)
+                                }
                             }
                             //sc-pause command
                             commandString.contains("^${commandList.commandList["sc-pause"]}$".toRegex()) -> {
-                                commandRunner.runCommand("playerctl -p mpv pause")
+                                playerctl("mpv", "pause")
                                 commandJob.complete()
                                 return Pair(true, null)
                             }
                             //sc-resume and sc-play commands
                             commandString.contains("^(${commandList.commandList["sc-resume"]}|${commandList.commandList["sc-play"]})$".toRegex()) -> {
-                                commandRunner.runCommand("playerctl -p mpv play")
+                                playerctl("mpv", "play")
                                 commandJob.complete()
                                 return Pair(true, null)
                             }
                             //sc-stop command
                             commandString.contains("^${commandList.commandList["sc-stop"]}$".toRegex()) -> {
-                                commandRunner.runCommand("playerctl -p mpv stop")
+                                playerctl("mpv", "stop")
                                 commandJob.complete()
                                 return Pair(true, null)
                             }
@@ -1823,11 +1814,23 @@ class ChatReader(
                             }
                             //sc-nowplaying command
                             commandString.contains("^${commandList.commandList["sc-nowplaying"]}$".toRegex()) -> {
-                                val nowPlaying =
-                                    soundCloud.fetchTrack(Link(commandRunner.runCommand("playerctl -p mpv metadata --format '{{ xesam:url }}'").first.outputText))
-                                printToChat(listOf("Now playing on SoundCloud:\n$nowPlaying"))
-                                commandJob.complete()
-                                return Pair(true, nowPlaying)
+                                val metadata = playerctl("mpv", "metadata")
+                                if (metadata.second.errorText.isEmpty()) {
+                                    val nowPlaying = youTube.fetchVideo(
+                                        Link(
+                                            metadata.first.outputText.lines()
+                                                .first { it.contains("xesam:url") }
+                                                .replace("(^.+\\s+\"?|\"?$)".toRegex(), "")
+                                        )
+                                    )
+                                    printToChat(listOf("Now playing from SoundCloud:\n$nowPlaying"))
+                                    commandJob.complete()
+                                    return Pair(true, nowPlaying)
+                                } else {
+                                    println("Failed to fetch metadata!\n${metadata.second.errorText}")
+                                    commandJob.complete()
+                                    return Pair(true, metadata.second.errorText)
+                                }
                             }
 
                             else -> {

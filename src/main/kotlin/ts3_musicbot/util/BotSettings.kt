@@ -11,6 +11,8 @@ class BotSettings(
     var nickname: String = "MusicBot",
     var market: String = "",
     var spotifyPlayer: String = "spotify",
+    var spotifyUsername: String = "",
+    var spotifyPassword: String = "",
     var useOfficialTsClient: Boolean = true,
     var mpvVolume: Int = 87
 )

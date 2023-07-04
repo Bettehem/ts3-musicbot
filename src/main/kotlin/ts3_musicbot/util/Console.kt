@@ -74,8 +74,9 @@ class Console(
 
                         "ncspot" -> {
                             CoroutineScope(IO).launch {
+                                playerctl("ncspot", "stop")
                                 commandRunner.runCommand(
-                                    "playerctl -p ncspot stop; tmux kill-session -t ncspot",
+                                    "tmux kill-session -t ncspot",
                                     ignoreOutput = true
                                 )
                                 delay(100)
@@ -125,11 +126,13 @@ class Console(
             }
         }
 
+        playerctl("ncspot", "stop")
+        playerctl("spotifyd", "stop")
         commandRunner.runCommand("pkill mpv", ignoreOutput = true)
         commandRunner.runCommand("pkill ncspot", ignoreOutput = true)
         commandRunner.runCommand("pkill -9 spotify", ignoreOutput = true)
         commandRunner.runCommand("tmux kill-session -t ncspot", ignoreOutput = true)
-        commandRunner.runCommand("playerctl -p spotifyd stop", ignoreOutput = true)
+        commandRunner.runCommand("pkill -9 ts3client_linux", ignoreOutput = true)
         consoleUpdateListener.onCommandIssued(command)
         exitProcess(0)
     }

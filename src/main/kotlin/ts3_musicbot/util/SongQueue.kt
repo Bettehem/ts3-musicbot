@@ -9,8 +9,7 @@ import ts3_musicbot.client.OfficialTSClient
 private var songQueue = Collections.synchronizedList(ArrayList<Track>())
 
 class SongQueue(
-    spotifyPlayer: String = "spotify",
-    mpvVolume: Int,
+    botSettings: BotSettings,
     teamSpeak: Any,
     private val playStateListener: PlayStateListener
 ) : PlayStateListener {
@@ -30,7 +29,7 @@ class SongQueue(
 
     fun getState() = synchronized(queueState) { queueState }
 
-    private val trackPlayer = TrackPlayer(spotifyPlayer, mpvVolume, teamSpeak, this)
+    private val trackPlayer = TrackPlayer(botSettings, teamSpeak, this)
 
     private fun setCurrent(track: Track) = synchronized(trackPlayer) { trackPlayer.track = track }
     private fun getCurrent() = synchronized(trackPlayer) { trackPlayer.track }
@@ -312,8 +311,7 @@ class SongQueue(
     override fun onAdPlaying() {}
 
     private class TrackPlayer(
-        val spotifyPlayer: String,
-        val mpvVolume: Int,
+        val botSettings: BotSettings,
         val teamSpeak: Any,
         val listener: PlayStateListener
     ) {
@@ -329,16 +327,20 @@ class SongQueue(
          * get the player suitable for playing the current track
          */
         fun getPlayer() = when (track.service) {
-            Service.SPOTIFY -> spotifyPlayer
+            Service.SPOTIFY -> botSettings.spotifyPlayer
             Service.YOUTUBE, Service.SOUNDCLOUD -> "mpv"
             else -> ""
         }
 
-        fun currentUrl() = commandRunner.runCommand(
-            "playerctl -p ${getPlayer()} metadata --format '{{ xesam:url }}'",
-            printOutput = false,
-            printErrors = false
-        ).first.outputText
+        fun currentUrl(): String {
+            val metadata = playerctl(getPlayer(), "metadata")
+            return if (metadata.second.errorText.isEmpty()) {
+                metadata.first.outputText.lines()
+                    .first { it.contains("xesam:url") }.replace("(^.+\\s+\"?|\"?$)".toRegex(), "")
+            } else {
+                ""
+            }
+        }
 
         fun refreshPulseAudio() {
             //if using pulseaudio, refresh it using pasuspender
@@ -370,25 +372,26 @@ class SongQueue(
                 checkTeamSpeakAudio(trackJob)
             }
 
-            fun playerStatus() = commandRunner.runCommand(
-                "playerctl -p ${getPlayer()} status", printOutput = false, printErrors = false
-            )
+            fun playerStatus() = playerctl(getPlayer(), "status")
 
             suspend fun startSpotifyPlayer() {
-                fun killCommand() = when (spotifyPlayer) {
+                fun killCommand() = when (botSettings.spotifyPlayer) {
                     "spotify" -> commandRunner.runCommand("pkill -9 spotify", ignoreOutput = true)
-                    "ncspot" -> commandRunner.runCommand(
-                        "playerctl -p ncspot stop; tmux kill-session -t ncspot",
-                        ignoreOutput = true
-                    )
+                    "ncspot" -> {
+                        playerctl(botSettings.spotifyPlayer, "stop")
+                        commandRunner.runCommand("tmux kill-session -t ncspot", ignoreOutput = true)
+                    }
 
                     "spotifyd" -> commandRunner.runCommand("echo \"spotifyd isn't well supported yet, please kill it manually.\"")
-                    else -> commandRunner.runCommand("echo \"$spotifyPlayer is not a supported player!\" > /dev/stderr; return 2")
+                    else -> commandRunner.runCommand("echo \"${botSettings.spotifyPlayer} is not a supported player!\" > /dev/stderr; return 2")
                 }
 
-                fun startCommand() = when (spotifyPlayer) {
+                fun startCommand() = when (botSettings.spotifyPlayer) {
                     "spotify" -> commandRunner.runCommand(
-                        "xvfb-run -a spotify --no-zygote --disable-gpu &",
+                        "xvfb-run -a spotify --no-zygote --disable-gpu" +
+                                if (botSettings.spotifyUsername.isNotEmpty() && botSettings.spotifyPassword.isNotEmpty()) {
+                                    " --username=${botSettings.spotifyUsername} --password=${botSettings.spotifyPassword}"
+                                } else { "" } + " &",
                         ignoreOutput = true,
                         printCommand = true,
                         inheritIO = true
@@ -401,11 +404,11 @@ class SongQueue(
                     )
 
                     "spotifyd" -> commandRunner.runCommand("echo \"spotifyd isn't well supported yet, please start it manually.\"")
-                    else -> commandRunner.runCommand("echo \"$spotifyPlayer is not a supported player!\" > /dev/stderr; return 2")
+                    else -> commandRunner.runCommand("echo \"${botSettings.spotifyPlayer} is not a supported player!\" > /dev/stderr; return 2")
                 }
 
                 fun checkProcess() = commandRunner.runCommand(
-                    "ps aux | grep $spotifyPlayer | grep -v grep",
+                    "ps aux | grep ${botSettings.spotifyPlayer} | grep -v grep",
                     printOutput = false
                 )
 
@@ -424,12 +427,12 @@ class SongQueue(
                 }
                 //wait for the spotify player to start.
                 while (trackJob.isActive && commandRunner.runCommand(
-                        "ps aux | grep -E \"[0-9]+:[0-9]+ .*(\\s+)?$spotifyPlayer(\\s+.*)?$\" | grep -v \"grep\"",
+                        "ps aux | grep -E \"[0-9]+:[0-9]+ .*(\\s+)?${botSettings.spotifyPlayer}(\\s+.*)?$\" | grep -v \"grep\"",
                         printOutput = false
                     ).first.outputText.isEmpty()
                 ) {
                     //do nothing
-                    println("Waiting for $spotifyPlayer to start")
+                    println("Waiting for ${botSettings.spotifyPlayer} to start")
                     delay(150)
                 }
                 delay(5000)
@@ -437,7 +440,7 @@ class SongQueue(
                 //now that the spotify player is started, in case of the official client, disable some settings:
                 //autoplay and automix needs to be disabled so the spotify client doesn't start playing stuff on its own.
                 //friend feed is and notifications are disabled just for performance.
-                if (spotifyPlayer == "spotify")
+                if (botSettings.spotifyPlayer == "spotify")
                     commandRunner.runCommand(
                         "sed -i '/.\\(track_notifications_enabled\\|show_friend_feed\\|auto\\(mix\\|play\\)\\)/s/true/false/g' ~/.config/spotify/Users/*/prefs || " +
                                 "echo 'Please log in to your Spotify account.'",
@@ -453,10 +456,8 @@ class SongQueue(
                  */
                 fun getTrackLength(): Int {
                     val lengthMicroseconds: Long = try {
-                        commandRunner.runCommand(
-                            "playerctl -p ${getPlayer()} metadata --format '{{ mpris:length }}'",
-                            printOutput = false
-                        ).first.outputText.toLong()
+                        playerctl(getPlayer(), "metadata").first.outputText.lines()
+                            .first { it.contains("mpris:length") }.replace("^.+\\s+".toRegex(), "").toLong()
                     } catch (e: Exception) {
                         //track hasn't started
                         0L
@@ -496,21 +497,17 @@ class SongQueue(
                         }
                         //Try to start playing song
                         var attempts = 0
-                        while (playerStatus().first.outputText != "Playing") {
+                        while (!playerStatus().first.outputText.contains("Playing")) {
                             if (attempts < 5) {
-                                if (track.link.link.contains("/track/")) {
-                                    commandRunner.runCommand(
-                                        "playerctl -p $spotifyPlayer open spotify:track:${
+                                playerctl(
+                                    getPlayer(), "open", "spotify:" +
+                                            if (track.link.link.contains("/track/")) {
+                                                "track"
+                                            } else {
+                                                "episode"
+                                            } + ":" +
                                             track.link.getId()
-                                        }", printCommand = true
-                                    )
-                                } else {
-                                    commandRunner.runCommand(
-                                        "playerctl -p $spotifyPlayer open spotify:episode:${
-                                            track.link.getId()
-                                        }", printCommand = true
-                                    )
-                                }
+                                )
                                 delay(5000)
                                 attempts++
                             } else {
@@ -527,7 +524,7 @@ class SongQueue(
                                     "mpv --terminal=no --no-video" +
                                             " --ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0" +
                                             (if (track.service == Service.YOUTUBE) ",cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" else "") +
-                                            " --ytdl \"${track.link}\" --volume=$mpvVolume &",
+                                            " --ytdl \"${track.link}\" --volume=${botSettings.mpvVolume} &",
                                     inheritIO = true,
                                     ignoreOutput = true, printCommand = true
                                 )
@@ -559,7 +556,7 @@ class SongQueue(
                         startMPV(currentJob)
                         delay(7000)
                         var attempts = 0
-                        while (playerStatus().first.outputText != "Playing") {
+                        while (!playerStatus().first.outputText.contains("Playing")) {
                             println("Waiting for track to start playing")
                             delay(1000)
                             if (attempts < 5) {
@@ -649,7 +646,7 @@ class SongQueue(
                                 } else {
                                     //wait a bit to see if track is actually stopped
                                     delay(3000)
-                                    if (status.first.outputText == "Stopped") {
+                                    if (playerStatus().first.outputText.contains("Stopped")) {
                                         trackPositionJob.cancel()
                                         trackJob.complete()
                                         listener.onTrackStopped(getPlayer(), track)
@@ -659,8 +656,8 @@ class SongQueue(
                             }
 
                             else -> {
-                                if (status.second.errorText != "No players found") {
-                                    //player has stopped, proceed to next song
+                                if (status.second.errorText != "Error org.freedesktop.DBus.Error.ServiceUnknown: The name org.mpris.MediaPlayer2.${getPlayer()} was not provided by any .service files") {
+                                    println("Player has stopped, proceeding to next song")
                                     trackPositionJob.cancel()
                                     trackJob.complete()
                                     listener.onTrackEnded(getPlayer(), track)
@@ -680,9 +677,9 @@ class SongQueue(
                             listener.onTrackEnded(getPlayer(), track)
                             break@loop
                         } else {
-                            //Something went seriously wrong. Restart the player and start the song again.
+                            println("Something went seriously wrong. Restarting the player and starting the song again.")
                             commandRunner.runCommand("pkill -9 ${getPlayer()}", ignoreOutput = true)
-                            if (getPlayer() == spotifyPlayer)
+                            if (getPlayer() == botSettings.spotifyPlayer)
                                 startSpotifyPlayer()
                             synchronized(songQueue) { songQueue.add(0, track) }
                             trackPositionJob.cancel()
@@ -697,8 +694,9 @@ class SongQueue(
             when (track.link.service()) {
                 Service.SPOTIFY -> {
                     CoroutineScope(IO + synchronized(trackJob) { trackJob }).launch {
-                        if (playerStatus().second.errorText == "No players found")
+                        if (playerStatus().second.errorText == "Error org.freedesktop.DBus.Error.ServiceUnknown: The name org.mpris.MediaPlayer2.${getPlayer()} was not provided by any .service files")
                             startSpotifyPlayer()
+
                         openTrack()
                     }
                 }
@@ -717,31 +715,24 @@ class SongQueue(
 
         fun pauseTrack() {
             if (track.isNotEmpty())
-                commandRunner.runCommand("playerctl -p ${getPlayer()} pause")
+                playerctl(getPlayer(), "pause")
         }
 
         fun resumeTrack() {
             if (track.isNotEmpty()) {
                 refreshPulseAudio()
                 checkTeamSpeakAudio(trackJob)
-                commandRunner.runCommand("playerctl -p ${getPlayer()} play", ignoreOutput = true)
+                playerctl(getPlayer(), "play")
             }
         }
 
         fun stopTrack() {
             trackPositionJob.cancel()
             trackJob.cancel()
-            //try stopping playback twice because sometimes once doesn't seem to be enough
             val player = getPlayer()
+            //try stopping playback twice because sometimes once doesn't seem to be enough
             for (i in 1..2) {
-                commandRunner.runCommand(
-                    "playerctl -p " +
-                            when (player) {
-                                "spotify" -> "spotify pause"
-                                else -> "$player stop"
-                            },
-                    ignoreOutput = true
-                )
+                playerctl(player, if (player == "spotify") "pause" else "stop")
             }
             //if mpv is in use, kill the process
             if (player == "mpv")
