@@ -15,7 +15,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class SoundCloud {
-    var clientId = "8m4K5d2x4mNmUHLhLmsGq9vxE3dDkxCm"
+    var clientId = "gbXxG1i8ZvGqGa2q2QXjtpahMpzHjsbW"
     private val api2URL = URL("https://api-v2.soundcloud.com")
     val apiURL = URL("https://api.soundcloud.com")
     val supportedSearchTypes = listOf(
@@ -38,7 +38,7 @@ class SoundCloud {
             sendHttpRequest(URL(line.substringAfter('"').substringBefore('"')))
                 .data.data.let { data ->
                     if (data.contains("client_id=[0-9A-z-_]+\"".toRegex())) {
-                        val idLine = data.lines().first{ it.contains("client_id=[0-9A-z-_]+\"".toRegex()) }
+                        val idLine = data.lines().first { it.contains("client_id=[0-9A-z-_]+\"".toRegex()) }
                         val id = idLine.replace("^.*client_id=".toRegex(), "").replace("(&|\"?\\),).*$".toRegex(), "")
                         synchronized(clientId) { clientId = id }
                     }
@@ -698,7 +698,22 @@ class SoundCloud {
                 val releaseDate = ReleaseDate(LocalDate.parse(trackData.getString("created_at"), formatter))
                 trackList.add(
                     Track(
-                        Album(releaseDate = releaseDate),
+                        Album(
+                            Name(
+                                if (
+                                    !trackData.isNull("publisher_metadata") &&
+                                    trackData.getJSONObject("publisher_metadata")
+                                        .has("album_title") &&
+                                    !trackData.getJSONObject("publisher_metadata")
+                                        .isNull("album_title")
+                                )
+                                    trackData.getJSONObject("publisher_metadata")
+                                        .getString("album_title")
+                                else
+                                    ""
+                            ),
+                            releaseDate = releaseDate
+                        ),
                         Artists(
                             listOf(
                                 Artist(
@@ -886,6 +901,12 @@ class SoundCloud {
                                                                         .getString("album_title")
                                                                 else
                                                                     ""
+                                                            ),
+                                                            releaseDate = ReleaseDate(
+                                                                LocalDate.parse(
+                                                                    track.getString("created_at"),
+                                                                    DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
+                                                                )
                                                             )
                                                         ),
                                                         Artists(
@@ -918,7 +939,7 @@ class SoundCloud {
                                             } catch (e: JSONException) {
                                                 //JSON broken, try getting the data again
                                                 println("Failed JSON:\n${track.toString(4)}\n")
-                                                println("Failed to get data from JSON, trying again...")
+                                                println("Failed to get data from JSON:\n${e.printStackTrace()}")
                                             }
                                         }
                                     }
@@ -1006,6 +1027,12 @@ class SoundCloud {
                                                                         .getString("album_title")
                                                                 else
                                                                     ""
+                                                            ),
+                                                            releaseDate = ReleaseDate(
+                                                                LocalDate.parse(
+                                                                    track.getString("created_at"),
+                                                                    DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
+                                                                )
                                                             )
                                                         ),
                                                         Artists(
@@ -1123,6 +1150,12 @@ class SoundCloud {
                                                     it.getJSONObject("publisher_metadata").getString("album_title")
                                                 else
                                                     ""
+                                            ),
+                                            releaseDate = ReleaseDate(
+                                                LocalDate.parse(
+                                                    it.getString("created_at"),
+                                                    DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
+                                                )
                                             )
                                         ),
                                         Artists(
@@ -1353,7 +1386,7 @@ class SoundCloud {
                         if (linkToSolve.link.contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex()))
                             linkToSolve = Link(
                                 sendHttpRequest(URL(linkToSolve.link), RequestMethod.GET).data.data.lines()
-                                    .first{ it.contains("<meta property=\"og:url\"".toRegex()) }
+                                    .first { it.contains("<meta property=\"og:url\"".toRegex()) }
                                     .replace(".*<meta property=\"og:url\"".toRegex(), "")
                                     .replace("^\\s*content=\"|\">.*$".toRegex(), "")
                             )
@@ -1425,7 +1458,7 @@ class SoundCloud {
             if (linkToSolve.link.contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex()))
                 linkToSolve = Link(
                     sendHttpRequest(URL(linkToSolve.link), RequestMethod.GET).data.data.lines()
-                        .first{ it.contains("<meta property=\"og:url\"".toRegex()) }
+                        .first { it.contains("<meta property=\"og:url\"".toRegex()) }
                         .replace(".*<meta property=\"og:url\"".toRegex(), "")
                         .replace("^\\s*content=\"|\">.*$".toRegex(), "")
                 )
