@@ -6,8 +6,8 @@ stages:
   - buildJar
 
 before_script:
-  - sudo apt update
-  - sudo apt install -y kotlin openjdk-11-jdk openjfx git wget python3 zip
+  - apt update
+  - apt install -y kotlin openjdk-11-jdk openjfx git wget python3 zip
   - wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /bin/yt-dlp
   - chmod +x /bin/yt-dlp
   - ln -s /bin/yt-dlp /bin/youtube-dl
