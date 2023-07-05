@@ -14,12 +14,12 @@ before_script:
 buildTS3MusicBot:
   stage: build
   script:
-    - ./gradlew build
+    - sh gradlew assemble
 
 runTests:
   stage: test
   script:
-    - ./gradlew test
+    - sh gradlew test
 
 buildJar:
   stage: buildJar
