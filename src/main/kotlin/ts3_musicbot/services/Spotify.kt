@@ -876,7 +876,7 @@ class Spotify(private val market: String = "") {
             var listOffset = 0
             while (trackItems.size < trackItemsLength) {
 
-                fun getAlbumTrackData(): Response {
+                fun fetchAlbumTrackData(): Response {
                     val albumUrlBuilder = StringBuilder()
                     albumUrlBuilder.append("$apiURL/albums/")
                     albumUrlBuilder.append(albumLink.getId())
@@ -919,7 +919,7 @@ class Spotify(private val market: String = "") {
                 val albumTrackJob = Job()
                 withContext(IO + albumTrackJob) {
                     while (true) {
-                        val albumTrackData = getAlbumTrackData()
+                        val albumTrackData = fetchAlbumTrackData()
                         when (albumTrackData.code.code) {
                             HttpURLConnection.HTTP_OK -> {
                                 try {
@@ -1271,7 +1271,7 @@ class Spotify(private val market: String = "") {
                     )
                 })
                 val album = Album(
-                    Name(track.getString("name")),
+                    Name(track.getJSONObject("album").getString("name")),
                     artists,
                     ReleaseDate(
                         when (track.getJSONObject("album").getString("release_date_precision")) {
@@ -1372,7 +1372,6 @@ class Spotify(private val market: String = "") {
                     }
                 )
                 if (!currentAlbumsData.isNull("next")) {
-                    offset += 50
                     val albumsJob = Job()
                     withContext(IO + albumsJob) {
                         while (true) {
@@ -1381,6 +1380,7 @@ class Spotify(private val market: String = "") {
                                 HttpURLConnection.HTTP_OK -> {
                                     try {
                                         currentAlbumsData = JSONObject(albumsResponse.data.data)
+                                        offset += 50
                                         return@withContext
                                     } catch (e: JSONException) {
                                         //JSON broken, try getting the data again
@@ -1399,6 +1399,8 @@ class Spotify(private val market: String = "") {
                             }
                         }
                     }
+                } else {
+                    break
                 }
             }
             val related = ArrayList<Artist>()
