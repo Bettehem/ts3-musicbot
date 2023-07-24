@@ -26,7 +26,7 @@ class OfficialTSClient(
             commandRunner.runCommand("cat /etc/issue", printOutput = false).first.outputText
         return when {
             distro.contains("(Ubuntu|Debian)".toRegex()) -> {
-                message.replace(" ", "\\\\\\s")
+                message.replace(" ", "\\s")
                     .replace("\n", "\\\\\\n")
                     .replace("/", "\\/")
                     .replace("|", "\\\\p")
@@ -140,7 +140,7 @@ class OfficialTSClient(
                     channelList.first { it.contains("cid=$cid(\\s+|$)".toRegex()) }
                         .substringAfter("channel_name=").substringBefore(' ')
 
-                fun checkPid(pid: String, name: String) = getChannelName(pid) == name
+                fun checkPid(pid: String, name: String) = getChannelName(pid) == encode(name)
                 if (checkPid(pid, channelPath.first())) {
                     pid = getChannelList().first { it.contains("cid=$pid") }.substringAfter("pid=").substringBefore(' ')
                     channelPath.removeFirst()

@@ -74,7 +74,7 @@ fun playerctl(player: String, command: String, extra: String = ""): Pair<Output,
         }
         return metadataMap
     }
-    return when (command) {
+    return when (command.lowercase()) {
         "status" -> {
             val cmd = dbusGet("PlaybackStatus")
             Pair(

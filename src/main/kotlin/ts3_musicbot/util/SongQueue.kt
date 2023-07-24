@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers.IO
 import java.util.*
 import kotlin.collections.ArrayList
 import ts3_musicbot.client.OfficialTSClient
+import java.io.File
 
 private var songQueue = Collections.synchronizedList(ArrayList<Track>())
 
@@ -438,14 +439,39 @@ class SongQueue(
                 delay(5000)
 
                 //now that the spotify player is started, in case of the official client, disable some settings:
-                //autoplay and automix needs to be disabled so the spotify client doesn't start playing stuff on its own.
+                //autoplay needs to be disabled so the spotify client doesn't start playing stuff on its own.
                 //friend feed is and notifications are disabled just for performance.
-                if (botSettings.spotifyPlayer == "spotify")
-                    commandRunner.runCommand(
-                        "sed -i '/.\\(track_notifications_enabled\\|show_friend_feed\\|auto\\(mix\\|play\\)\\)/s/true/false/g' ~/.config/spotify/Users/*/prefs || " +
-                                "echo 'Please log in to your Spotify account.'",
-                        printErrors = false
-                    )
+                if (botSettings.spotifyPlayer == "spotify") {
+                    val usersPath = System.getProperty("user.home") + "/.config/spotify/Users"
+                    val users = File(usersPath).listFiles()
+                    if (users != null && users.isNotEmpty()) {
+                        for (user in users) {
+                            val prefsFile = File("${user.listFiles()?.first { it.name == "prefs" }}")
+                            if (prefsFile.exists()) {
+                                val newPrefs = StringBuilder()
+                                val prefs = emptyMap<String, String>().toMutableMap()
+                                prefsFile.readLines().forEach {
+                                    val split = it.split("=".toRegex())
+                                    prefs[split.first()] = split.last()
+                                }
+                                val keys = listOf(
+                                    "ui.track_notifications_enabled",
+                                    "ui.show_friend_feed",
+                                    "app.player.autoplay"
+                                )
+                                keys.forEach { prefs[it] = "false" }
+                                prefs.forEach {
+                                    newPrefs.appendLine("${it.key}=${it.value}")
+                                }
+                                prefsFile.delete()
+                                prefsFile.createNewFile()
+                                prefsFile.writeText(newPrefs.toString())
+                            }
+                        }
+                    } else {
+                        println("Please log in to your Spotify account.")
+                    }
+                }
             }
 
             //starts playing the track
@@ -478,6 +504,10 @@ class SongQueue(
                             delay(985)
                             trackPosition += 1
                             println("Track Position: $trackPosition/$trackLength seconds")
+                            if (trackPosition > trackLength + 10) {
+                                println("Wait.. what?")
+                                skipTrack()
+                            }
                         }
                     }
                 }
@@ -657,7 +687,7 @@ class SongQueue(
 
                             else -> {
                                 if (status.second.errorText != "Error org.freedesktop.DBus.Error.ServiceUnknown: The name org.mpris.MediaPlayer2.${getPlayer()} was not provided by any .service files") {
-                                    println("Player has stopped, proceeding to next song")
+                                    println("Player has stopped")
                                     trackPositionJob.cancel()
                                     trackJob.complete()
                                     listener.onTrackEnded(getPlayer(), track)
@@ -738,6 +768,18 @@ class SongQueue(
             if (player == "mpv")
                 commandRunner.runCommand("pkill -9 mpv", ignoreOutput = true)
             listener.onTrackStopped(player, track)
+        }
+
+        fun skipTrack() {
+            trackPositionJob.cancel()
+            trackJob.cancel()
+            val player = getPlayer()
+            when (player) {
+                "spotify" -> for (i in 1..2) playerctl(player, "pause")
+                "mpv" -> commandRunner.runCommand("pkill -9 mpv", ignoreOutput = true)
+                else -> playerctl(player, "stop")
+            }
+            listener.onTrackEnded(player, track)
         }
     }
 }
