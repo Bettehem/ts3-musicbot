@@ -15,7 +15,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-class YouTube {
+class YouTube : Service(ServiceType.YOUTUBE) {
     private val apiUrl = "https://www.googleapis.com/youtube/v3"
     private val apiKey1 = "AIzaSyB_FpJTYVMuQ2I_DxaidXUd7z4Q-ScMv6Y"
     private val apiKey2 = "AIzaSyCQBDN5QIpKCub2nNMR7WJiZY7_LYiZImA"
@@ -116,7 +116,7 @@ class YouTube {
      * @param playlistLink link to playlist
      * @return returns a Playlist containing the given playlist's information
      */
-    suspend fun fetchPlaylist(playlistLink: Link): Playlist {
+    override suspend fun fetchPlaylist(playlistLink: Link): Playlist {
         fun fetchPlaylistData(apiKey: String = apiKey1): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiUrl/playlists")
@@ -177,10 +177,10 @@ class YouTube {
 
     /**
      * Fetch a list of YouTube videos/tracks in a given playlist
-     * @param link link to playlist
+     * @param playlistLink link to playlist
      * @return returns a list of videos/tracks
      */
-    suspend fun fetchPlaylistTracks(link: Link): TrackList {
+    override suspend fun fetchPlaylistTracks(playlistLink: Link): TrackList {
         /**
          * Send a request to YouTube API to get playlist items
          * @param maxResults max results to receive. 50 is the maximum per request
@@ -196,7 +196,7 @@ class YouTube {
         ): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiUrl/playlistItems?")
-            urlBuilder.append("playlistId=${link.getId()}")
+            urlBuilder.append("playlistId=${playlistLink.getId()}")
             urlBuilder.append("&part=${part.replace(",", "%2C")}")
             urlBuilder.append("&key=$apiKey")
             urlBuilder.append("&maxResults=$maxResults")
@@ -598,6 +598,10 @@ class YouTube {
         }
     }
 
+    override suspend fun fetchUser(userLink: Link): User {
+        return fetchChannel(userLink)
+    }
+
     /**
      * Search on YouTube for a video/track or a playlist
      * @param searchType can be "track", "video", "playlist" or "channel"
@@ -605,7 +609,7 @@ class YouTube {
      * @param resultLimit limit how many results are retrieved.
      * @return returns results from the search
      */
-    suspend fun searchYouTube(searchType: SearchType, searchQuery: SearchQuery, resultLimit: Int = 10): SearchResults {
+    override suspend fun search(searchType: SearchType, searchQuery: SearchQuery, resultLimit: Int): SearchResults {
         fun encode(text: String) = runBlocking {
             withContext(IO) {
                 URLEncoder.encode(text, Charsets.UTF_8.toString())
@@ -773,7 +777,7 @@ class YouTube {
      * @param link link to be resolved
      * @return returns a String containing the type of link. Possible values: video, channel, playlist
      */
-    suspend fun resolveType(link: Link): LinkType {
+    override suspend fun resolveType(link: Link): LinkType {
         fun fetchData(apiKey: String = apiKey1): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiUrl/search?")

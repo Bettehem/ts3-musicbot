@@ -178,6 +178,7 @@ data class CommandList(
                         "the bot will ask you to choose which one you want to delete.\n" +
                         "Available options:\n" +
                         "-a, --all    \t-Delete all matching tracks from the queue.\n" +
+                        "-A, --all-artist-tracks    -Delete all tracks where the given artist appears.\n" +
                         "Example - Delete a track from the queue using a link:\n" +
                         "${commandList["queue-delete"]} https://open.spotify.com/track/54k9d97GSM3lBXY61UagKx\n" +
                         "Example - Delete multiple tracks using links:\n" +
@@ -189,7 +190,9 @@ data class CommandList(
                         "Example - Delete all tracks matching the given link:\n" +
                         "${commandList["queue-delete"]} --all https://open.spotify.com/track/54k9d97GSM3lBXY61UagKx\n" +
                         "Example - Delete all tracks matching the given link:\n" +
-                        "${commandList["queue-delete"]} https://open.spotify.com/track/54k9d97GSM3lBXY61UagKx, https://open.spotify.com/track/6le9zgS2y7MQKvDmmGABDW -a"
+                        "${commandList["queue-delete"]} https://open.spotify.com/track/54k9d97GSM3lBXY61UagKx, https://open.spotify.com/track/6le9zgS2y7MQKvDmmGABDW -a\n" +
+                        "Example - Delete all tracks where the an artist appears:\n" +
+                        "${commandList["queue-delete"]} -A https://open.spotify.com/artist/4l0zTor5S32Yly4uw96Bto"
             ),
             Pair(
                 "queue-clear", "\n" +

@@ -20,7 +20,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatterBuilder
 import java.time.temporal.ChronoField
 
-class Spotify(private val market: String = "") {
+class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
     private val defaultMarket = "US"
     private val apiURL = URL("https://api.spotify.com/v1")
     private var accessToken = ""
@@ -103,7 +103,7 @@ class Spotify(private val market: String = "") {
         return token
     }
 
-    suspend fun searchSpotify(type: SearchType, searchQuery: SearchQuery, resultLimit: Int = 10): SearchResults {
+    override suspend fun search(searchType: SearchType, searchQuery: SearchQuery, resultLimit: Int): SearchResults {
         val searchResults = ArrayList<SearchResult>()
 
         fun searchData(limit: Int = resultLimit, offset: Int = 0, link: Link = Link("")): Response {
@@ -113,7 +113,7 @@ class Spotify(private val market: String = "") {
             } else {
                 urlBuilder.append("$apiURL/search?")
                 urlBuilder.append("q=${encode(searchQuery.query)}")
-                urlBuilder.append("&type=${type.type.replace("podcast", "show")}")
+                urlBuilder.append("&type=${searchType.type.replace("podcast", "show")}")
                 urlBuilder.append("&limit=$limit")
                 urlBuilder.append("&offset=$offset")
                 if (market.isNotEmpty())
@@ -127,7 +127,7 @@ class Spotify(private val market: String = "") {
         }
 
         fun parseResults(searchData: JSONObject) {
-            when (type.type) {
+            when (searchType.type) {
                 "track" -> {
                     val trackList = searchData.getJSONObject("tracks").getJSONArray("items")
                     for (trackData in trackList) {
@@ -375,7 +375,7 @@ class Spotify(private val market: String = "") {
         )
     }
 
-    suspend fun fetchPlaylist(playlistLink: Link): Playlist {
+    override suspend fun fetchPlaylist(playlistLink: Link): Playlist {
         lateinit var playlist: Playlist
         suspend fun parsePlaylistData(data: JSONObject): Playlist {
             return Playlist(
@@ -455,7 +455,7 @@ class Spotify(private val market: String = "") {
         return playlist
     }
 
-    suspend fun fetchPlaylistTracks(playlistLink: Link): TrackList {
+    override suspend fun fetchPlaylistTracks(playlistLink: Link): TrackList {
         val trackItems = ArrayList<Track>()
         suspend fun parsePlaylistData(playlistData: JSONObject) {
             //get playlist length
@@ -715,7 +715,7 @@ class Spotify(private val market: String = "") {
         )
     }
 
-    suspend fun fetchAlbum(albumLink: Link): Album {
+    override suspend fun fetchAlbum(albumLink: Link): Album {
         lateinit var album: Album
         suspend fun parseAlbumData(data: JSONObject): Album {
             return Album(
@@ -821,7 +821,7 @@ class Spotify(private val market: String = "") {
         return album
     }
 
-    suspend fun fetchAlbumTracks(albumLink: Link): TrackList {
+    override suspend fun fetchAlbumTracks(albumLink: Link): TrackList {
         val trackItems = ArrayList<Track>()
 
         suspend fun parseAlbumData(albumData: JSONObject) {
@@ -998,7 +998,7 @@ class Spotify(private val market: String = "") {
         return TrackList(trackItems)
     }
 
-    suspend fun fetchTrack(trackLink: Link): Track {
+    override suspend fun fetchTrack(trackLink: Link): Track {
         fun fetchTrackData(link: Link, spMarket: String = ""): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/tracks/")
@@ -1196,7 +1196,7 @@ class Spotify(private val market: String = "") {
         return track
     }
 
-    suspend fun fetchArtist(artistLink: Link): Artist {
+    override suspend fun fetchArtist(artistLink: Link): Artist {
         fun fetchArtistData(): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiURL/artists/")
@@ -1558,7 +1558,7 @@ class Spotify(private val market: String = "") {
         return artist
     }
 
-    suspend fun fetchUser(userLink: Link): User {
+    override suspend fun fetchUser(userLink: Link): User {
         lateinit var user: User
         fun fetchUserData(): Response {
             val urlBuilder = StringBuilder()
@@ -1999,8 +1999,8 @@ class Spotify(private val market: String = "") {
         return episode
     }
 
-    fun resolveType(spotifyLink: Link): LinkType {
-        val type = spotifyLink.link.substringBeforeLast("/").substringAfterLast("/")
+    override suspend fun resolveType(link: Link): LinkType {
+        val type = link.link.substringBeforeLast("/").substringAfterLast("/")
         return try {
             LinkType.valueOf(type.uppercase())
         } catch (e: IllegalArgumentException) {

@@ -3,9 +3,12 @@ package ts3_musicbot.chat
 import com.github.manevolent.ts3j.event.TS3Listener
 import com.github.manevolent.ts3j.event.TextMessageEvent
 import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.flow.*
 import ts3_musicbot.client.OfficialTSClient
 import ts3_musicbot.client.TeamSpeak
+import ts3_musicbot.services.Service
 import ts3_musicbot.services.SoundCloud
 import ts3_musicbot.services.Spotify
 import ts3_musicbot.services.YouTube
@@ -144,7 +147,9 @@ class ChatReader(
                             "xvfb-run -a spotify --no-zygote --disable-gpu" +
                                     if (botSettings.spotifyUsername.isNotEmpty() && botSettings.spotifyPassword.isNotEmpty()) {
                                         " --username=${botSettings.spotifyUsername} --password=${botSettings.spotifyPassword}"
-                                    } else { "" } + " &",
+                                    } else {
+                                        ""
+                                    } + " &",
                             ignoreOutput = true,
                             printCommand = true,
                             inheritIO = true
@@ -301,7 +306,7 @@ class ChatReader(
                                 if (commandString.contains("\\s+(sp|spotify|yt|youtube|sc|soundcloud)\\s+\\w+\\s+.+".toRegex())) {
                                     when {
                                         commandString.contains("\\s+(sp|spotify)\\s+".toRegex()) ->
-                                            spotify.searchSpotify(
+                                            spotify.search(
                                                 SearchType(
                                                     commandString.split("\\s+(sp|spotify)\\s+".toRegex()).last()
                                                         .substringBefore(" ")
@@ -316,7 +321,7 @@ class ChatReader(
                                             }
 
                                         commandString.contains("\\s+(yt|youtube)\\s+".toRegex()) ->
-                                            youTube.searchYouTube(
+                                            youTube.search(
                                                 SearchType(
                                                     commandString.split("\\s+(yt|youtube)\\s+".toRegex()).last()
                                                         .substringBefore(" ")
@@ -331,7 +336,7 @@ class ChatReader(
                                             }
 
                                         commandString.contains("\\s+(sc|soundcloud)\\s+".toRegex()) ->
-                                            soundCloud.searchSoundCloud(
+                                            soundCloud.search(
                                                 SearchType(
                                                     commandString.split("\\s+(sc|soundcloud)\\s+".toRegex()).last()
                                                         .substringBefore(" ")
@@ -782,7 +787,7 @@ class ChatReader(
                                     }
                                     printToChat(
                                         listOf(
-                                            if (track.service == Service.YOUTUBE) {
+                                            if (track.serviceType == Service.ServiceType.YOUTUBE) {
                                                 "Currently playing:\n${track.title} : ${track.link.link}"
                                             } else {
                                                 "Currently playing:\n${
@@ -805,13 +810,13 @@ class ChatReader(
                                             return queue.mapIndexed { index, track ->
                                                 val strBuilder = StringBuilder()
                                                 strBuilder.append("${if (index < 10) "$index: " else "$index:"} ")
-                                                if (track.link.service() != Service.YOUTUBE) {
+                                                if (track.link.serviceType() != Service.ServiceType.YOUTUBE) {
                                                     track.artists.artists.forEach { strBuilder.append("${it.name}, ") }
                                                 } else {
                                                     strBuilder.append("${track.title},")
                                                 }
                                                 "${strBuilder.toString().substringBeforeLast(",")} " +
-                                                        if (track.link.service() != Service.YOUTUBE) {
+                                                        if (track.link.serviceType() != Service.ServiceType.YOUTUBE) {
                                                             "- ${track.title} "
                                                         } else {
                                                             ""
@@ -862,11 +867,19 @@ class ChatReader(
                                 }
                             }
                             //queue-delete command
-                            commandString.contains("^${commandList.commandList["queue-delete"]}((\\s+(-a|--all))?\\s+((\\[URL])?https?://\\S+,?\\s*)*(\\s+(-a|--all))?|([0-9]+,?\\s*)+)".toRegex()) -> {
+                            commandString.contains("^${commandList.commandList["queue-delete"]}((\\s+(-a|--all|-A|--all-artist-tracks))?\\s+((\\[URL])?https?://\\S+,?\\s*)*(\\s+(-a|--all|-A|--all-artist-tracks))?|([0-9]+,?\\s*)+)".toRegex()) -> {
+                                //TODO: integrate search into this command
+                                //TODO: add -f/--first option with same kind of functionality as with queue-move.
+                                fun getService(link: Link): Service = when (link.serviceType()) {
+                                    Service.ServiceType.SPOTIFY -> spotify
+                                    Service.ServiceType.SOUNDCLOUD -> soundCloud
+                                    Service.ServiceType.YOUTUBE -> youTube
+                                    else -> Service(Service.ServiceType.OTHER)
+                                }
                                 if (songQueue.getQueue().isNotEmpty()) {
                                     //get links from message
                                     val links =
-                                        if (commandString.contains("^${commandList.commandList["queue-delete"]}(\\s+(-a|--all))?\\s+((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+(-a|--all))?".toRegex())) {
+                                        if (commandString.contains("^${commandList.commandList["queue-delete"]}(\\s+(-a|--all|-A|--all-artist-tracks))*\\s+((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+(-a|--all|-A|--all-artist-tracks))*".toRegex())) {
                                             commandString.split("(\\s+|,\\s+|,)".toRegex()).filter {
                                                 it.contains("(\\[URL])?https?://\\S+,?(\\[/URL])?".toRegex())
                                             }.map { Link(removeTags(it.replace(",\\[/URL]".toRegex(), "[/URL]"))) }
@@ -881,6 +894,7 @@ class ChatReader(
                                     } else {
                                         emptyList()
                                     }
+
                                     if (links.isEmpty() && positions.isEmpty()) {
                                         printToChat(
                                             listOf(
@@ -890,34 +904,120 @@ class ChatReader(
                                         )
                                     } else {
                                         for (i in links.indices) {
-                                            if (links[i].linkType() == LinkType.PLAYLIST) {
-                                                val link = links[i]
-                                                printToChat(listOf("Please wait, fetching tracks in the list:\n$link"))
-                                                links.remove(link)
-                                                when (link.service()) {
-                                                    Service.SPOTIFY -> links.addAll(
-                                                        spotify.fetchPlaylistTracks(link).trackList
+                                            val link = links[i]
+                                            val service = getService(link)
+                                            when (link.linkType()) {
+                                                LinkType.PLAYLIST -> {
+                                                    printToChat(listOf("Please wait, fetching tracks in the list:\n$link"))
+                                                    links.remove(link)
+                                                    links.addAll(
+                                                        service.fetchPlaylistTracks(link).trackList
                                                             .map { track -> track.link }
                                                     )
-
-                                                    Service.SOUNDCLOUD -> links.addAll(
-                                                        soundCloud.fetchPlaylistTracks(link).trackList
-                                                            .map { track -> track.link }
-                                                    )
-
-                                                    Service.YOUTUBE -> links.addAll(
-                                                        youTube.fetchPlaylistTracks(link).trackList
-                                                            .map { track -> track.link }
-                                                    )
-
-                                                    Service.OTHER -> println("Unsupported service for link $link")
                                                 }
+
+                                                LinkType.ALBUM -> {
+                                                    printToChat(listOf("Please wait, fetching tracks in the album:\n$link"))
+                                                    links.remove(link)
+                                                    links.addAll(
+                                                        service.fetchAlbumTracks(link).trackList
+                                                            .map { track -> track.link }
+                                                    )
+                                                }
+
+                                                LinkType.ARTIST -> {
+                                                    if (commandString.contains("\\s+(-A|--all-artist-tracks)(\\s+)?".toRegex())) {
+                                                        printToChat(
+                                                            listOf(
+                                                                "You used the -A/--all-artist-tracks flag, so deleting all tracks from this artist:\n$link"
+                                                            )
+                                                        )
+                                                    } else {
+                                                        printToChat(listOf("Please wait, fetching the artist's top tracks"))
+                                                        links.remove(link)
+                                                        links.addAll(
+                                                            service.fetchArtist(link).topTracks.trackList
+                                                                .map { track -> track.link }
+                                                        )
+                                                    }
+
+                                                }
+
+                                                LinkType.USER, LinkType.CHANNEL -> {
+                                                    links.remove(link)
+                                                    if (service is YouTube)
+                                                        printToChat(listOf("Please wait, fetching channel's playlists"))
+                                                    else
+                                                        printToChat(listOf("Please wait, fetching user's playlists"))
+
+                                                    service.fetchUser(link).playlists.lists.forEach { playlist ->
+                                                        links.addAll(
+                                                            service.fetchPlaylistTracks(playlist.link).trackList
+                                                                .map { track -> track.link }
+                                                        )
+                                                    }
+                                                }
+
+                                                LinkType.LIKES -> {
+                                                    links.remove(link)
+                                                    if (service is SoundCloud) {
+                                                        printToChat(listOf("Please wait, fetching user's likes"))
+                                                        links.addAll(
+                                                            service.fetchUserLikes(link).trackList
+                                                                .map { track -> track.link }
+                                                        )
+                                                    }
+                                                }
+
+                                                LinkType.REPOSTS -> {
+                                                    links.remove(link)
+                                                    if (service is SoundCloud) {
+                                                        printToChat(listOf("Please wait, fetching user's reposts"))
+                                                        links.addAll(
+                                                            service.fetchUserReposts(link).trackList
+                                                                .map { track -> track.link }
+                                                        )
+                                                    }
+                                                }
+
+                                                LinkType.SHOW -> {
+                                                    links.remove(link)
+                                                    if (service is Spotify) {
+                                                        printToChat(listOf("Please wait, fetching podcast episodes"))
+                                                        links.addAll(
+                                                            service.fetchShow(link).episodes.episodes
+                                                                .map { episode -> episode.link }
+                                                        )
+                                                    }
+                                                }
+
+                                                LinkType.VIDEO, LinkType.EPISODE, LinkType.TRACK, LinkType.OTHER -> {}
                                             }
                                         }
                                         val currentList = songQueue.getQueue()
                                         val messages: ArrayList<String> = ArrayList()
                                         //get a list of the tracks to delete
-                                        val tracksToDelete = currentList.filter { track -> links.contains(track.link) }
+                                        val tracksToDelete = ArrayList<Track>()
+                                        println("Filtering tracks from queue")
+                                        if (currentList.size > 100000)
+                                            printToChat(
+                                                listOf(
+                                                    "Are you insane? Your queue has ${currentList.size} tracks!",
+                                                    "This might take some time..."
+                                                )
+                                            )
+
+                                        currentList.asFlow().filter { track ->
+                                            links.any { link ->
+                                                if (commandString.contains("\\s+(-A|--all-artist-tracks)(\\s+)?".toRegex())) {
+                                                    link == track.link || track.artists.artists.any { artist -> artist.link == link }
+                                                } else {
+                                                    link == track.link
+                                                }
+                                            }
+                                        }.flowOn(Default).collect { track ->
+                                            tracksToDelete.add(track)
+                                        }
                                         if (tracksToDelete.isNotEmpty()) {
                                             val msg = StringBuilder()
                                             if (commandString.contains("\\s+(-a|--all)(\\s+)?".toRegex())) {
@@ -1400,10 +1500,10 @@ class ChatReader(
                                 val serviceText = commandString.replace("^$searchCommand\\s+".toRegex(), "")
                                     .replace("\\s+.*$".toRegex(), "")
                                 val service = when (serviceText) {
-                                    "sc", "soundcloud" -> Service.SOUNDCLOUD
-                                    "sp", "spotify" -> Service.SPOTIFY
-                                    "yt", "youtube" -> Service.YOUTUBE
-                                    else -> Service.OTHER
+                                    "sc", "soundcloud" -> Service.ServiceType.SOUNDCLOUD
+                                    "sp", "spotify" -> Service.ServiceType.SPOTIFY
+                                    "yt", "youtube" -> Service.ServiceType.YOUTUBE
+                                    else -> Service.ServiceType.OTHER
                                 }
                                 val searchType = SearchType(
                                     commandString.replace("^$searchCommand\\s+$serviceText\\s+".toRegex(), "")
@@ -1411,9 +1511,12 @@ class ChatReader(
                                 )
                                 if (
                                     when (service) {
-                                        Service.SPOTIFY -> spotify.supportedSearchTypes.contains(searchType.getType())
-                                        Service.YOUTUBE -> youTube.supportedSearchTypes.contains(searchType.getType())
-                                        Service.SOUNDCLOUD -> soundCloud.supportedSearchTypes.contains(searchType.getType())
+                                        Service.ServiceType.SPOTIFY -> spotify.supportedSearchTypes.contains(searchType.getType())
+                                        Service.ServiceType.YOUTUBE -> youTube.supportedSearchTypes.contains(searchType.getType())
+                                        Service.ServiceType.SOUNDCLOUD -> soundCloud.supportedSearchTypes.contains(
+                                            searchType.getType()
+                                        )
+
                                         else -> false
                                     }
                                 ) {
@@ -1433,14 +1536,24 @@ class ChatReader(
                                     )
                                     printToChat(listOf("Searching, please wait..."))
                                     val results = when (service) {
-                                        Service.SOUNDCLOUD -> soundCloud.searchSoundCloud(
+                                        Service.ServiceType.SOUNDCLOUD -> soundCloud.search(
                                             searchType,
                                             searchQuery,
                                             limit
                                         )
 
-                                        Service.SPOTIFY -> spotify.searchSpotify(searchType, searchQuery, limit)
-                                        Service.YOUTUBE -> youTube.searchYouTube(searchType, searchQuery, limit)
+                                        Service.ServiceType.SPOTIFY -> spotify.search(
+                                            searchType,
+                                            searchQuery,
+                                            limit
+                                        )
+
+                                        Service.ServiceType.YOUTUBE -> youTube.search(
+                                            searchType,
+                                            searchQuery,
+                                            limit
+                                        )
+
                                         else -> SearchResults(emptyList())
                                     }
                                     return if (results.isNotEmpty()) {
@@ -1493,8 +1606,8 @@ class ChatReader(
                                 var success = false
                                 for (link in links) {
                                     @Suppress("IMPLICIT_CAST_TO_ANY")
-                                    val data: Any? = when (link.service()) {
-                                        Service.SPOTIFY -> when (link.linkType()) {
+                                    val data: Any? = when (link.serviceType()) {
+                                        Service.ServiceType.SPOTIFY -> when (link.linkType()) {
                                             LinkType.TRACK -> spotify.fetchTrack(link)
                                             LinkType.ALBUM -> spotify.fetchAlbum(link)
                                             LinkType.PLAYLIST -> spotify.fetchPlaylist(link)
@@ -1505,14 +1618,14 @@ class ChatReader(
                                             else -> null
                                         }.also { if (it != null) output.add(it) }
 
-                                        Service.YOUTUBE -> when (link.linkType()) {
+                                        Service.ServiceType.YOUTUBE -> when (link.linkType()) {
                                             LinkType.VIDEO -> youTube.fetchVideo(link)
                                             LinkType.PLAYLIST -> youTube.fetchPlaylist(link)
                                             LinkType.CHANNEL -> youTube.fetchChannel(link)
                                             else -> null
                                         }.also { if (it != null) output.add(it) }
 
-                                        Service.SOUNDCLOUD -> when (link.linkType()) {
+                                        Service.ServiceType.SOUNDCLOUD -> when (link.linkType()) {
                                             LinkType.TRACK -> soundCloud.fetchTrack(link)
                                             LinkType.ALBUM -> soundCloud.fetchAlbum(link)
                                             LinkType.PLAYLIST -> soundCloud.fetchPlaylist(link)

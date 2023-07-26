@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers.IO
 import java.util.*
 import kotlin.collections.ArrayList
 import ts3_musicbot.client.OfficialTSClient
+import ts3_musicbot.services.Service
 import java.io.File
 
 private var songQueue = Collections.synchronizedList(ArrayList<Track>())
@@ -235,8 +236,8 @@ class SongQueue(
         synchronized(songQueue) {
             if (songQueue.isNotEmpty()) {
                 var firstTrack = songQueue.first()
-                when (firstTrack.service) {
-                    Service.YOUTUBE, Service.SOUNDCLOUD -> {
+                when (firstTrack.serviceType) {
+                    Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD -> {
                         //check if youtube-dl is able to download the track
                         while (songQueue.isNotEmpty() && !CommandRunner().runCommand(
                                 "youtube-dl --extract-audio --audio-format best --audio-quality 0 " +
@@ -327,9 +328,9 @@ class SongQueue(
         /**
          * get the player suitable for playing the current track
          */
-        fun getPlayer() = when (track.service) {
-            Service.SPOTIFY -> botSettings.spotifyPlayer
-            Service.YOUTUBE, Service.SOUNDCLOUD -> "mpv"
+        fun getPlayer() = when (track.serviceType) {
+            Service.ServiceType.SPOTIFY -> botSettings.spotifyPlayer
+            Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD -> "mpv"
             else -> ""
         }
 
@@ -392,7 +393,9 @@ class SongQueue(
                         "xvfb-run -a spotify --no-zygote --disable-gpu" +
                                 if (botSettings.spotifyUsername.isNotEmpty() && botSettings.spotifyPassword.isNotEmpty()) {
                                     " --username=${botSettings.spotifyUsername} --password=${botSettings.spotifyPassword}"
-                                } else { "" } + " &",
+                                } else {
+                                    ""
+                                } + " &",
                         ignoreOutput = true,
                         printCommand = true,
                         inheritIO = true
@@ -513,8 +516,8 @@ class SongQueue(
                 }
 
                 //wait for track to start
-                when (track.service) {
-                    Service.SPOTIFY -> {
+                when (track.serviceType) {
+                    Service.ServiceType.SPOTIFY -> {
                         //check active processes and wait for the spotify player to start
                         val player = getPlayer()
                         while (commandRunner.runCommand(
@@ -547,13 +550,13 @@ class SongQueue(
                         }
                     }
 
-                    Service.YOUTUBE, Service.SOUNDCLOUD -> {
+                    Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD -> {
                         suspend fun startMPV(job: Job) {
                             val mpvRunnable = Runnable {
                                 commandRunner.runCommand(
                                     "mpv --terminal=no --no-video" +
                                             " --ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0" +
-                                            (if (track.service == Service.YOUTUBE) ",cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" else "") +
+                                            (if (track.serviceType == Service.ServiceType.YOUTUBE) ",cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" else "") +
                                             " --ytdl \"${track.link}\" --volume=${botSettings.mpvVolume} &",
                                     inheritIO = true,
                                     ignoreOutput = true, printCommand = true
@@ -721,8 +724,8 @@ class SongQueue(
                 }
             }
 
-            when (track.link.service()) {
-                Service.SPOTIFY -> {
+            when (track.link.serviceType()) {
+                Service.ServiceType.SPOTIFY -> {
                     CoroutineScope(IO + synchronized(trackJob) { trackJob }).launch {
                         if (playerStatus().second.errorText == "Error org.freedesktop.DBus.Error.ServiceUnknown: The name org.mpris.MediaPlayer2.${getPlayer()} was not provided by any .service files")
                             startSpotifyPlayer()
@@ -731,7 +734,7 @@ class SongQueue(
                     }
                 }
 
-                Service.YOUTUBE, Service.SOUNDCLOUD -> {
+                Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD -> {
                     CoroutineScope(IO + synchronized(trackJob) { trackJob }).launch {
                         openTrack()
                     }

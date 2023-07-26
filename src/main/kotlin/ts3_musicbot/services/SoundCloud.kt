@@ -14,7 +14,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-class SoundCloud {
+class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
     var clientId = "gbXxG1i8ZvGqGa2q2QXjtpahMpzHjsbW"
     private val api2URL = URL("https://api-v2.soundcloud.com")
     val apiURL = URL("https://api.soundcloud.com")
@@ -46,11 +46,7 @@ class SoundCloud {
         return clientId
     }
 
-    suspend fun searchSoundCloud(
-        searchType: SearchType,
-        searchQuery: SearchQuery,
-        resultLimit: Int = 10
-    ): SearchResults {
+    override suspend fun search(searchType: SearchType, searchQuery: SearchQuery, resultLimit: Int): SearchResults {
         val searchResults = ArrayList<SearchResult>()
         fun searchData(limit: Int = resultLimit, offset: Int = 0, link: Link = Link("")): Response {
             val urlBuilder = StringBuilder()
@@ -351,7 +347,7 @@ class SoundCloud {
         return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
     }
 
-    suspend fun fetchPlaylist(link: Link): Playlist {
+    override suspend fun fetchPlaylist(playlistLink: Link): Playlist {
         lateinit var playlist: Playlist
         fun parsePlaylistData(playlistData: JSONObject): Playlist {
             return Playlist(
@@ -386,7 +382,7 @@ class SoundCloud {
         val playlistJob = Job()
         withContext(IO + playlistJob) {
             while (true) {
-                val playlistData = fetchPlaylistData(link)
+                val playlistData = fetchPlaylistData(playlistLink)
                 when (playlistData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
@@ -414,15 +410,15 @@ class SoundCloud {
 
     /**
      * Get tracks from a SoundCloud playlist
-     * @param link SoundCloud playlist link
+     * @param playlistLink SoundCloud playlist link
      * @return returns a TrackList containing the playlist's tracks
      */
-    suspend fun fetchPlaylistTracks(link: Link): TrackList {
+    override suspend fun fetchPlaylistTracks(playlistLink: Link): TrackList {
         val trackList = ArrayList<Track>()
         val playlistJob = Job()
         withContext(IO + playlistJob) {
             while (true) {
-                val playlistData = fetchPlaylistData(link)
+                val playlistData = fetchPlaylistData(playlistLink)
                 when (playlistData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
@@ -481,11 +477,11 @@ class SoundCloud {
         return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
     }
 
-    suspend fun fetchAlbum(link: Link): Album {
-        val id = if (link.link.startsWith("$apiURL/"))
-            link.link.substringAfterLast("/")
+    override suspend fun fetchAlbum(albumLink: Link): Album {
+        val id = if (albumLink.link.startsWith("$apiURL/"))
+            albumLink.link.substringAfterLast("/")
         else
-            resolveId(link)
+            resolveId(albumLink)
         val albumJob = Job()
         return withContext(IO + albumJob) {
             lateinit var album: Album
@@ -514,7 +510,7 @@ class SoundCloud {
                                         DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
                                     )
                                 ),
-                                fetchAlbumTracks(link)
+                                fetchAlbumTracks(albumLink)
                             )
                             break
                         } catch (e: JSONException) {
@@ -536,11 +532,11 @@ class SoundCloud {
         }
     }
 
-    suspend fun fetchAlbumTracks(link: Link): TrackList {
-        val id = if (link.link.startsWith("$apiURL/"))
-            link.link.substringAfterLast("/")
+    override suspend fun fetchAlbumTracks(albumLink: Link): TrackList {
+        val id = if (albumLink.link.startsWith("$apiURL/"))
+            albumLink.link.substringAfterLast("/")
         else
-            resolveId(link)
+            resolveId(albumLink)
 
         val albumJob = Job()
         return withContext(IO + albumJob) {
@@ -591,17 +587,17 @@ class SoundCloud {
 
     /**
      * Fetch a Track object for a given SoundCloud song link
-     * @param link link to the song
+     * @param trackLink link to the song
      * @return returns a Track object with uploader, title and link
      */
-    suspend fun fetchTrack(link: Link): Track {
+    override suspend fun fetchTrack(trackLink: Link): Track {
         lateinit var track: Track
 
         suspend fun fetchTrackData(): Response {
-            val id = if (link.link.startsWith("$apiURL/tracks/"))
-                link.link.substringAfterLast("/")
+            val id = if (trackLink.link.startsWith("$apiURL/tracks/"))
+                trackLink.link.substringAfterLast("/")
             else
-                resolveId(link)
+                resolveId(trackLink)
 
             val urlBuilder = StringBuilder()
             urlBuilder.append("$api2URL/tracks/$id")
@@ -656,7 +652,7 @@ class SoundCloud {
                     }
 
                     HttpURLConnection.HTTP_NOT_FOUND -> {
-                        println("Error 404! $link not found!")
+                        println("Error 404! $trackLink not found!")
                         track = Track()
                         trackJob.complete()
                         return@withContext
@@ -1210,12 +1206,12 @@ class SoundCloud {
         return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
     }
 
-    suspend fun fetchUser(link: Link): User {
+    override suspend fun fetchUser(userLink: Link): User {
         lateinit var user: User
-        val id = if (link.link.startsWith("$apiURL/users/"))
-            link.link.substringAfterLast("/")
+        val id = if (userLink.link.startsWith("$apiURL/users/"))
+            userLink.link.substringAfterLast("/")
         else
-            resolveId(link)
+            resolveId(userLink)
 
 
         suspend fun parseUserData(userData: JSONObject): User {
@@ -1260,12 +1256,12 @@ class SoundCloud {
 
     //SoundCloud doesn't have "Artists", but usually users with tracks uploaded, happen to be artists,
     //therefore we just fetch a User's data, and present it as an Artist
-    suspend fun fetchArtist(link: Link): Artist {
+    override suspend fun fetchArtist(artistLink: Link): Artist {
         lateinit var artist: Artist
-        val id = if (link.link.startsWith("$apiURL/users/"))
-            link.link.substringAfterLast("/")
+        val id = if (artistLink.link.startsWith("$apiURL/users/"))
+            artistLink.link.substringAfterLast("/")
         else
-            resolveId(link)
+            resolveId(artistLink)
         val artistJob = Job()
 
         suspend fun parseArtistData(artistData: JSONObject) {
@@ -1371,7 +1367,7 @@ class SoundCloud {
         return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
     }
 
-    suspend fun resolveType(link: Link): LinkType {
+    override suspend fun resolveType(link: Link): LinkType {
         val resolveJob = Job()
         var linkToSolve = link
         val urlStart = "(https?://)?soundcloud\\.com/[a-z0-9-_]+"
