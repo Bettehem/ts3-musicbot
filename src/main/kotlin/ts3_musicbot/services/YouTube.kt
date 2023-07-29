@@ -111,6 +111,10 @@ class YouTube : Service(ServiceType.YOUTUBE) {
         return track
     }
 
+    override suspend fun fetchTrack(trackLink: Link): Track {
+        return fetchVideo(trackLink)
+    }
+
     /**
      * Fetch a playlist's data (not tracks) from YouTube
      * @param playlistLink link to playlist
