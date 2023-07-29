@@ -935,8 +935,10 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                         if (limit != 0) {
                             if (trackItems.size < limit)
                                 trackItems.add(Track(album, artists, title, link, Playability(isPlayable)))
-                            else
+                            else {
                                 println("Limit reached!")
+                                break
+                            }
                         } else {
                             trackItems.add(Track(album, artists, title, link, Playability(isPlayable)))
                         }

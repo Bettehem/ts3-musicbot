@@ -951,6 +951,8 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                                             likes.add(parseTrack())
                                                         } else {
                                                             println("Limit reached!")
+                                                            likesJob.complete()
+                                                            return@withContext
                                                         }
                                                     } else {
                                                         likes.add(parseTrack())
@@ -1112,8 +1114,11 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                                     if (limit != 0) {
                                                         if (reposts.size < limit)
                                                             reposts.add(parseTrack())
-                                                        else
+                                                        else {
                                                             println("Limit reached!")
+                                                            repostsJob.complete()
+                                                            return@withContext
+                                                        }
                                                     } else {
                                                         reposts.add(parseTrack())
                                                     }

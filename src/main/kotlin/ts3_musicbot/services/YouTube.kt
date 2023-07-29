@@ -277,13 +277,17 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                                 Link(videoLink),
                                                 Playability(isPlayable)
                                             )
-                                            if (limit != 0)
-                                                if (listItems.size < limit)
+                                            if (limit != 0) {
+                                                if (listItems.size < limit) {
                                                     listItems.add(track)
-                                                else
+                                                } else {
                                                     println("Limit reached!")
-                                            else
+                                                    getPageJob.complete()
+                                                    return@withContext
+                                                }
+                                            } else {
                                                 listItems.add(track)
+                                            }
                                         } catch (e: Exception) {
                                             totalItems -= 1
                                         }
@@ -365,8 +369,10 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                         if (limit != 0)
                                             if (listItems.size < limit)
                                                 listItems.add(track)
-                                            else
+                                            else {
                                                 println("Limit reached!")
+                                                break
+                                            }
                                         else
                                             listItems.add(track)
                                     } catch (e: Exception) {
