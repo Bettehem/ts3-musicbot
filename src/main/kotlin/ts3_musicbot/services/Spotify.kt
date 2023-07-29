@@ -455,11 +455,13 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
         return playlist
     }
 
-    override suspend fun fetchPlaylistTracks(playlistLink: Link): TrackList {
+    override suspend fun fetchPlaylistTracks(playlistLink: Link, limit: Int): TrackList {
         val trackItems = ArrayList<Track>()
         suspend fun parsePlaylistData(playlistData: JSONObject) {
             //get playlist length
-            var playlistLength = playlistData.getJSONObject("tracks").getInt("total")
+            var playlistLength = playlistData.getJSONObject("tracks").getInt("total").let {
+                if (limit != 0 && it > limit) limit else it
+            }
             //Now get all tracks
             //spotify only shows 100 items per search, so with each 100 items, listOffset will be increased
             var listOffset = 0
@@ -469,7 +471,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                     val listUrlBuilder = StringBuilder()
                     listUrlBuilder.append("https://api.spotify.com/v1/playlists/")
                     listUrlBuilder.append(playlistLink.getId())
-                    listUrlBuilder.append("/tracks?limit=100")
+                    listUrlBuilder.append("/tracks?limit=" + if (limit != 0 && limit < 100) limit else 100)
                     listUrlBuilder.append("&offset=$listOffset")
                     listUrlBuilder.append("&market=${market.ifEmpty { defaultMarket }}")
                     val listUrl = URL(listUrlBuilder.toString())
@@ -588,15 +590,31 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                                                         println("Track $link playability not certain! Doing extra checks...")
                                                         fetchTrack(link).playability.isPlayable
                                                     }
-                                                trackItems.add(
-                                                    Track(
-                                                        album,
-                                                        artists,
-                                                        title,
-                                                        link,
-                                                        Playability(isPlayable)
+                                                if (limit != 0) {
+                                                    if (trackItems.size < limit) {
+                                                        trackItems.add(
+                                                            Track(
+                                                                album,
+                                                                artists,
+                                                                title,
+                                                                link,
+                                                                Playability(isPlayable)
+                                                            )
+                                                        )
+                                                    } else {
+                                                        println("Limit reached!")
+                                                    }
+                                                } else {
+                                                    trackItems.add(
+                                                        Track(
+                                                            album,
+                                                            artists,
+                                                            title,
+                                                            link,
+                                                            Playability(isPlayable)
+                                                        )
                                                     )
-                                                )
+                                                }
                                                 itemJob.complete()
                                             } else {
                                                 println("This is a local track. Skipping...")
@@ -821,11 +839,13 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
         return album
     }
 
-    override suspend fun fetchAlbumTracks(albumLink: Link): TrackList {
+    override suspend fun fetchAlbumTracks(albumLink: Link, limit: Int): TrackList {
         val trackItems = ArrayList<Track>()
 
         suspend fun parseAlbumData(albumData: JSONObject) {
-            val trackItemsLength = albumData.getJSONObject("tracks").getInt("total")
+            val trackItemsLength = albumData.getJSONObject("tracks").getInt("total").let {
+                if (limit != 0 && it > limit) limit else it
+            }
             val albumName = if (albumData.getString("album_type") == "single")
                 Name("${albumData.getString("name")} (Single)")
             else
@@ -912,7 +932,14 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                             true
                         }
                         val album = Album(albumName, albumArtists, releaseDate, TrackList(emptyList()), albumLink)
-                        trackItems.add(Track(album, artists, title, link, Playability(isPlayable)))
+                        if (limit != 0) {
+                            if (trackItems.size < limit)
+                                trackItems.add(Track(album, artists, title, link, Playability(isPlayable)))
+                            else
+                                println("Limit reached!")
+                        } else {
+                            trackItems.add(Track(album, artists, title, link, Playability(isPlayable)))
+                        }
                     }
                 }
 
@@ -2004,7 +2031,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
         return try {
             LinkType.valueOf(type.uppercase())
         } catch (e: IllegalArgumentException) {
-            println("Link type \"$type\" not supported")
+            println("Link type \"$type\" in \"$link\" is not supported")
             LinkType.OTHER
         }
     }

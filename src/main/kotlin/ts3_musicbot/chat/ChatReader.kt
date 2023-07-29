@@ -256,7 +256,7 @@ class ChatReader(
 
                             //queue-add command
                             //queue-playnext command
-                            commandString.contains("^(${commandList.commandList["queue-add"]}|${commandList.commandList["queue-playnext"]})(\\s+-(r|s|(p\\s*[0-9]+)))*(\\s*(\\[URL])?((spotify:(user:\\S+:)?(track|album|playlist|show|episode|artist):\\S+)|(https?://\\S+)|((sp|spotify|yt|youtube|sc|soundcloud)\\s+(track|album|playlist|show|episode|artist|video|user)\\s+.+))(\\[/URL])?\\s*,?\\s*)+(\\s+-(r|s|(p\\s*[0-9]+)))*\$".toRegex()) -> {
+                            commandString.contains("^(${commandList.commandList["queue-add"]}|${commandList.commandList["queue-playnext"]})(\\s+-\\w*(r|s|t|P|([lp]\\s*[0-9]+)))*(\\s*(\\[URL])?((spotify:(user:\\S+:)?(track|album|playlist|show|episode|artist):\\S+)|(https?://\\S+)|((sp|spotify|yt|youtube|sc|soundcloud)\\s+(track|album|playlist|show|episode|artist|video|user)\\s+.+))(\\[/URL])?\\s*,?\\s*)+(\\s+-\\w*(r|s|t|P|([lp]\\s*[0-9]+)))*\$".toRegex()) -> {
                                 val trackAddedMsg = "Added track to queue."
                                 val trackNotPlayableMsg = "Track is not playable."
                                 val tracksAddedMsg = "Added tracks to queue."
@@ -270,6 +270,9 @@ class ChatReader(
                                 val shouldPlayNext =
                                     commandString.contains("^${commandList.commandList["queue-playnext"]}".toRegex())
                                 var shouldShuffle = false
+                                var trackLimit = 0
+                                var tracksOnly = false
+                                var playlistsOnly = false
                                 var hasCustomPosition = false
                                 var shouldReverse = false
                                 var customPosition = if (shouldPlayNext) 0 else null
@@ -280,6 +283,7 @@ class ChatReader(
                                  * Filter out unplayable tracks from a TrackList
                                  * and inform user if unplayable tracks are found.
                                  * @param trackList list to filter
+                                 * @param playlistLink link to the playlist.
                                  * @return returns a list with only playable tracks
                                  */
                                 fun filterList(trackList: TrackList, playlistLink: Link): TrackList {
@@ -356,30 +360,46 @@ class ChatReader(
                                 //get arguments in command
                                 val args = commandString.split("\\s".toRegex())
                                 for (i in args.indices) {
-                                    when {
-                                        //check if the tracks should be shuffled
-                                        args[i].contentEquals("-s") -> shouldShuffle = true
-
-                                        //check if custom position is provided
-                                        args[i].contains("^-p$".toRegex()) -> {
-                                            if (args.size >= i + 1) {
-                                                if (args[i + 1].contains("-?[0-9]+".toRegex())) {
-                                                    customPosition = args[i + 1].toInt()
-                                                    hasCustomPosition = true
-                                                }
+                                    //check if the tracks should be shuffled
+                                    if (args[i].contains("-[A-z]*s".toRegex())) {
+                                        shouldShuffle = true
+                                    }
+                                    // check if the amount of tracks should be limited
+                                    if (args[i].contains("-[A-z]*l".toRegex())) {
+                                        if (args.size >= i + 1) {
+                                            trackLimit = args[i + 1].toInt()
+                                        }
+                                    }
+                                    //check if only tracks from SoundCloud likes/reposts should be included
+                                    if (args[i].contains("-[A-z]*t".toRegex())) {
+                                        tracksOnly = true
+                                        playlistsOnly = false
+                                    }
+                                    //check if only playlists from SoundCloud likes/reposts should be included
+                                    if (args[i].contains("-[A-z]*P".toRegex())) {
+                                        playlistsOnly = true
+                                        tracksOnly = false
+                                    }
+                                    //check if custom position is provided
+                                    if (args[i].contains("-[A-z]*p".toRegex())) {
+                                        if (args.size >= i + 1) {
+                                            if (args[i + 1].contains("-?[0-9]+".toRegex())) {
+                                                customPosition = args[i + 1].toInt()
+                                                hasCustomPosition = true
                                             }
                                         }
-
-                                        args[i].contentEquals("-r") -> shouldReverse = true
-
-                                        args[i].contains("((\\[URL])?((https?://)?(open\\.spotify\\.com|soundcloud\\.com|((m|www)\\.)?youtu\\.?be(\\.com)?)).+(\\[/URL])?)|(spotify:(track|album|playlist|show|episode|artist):.+)".toRegex()) -> {
-                                            //add links to ArrayList
-                                            if (args[i].contains(",\\s*".toRegex()))
-                                                links.addAll(
-                                                    args[i].split(",\\s*".toRegex()).map { Link(removeTags(it)) })
-                                            else
-                                                links.add(Link(removeTags(args[i])))
-                                        }
+                                    }
+                                    if (args[i].contains("-[A-z]*r".toRegex())) {
+                                        shouldReverse = true
+                                    }
+                                    if (args[i].contains("((\\[URL])?((https?://)?(open\\.spotify\\.com|soundcloud\\.com|((m|www)\\.)?youtu\\.?be(\\.com)?)).+(\\[/URL])?)|(spotify:(track|album|playlist|show|episode|artist):.+)".toRegex())) {
+                                        //add links to ArrayList
+                                        if (args[i].contains(",\\s*".toRegex()))
+                                            links.addAll(
+                                                args[i].split(",\\s*".toRegex()).map { Link(removeTags(it)) }
+                                            )
+                                        else
+                                            links.add(Link(removeTags(args[i])))
                                     }
                                 }
                                 if (shouldPlayNext || hasCustomPosition)
@@ -390,8 +410,19 @@ class ChatReader(
                                 printToChat(listOf("Please wait, fetching data..."))
                                 val trackCache = ArrayList<Pair<Link, TrackList>>()
                                 //add links to queue
-                                for (link in links) {
-                                    val id = link.getId()
+                                for (rawLink in links) {
+                                    println("Link to handle: $rawLink")
+                                    val id = rawLink.getId()
+                                    val service = when (rawLink.serviceType()) {
+                                        Service.ServiceType.SOUNDCLOUD -> soundCloud
+                                        Service.ServiceType.SPOTIFY -> spotify
+                                        Service.ServiceType.YOUTUBE -> youTube
+                                        Service.ServiceType.OTHER -> Service(Service.ServiceType.OTHER)
+                                    }
+                                    //Remove tracking stuff & other junk from the link
+                                    val link = rawLink.clean(service)
+                                    println("Cleaned Link: $link")
+
                                     if (trackCache.any { it.first.getId() == id }) {
                                         val tracks =
                                             filterList(trackCache.first { it.first.getId() == id }.second, link)
@@ -399,321 +430,144 @@ class ChatReader(
                                         trackList = if (shouldShuffle) trackList.shuffled() else trackList
                                         val tracksAdded = songQueue.addAllToQueue(trackList, customPosition)
                                         val msg = if (tracksAdded) {
-                                            if (trackList.size == 1) {
-                                                trackAddedMsg
-                                            } else {
-                                                tracksAddedMsg
-                                            }
+                                            if (trackList.size == 1) trackAddedMsg else tracksAddedMsg
                                         } else {
-                                            if (trackList.size == 1) {
-                                                trackNotPlayableMsg
-                                            } else {
-                                                tracksAddingErrorMsg
-                                            }
+                                            if (trackList.size == 1) trackNotPlayableMsg else tracksAddingErrorMsg
                                         }
                                         commandListener.onCommandProgress(commandString, msg, trackList)
                                         commandSuccessful.add(Pair(tracksAdded, Pair(msg, trackList)))
                                     } else {
-                                        when {
-                                            //Spotify
-                                            link.link.contains("((https?://)?open\\.spotify\\.com/)|(spotify:(user:\\S+:)?(album|track|playlist|show|episode|artist):.+)".toRegex()) -> {
-                                                //get link type
-                                                val type = link.linkType(spotify)
-                                                println("Spotify link: $link\nLink type: $type\nLink id: $id")
-                                                //check type
-                                                when (type) {
-                                                    LinkType.TRACK -> {
-                                                        val track = spotify.fetchTrack(
-                                                            Link("https://open.spotify.com/track/$id", id)
-                                                        )
-                                                        val trackAdded =
-                                                            if (track.playability.isPlayable)
-                                                                songQueue.addToQueue(track, customPosition)
-                                                            else false
-                                                        val msg = if (trackAdded) trackAddedMsg else trackNotPlayableMsg
-                                                        if (trackAdded)
-                                                            trackCache.add(Pair(track.link, TrackList(listOf(track))))
-                                                        commandListener.onCommandProgress(commandString, msg, track)
-                                                        commandSuccessful.add(Pair(trackAdded, Pair(msg, track)))
-                                                    }
+                                        when (
+                                            val type = link.linkType(service)
+                                                .let { type -> println("Link type: $type\nLink id: $id"); type }
+                                        ) {
+                                            LinkType.TRACK, LinkType.VIDEO, LinkType.EPISODE -> {
+                                                val track = if (type == LinkType.EPISODE && service is Spotify)
+                                                    service.fetchEpisode(link).toTrack()
+                                                else
+                                                    service.fetchTrack(link)
 
-                                                    LinkType.ALBUM -> {
-                                                        //fetch album's tracks
-                                                        val albumLink = Link("https://open.spotify.com/album/$id", id)
-                                                        val albumTracks = filterList(
-                                                            spotify.fetchAlbumTracks(albumLink), albumLink
-                                                        )
-                                                        println("Album \"${albumTracks.trackList[0].album}\" has a total of ${albumTracks.size} tracks.\nAdding to queue...")
+                                                val trackAdded = if (track.playability.isPlayable)
+                                                    songQueue.addToQueue(track, customPosition)
+                                                else false
 
-                                                        //add tracks to queue
-                                                        var trackList =
-                                                            if (shouldReverse) albumTracks.reversed() else albumTracks
-                                                        trackList =
-                                                            if (shouldShuffle) trackList.shuffled() else trackList
-                                                        val albumAdded =
-                                                            songQueue.addAllToQueue(trackList, customPosition)
-                                                        val msg =
-                                                            if (albumAdded) tracksAddedMsg else tracksAddingErrorMsg
-                                                        if (albumAdded)
-                                                            trackCache.add(Pair(albumLink, albumTracks))
-                                                        commandListener.onCommandProgress(commandString, msg, trackList)
-                                                        commandSuccessful.add(Pair(albumAdded, Pair(msg, trackList)))
-                                                    }
+                                                val msg = if (type == LinkType.EPISODE) {
+                                                    if (trackAdded)
+                                                        "Added podcast episode to queue."
+                                                    else
+                                                        "Episode not playable."
+                                                } else {
+                                                    if (trackAdded) trackAddedMsg else trackNotPlayableMsg
+                                                }
+                                                if (trackAdded)
+                                                    trackCache.add(Pair(track.link, TrackList(listOf(track))))
+                                                commandListener.onCommandProgress(commandString, msg, track)
+                                                commandSuccessful.add(Pair(trackAdded, Pair(msg, track)))
+                                            }
 
-                                                    LinkType.PLAYLIST -> {
-                                                        //fetch playlist's tracks
-                                                        val playlistLink =
-                                                            Link("https://open.spotify.com/playlist/$id", id)
-                                                        val playlistTracks = filterList(
-                                                            spotify.fetchPlaylistTracks(playlistLink), playlistLink
-                                                        )
-                                                        println("Playlist has a total of ${playlistTracks.size} tracks.\nAdding to queue...")
-                                                        //add tracks to queue
-                                                        var trackList =
-                                                            if (shouldReverse) playlistTracks.reversed() else playlistTracks
-                                                        trackList =
-                                                            if (shouldShuffle) trackList.shuffled() else trackList
-                                                        val playlistAdded =
-                                                            songQueue.addAllToQueue(trackList, customPosition)
-                                                        val msg =
-                                                            if (playlistAdded) tracksAddedMsg else tracksAddingErrorMsg
-                                                        if (playlistAdded)
-                                                            trackCache.add(Pair(playlistLink, playlistTracks))
-                                                        commandListener.onCommandProgress(commandString, msg, trackList)
-                                                        commandSuccessful.add(Pair(playlistAdded, Pair(msg, trackList)))
-                                                    }
-
-                                                    LinkType.SHOW -> {
-                                                        //fetch show's episodes
-                                                        val showLink = Link("https://open.spotify.com/show/$id", id)
-                                                        val episodes = filterList(
-                                                            spotify.fetchShow(showLink).episodes.toTrackList(),
-                                                            showLink
-                                                        )
-                                                        var trackList =
-                                                            if (shouldReverse) episodes.reversed() else episodes
-                                                        trackList =
-                                                            if (shouldShuffle) trackList.shuffled() else trackList
-                                                        val showAdded =
-                                                            songQueue.addAllToQueue(trackList, customPosition)
-                                                        val msg =
-                                                            if (showAdded) tracksAddedMsg else tracksAddingErrorMsg
-                                                        if (showAdded)
-                                                            trackCache.add(Pair(showLink, episodes))
-                                                        commandListener.onCommandProgress(commandString, msg, trackList)
-                                                        commandSuccessful.add(Pair(showAdded, Pair(msg, trackList)))
-                                                    }
-
-                                                    LinkType.EPISODE -> {
-                                                        //fetch episode
-                                                        val episode = spotify.fetchEpisode(
-                                                            Link("https://open.spotify.com/episode/$id", id)
-                                                        )
-                                                        val episodeAdded =
-                                                            if (episode.playability.isPlayable)
-                                                                songQueue.addToQueue(episode.toTrack(), customPosition)
-                                                            else false
-                                                        val msg =
-                                                            if (episodeAdded)
-                                                                "Added podcast episode to queue."
+                                            LinkType.PLAYLIST, LinkType.SHOW, LinkType.ALBUM -> {
+                                                val tracks = filterList(
+                                                    when (type) {
+                                                        LinkType.PLAYLIST -> service.fetchPlaylistTracks(link, trackLimit)
+                                                        LinkType.SHOW -> {
+                                                            if (service is Spotify)
+                                                                TrackList(
+                                                                    service.fetchShow(link).episodes.toTrackList()
+                                                                        .trackList.let { list ->
+                                                                            if (trackLimit != 0 && list.size > trackLimit)
+                                                                                list.subList(0, trackLimit)
+                                                                            else
+                                                                                list
+                                                                        }
+                                                                )
                                                             else
-                                                                "Episode not playable."
-                                                        if (episodeAdded)
-                                                            trackCache.add(
-                                                                Pair(episode.link, TrackList(listOf(episode.toTrack())))
+                                                                TrackList()
+                                                        }
+
+                                                        LinkType.ALBUM -> service.fetchAlbumTracks(link, trackLimit)
+                                                        else -> TrackList()
+                                                    }, link
+                                                )
+                                                println("The ${type.name.lowercase()} has a total of ${tracks.size} tracks.\nAdding to queue...")
+                                                //add tracks to queue
+                                                var trackList = if (shouldReverse) tracks.reversed() else tracks
+                                                trackList = if (shouldShuffle) trackList.shuffled() else trackList
+                                                val tracksAdded = songQueue.addAllToQueue(trackList, customPosition)
+                                                val msg = if (tracksAdded) tracksAddedMsg else tracksAddingErrorMsg
+                                                if (tracksAdded)
+                                                    trackCache.add(Pair(link, tracks))
+                                                commandListener.onCommandProgress(commandString, msg, trackList)
+                                                commandSuccessful.add(Pair(tracksAdded, Pair(msg, trackList)))
+                                            }
+
+                                            LinkType.LIKES, LinkType.REPOSTS -> {
+                                                //fetch likes/reposts
+                                                if (service is SoundCloud) {
+                                                    val likes = filterList(
+                                                        if (type == LinkType.LIKES) {
+                                                            service.fetchUserLikes(
+                                                                link, trackLimit,
+                                                                tracksOnly, playlistsOnly
                                                             )
-                                                        commandListener.onCommandProgress(commandString, msg, episode)
-                                                        commandSuccessful.add(Pair(episodeAdded, Pair(msg, episode)))
-                                                    }
-
-                                                    LinkType.ARTIST -> {
-                                                        //fetch artist's top tracks
-                                                        val artistLink = Link("https://open.spotify.com/artist/$id", id)
-                                                        val topTracks = filterList(
-                                                            spotify.fetchArtist(artistLink).topTracks, artistLink
-                                                        )
-                                                        var trackList =
-                                                            if (shouldReverse) topTracks.reversed() else topTracks
-                                                        trackList =
-                                                            if (shouldShuffle) trackList.shuffled() else trackList
-                                                        val tracksAdded =
-                                                            songQueue.addAllToQueue(trackList, customPosition)
-                                                        val msg =
-                                                            if (tracksAdded)
-                                                                "Added Artist's top tracks to the queue."
-                                                            else
-                                                                tracksAddingErrorMsg
+                                                        } else {
+                                                               service.fetchUserReposts(
+                                                                   link, trackLimit,
+                                                                   tracksOnly, playlistsOnly
+                                                               )
+                                                        },
+                                                        link
+                                                    )
+                                                    var trackList = if (shouldReverse) likes.reversed() else likes
+                                                    trackList = if (shouldShuffle) trackList.shuffled() else trackList
+                                                    val tracksAdded = songQueue.addAllToQueue(trackList, customPosition)
+                                                    val msg =
                                                         if (tracksAdded)
-                                                            trackCache.add(Pair(artistLink, topTracks))
-                                                        commandListener.onCommandProgress(commandString, msg, trackList)
-                                                        commandSuccessful.add(Pair(tracksAdded, Pair(msg, trackList)))
-                                                    }
+                                                            "Added user's ${type.name.lowercase()} to the queue."
+                                                        else
+                                                            tracksAddingErrorMsg
 
-                                                    else -> {
-                                                        val msg = "Link type \"$type\" for link $link is not supported!"
-                                                        commandListener.onCommandProgress(commandString, msg, link)
-                                                        commandSuccessful.add(Pair(false, Pair(msg, link)))
-                                                    }
+                                                    if (tracksAdded)
+                                                        trackCache.add(Pair(link, likes))
+                                                    commandListener.onCommandProgress(commandString, msg, trackList)
+                                                    commandSuccessful.add(Pair(tracksAdded, Pair(msg, trackList)))
+                                                } else {
+                                                    val msg = "Link type \"$type\" for link $link is not supported!"
+                                                    commandListener.onCommandProgress(commandString, msg, link)
+                                                    commandSuccessful.add(Pair(false, Pair(msg, link)))
                                                 }
                                             }
 
-                                            //YouTube
-                                            link.link.contains("(https?://)?((m|www)\\.)?youtu\\.?be(\\.com)?".toRegex()) -> {
-                                                //get link type
-                                                val type = link.linkType(youTube)
-                                                println("YouTube link: $link\nLink type: $type")
-                                                //check type
-                                                when (type) {
-                                                    LinkType.VIDEO -> {
-                                                        val track = youTube.fetchVideo(Link("https://youtu.be/$id", id))
-                                                        val trackAdded =
-                                                            if (track.playability.isPlayable)
-                                                                songQueue.addToQueue(track, customPosition)
-                                                            else false
-                                                        val msg = if (trackAdded) trackAddedMsg else trackNotPlayableMsg
-                                                        if (trackAdded)
-                                                            trackCache.add(Pair(track.link, TrackList(listOf(track))))
-                                                        commandListener.onCommandProgress(commandString, msg, track)
-                                                        commandSuccessful.add(Pair(trackAdded, Pair(msg, track)))
-                                                    }
-
-                                                    LinkType.PLAYLIST -> {
-                                                        //fetch playlist tracks
-                                                        val playlistLink =
-                                                            Link("https://www.youtube.com/playlist?list=$id", id)
-                                                        val playlistTracks = filterList(
-                                                            youTube.fetchPlaylistTracks(playlistLink),
-                                                            playlistLink
-                                                        )
-                                                        println("Playlist has a total of ${playlistTracks.trackList.size} tracks.\nAdding to queue...")
-                                                        var trackList =
-                                                            if (shouldReverse) playlistTracks.reversed() else playlistTracks
-                                                        trackList =
-                                                            if (shouldShuffle) trackList.shuffled() else trackList
-                                                        val playlistAdded =
-                                                            songQueue.addAllToQueue(trackList, customPosition)
-                                                        val msg =
-                                                            if (playlistAdded) tracksAddedMsg else tracksAddingErrorMsg
-                                                        if (playlistAdded)
-                                                            trackCache.add(Pair(playlistLink, playlistTracks))
-                                                        commandListener.onCommandProgress(commandString, msg, trackList)
-                                                        commandSuccessful.add(Pair(playlistAdded, Pair(msg, trackList)))
-                                                    }
-
-                                                    else -> {
-                                                        val msg = "Link type \"$type\" for link $link is not supported!"
-                                                        commandListener.onCommandProgress(commandString, msg, link)
-                                                        commandSuccessful.add(Pair(false, Pair(msg, link)))
-                                                    }
-                                                }
+                                            LinkType.ARTIST -> {
+                                                //fetch artist's top tracks
+                                                val topTracks = TrackList(
+                                                    filterList(service.fetchArtist(link).topTracks, link)
+                                                        .trackList.let { list ->
+                                                            if (trackLimit != 0 && list.size > trackLimit)
+                                                                list.subList(0, trackLimit)
+                                                            else
+                                                                list
+                                                        }
+                                                )
+                                                var trackList = if (shouldReverse) topTracks.reversed() else topTracks
+                                                trackList = if (shouldShuffle) trackList.shuffled() else trackList
+                                                val tracksAdded = songQueue.addAllToQueue(trackList, customPosition)
+                                                val msg =
+                                                    if (tracksAdded)
+                                                        "Added Artist's top tracks to the queue."
+                                                    else
+                                                        tracksAddingErrorMsg
+                                                if (tracksAdded)
+                                                    trackCache.add(Pair(link, topTracks))
+                                                commandListener.onCommandProgress(commandString, msg, trackList)
+                                                commandSuccessful.add(Pair(tracksAdded, Pair(msg, trackList)))
                                             }
 
-                                            //SoundCloud
-                                            link.link.contains("(https?://)?soundcloud\\.com/".toRegex()) -> {
-                                                //get link type
-                                                val type = link.linkType(soundCloud)
-                                                println("SoundCloud link: $link\nLink type: $type")
-                                                //check type
-                                                when (type) {
-                                                    LinkType.TRACK -> {
-                                                        val track = soundCloud.fetchTrack(link)
-                                                        val trackAdded =
-                                                            if (track.playability.isPlayable)
-                                                                songQueue.addToQueue(track, customPosition)
-                                                            else false
-                                                        val msg = if (trackAdded) trackAddedMsg else trackNotPlayableMsg
-                                                        if (trackAdded)
-                                                            trackCache.add(Pair(link, TrackList(listOf(track))))
-                                                        commandListener.onCommandProgress(commandString, msg, track)
-                                                        commandSuccessful.add(Pair(trackAdded, Pair(msg, track)))
-                                                    }
-
-                                                    LinkType.PLAYLIST -> {
-                                                        //fetch playlist tracks
-                                                        val playlistTracks =
-                                                            filterList(soundCloud.fetchPlaylistTracks(link), link)
-                                                        var trackList =
-                                                            if (shouldReverse) playlistTracks.reversed() else playlistTracks
-                                                        trackList =
-                                                            if (shouldShuffle) trackList.shuffled() else trackList
-                                                        val playlistAdded =
-                                                            songQueue.addAllToQueue(trackList, customPosition)
-                                                        val msg =
-                                                            if (playlistAdded) tracksAddedMsg else tracksAddingErrorMsg
-                                                        if (playlistAdded)
-                                                            trackCache.add(Pair(link, playlistTracks))
-                                                        commandListener.onCommandProgress(commandString, msg, trackList)
-                                                        commandSuccessful.add(Pair(playlistAdded, Pair(msg, trackList)))
-                                                    }
-
-                                                    LinkType.ARTIST -> {
-                                                        //fetch artist's top tracks
-                                                        val topTracks = filterList(
-                                                            soundCloud.fetchArtist(link).topTracks, link
-                                                        )
-                                                        var trackList =
-                                                            if (shouldReverse) topTracks.reversed() else topTracks
-                                                        trackList =
-                                                            if (shouldShuffle) trackList.shuffled() else trackList
-                                                        val tracksAdded =
-                                                            songQueue.addAllToQueue(trackList, customPosition)
-                                                        val msg =
-                                                            if (tracksAdded)
-                                                                "Added Artist's top tracks to the queue."
-                                                            else
-                                                                tracksAddingErrorMsg
-                                                        if (tracksAdded)
-                                                            trackCache.add(Pair(link, topTracks))
-                                                        commandListener.onCommandProgress(commandString, msg, trackList)
-                                                        commandSuccessful.add(Pair(tracksAdded, Pair(msg, trackList)))
-                                                    }
-
-                                                    LinkType.LIKES -> {
-                                                        //fetch likes
-                                                        val likes = filterList(soundCloud.fetchUserLikes(link), link)
-                                                        var trackList = if (shouldReverse) likes.reversed() else likes
-                                                        trackList =
-                                                            if (shouldShuffle) trackList.shuffled() else trackList
-                                                        val likesAdded =
-                                                            songQueue.addAllToQueue(trackList, customPosition)
-                                                        val msg =
-                                                            if (likesAdded)
-                                                                "Added user's likes to the queue."
-                                                            else
-                                                                tracksAddingErrorMsg
-                                                        if (likesAdded)
-                                                            trackCache.add(Pair(link, likes))
-                                                        commandListener.onCommandProgress(commandString, msg, trackList)
-                                                        commandSuccessful.add(Pair(likesAdded, Pair(msg, trackList)))
-                                                    }
-
-                                                    LinkType.REPOSTS -> {
-                                                        val reposts =
-                                                            filterList(soundCloud.fetchUserReposts(link), link)
-                                                        var trackList =
-                                                            if (shouldReverse) reposts.reversed() else reposts
-                                                        trackList =
-                                                            if (shouldShuffle) trackList.shuffled() else trackList
-                                                        val repostsAdded =
-                                                            songQueue.addAllToQueue(trackList, customPosition)
-                                                        val msg =
-                                                            if (repostsAdded)
-                                                                "Added user's reposts to the queue."
-                                                            else
-                                                                tracksAddingErrorMsg
-                                                        if (repostsAdded)
-                                                            trackCache.add(Pair(link, reposts))
-                                                        commandListener.onCommandProgress(commandString, msg, trackList)
-                                                        commandSuccessful.add(Pair(repostsAdded, Pair(msg, trackList)))
-                                                    }
-
-                                                    else -> {
-                                                        val msg = "Link type \"$type\" for link $link is not supported!"
-                                                        commandListener.onCommandProgress(commandString, msg, link)
-                                                        commandSuccessful.add(Pair(false, Pair(msg, link)))
-                                                    }
-                                                }
+                                            else -> {
+                                                val msg = "Link type \"$type\" for link $link is not supported!"
+                                                commandListener.onCommandProgress(commandString, msg, link)
+                                                commandSuccessful.add(Pair(false, Pair(msg, link)))
                                             }
+
                                         }
                                     }
                                 }

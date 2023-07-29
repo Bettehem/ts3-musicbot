@@ -178,9 +178,10 @@ class YouTube : Service(ServiceType.YOUTUBE) {
     /**
      * Fetch a list of YouTube videos/tracks in a given playlist
      * @param playlistLink link to playlist
+     * @param limit limit the amount of tracks to be returned
      * @return returns a list of videos/tracks
      */
-    override suspend fun fetchPlaylistTracks(playlistLink: Link): TrackList {
+    override suspend fun fetchPlaylistTracks(playlistLink: Link, limit: Int): TrackList {
         /**
          * Send a request to YouTube API to get playlist items
          * @param maxResults max results to receive. 50 is the maximum per request
@@ -199,7 +200,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
             urlBuilder.append("playlistId=${playlistLink.getId()}")
             urlBuilder.append("&part=${part.replace(",", "%2C")}")
             urlBuilder.append("&key=$apiKey")
-            urlBuilder.append("&maxResults=$maxResults")
+            urlBuilder.append("&maxResults=" + if (limit < maxResults) limit else maxResults)
             if (pageToken.isNotEmpty())
                 urlBuilder.append("&pageToken=$pageToken")
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
@@ -208,6 +209,9 @@ class YouTube : Service(ServiceType.YOUTUBE) {
         suspend fun parseItems(data: JSONObject): TrackList {
             val listItems = ArrayList<Track>()
             var totalItems = data.getJSONObject("pageInfo").getInt("totalResults")
+            if (limit != 0 && totalItems > limit) {
+                totalItems = limit
+            }
             lateinit var itemData: JSONObject
             if (totalItems > 50) {
                 var key = apiKey1
@@ -269,7 +273,13 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                                 Link(videoLink),
                                                 Playability(isPlayable)
                                             )
-                                            listItems.add(track)
+                                            if (limit != 0)
+                                                if (listItems.size < limit)
+                                                    listItems.add(track)
+                                                else
+                                                    println("Limit reached!")
+                                            else
+                                                listItems.add(track)
                                         } catch (e: Exception) {
                                             totalItems -= 1
                                         }
@@ -348,7 +358,13 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                             Link(videoLink),
                                             Playability(isPlayable)
                                         )
-                                        listItems.add(track)
+                                        if (limit != 0)
+                                            if (listItems.size < limit)
+                                                listItems.add(track)
+                                            else
+                                                println("Limit reached!")
+                                        else
+                                            listItems.add(track)
                                     } catch (e: Exception) {
                                         totalItems -= 1
                                     }

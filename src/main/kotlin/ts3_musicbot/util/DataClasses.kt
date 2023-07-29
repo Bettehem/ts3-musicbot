@@ -125,41 +125,52 @@ data class Link(val link: String = "", val linkId: String = "") {
      */
     fun linkType(service: Service = Service(serviceType())) = when (service.serviceType) {
         Service.ServiceType.SOUNDCLOUD -> {
-            if (service is SoundCloud)
-                runBlocking { service.resolveType(this@Link) }
-            else
-                runBlocking { SoundCloud().resolveType(this@Link) }
+            runBlocking {
+                if (service is SoundCloud)
+                    service.resolveType(this@Link)
+                else
+                    SoundCloud().resolveType(this@Link)
+            }
         }
 
         Service.ServiceType.SPOTIFY -> {
-            if (service is Spotify)
-                runBlocking { service.resolveType(this@Link) }
-            else
-                runBlocking { Spotify().resolveType(this@Link) }
+            runBlocking {
+                if (service is Spotify)
+                    service.resolveType(this@Link)
+                else
+                    Spotify().resolveType(this@Link)
+            }
         }
 
         Service.ServiceType.YOUTUBE -> {
-            if (service is YouTube)
-                runBlocking { service.resolveType(this@Link) }
-            else
-                runBlocking { YouTube().resolveType(this@Link) }
+            runBlocking {
+                if (service is YouTube)
+                    service.resolveType(this@Link)
+                else
+                    YouTube().resolveType(this@Link)
+            }
         }
 
         else -> LinkType.OTHER
     }
 
-    fun getId() = linkId.ifEmpty {
-        when (serviceType()) {
+    fun getId(service: Service = Service(serviceType())) = linkId.ifEmpty {
+        when (service.serviceType) {
             Service.ServiceType.SPOTIFY -> {
                 link.substringAfterLast(":").substringBefore("?")
                     .substringAfterLast("/")
             }
 
             Service.ServiceType.YOUTUBE -> {
-                if (linkType() == LinkType.CHANNEL) {
-                    runBlocking { YouTube().resolveChannelId(Link(link)) }
+                if (linkType(service) == LinkType.CHANNEL) {
+                    runBlocking {
+                        if (service is YouTube)
+                            service.resolveChannelId(this@Link)
+                        else
+                            YouTube().resolveChannelId(this@Link)
+                    }
                 } else {
-                    val idFrom = when (linkType()) {
+                    val idFrom = when (linkType(service)) {
                         LinkType.VIDEO -> "(vi?)"
                         LinkType.PLAYLIST -> "(list)"
                         else -> ""
@@ -172,16 +183,36 @@ data class Link(val link: String = "", val linkId: String = "") {
 
             Service.ServiceType.SOUNDCLOUD -> {
                 runBlocking {
-                    val soundCloud = SoundCloud()
+                    val soundCloud = if (service is SoundCloud) service else SoundCloud()
                     if (link.startsWith("${soundCloud.apiURL}/"))
                         link.substringAfterLast("/")
                     else
-                        soundCloud.resolveId(Link(link))
+                        soundCloud.resolveId(this@Link)
                 }
             }
 
             Service.ServiceType.OTHER -> ""
         }
+    }
+
+    /**
+     * Clean junk from given link
+     * @return returns a cleaned link or the same link if no cleaning can be done.
+     */
+    fun clean(service: Service = Service(serviceType())): Link = when (service.serviceType) {
+        Service.ServiceType.SPOTIFY -> Link(
+            "https://open.spotify.com/" +
+                    linkType(service).name.lowercase() + "/" +
+                    getId()
+        )
+        Service.ServiceType.YOUTUBE -> Link(
+            when (linkType(service)) {
+                LinkType.VIDEO -> "https://youtu.be/" + getId()
+                LinkType.PLAYLIST -> "https://www.youtube.com/playlist?list=" + getId()
+                else -> link
+            }
+        )
+        else -> this
     }
 
     override fun toString() = link

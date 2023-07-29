@@ -409,11 +409,12 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
     }
 
     /**
-     * Get tracks from a SoundCloud playlist
+     * Fetch tracks from a SoundCloud playlist
      * @param playlistLink SoundCloud playlist link
+     * @param limit set a limit to the amount of tracks to return
      * @return returns a TrackList containing the playlist's tracks
      */
-    override suspend fun fetchPlaylistTracks(playlistLink: Link): TrackList {
+    override suspend fun fetchPlaylistTracks(playlistLink: Link, limit: Int): TrackList {
         val trackList = ArrayList<Track>()
         val playlistJob = Job()
         withContext(IO + playlistJob) {
@@ -427,7 +428,9 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                 it as JSONObject
                                 Link("$apiURL/tracks/${it.getInt("id")}", it.getInt("id").toString())
                             }
-                            val tracks = getMultipleTracks(apiLinks)
+                            val tracks = fetchMultipleTracks(
+                                if (limit != 0 && apiLinks.size > limit) apiLinks.subList(0, limit) else apiLinks
+                            )
                             val sortedList = async {
                                 val newList = ArrayList<Track>()
                                 val idList = apiLinks.map { it.getId() }
@@ -532,7 +535,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         }
     }
 
-    override suspend fun fetchAlbumTracks(albumLink: Link): TrackList {
+    override suspend fun fetchAlbumTracks(albumLink: Link, limit: Int): TrackList {
         val id = if (albumLink.link.startsWith("$apiURL/"))
             albumLink.link.substringAfterLast("/")
         else
@@ -551,7 +554,9 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                 it as JSONObject
                                 Link("$apiURL/tracks/${it.getInt("id")}", it.getInt("id").toString())
                             }
-                            val tracks = getMultipleTracks(apiLinks)
+                            val tracks = fetchMultipleTracks(
+                                if (limit != 0 && apiLinks.size > limit) apiLinks.subList(0, limit) else apiLinks
+                            )
                             val sortedList = async {
                                 val newList = ArrayList<Track>()
                                 val idList = apiLinks.map { it.getId() }
@@ -665,7 +670,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         return track
     }
 
-    private suspend fun getMultipleTracks(links: List<Link>): TrackList {
+    private suspend fun fetchMultipleTracks(links: List<Link>): TrackList {
         suspend fun fetchTracksData(trackLinks: List<Link>): Response {
             val idsBuilder = StringBuilder()
             for (link in trackLinks) {
@@ -851,7 +856,12 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         return Playlists(playlists)
     }
 
-    suspend fun fetchUserLikes(userLink: Link): TrackList {
+    suspend fun fetchUserLikes(
+        userLink: Link,
+        limit: Int = 0,
+        tracksOnly: Boolean = false,
+        playlistsOnly: Boolean = false
+    ): TrackList {
         suspend fun fetchData(link: Link = userLink): Response {
             val id = if (link.link.startsWith("$api2URL/users/"))
                 link.link.substringBeforeLast("/").substringAfterLast("/")
@@ -863,7 +873,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
             if (link.link.startsWith("$api2URL/users/"))
                 urlBuilder.append("&${link.link.substringAfter("?")}")
             else
-                urlBuilder.append("&limit=100")
+                urlBuilder.append("&limit=" + if (limit != 0 && limit < 100) limit else 100)
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
@@ -880,10 +890,10 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                 it as JSONObject
                                 when {
                                     it.has("track") -> {
-                                        it.getJSONObject("track").let { track ->
-                                            try {
-                                                likes.add(
-                                                    Track(
+                                        if (!playlistsOnly) {
+                                            it.getJSONObject("track").let { track ->
+                                                try {
+                                                    fun parseTrack(): Track = Track(
                                                         Album(
                                                             Name(
                                                                 if (
@@ -901,7 +911,9 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                                             releaseDate = ReleaseDate(
                                                                 LocalDate.parse(
                                                                     track.getString("created_at"),
-                                                                    DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
+                                                                    DateTimeFormatter.ISO_INSTANT.withZone(
+                                                                        ZoneId.of("Z")
+                                                                    )
                                                                 )
                                                             )
                                                         ),
@@ -923,7 +935,10 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                                             track.getString("permalink_url"),
                                                             track.getInt("id").toString()
                                                         ),
-                                                        Playability(track.getBoolean("streamable") && track.getString("policy") != "BLOCK"),
+                                                        Playability(
+                                                            track.getBoolean("streamable") &&
+                                                                    track.getString("policy") != "BLOCK"
+                                                        ),
                                                         Likes(
                                                             if (!track.isNull("likes_count"))
                                                                 track.getInt("likes_count")
@@ -931,18 +946,38 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                                                 0
                                                         )
                                                     )
-                                                )
-                                            } catch (e: JSONException) {
-                                                //JSON broken, try getting the data again
-                                                println("Failed JSON:\n${track.toString(4)}\n")
-                                                println("Failed to get data from JSON:\n${e.printStackTrace()}")
+                                                    if (limit != 0) {
+                                                        if (likes.size < limit) {
+                                                            likes.add(parseTrack())
+                                                        } else {
+                                                            println("Limit reached!")
+                                                        }
+                                                    } else {
+                                                        likes.add(parseTrack())
+                                                    }
+                                                } catch (e: JSONException) {
+                                                    //JSON broken, try getting the data again
+                                                    println("Failed JSON:\n${track.toString(4)}\n")
+                                                    println("Failed to get data from JSON:\n${e.printStackTrace()}")
+                                                }
                                             }
                                         }
                                     }
 
                                     it.has("playlist") -> {
-                                        it.getJSONObject("playlist").let { playlist ->
-                                            likes.addAll(fetchPlaylistTracks(Link(playlist.getString("permalink_url"))).trackList)
+                                        if (!tracksOnly) {
+                                            it.getJSONObject("playlist").let { playlist ->
+                                                likes.addAll(
+                                                    fetchPlaylistTracks(
+                                                        Link(playlist.getString("permalink_url")),
+                                                    ).trackList.let { list ->
+                                                        if (limit != 0 && list.size + likes.size > limit)
+                                                            list.subList(0, limit - likes.size)
+                                                        else
+                                                            list
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
 
@@ -952,9 +987,15 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                 }
                             }
 
-                            if (!data.isNull("next_href"))
-                                likesData = fetchData(Link(data.getString("next_href")))
-                            else {
+                            if (!data.isNull("next_href")) {
+                                if (limit != 0) {
+                                    if (likes.size < limit)
+                                        likesData = fetchData(Link(data.getString("next_href")))
+                                } else {
+                                    likesJob.complete()
+                                    return@withContext
+                                }
+                            } else {
                                 likesJob.complete()
                                 return@withContext
                             }
@@ -976,7 +1017,12 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         return TrackList(likes)
     }
 
-    suspend fun fetchUserReposts(userLink: Link): TrackList {
+    suspend fun fetchUserReposts(
+        userLink: Link,
+        limit: Int = 0,
+        tracksOnly: Boolean = false,
+        playlistsOnly: Boolean = false
+    ): TrackList {
         suspend fun fetchData(link: Link = userLink): Response {
             val id = if (link.link.startsWith("$api2URL/stream/users/"))
                 link.link.substringBeforeLast("/").substringAfterLast("/")
@@ -988,28 +1034,28 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
             if (link.link.startsWith("$api2URL/stream/users/"))
                 urlBuilder.append("&${link.link.substringAfter("?")}")
             else
-                urlBuilder.append("&limit=150")
+                urlBuilder.append("&limit=" + if (limit != 0 && limit < 100) limit else 100)
 
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
         }
 
-        val likes = ArrayList<Track>()
-        val likesJob = Job()
-        withContext(IO + likesJob) {
-            var likesData = fetchData()
+        val reposts = ArrayList<Track>()
+        val repostsJob = Job()
+        withContext(IO + repostsJob) {
+            var repostsData = fetchData()
             while (true) {
-                when (likesData.code.code) {
+                when (repostsData.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val data = JSONObject(likesData.data.data)
+                            val data = JSONObject(repostsData.data.data)
                             data.getJSONArray("collection").forEach {
                                 it as JSONObject
                                 when {
                                     it.has("track") -> {
-                                        it.getJSONObject("track").let { track ->
-                                            try {
-                                                likes.add(
-                                                    Track(
+                                        if (!playlistsOnly) {
+                                            it.getJSONObject("track").let { track ->
+                                                try {
+                                                    fun parseTrack() = Track(
                                                         Album(
                                                             Name(
                                                                 if (
@@ -1027,7 +1073,9 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                                             releaseDate = ReleaseDate(
                                                                 LocalDate.parse(
                                                                     track.getString("created_at"),
-                                                                    DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
+                                                                    DateTimeFormatter.ISO_INSTANT.withZone(
+                                                                        ZoneId.of("Z")
+                                                                    )
                                                                 )
                                                             )
                                                         ),
@@ -1049,7 +1097,11 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                                             track.getString("permalink_url"),
                                                             track.getInt("id").toString()
                                                         ),
-                                                        Playability(track.getBoolean("streamable") && track.getString("policy") != "BLOCK"),
+                                                        Playability(
+                                                            track.getBoolean("streamable") && track.getString(
+                                                                "policy"
+                                                            ) != "BLOCK"
+                                                        ),
                                                         Likes(
                                                             if (!track.isNull("likes_count"))
                                                                 track.getInt("likes_count")
@@ -1057,18 +1109,38 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                                                 0
                                                         )
                                                     )
-                                                )
-                                            } catch (e: JSONException) {
-                                                //JSON broken, try getting the data again
-                                                println("Failed JSON:\n${track.toString(4)}\n")
-                                                println("Failed to get data from JSON, trying again...")
+                                                    if (limit != 0) {
+                                                        if (reposts.size < limit)
+                                                            reposts.add(parseTrack())
+                                                        else
+                                                            println("Limit reached!")
+                                                    } else {
+                                                        reposts.add(parseTrack())
+                                                    }
+                                                } catch (e: JSONException) {
+                                                    //JSON broken, try getting the data again
+                                                    println("Failed JSON:\n${track.toString(4)}\n")
+                                                    println("Failed to get data from JSON, trying again...")
+                                                }
                                             }
                                         }
+
                                     }
 
                                     it.has("playlist") -> {
-                                        it.getJSONObject("playlist").let { playlist ->
-                                            likes.addAll(fetchPlaylistTracks(Link(playlist.getString("permalink_url"))).trackList)
+                                        if (!tracksOnly) {
+                                            it.getJSONObject("playlist").let { playlist ->
+                                                reposts.addAll(
+                                                    fetchPlaylistTracks(
+                                                        Link(playlist.getString("permalink_url")),
+                                                    ).trackList.let { list ->
+                                                        if (limit != 0 && list.size + reposts.size > limit)
+                                                            list.subList(0, limit - reposts.size)
+                                                        else
+                                                            list
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
 
@@ -1079,14 +1151,20 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                             }
 
                             if (!data.isNull("next_href"))
-                                likesData = fetchData(Link(data.getString("next_href")))
+                                if (limit != 0) {
+                                    if (reposts.size < limit)
+                                        repostsData = fetchData(Link(data.getString("next_href")))
+                                } else {
+                                    repostsJob.complete()
+                                    return@withContext
+                                }
                             else {
-                                likesJob.complete()
+                                repostsJob.complete()
                                 return@withContext
                             }
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${likesData.data}\n")
+                            println("Failed JSON:\n${repostsData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -1096,16 +1174,16 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                     }
 
                     HttpURLConnection.HTTP_BAD_GATEWAY -> {
-                        println("HTTP ERROR! CODE ${likesData.code} BAD GATEWAY")
-                        likesJob.complete()
+                        println("HTTP ERROR! CODE ${repostsData.code} BAD GATEWAY")
+                        repostsJob.complete()
                         return@withContext
                     }
 
-                    else -> println("HTTP ERROR! CODE ${likesData.code}")
+                    else -> println("HTTP ERROR! CODE ${repostsData.code}")
                 }
             }
         }
-        return TrackList(likes)
+        return TrackList(reposts)
     }
 
     /**
@@ -1254,7 +1332,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         return user
     }
 
-    //SoundCloud doesn't have "Artists", but usually users with tracks uploaded, happen to be artists,
+    //SoundCloud doesn't have "Artists", but SoundCloud seems to treat users with uploaded tracks as artists,
     //therefore we just fetch a User's data, and present it as an Artist
     override suspend fun fetchArtist(artistLink: Link): Artist {
         lateinit var artist: Artist

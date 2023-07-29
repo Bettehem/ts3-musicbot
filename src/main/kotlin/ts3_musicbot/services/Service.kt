@@ -12,10 +12,10 @@ open class Service(val serviceType: ServiceType) {
     }
 
     open suspend fun fetchAlbum(albumLink: Link) = Album()
-    open suspend fun fetchAlbumTracks(albumLink: Link) = TrackList()
+    open suspend fun fetchAlbumTracks(albumLink: Link, limit: Int = 0) = TrackList()
     open suspend fun fetchArtist(artistLink: Link) = Artist()
     open suspend fun fetchPlaylist(playlistLink: Link) = Playlist()
-    open suspend fun fetchPlaylistTracks(playlistLink: Link) = TrackList()
+    open suspend fun fetchPlaylistTracks(playlistLink: Link, limit: Int = 0) = TrackList()
     open suspend fun fetchTrack(trackLink: Link) = Track()
     open suspend fun fetchUser(userLink: Link) = User()
     open suspend fun resolveType(link: Link) = LinkType.OTHER

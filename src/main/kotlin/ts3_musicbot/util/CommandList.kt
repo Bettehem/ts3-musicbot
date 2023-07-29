@@ -119,6 +119,9 @@ data class CommandList(
                         "-s    \t-Shuffle the playlist/album etc. before adding to the queue.\n" +
                         "-p    \t-Add track(s) to a specific position in the queue.\n" +
                         "-r    \t-Reverse playlist/album etc. before adding to the queue.\n" +
+                        "-l    \t-Limit the amount of tracks to add from the given list(s).\n" +
+                        "-t    \t-Add only tracks from the given SoundCloud link (likes/reposts)\n" +
+                        "-P    \t-Add only playlists from the given SoundCloud link (likes/reposts)\n" +
                         "Example - Add playlist to queue at position 15 and shuffle it before that:\n" +
                         "${commandList["queue-add"]} -s https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt -p 15\n" +
                         "Example - Search for an album on spotify and add it to the queue:\n" +
@@ -143,6 +146,9 @@ data class CommandList(
                         "-s    \t-Shuffle the playlist/album before adding to the queue.\n" +
                         "-p    \t-Add track(s) to a specific position in the queue.\n" +
                         "-r    \t-Reverse playlist/album etc. before adding to the queue.\n" +
+                        "-l    \t-Limit the amount of tracks to add from the given list(s).\n" +
+                        "-t    \t-Add only tracks from the given SoundCloud link (likes/reposts)\n" +
+                        "-P    \t-Add only playlists from the given SoundCloud link (likes/reposts)\n" +
                         "Example - Add playlist to queue at position 15 and shuffle it before that:\n" +
                         "${commandList["queue-playnext"]} -s https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt -p 15\n" +
                         "Example - Search for an album on spotify and add it to the queue:\n" +
