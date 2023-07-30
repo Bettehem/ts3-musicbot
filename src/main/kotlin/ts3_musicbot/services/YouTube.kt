@@ -204,7 +204,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
             urlBuilder.append("playlistId=${playlistLink.getId()}")
             urlBuilder.append("&part=${part.replace(",", "%2C")}")
             urlBuilder.append("&key=$apiKey")
-            urlBuilder.append("&maxResults=" + if (limit < maxResults) limit else maxResults)
+            urlBuilder.append("&maxResults=" + if (limit != 0 && limit < maxResults) limit else maxResults)
             if (pageToken.isNotEmpty())
                 urlBuilder.append("&pageToken=$pageToken")
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
