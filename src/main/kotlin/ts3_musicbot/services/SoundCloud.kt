@@ -1534,47 +1534,53 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         val deferredId = CoroutineScope(IO + resolveJob).async {
             lateinit var id: String
             var linkToSolve = link
-            if (linkToSolve.link.contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex()))
-                linkToSolve = Link(
-                    sendHttpRequest(URL(linkToSolve.link), RequestMethod.GET).data.data.lines()
-                        .first { it.contains("<meta property=\"og:url\"".toRegex()) }
-                        .replace(".*<meta property=\"og:url\"".toRegex(), "")
-                        .replace("^\\s*content=\"|\">.*$".toRegex(), "")
-                )
-            while (true) {
-                val idData = fetchResolvedData(linkToSolve.link.substringBefore("?"))
-                when (idData.code.code) {
-                    HttpURLConnection.HTTP_OK -> {
-                        try {
-                            val data = JSONObject(idData.data.data)
-                            when (data.get("id")) {
-                                is String -> id = data.getString("id")
-                                is Int -> id = data.getInt("id").toString()
+            if (link.link.endsWith("/reposts")) {
+                println("Reposts do not have ids!")
+                id = ""
+                resolveJob.complete()
+                id
+            } else {
+                if (linkToSolve.link.contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex()))
+                    linkToSolve = Link(
+                        sendHttpRequest(URL(linkToSolve.link), RequestMethod.GET).data.data.lines()
+                            .first { it.contains("<meta property=\"og:url\"".toRegex()) }
+                            .replace(".*<meta property=\"og:url\"".toRegex(), "")
+                            .replace("^\\s*content=\"|\">.*$".toRegex(), "")
+                    )
+                while (true) {
+                    val idData = fetchResolvedData(linkToSolve.link.substringBefore("?"))
+                    when (idData.code.code) {
+                        HttpURLConnection.HTTP_OK -> {
+                            try {
+                                val data = JSONObject(idData.data.data)
+                                when (data.get("id")) {
+                                    is String -> id = data.getString("id")
+                                    is Int -> id = data.getInt("id").toString()
+                                }
+                                break
+                            } catch (e: JSONException) {
+                                //JSON broken, try getting the data again
+                                println("Failed JSON:\n${idData.data}\n")
+                                println("Failed to get data from JSON, trying again...")
                             }
-                            break
-                        } catch (e: JSONException) {
-                            //JSON broken, try getting the data again
-                            println("Failed JSON:\n${idData.data}\n")
-                            println("Failed to get data from JSON, trying again...")
                         }
-                    }
 
-                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                        updateClientId()
-                    }
+                        HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                            updateClientId()
+                        }
 
-                    HttpURLConnection.HTTP_NOT_FOUND -> {
-                        println("Error 404! $link not found!")
-                        id = ""
-                        break
-                    }
+                        HttpURLConnection.HTTP_NOT_FOUND -> {
+                            println("Error 404! $link not found!")
+                            id = ""
+                            break
+                        }
 
-                    else -> println("HTTP ERROR! CODE ${idData.code}")
+                        else -> println("HTTP ERROR! CODE ${idData.code}")
+                    }
                 }
+                resolveJob.complete()
+                id
             }
-            resolveJob.complete()
-            id
-
         }
         return deferredId.await()
     }

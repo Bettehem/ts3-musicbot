@@ -376,7 +376,7 @@ class SongQueue(
 
             fun playerStatus() = playerctl(getPlayer(), "status")
 
-            suspend fun startSpotifyPlayer() {
+            suspend fun startSpotifyPlayer(shouldSetPrefs: Boolean = true) {
                 fun killCommand() = when (botSettings.spotifyPlayer) {
                     "spotify" -> commandRunner.runCommand("pkill -9 spotify", ignoreOutput = true)
                     "ncspot" -> {
@@ -416,65 +416,102 @@ class SongQueue(
                     printOutput = false
                 )
 
-                killCommand()
-                delay(100)
-                startCommand()
-                //sometimes the spotify player has problems starting, so ensure it actually starts.
-                while (checkProcess().first.outputText.isEmpty()) {
-                    delay(7000)
-                    if (checkProcess().first.outputText.isEmpty()) {
-                        repeat(2) { killCommand() }
-                        delay(1000)
-                        startCommand()
-                        delay(2000)
-                    }
-                }
-                //wait for the spotify player to start.
-                while (trackJob.isActive && commandRunner.runCommand(
-                        "ps aux | grep -E \"[0-9]+:[0-9]+ .*(\\s+)?${botSettings.spotifyPlayer}(\\s+.*)?$\" | grep -v \"grep\"",
-                        printOutput = false
-                    ).first.outputText.isEmpty()
-                ) {
-                    //do nothing
-                    println("Waiting for ${botSettings.spotifyPlayer} to start")
-                    delay(150)
-                }
-                delay(5000)
+                //set the spotify user's settings
+                fun setPrefs() {
+                    //autoplay needs to be disabled so the spotify client doesn't start playing stuff on its own.
+                    //friend feed, notifications, release announcements etc are disabled just for performance.
+                    //volume normalization is enabled to get more consistent volume between tracks.
+                    if (botSettings.spotifyPlayer == "spotify") {
+                        val usersPath = System.getProperty("user.home") + "/.config/spotify/Users"
+                        val users = File(usersPath).listFiles()
+                        if (users != null && users.isNotEmpty()) {
+                            for (user in users) {
+                                val prefsFile = File("${user.listFiles()?.first { it.name == "prefs" }}")
+                                if (prefsFile.exists()) {
+                                    val newPrefs = StringBuilder()
+                                    val prefs = emptyMap<String, String>().toMutableMap()
+                                    prefsFile.readLines().forEach {
+                                        val split = it.split("=".toRegex())
+                                        prefs[split.first()] = split.last()
+                                    }
 
-                //now that the spotify player is started, in case of the official client, disable some settings:
-                //autoplay needs to be disabled so the spotify client doesn't start playing stuff on its own.
-                //friend feed is and notifications are disabled just for performance.
-                if (botSettings.spotifyPlayer == "spotify") {
-                    val usersPath = System.getProperty("user.home") + "/.config/spotify/Users"
-                    val users = File(usersPath).listFiles()
-                    if (users != null && users.isNotEmpty()) {
-                        for (user in users) {
-                            val prefsFile = File("${user.listFiles()?.first { it.name == "prefs" }}")
-                            if (prefsFile.exists()) {
-                                val newPrefs = StringBuilder()
-                                val prefs = emptyMap<String, String>().toMutableMap()
-                                prefsFile.readLines().forEach {
-                                    val split = it.split("=".toRegex())
-                                    prefs[split.first()] = split.last()
+                                    prefs["ui.right_panel_content"] = "0"
+                                    listOf(
+                                        "ui.track_notifications_enabled",
+                                        "ui.show_friend_feed",
+                                        "app.player.autoplay"
+                                    ).forEach { prefs[it] = "false" }
+
+                                    listOf(
+                                        "ui.hide_hpto",
+                                        "audio.normalize_v2"
+                                    ).forEach { prefs[it] = "true" }
+
+                                    //set normalization volume level.
+                                    //0 = quiet, 1 = normal, 2 = loud.
+                                    prefs["audio.loudness.environment"] = "1"
+
+                                    //set audio streaming quality. 4 is the highest, which is equivalent to 320kbps bitrate.
+                                    //0 = auto (based on connection quality)
+                                    //1 = low (24kbps bitrate)
+                                    //2 = normal (96kbps bitrate)
+                                    //3 = high (160kbps bitrate)
+                                    //4 = very high (320kbps bitrate)
+                                    listOf(
+                                        "audio.play_bitrate_enumeration",
+                                        "audio.play_bitrate_non_metered_enumeration"
+                                    ).forEach { prefs[it] = "4" }
+
+                                    prefs.forEach {
+                                        newPrefs.appendLine("${it.key}=${it.value}")
+                                    }
+                                    prefsFile.delete()
+                                    prefsFile.createNewFile()
+                                    prefsFile.writeText(newPrefs.toString())
                                 }
-                                val keys = listOf(
-                                    "ui.track_notifications_enabled",
-                                    "ui.show_friend_feed",
-                                    "app.player.autoplay"
-                                )
-                                keys.forEach { prefs[it] = "false" }
-                                prefs.forEach {
-                                    newPrefs.appendLine("${it.key}=${it.value}")
-                                }
-                                prefsFile.delete()
-                                prefsFile.createNewFile()
-                                prefsFile.writeText(newPrefs.toString())
                             }
+                        } else {
+                            println("Please log in to your Spotify account.")
                         }
-                    } else {
-                        println("Please log in to your Spotify account.")
                     }
                 }
+
+                //(re)starts the player
+                suspend fun restartPlayer() {
+                    killCommand()
+                    delay(100)
+                    startCommand()
+                    //sometimes the spotify player has problems starting, so ensure it actually starts.
+                    while (checkProcess().first.outputText.isEmpty()) {
+                        delay(7000)
+                        if (checkProcess().first.outputText.isEmpty()) {
+                            repeat(2) { killCommand() }
+                            delay(1000)
+                            startCommand()
+                            delay(2000)
+                        }
+                    }
+                    //wait for the spotify player to start.
+                    while (trackJob.isActive && commandRunner.runCommand(
+                            "ps aux | grep -E \"[0-9]+:[0-9]+ .*(\\s+)?${botSettings.spotifyPlayer}(\\s+.*)?$\" | grep -v \"grep\"",
+                            printOutput = false
+                        ).first.outputText.isEmpty()
+                    ) {
+                        //do nothing
+                        println("Waiting for ${botSettings.spotifyPlayer} to start")
+                        delay(150)
+                    }
+                }
+
+                if (shouldSetPrefs) {
+                    restartPlayer()
+                    setPrefs()
+                    startSpotifyPlayer(false)
+                } else {
+                    restartPlayer()
+                }
+
+                delay(5000)
             }
 
             //starts playing the track
@@ -516,7 +553,7 @@ class SongQueue(
                 }
 
                 //wait for track to start
-                when (track.serviceType) {
+                when (val type = track.serviceType) {
                     Service.ServiceType.SPOTIFY -> {
                         //check active processes and wait for the spotify player to start
                         val player = getPlayer()
@@ -552,12 +589,17 @@ class SongQueue(
 
                     Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD -> {
                         suspend fun startMPV(job: Job) {
+                            val volume = if (type == Service.ServiceType.SOUNDCLOUD)
+                                botSettings.scVolume
+                            else
+                                botSettings.ytVolume
+
                             val mpvRunnable = Runnable {
                                 commandRunner.runCommand(
                                     "mpv --terminal=no --no-video" +
                                             " --ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0" +
                                             (if (track.serviceType == Service.ServiceType.YOUTUBE) ",cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" else "") +
-                                            " --ytdl \"${track.link}\" --volume=${botSettings.mpvVolume} &",
+                                            " --ytdl \"${track.link}\" --volume=$volume &",
                                     inheritIO = true,
                                     ignoreOutput = true, printCommand = true
                                 )

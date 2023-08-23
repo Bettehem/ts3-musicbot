@@ -28,7 +28,8 @@ class ChatReader(
     private val spotify = Spotify(botSettings.market)
     private val youTube = YouTube()
     private val soundCloud = SoundCloud()
-    private var voteSkipUsers = ArrayList<Pair<String, Boolean>>()
+    private val voteSkipUsers = ArrayList<Pair<String, Boolean>>()
+    private val trackCache = ArrayList<Pair<Link, TrackList>>()
     var latestMsgUsername = ""
 
     @Volatile
@@ -361,27 +362,27 @@ class ChatReader(
                                 val args = commandString.split("\\s".toRegex())
                                 for (i in args.indices) {
                                     //check if the tracks should be shuffled
-                                    if (args[i].contains("-[A-z]*s".toRegex())) {
+                                    if (args[i].contains("\\s+-[A-z]*s".toRegex())) {
                                         shouldShuffle = true
                                     }
                                     // check if the amount of tracks should be limited
-                                    if (args[i].contains("-[A-z]*l".toRegex())) {
+                                    if (args[i].contains("\\s+-[A-z]*l".toRegex())) {
                                         if (args.size >= i + 1) {
                                             trackLimit = args[i + 1].toInt()
                                         }
                                     }
                                     //check if only tracks from SoundCloud likes/reposts should be included
-                                    if (args[i].contains("-[A-z]*t".toRegex())) {
+                                    if (args[i].contains("\\s+-[A-z]*t".toRegex())) {
                                         tracksOnly = true
                                         playlistsOnly = false
                                     }
                                     //check if only playlists from SoundCloud likes/reposts should be included
-                                    if (args[i].contains("-[A-z]*P".toRegex())) {
+                                    if (args[i].contains("\\s+-[A-z]*P".toRegex())) {
                                         playlistsOnly = true
                                         tracksOnly = false
                                     }
                                     //check if custom position is provided
-                                    if (args[i].contains("-[A-z]*p".toRegex())) {
+                                    if (args[i].contains("\\s+-[A-z]*p".toRegex())) {
                                         if (args.size >= i + 1) {
                                             if (args[i + 1].contains("-?[0-9]+".toRegex())) {
                                                 customPosition = args[i + 1].toInt()
@@ -389,7 +390,7 @@ class ChatReader(
                                             }
                                         }
                                     }
-                                    if (args[i].contains("-[A-z]*r".toRegex())) {
+                                    if (args[i].contains("\\s+-[A-z]*r".toRegex())) {
                                         shouldReverse = true
                                     }
                                     if (args[i].contains("((\\[URL])?((https?://)?(open\\.spotify\\.com|soundcloud\\.com|((m|www)\\.)?youtu\\.?be(\\.com)?)).+(\\[/URL])?)|(spotify:(track|album|playlist|show|episode|artist):.+)".toRegex())) {
@@ -408,24 +409,28 @@ class ChatReader(
                                 println("Fetching data...")
                                 println("Total number of links: ${links.size}")
                                 printToChat(listOf("Please wait, fetching data..."))
-                                val trackCache = ArrayList<Pair<Link, TrackList>>()
                                 //add links to queue
                                 for (rawLink in links) {
                                     println("Link to handle: $rawLink")
-                                    val id = rawLink.getId()
-                                    val service = when (rawLink.serviceType()) {
+                                    fun Link.getService() = when (this.serviceType()) {
                                         Service.ServiceType.SOUNDCLOUD -> soundCloud
                                         Service.ServiceType.SPOTIFY -> spotify
                                         Service.ServiceType.YOUTUBE -> youTube
                                         Service.ServiceType.OTHER -> Service(Service.ServiceType.OTHER)
                                     }
+
+                                    val service = rawLink.getService()
+                                    val id = rawLink.getId(service)
                                     //Remove tracking stuff & other junk from the link
                                     val link = rawLink.clean(service)
                                     println("Cleaned Link: $link")
 
-                                    if (trackCache.any { it.first.getId() == id }) {
-                                        val tracks =
-                                            filterList(trackCache.first { it.first.getId() == id }.second, link)
+                                    if (trackCache.any { it.first.clean(it.first.getService()) == link }) {
+                                        println("Match found in cache for link: $link")
+                                        val tracks = filterList(
+                                            trackCache.first { it.first.clean(it.first.getService()) == link }.second,
+                                            link
+                                        )
                                         var trackList = if (shouldReverse) tracks.reversed() else tracks
                                         trackList = if (shouldShuffle) trackList.shuffled() else trackList
                                         val tracksAdded = songQueue.addAllToQueue(trackList, customPosition)
@@ -439,7 +444,7 @@ class ChatReader(
                                     } else {
                                         when (
                                             val type = link.linkType(service)
-                                                .let { type -> println("Link type: $type\nLink id: $id"); type }
+                                                .let { type -> println("Link type: $type\nLink id: ${id.ifEmpty { "N/A" }}"); type }
                                         ) {
                                             LinkType.TRACK, LinkType.VIDEO, LinkType.EPISODE -> {
                                                 val track = if (type == LinkType.EPISODE && service is Spotify)
@@ -468,7 +473,11 @@ class ChatReader(
                                             LinkType.PLAYLIST, LinkType.SHOW, LinkType.ALBUM -> {
                                                 val tracks = filterList(
                                                     when (type) {
-                                                        LinkType.PLAYLIST -> service.fetchPlaylistTracks(link, trackLimit)
+                                                        LinkType.PLAYLIST -> service.fetchPlaylistTracks(
+                                                            link,
+                                                            trackLimit
+                                                        )
+
                                                         LinkType.SHOW -> {
                                                             if (service is Spotify)
                                                                 TrackList(
@@ -510,10 +519,10 @@ class ChatReader(
                                                                 tracksOnly, playlistsOnly
                                                             )
                                                         } else {
-                                                               service.fetchUserReposts(
-                                                                   link, trackLimit,
-                                                                   tracksOnly, playlistsOnly
-                                                               )
+                                                            service.fetchUserReposts(
+                                                                link, trackLimit,
+                                                                tracksOnly, playlistsOnly
+                                                            )
                                                         },
                                                         link
                                                     )
@@ -954,6 +963,8 @@ class ChatReader(
                                 return Pair(
                                     if (songQueue.getQueue().isEmpty()) {
                                         printToChat(listOf("Cleared the queue."))
+                                        trackCache.clear()
+                                        println("Cleared the track cache.")
                                         commandListener.onCommandExecuted(commandString, "Cleared the queue.")
                                         commandJob.complete()
                                         true
@@ -1704,7 +1715,7 @@ class ChatReader(
                                             "mpv --terminal=no --no-video" +
                                                     " --ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0," +
                                                     "cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass=" +
-                                                    " --ytdl \"$ytLink\" --volume=${botSettings.mpvVolume}",
+                                                    " --ytdl \"$ytLink\" --volume=${botSettings.ytVolume}",
                                             inheritIO = true,
                                             ignoreOutput = true,
                                             printCommand = true
@@ -1763,7 +1774,7 @@ class ChatReader(
                                 if (scLink.link.isNotEmpty()) {
                                     launch {
                                         commandRunner.runCommand(
-                                            "mpv --terminal=no --no-video --ytdl \"$scLink\" --volume=${botSettings.mpvVolume}",
+                                            "mpv --terminal=no --no-video --ytdl \"$scLink\" --volume=${botSettings.scVolume}",
                                             inheritIO = true,
                                             ignoreOutput = true,
                                             printCommand = true

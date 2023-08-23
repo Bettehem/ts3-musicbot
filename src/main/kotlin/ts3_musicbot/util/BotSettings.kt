@@ -14,5 +14,6 @@ class BotSettings(
     var spotifyUsername: String = "",
     var spotifyPassword: String = "",
     var useOfficialTsClient: Boolean = true,
-    var mpvVolume: Int = 87
+    var scVolume: Int = 78,
+    var ytVolume: Int = 100
 )
