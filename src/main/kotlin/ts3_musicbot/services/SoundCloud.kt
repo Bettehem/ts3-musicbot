@@ -15,7 +15,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
-    var clientId = "gbXxG1i8ZvGqGa2q2QXjtpahMpzHjsbW"
+    var clientId = "z59xjnxSZIusnBJv9W3cAnV5rNDF9WpL"
     private val api2URL = URL("https://api-v2.soundcloud.com")
     val apiURL = URL("https://api.soundcloud.com")
     val supportedSearchTypes = listOf(
@@ -866,7 +866,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
             val id = if (link.link.startsWith("$api2URL/users/"))
                 link.link.substringBeforeLast("/").substringAfterLast("/")
             else
-                resolveId(link)
+                resolveId(Link(link.link.substringBeforeLast("/")))
             val urlBuilder = StringBuilder()
             urlBuilder.append("$api2URL/users/$id/likes")
             urlBuilder.append("?client_id=$clientId")
@@ -1534,8 +1534,12 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         val deferredId = CoroutineScope(IO + resolveJob).async {
             lateinit var id: String
             var linkToSolve = link
-            if (link.link.endsWith("/reposts")) {
-                println("Reposts do not have ids!")
+            if (link.link.contains("/(reposts|likes)$".toRegex())) {
+                //As it turns out, neither likes nor reposts have an id.
+                //However, when trying to resolve a likes link, the user is returned, whereas
+                //trying to resolve a reposts link just gives a 404 error.
+                //So instead of trying to resolve reposts/likes, just return an empty id.
+                println("$link doesn't have an id!")
                 id = ""
                 resolveJob.complete()
                 id

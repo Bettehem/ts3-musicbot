@@ -389,17 +389,25 @@ class SongQueue(
                 }
 
                 fun startCommand() = when (botSettings.spotifyPlayer) {
-                    "spotify" -> commandRunner.runCommand(
-                        "xvfb-run -a spotify --no-zygote --disable-gpu" +
-                                if (botSettings.spotifyUsername.isNotEmpty() && botSettings.spotifyPassword.isNotEmpty()) {
-                                    " --username=${botSettings.spotifyUsername} --password=${botSettings.spotifyPassword}"
-                                } else {
-                                    ""
-                                } + " &",
-                        ignoreOutput = true,
-                        printCommand = true,
-                        inheritIO = true
-                    )
+                    "spotify" -> {
+                        if (botSettings.spotifyUsername.isEmpty() || botSettings.spotifyPassword.isEmpty()) {
+                            val msg = "Error! Missing Spotify username and/or password in the musicbot's config file!"
+                            println(msg)
+                            Pair(Output(""), Error("msg"))
+                        } else {
+                            commandRunner.runCommand(
+                                "xvfb-run -a spotify --no-zygote --disable-gpu" +
+                                        if (botSettings.spotifyUsername.isNotEmpty() && botSettings.spotifyPassword.isNotEmpty()) {
+                                            " --username=${botSettings.spotifyUsername} --password=${botSettings.spotifyPassword}"
+                                        } else {
+                                            ""
+                                        } + " &",
+                                ignoreOutput = true,
+                                printCommand = true,
+                                inheritIO = true
+                            )
+                        }
+                    }
 
                     "ncspot" -> commandRunner.runCommand(
                         "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
@@ -416,62 +424,124 @@ class SongQueue(
                     printOutput = false
                 )
 
-                //set the spotify user's settings
+                //set the spotify player's config options
                 fun setPrefs() {
-                    //autoplay needs to be disabled so the spotify client doesn't start playing stuff on its own.
-                    //friend feed, notifications, release announcements etc are disabled just for performance.
-                    //volume normalization is enabled to get more consistent volume between tracks.
-                    if (botSettings.spotifyPlayer == "spotify") {
-                        val usersPath = System.getProperty("user.home") + "/.config/spotify/Users"
-                        val users = File(usersPath).listFiles()
-                        if (users != null && users.isNotEmpty()) {
-                            for (user in users) {
-                                val prefsFile = File("${user.listFiles()?.first { it.name == "prefs" }}")
-                                if (prefsFile.exists()) {
-                                    val newPrefs = StringBuilder()
-                                    val prefs = emptyMap<String, String>().toMutableMap()
-                                    prefsFile.readLines().forEach {
-                                        val split = it.split("=".toRegex())
-                                        prefs[split.first()] = split.last()
+                    when (botSettings.spotifyPlayer) {
+                        "spotify" -> {
+                            //autoplay needs to be disabled so the spotify client doesn't start playing stuff on its own.
+                            //friend feed, notifications, release announcements etc. are disabled just for performance.
+                            //volume normalization is enabled to get more consistent volume between tracks.
+                            val usersPath = System.getProperty("user.home") + "/.config/spotify/Users"
+                            val users = File(usersPath).listFiles()
+                            if (users != null && users.isNotEmpty()) {
+                                for (user in users) {
+                                    val prefsFile = File("${user.listFiles()?.first { it.name == "prefs" }}")
+                                    if (prefsFile.exists()) {
+                                        val newPrefs = StringBuilder()
+                                        val prefs = emptyMap<String, String>().toMutableMap()
+                                        prefsFile.readLines().forEach {
+                                            val split = it.split("=".toRegex())
+                                            prefs[split.first()] = split.last()
+                                        }
+
+                                        prefs["ui.right_panel_content"] = "0"
+                                        listOf(
+                                            "ui.track_notifications_enabled",
+                                            "ui.show_friend_feed",
+                                            "app.player.autoplay"
+                                        ).forEach { prefs[it] = "false" }
+
+                                        listOf(
+                                            "ui.hide_hpto",
+                                            "audio.normalize_v2"
+                                        ).forEach { prefs[it] = "true" }
+
+                                        //set normalization volume level.
+                                        //0 = quiet, 1 = normal, 2 = loud.
+                                        prefs["audio.loudness.environment"] = "1"
+
+                                        //set audio streaming quality. 4 is the highest, which is equivalent to 320kbps bitrate.
+                                        //0 = auto (based on connection quality)
+                                        //1 = low (24kbps bitrate)
+                                        //2 = normal (96kbps bitrate)
+                                        //3 = high (160kbps bitrate)
+                                        //4 = very high (320kbps bitrate)
+                                        listOf(
+                                            "audio.play_bitrate_enumeration",
+                                            "audio.play_bitrate_non_metered_enumeration"
+                                        ).forEach { prefs[it] = "4" }
+
+                                        prefs.forEach {
+                                            newPrefs.appendLine("${it.key}=${it.value}")
+                                        }
+                                        prefsFile.delete()
+                                        prefsFile.createNewFile()
+                                        prefsFile.writeText(newPrefs.toString())
                                     }
-
-                                    prefs["ui.right_panel_content"] = "0"
-                                    listOf(
-                                        "ui.track_notifications_enabled",
-                                        "ui.show_friend_feed",
-                                        "app.player.autoplay"
-                                    ).forEach { prefs[it] = "false" }
-
-                                    listOf(
-                                        "ui.hide_hpto",
-                                        "audio.normalize_v2"
-                                    ).forEach { prefs[it] = "true" }
-
-                                    //set normalization volume level.
-                                    //0 = quiet, 1 = normal, 2 = loud.
-                                    prefs["audio.loudness.environment"] = "1"
-
-                                    //set audio streaming quality. 4 is the highest, which is equivalent to 320kbps bitrate.
-                                    //0 = auto (based on connection quality)
-                                    //1 = low (24kbps bitrate)
-                                    //2 = normal (96kbps bitrate)
-                                    //3 = high (160kbps bitrate)
-                                    //4 = very high (320kbps bitrate)
-                                    listOf(
-                                        "audio.play_bitrate_enumeration",
-                                        "audio.play_bitrate_non_metered_enumeration"
-                                    ).forEach { prefs[it] = "4" }
-
-                                    prefs.forEach {
-                                        newPrefs.appendLine("${it.key}=${it.value}")
-                                    }
-                                    prefsFile.delete()
-                                    prefsFile.createNewFile()
-                                    prefsFile.writeText(newPrefs.toString())
                                 }
+                            } else {
+                                println("Error! Not logged in to a Spotify account.")
                             }
-                        } else {
-                            println("Please log in to your Spotify account.")
+                        }
+
+                        "ncspot" -> {
+                            val homePath = System.getProperty("user.home")
+                            val credentialsFile = File("$homePath/.cache/ncspot/librespot/credentials.json")
+                            val configPath = "$homePath/.config/ncspot"
+                            if (!credentialsFile.exists()) {
+                                println("Not logged in to ncspot! Creating config file...")
+                                //If the credentials file doesn't exist, the user hasn't logged into ncspot.
+                                //In this case, write a new config file in ~/.config/ncspot/config.toml
+                                //This however, will require the user to have their spotify username & password defined
+                                //in the musicbot's config file.
+
+                                if (botSettings.spotifyUsername.isEmpty() || botSettings.spotifyPassword.isEmpty()) {
+                                    println("Error! Missing Spotify username and/or password in the musicbot's config file!")
+                                }
+
+                                //create the config directory if it doesn't already exist
+                                File(configPath).mkdirs()
+
+                                val configFile = File("$configPath/config.toml")
+                                val newConfig = StringBuilder()
+                                newConfig.appendLine("# This config was auto-generated by ts3-musicbot.")
+                                newConfig.appendLine("# You may adjust values such as audio_cache and audio_cache_size,")
+                                newConfig.appendLine("# But the other options that have been added automatically should not be changed.")
+                                newConfig.appendLine()
+                                newConfig.appendLine("# You may check the ncspot github for a full list of configuration options:")
+                                newConfig.appendLine("# https://github.com/hrkfdn/ncspot/blob/main/doc/users.md#configuration")
+                                newConfig.appendLine()
+                                newConfig.appendLine("audio_cache = true")
+                                newConfig.appendLine("# Audio cache size in MiB")
+                                newConfig.appendLine("audio_cache_size = 1024")
+                                newConfig.appendLine()
+                                newConfig.appendLine("# Although not used when playing the music bot's own song queue,")
+                                newConfig.appendLine("# gapless playback improves the listening experience when controlling")
+                                newConfig.appendLine("# the player manually.")
+                                newConfig.appendLine("gapless = true")
+                                newConfig.appendLine()
+                                newConfig.appendLine("# Volume normalization")
+                                newConfig.appendLine("volnorm = true")
+                                newConfig.appendLine("# Amount of normalization to apply in dB")
+                                newConfig.appendLine("volnorm_pregain = -1.8")
+                                newConfig.appendLine()
+                                newConfig.appendLine("# Default playback state")
+                                newConfig.appendLine("playback_state = \"Stopped\"")
+                                newConfig.appendLine("[saved_state]")
+                                newConfig.appendLine("repeat = false")
+                                newConfig.appendLine("shuffle = false")
+                                newConfig.appendLine()
+                                newConfig.appendLine("# Set the credentials to log in with")
+                                newConfig.appendLine("[credentials]")
+                                newConfig.appendLine("username_cmd = \"echo '${botSettings.spotifyUsername}'\"")
+                                newConfig.appendLine("password_cmd = \"echo '${botSettings.spotifyPassword}'\"")
+
+                                if (configFile.exists())
+                                    configFile.delete()
+
+                                configFile.createNewFile()
+                                configFile.writeText(newConfig.toString())
+                            }
                         }
                     }
                 }
@@ -769,7 +839,9 @@ class SongQueue(
             when (track.link.serviceType()) {
                 Service.ServiceType.SPOTIFY -> {
                     CoroutineScope(IO + synchronized(trackJob) { trackJob }).launch {
-                        if (playerStatus().second.errorText == "Error org.freedesktop.DBus.Error.ServiceUnknown: The name org.mpris.MediaPlayer2.${getPlayer()} was not provided by any .service files")
+                        //first kill mpv in case its running
+                        commandRunner.runCommand("pkill -9 mpv", ignoreOutput = true)
+                        if (playerStatus().second.errorText.isNotEmpty())
                             startSpotifyPlayer()
 
                         openTrack()
@@ -777,6 +849,14 @@ class SongQueue(
                 }
 
                 Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD -> {
+                    //First kill the spotify player in case its running.
+                    //Although this shouldn't be needed, at least in the case of the official spotify client,
+                    //sometimes it won't respect the disabled autoplay setting, and will continue playing something else
+                    //after the desired track has finished.
+                    when (val player = botSettings.spotifyPlayer) {
+                        "spotify" -> commandRunner.runCommand("pkill -9 $player")
+                        "ncspot" -> commandRunner.runCommand("tmux kill-session -t ncspot")
+                    }
                     CoroutineScope(IO + synchronized(trackJob) { trackJob }).launch {
                         openTrack()
                     }
@@ -820,7 +900,7 @@ class SongQueue(
             trackJob.cancel()
             val player = getPlayer()
             when (player) {
-                "spotify" -> for (i in 1..2) playerctl(player, "pause")
+                "spotify" -> playerctl(player, "pause")
                 "mpv" -> commandRunner.runCommand("pkill -9 mpv", ignoreOutput = true)
                 else -> playerctl(player, "stop")
             }

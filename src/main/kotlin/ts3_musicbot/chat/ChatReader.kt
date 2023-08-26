@@ -359,30 +359,31 @@ class ChatReader(
                                     }
                                 }
                                 //get arguments in command
-                                val args = commandString.split("\\s".toRegex())
+                                val args = commandString.split("\\s+".toRegex())
+                                val validOptions = listOf("s", "l", "t", "P", "p", "r").joinToString("")
                                 for (i in args.indices) {
                                     //check if the tracks should be shuffled
-                                    if (args[i].contains("\\s+-[A-z]*s".toRegex())) {
+                                    if (args[i].contains("^-[$validOptions]*s".toRegex())) {
                                         shouldShuffle = true
                                     }
                                     // check if the amount of tracks should be limited
-                                    if (args[i].contains("\\s+-[A-z]*l".toRegex())) {
+                                    if (args[i].contains("^-[$validOptions]*l".toRegex())) {
                                         if (args.size >= i + 1) {
                                             trackLimit = args[i + 1].toInt()
                                         }
                                     }
                                     //check if only tracks from SoundCloud likes/reposts should be included
-                                    if (args[i].contains("\\s+-[A-z]*t".toRegex())) {
+                                    if (args[i].contains("^-[$validOptions]*t".toRegex())) {
                                         tracksOnly = true
                                         playlistsOnly = false
                                     }
                                     //check if only playlists from SoundCloud likes/reposts should be included
-                                    if (args[i].contains("\\s+-[A-z]*P".toRegex())) {
+                                    if (args[i].contains("^-[$validOptions]*P".toRegex())) {
                                         playlistsOnly = true
                                         tracksOnly = false
                                     }
                                     //check if custom position is provided
-                                    if (args[i].contains("\\s+-[A-z]*p".toRegex())) {
+                                    if (args[i].contains("^-[$validOptions]*p".toRegex())) {
                                         if (args.size >= i + 1) {
                                             if (args[i + 1].contains("-?[0-9]+".toRegex())) {
                                                 customPosition = args[i + 1].toInt()
@@ -390,14 +391,14 @@ class ChatReader(
                                             }
                                         }
                                     }
-                                    if (args[i].contains("\\s+-[A-z]*r".toRegex())) {
+                                    if (args[i].contains("^-[$validOptions]*r".toRegex())) {
                                         shouldReverse = true
                                     }
                                     if (args[i].contains("((\\[URL])?((https?://)?(open\\.spotify\\.com|soundcloud\\.com|((m|www)\\.)?youtu\\.?be(\\.com)?)).+(\\[/URL])?)|(spotify:(track|album|playlist|show|episode|artist):.+)".toRegex())) {
                                         //add links to ArrayList
-                                        if (args[i].contains(",\\s*".toRegex()))
+                                        if (args[i].contains(","))
                                             links.addAll(
-                                                args[i].split(",\\s*".toRegex()).map { Link(removeTags(it)) }
+                                                args[i].split(",").map { Link(removeTags(it)) }
                                             )
                                         else
                                             links.add(Link(removeTags(args[i])))
@@ -425,10 +426,10 @@ class ChatReader(
                                     val link = rawLink.clean(service)
                                     println("Cleaned Link: $link")
 
-                                    if (trackCache.any { it.first.clean(it.first.getService()) == link }) {
+                                    if (trackCache.any { it.first == link }) {
                                         println("Match found in cache for link: $link")
                                         val tracks = filterList(
-                                            trackCache.first { it.first.clean(it.first.getService()) == link }.second,
+                                            trackCache.first { it.first == link }.second,
                                             link
                                         )
                                         var trackList = if (shouldReverse) tracks.reversed() else tracks
@@ -767,14 +768,20 @@ class ChatReader(
                                         )
                                     } else {
                                         for (i in links.indices) {
-                                            val link = links[i]
-                                            val service = getService(link)
+                                            val rawLink = links[i]
+                                            val service = getService(rawLink)
+                                            val link = rawLink.clean(service)
                                             when (link.linkType()) {
                                                 LinkType.PLAYLIST -> {
                                                     printToChat(listOf("Please wait, fetching tracks in the list:\n$link"))
                                                     links.remove(link)
                                                     links.addAll(
-                                                        service.fetchPlaylistTracks(link).trackList
+                                                        if (trackCache.any { it.first == link }) {
+                                                            println("Tracks found in cache!")
+                                                            trackCache.first { it.first == link }.second.trackList
+                                                        } else {
+                                                            service.fetchPlaylistTracks(link).trackList
+                                                        }
                                                             .map { track -> track.link }
                                                     )
                                                 }
@@ -783,7 +790,12 @@ class ChatReader(
                                                     printToChat(listOf("Please wait, fetching tracks in the album:\n$link"))
                                                     links.remove(link)
                                                     links.addAll(
-                                                        service.fetchAlbumTracks(link).trackList
+                                                        if (trackCache.any { it.first == link }) {
+                                                            println("Tracks found in cache!")
+                                                            trackCache.first { it.first == link }.second.trackList
+                                                        } else {
+                                                            service.fetchAlbumTracks(link).trackList
+                                                        }
                                                             .map { track -> track.link }
                                                     )
                                                 }
@@ -799,7 +811,12 @@ class ChatReader(
                                                         printToChat(listOf("Please wait, fetching the artist's top tracks"))
                                                         links.remove(link)
                                                         links.addAll(
-                                                            service.fetchArtist(link).topTracks.trackList
+                                                            if (trackCache.any { it.first == link }) {
+                                                                println("Tracks found in cache!")
+                                                                trackCache.first { it.first == link }.second.trackList
+                                                            } else {
+                                                                service.fetchArtist(link).topTracks.trackList
+                                                            }
                                                                 .map { track -> track.link }
                                                         )
                                                     }
@@ -815,7 +832,12 @@ class ChatReader(
 
                                                     service.fetchUser(link).playlists.lists.forEach { playlist ->
                                                         links.addAll(
-                                                            service.fetchPlaylistTracks(playlist.link).trackList
+                                                            if (trackCache.any { it.first == link }) {
+                                                                println("Tracks found in cache!")
+                                                                trackCache.first { it.first == link }.second.trackList
+                                                            } else {
+                                                                service.fetchPlaylistTracks(playlist.link).trackList
+                                                            }
                                                                 .map { track -> track.link }
                                                         )
                                                     }
@@ -826,7 +848,12 @@ class ChatReader(
                                                     if (service is SoundCloud) {
                                                         printToChat(listOf("Please wait, fetching user's likes"))
                                                         links.addAll(
-                                                            service.fetchUserLikes(link).trackList
+                                                            if (trackCache.any { it.first == link }) {
+                                                                println("Tracks found in cache!")
+                                                                trackCache.first { it.first == link }.second.trackList
+                                                            } else {
+                                                                service.fetchUserLikes(link).trackList
+                                                            }
                                                                 .map { track -> track.link }
                                                         )
                                                     }
@@ -837,7 +864,12 @@ class ChatReader(
                                                     if (service is SoundCloud) {
                                                         printToChat(listOf("Please wait, fetching user's reposts"))
                                                         links.addAll(
-                                                            service.fetchUserReposts(link).trackList
+                                                            if (trackCache.any { it.first == link }) {
+                                                                println("Tracks found in cache!")
+                                                                trackCache.first { it.first == link }.second.trackList
+                                                            } else {
+                                                                service.fetchUserReposts(link).trackList
+                                                            }
                                                                 .map { track -> track.link }
                                                         )
                                                     }
@@ -848,7 +880,12 @@ class ChatReader(
                                                     if (service is Spotify) {
                                                         printToChat(listOf("Please wait, fetching podcast episodes"))
                                                         links.addAll(
-                                                            service.fetchShow(link).episodes.episodes
+                                                            if (trackCache.any { it.first == link }) {
+                                                                println("Tracks found in cache!")
+                                                                trackCache.first { it.first == link }.second.trackList
+                                                            } else {
+                                                                service.fetchShow(link).episodes.toTrackList().trackList
+                                                            }
                                                                 .map { episode -> episode.link }
                                                         )
                                                     }
@@ -1541,18 +1578,18 @@ class ChatReader(
                             //sp-stop command
                             //Stop spotify playback
                             commandString.contains("^${commandList.commandList["sp-stop"]}$".toRegex()) -> {
-                                when (botSettings.spotifyPlayer) {
+                                when (val player = botSettings.spotifyPlayer) {
                                     "ncspot" -> {
-                                        playerctl(botSettings.spotifyPlayer, "stop")
-                                        commandRunner.runCommand("tmux kill-session -t ncspot")
+                                        playerctl(player, "stop")
+                                        commandRunner.runCommand("tmux kill-session -t $player")
                                     }
 
                                     "spotify" -> {
-                                        commandRunner.runCommand("pkill -9 spotify")
+                                        commandRunner.runCommand("pkill -9 $player")
                                     }
 
                                     else -> {
-                                        playerctl(botSettings.spotifyPlayer, "pause")
+                                        playerctl(player, "stop")
                                     }
                                 }
                                 commandJob.complete()

@@ -287,8 +287,9 @@ data class TrackList(val trackList: List<Track> = emptyList()) {
         val strBuilder = StringBuilder()
         if (trackList.isNotEmpty()) {
             trackList.forEachIndexed { i, track ->
+                strBuilder.append("${i + 1}: ")
                 for (artist in track.artists.artists) {
-                    strBuilder.append("${i + 1}: ${artist.name}, ")
+                    strBuilder.append("${artist.name}, ")
                 }
                 if (track.artists.artists.isNotEmpty()) {
                     strBuilder.delete(strBuilder.length - 2, strBuilder.length - 1)
