@@ -184,6 +184,7 @@ data class CommandList(
                         "the bot will ask you to choose which one you want to delete.\n" +
                         "Available options:\n" +
                         "-a, --all    \t-Delete all matching tracks from the queue.\n" +
+                        "-f, --first    \t-Delete the first matching track(s) from the queue.\n" +
                         "-A, --all-artist-tracks    -Delete all tracks where the given artist appears.\n" +
                         "Example - Delete a track from the queue using a link:\n" +
                         "${commandList["queue-delete"]} https://open.spotify.com/track/54k9d97GSM3lBXY61UagKx\n" +

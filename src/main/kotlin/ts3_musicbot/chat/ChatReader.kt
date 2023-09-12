@@ -362,28 +362,29 @@ class ChatReader(
                                 val args = commandString.split("\\s+".toRegex())
                                 val validOptions = listOf("s", "l", "t", "P", "p", "r").joinToString("")
                                 for (i in args.indices) {
+                                    val pattern = "^-[$validOptions]"
                                     //check if the tracks should be shuffled
-                                    if (args[i].contains("^-[$validOptions]*s".toRegex())) {
+                                    if (args[i].contains("$pattern*s".toRegex())) {
                                         shouldShuffle = true
                                     }
                                     // check if the amount of tracks should be limited
-                                    if (args[i].contains("^-[$validOptions]*l".toRegex())) {
+                                    if (args[i].contains("$pattern*l".toRegex())) {
                                         if (args.size >= i + 1) {
                                             trackLimit = args[i + 1].toInt()
                                         }
                                     }
                                     //check if only tracks from SoundCloud likes/reposts should be included
-                                    if (args[i].contains("^-[$validOptions]*t".toRegex())) {
+                                    if (args[i].contains("$pattern*t".toRegex())) {
                                         tracksOnly = true
                                         playlistsOnly = false
                                     }
                                     //check if only playlists from SoundCloud likes/reposts should be included
-                                    if (args[i].contains("^-[$validOptions]*P".toRegex())) {
+                                    if (args[i].contains("$pattern*P".toRegex())) {
                                         playlistsOnly = true
                                         tracksOnly = false
                                     }
                                     //check if custom position is provided
-                                    if (args[i].contains("^-[$validOptions]*p".toRegex())) {
+                                    if (args[i].contains("$pattern*p".toRegex())) {
                                         if (args.size >= i + 1) {
                                             if (args[i + 1].contains("-?[0-9]+".toRegex())) {
                                                 customPosition = args[i + 1].toInt()
@@ -391,7 +392,7 @@ class ChatReader(
                                             }
                                         }
                                     }
-                                    if (args[i].contains("^-[$validOptions]*r".toRegex())) {
+                                    if (args[i].contains("$pattern*r".toRegex())) {
                                         shouldReverse = true
                                     }
                                     if (args[i].contains("((\\[URL])?((https?://)?(open\\.spotify\\.com|soundcloud\\.com|((m|www)\\.)?youtu\\.?be(\\.com)?)).+(\\[/URL])?)|(spotify:(track|album|playlist|show|episode|artist):.+)".toRegex())) {
@@ -577,7 +578,6 @@ class ChatReader(
                                                 commandListener.onCommandProgress(commandString, msg, link)
                                                 commandSuccessful.add(Pair(false, Pair(msg, link)))
                                             }
-
                                         }
                                     }
                                 }
@@ -731,9 +731,9 @@ class ChatReader(
                                 }
                             }
                             //queue-delete command
-                            commandString.contains("^${commandList.commandList["queue-delete"]}((\\s+(-a|--all|-A|--all-artist-tracks))?\\s+((\\[URL])?https?://\\S+,?\\s*)*(\\s+(-a|--all|-A|--all-artist-tracks))?|([0-9]+,?\\s*)+)".toRegex()) -> {
+                            commandString.contains("^${commandList.commandList["queue-delete"]}((\\s+(-a|--all|-A|--all-artist-tracks|-f|--first))?\\s+((\\[URL])?https?://\\S+,?\\s*)*(\\s+(-a|--all|-A|--all-artist-tracks|-f|--first))?|([0-9]+,?\\s*)+)".toRegex()) -> {
                                 //TODO: integrate search into this command
-                                //TODO: add -f/--first option with same kind of functionality as with queue-move.
+
                                 fun getService(link: Link): Service = when (link.serviceType()) {
                                     Service.ServiceType.SPOTIFY -> spotify
                                     Service.ServiceType.SOUNDCLOUD -> soundCloud
@@ -741,9 +741,24 @@ class ChatReader(
                                     else -> Service(Service.ServiceType.OTHER)
                                 }
                                 if (songQueue.getQueue().isNotEmpty()) {
+                                    var allTracks = false
+                                    var allArtistTracks = false
+                                    var firstMatchOnly = false
+                                    val validOptions =
+                                        listOf("a", "all", "A", "all-artist-tracks", "f", "first").joinToString("|")
+                                    val args = commandString.split("\\s+".toRegex())
+                                    for (i in args.indices) {
+                                        val pattern = "^-+($validOptions)*"
+                                        if (args[i].contains("$pattern(a|all)".toRegex()))
+                                            allTracks = true
+                                        if (args[i].contains("$pattern(A|all-artist-tracks)".toRegex()))
+                                            allArtistTracks = true
+                                        if (args[i].contains("$pattern(f|first)".toRegex()))
+                                            firstMatchOnly = true
+                                    }
                                     //get links from message
                                     val links =
-                                        if (commandString.contains("^${commandList.commandList["queue-delete"]}(\\s+(-a|--all|-A|--all-artist-tracks))*\\s+((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+(-a|--all|-A|--all-artist-tracks))*".toRegex())) {
+                                        if (commandString.contains("^${commandList.commandList["queue-delete"]}(\\s+-+($validOptions)+)*\\s+((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+-+($validOptions)+)*".toRegex())) {
                                             commandString.split("(\\s+|,\\s+|,)".toRegex()).filter {
                                                 it.contains("(\\[URL])?https?://\\S+,?(\\[/URL])?".toRegex())
                                             }.map { Link(removeTags(it.replace(",\\[/URL]".toRegex(), "[/URL]"))) }
@@ -801,7 +816,7 @@ class ChatReader(
                                                 }
 
                                                 LinkType.ARTIST -> {
-                                                    if (commandString.contains("\\s+(-A|--all-artist-tracks)(\\s+)?".toRegex())) {
+                                                    if (allArtistTracks) {
                                                         printToChat(
                                                             listOf(
                                                                 "You used the -A/--all-artist-tracks flag, so deleting all tracks from this artist:\n$link"
@@ -909,7 +924,7 @@ class ChatReader(
 
                                         currentList.asFlow().filter { track ->
                                             links.any { link ->
-                                                if (commandString.contains("\\s+(-A|--all-artist-tracks)(\\s+)?".toRegex())) {
+                                                if (allArtistTracks) {
                                                     link == track.link || track.artists.artists.any { artist -> artist.link == link }
                                                 } else {
                                                     link == track.link
@@ -920,7 +935,7 @@ class ChatReader(
                                         }
                                         if (tracksToDelete.isNotEmpty()) {
                                             val msg = StringBuilder()
-                                            if (commandString.contains("\\s+(-a|--all)(\\s+)?".toRegex())) {
+                                            if (allTracks) {
                                                 msg.appendLine(
                                                     "You used the -a/--all flag, so deleting all matches of track${
                                                         if (tracksToDelete.size > 1) "s" else ""
@@ -930,7 +945,7 @@ class ChatReader(
                                                 msg.appendLine("Deleting track${if (tracksToDelete.size > 1) "s" else ""}:")
                                             }
                                             for (track in tracksToDelete.distinct()) {
-                                                if (commandString.contains("\\s+(-a|--all)(\\s+)?".toRegex())) {
+                                                if (allTracks) {
                                                     msg.appendLine(track.toShortString())
                                                     songQueue.deleteTracks(tracksToDelete.distinct())
                                                 } else {
@@ -955,21 +970,27 @@ class ChatReader(
                                                                         sb.toString()
                                                                     }
                                                         )
-                                                        msg.appendLine(
-                                                            "Select the track(s) you want to delete, then run ${commandList.commandList["queue-delete"]} with the position(s) specified, for example:\n" +
-                                                                    "${commandList.commandList["queue-delete"]} ${duplicates.first()}\n" +
-                                                                    "Or if you want to delete multiple tracks:\n" +
-                                                                    "${commandList.commandList["queue-delete"]} ${
-                                                                        duplicates.subList(0, 2).let { trackPositions ->
-                                                                            val positionsText = StringBuilder()
-                                                                            for (pos in trackPositions) {
-                                                                                positionsText.append("$pos, ")
-                                                                            }
-                                                                            positionsText.toString()
-                                                                                .substringBeforeLast(",")
-                                                                        }
-                                                                    }\n\n"
-                                                        )
+                                                        if (firstMatchOnly) {
+                                                            msg.appendLine("However, you used the -f/--first flag, so deleting only the first match")
+                                                            songQueue.deleteTrack(duplicates.first())
+                                                        } else {
+                                                            msg.appendLine(
+                                                                "Select the track(s) you want to delete, then run ${commandList.commandList["queue-delete"]} with the position(s) specified, for example:\n" +
+                                                                        "${commandList.commandList["queue-delete"]} ${duplicates.first()}\n" +
+                                                                        "Or if you want to delete multiple tracks:\n" +
+                                                                        "${commandList.commandList["queue-delete"]} ${
+                                                                            duplicates.subList(0, 2)
+                                                                                .let { trackPositions ->
+                                                                                    val positionsText = StringBuilder()
+                                                                                    for (pos in trackPositions) {
+                                                                                        positionsText.append("$pos, ")
+                                                                                    }
+                                                                                    positionsText.toString()
+                                                                                        .substringBeforeLast(",")
+                                                                                }
+                                                                        }\n\n"
+                                                            )
+                                                        }
                                                     } else {
                                                         //no duplicates found, delete the track
                                                         msg.appendLine(track.toShortString())
@@ -987,7 +1008,6 @@ class ChatReader(
                                             messages.add("Deleting track${if (positions.size > 1) "s" else ""}.")
                                             songQueue.deleteTracks(positions)
                                         }
-
                                         printToChat(messages)
                                     }
                                 } else {
