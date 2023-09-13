@@ -157,8 +157,15 @@ data class Link(val link: String = "", val linkId: String = "") {
     fun getId(service: Service = Service(serviceType())) = linkId.ifEmpty {
         when (service.serviceType) {
             Service.ServiceType.SPOTIFY -> {
-                link.substringAfterLast(":").substringBefore("?")
+                if (link.contains("https?://(spotify.link|link.tospotify.com)/\\S+".toRegex())) {
+                    if (service is Spotify)
+                        service.resolveId(this@Link)
+                    else
+                        Spotify().resolveId(this@Link)
+                } else {
+                    link.substringAfterLast(":").substringBefore("?")
                     .substringAfterLast("/")
+                }
             }
 
             Service.ServiceType.YOUTUBE -> {

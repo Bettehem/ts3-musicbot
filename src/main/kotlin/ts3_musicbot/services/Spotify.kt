@@ -2029,12 +2029,36 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
     }
 
     override suspend fun resolveType(link: Link): LinkType {
-        val type = link.link.substringBeforeLast("/").substringAfterLast("/")
+        //check if using the new spotify.link or link.tospotify.com url format and resolve it if needed
+        val readyLink = if (link.link.contains("(https?://)?(spotify\\.link|link\\.tospotify\\.com)/\\S+".toRegex())) {
+            Link(
+                sendHttpRequest(URL(link.link), RequestMethod.GET).data.data.lines()
+                .first { it.contains(".*href=\"https?://open.spotify.com/\\w+/\\S+\"".toRegex()) }
+                .replace(".*href=\"".toRegex(), "")
+                .replace("\\?.+$".toRegex(), "")
+            )
+        } else {
+            link
+        }
+        val type = readyLink.link.substringBeforeLast("/").substringAfterLast("/")
         return try {
             LinkType.valueOf(type.uppercase())
         } catch (e: IllegalArgumentException) {
             println("Link type \"$type\" in \"$link\" is not supported")
             LinkType.OTHER
+        }
+    }
+
+    fun resolveId(link: Link): String {
+        return if (link.link.contains("https?://(spotify.link|link.tospotify.com)/\\S+".toRegex())) {
+            val resolvedLink = sendHttpRequest(URL(link.link), RequestMethod.GET).data.data.lines()
+                .first { it.contains(".*href=\"https?://open.spotify.com/\\w+/\\S+\"".toRegex()) }
+                .replace(".*href=\"".toRegex(), "")
+                .replace("\\?.+$".toRegex(), "")
+            resolvedLink.substringAfterLast("/")
+        } else {
+            link.link.substringAfterLast(":").substringBefore("?")
+            .substringAfterLast("/")
         }
     }
 }

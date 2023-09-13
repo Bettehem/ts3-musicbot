@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.runBlocking
 import ts3_musicbot.services.Spotify
 import ts3_musicbot.util.Link
+import ts3_musicbot.util.LinkType
 import ts3_musicbot.util.Name
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -118,6 +119,19 @@ class SpotifyTest {
                         "Tom Wallisch slides into the studio with Simon in order to quickly go over the past and look forward to the future of skiing.",
                 episode.description.text
             )
+        }
+    }
+
+    @Test
+    fun testResolvingNewUrlFormat() {
+        runBlocking(IO) {
+            //spotify link to track: Tesseract - War of Being
+            val link = Link("https://spotify.link/FwzVyxos3Cb")
+            val type = link.linkType(spotify)
+            val id = link.getId(spotify)
+            assertEquals(LinkType.TRACK, type)
+            assertEquals("0vdffbHjc0qSOOoI2d71OP", id)
+
         }
     }
 }
