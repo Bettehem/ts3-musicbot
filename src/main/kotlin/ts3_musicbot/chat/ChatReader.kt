@@ -395,7 +395,7 @@ class ChatReader(
                                     if (args[i].contains("$pattern*r".toRegex())) {
                                         shouldReverse = true
                                     }
-                                    if (args[i].contains("((\\[URL])?((https?://)?(open\\.spotify\\.com|soundcloud\\.com|((m|www)\\.)?youtu\\.?be(\\.com)?)).+(\\[/URL])?)|(spotify:(track|album|playlist|show|episode|artist):.+)".toRegex())) {
+                                    if (args[i].contains("((\\[URL])?((https?://)?(spotify\\.link|link\\.tospotify\\.com|open\\.spotify\\.com|soundcloud\\.com|((m|www)\\.)?youtu\\.?be(\\.com)?)).+(\\[/URL])?)|(spotify:(track|album|playlist|show|episode|artist):.+)".toRegex())) {
                                         //add links to ArrayList
                                         if (args[i].contains(","))
                                             links.addAll(
