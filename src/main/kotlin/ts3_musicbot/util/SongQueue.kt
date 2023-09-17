@@ -610,10 +610,12 @@ class SongQueue(
                 suspend fun startCountingTrackPosition(job: Job) {
                     trackLength = getTrackLength()
                     withContext(job + IO) {
+                    println() 
                         while (job.isActive) {
                             delay(985)
                             trackPosition += 1
-                            println("Track Position: $trackPosition/$trackLength seconds")
+                            // Prints the Track position timer on the same line 
+                            print("\rTrack Position: $trackPosition/$trackLength seconds") 
                             if (trackPosition > trackLength + 10) {
                                 println("Wait.. what?")
                                 skipTrack()
