@@ -731,9 +731,7 @@ class ChatReader(
                                 }
                             }
                             //queue-delete command
-                            commandString.contains("^${commandList.commandList["queue-delete"]}((\\s+(-a|--all|-A|--all-artist-tracks|-f|--first))?\\s+((\\[URL])?https?://\\S+,?\\s*)*(\\s+(-a|--all|-A|--all-artist-tracks|-f|--first))?|([0-9]+,?\\s*)+)".toRegex()) -> {
-                                //TODO: integrate search into this command
-
+                            commandString.contains("^${commandList.commandList["queue-delete"]}((\\s+(-a|--all|-A|--all-artist-tracks|-f|--first))?\\s+((sp|spotify|yt|youtube|sc|soundcloud)\\s+\\w+\\s+|((\\[URL])?https?://\\S+,?\\s*))*(\\s+(-a|--all|-A|--all-artist-tracks|-f|--first))?|([0-9]+,?\\s*)+)".toRegex()) -> {
                                 fun getService(link: Link): Service = when (link.serviceType()) {
                                     Service.ServiceType.SPOTIFY -> spotify
                                     Service.ServiceType.SOUNDCLOUD -> soundCloud
@@ -757,14 +755,25 @@ class ChatReader(
                                             firstMatchOnly = true
                                     }
                                     //get links from message
-                                    val links =
-                                        if (commandString.contains("^${commandList.commandList["queue-delete"]}(\\s+-+($validOptions)+)*\\s+((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+-+($validOptions)+)*".toRegex())) {
+                                    val services = listOf("sp", "spotify", "yt", "youtube", "sc", "soundcloud")
+                                    val links = when {
+                                        commandString.contains("^${commandList.commandList["queue-delete"]}(\\s+-+($validOptions)+)*\\s+((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+-+($validOptions)+)*".toRegex()) -> {
                                             commandString.split("(\\s+|,\\s+|,)".toRegex()).filter {
                                                 it.contains("(\\[URL])?https?://\\S+,?(\\[/URL])?".toRegex())
                                             }.map { Link(removeTags(it.replace(",\\[/URL]".toRegex(), "[/URL]"))) }
-                                        } else {
-                                            emptyList()
-                                        }.toMutableList()
+                                        }
+                                        commandString.contains("^${commandList.commandList["queue-delete"]}(\\s+-+($validOptions)+)*\\s+(${services.joinToString("|")})\\s+\\w+\\s+.+(\\s+-+($validOptions)+)*".toRegex()) -> {
+                                            latestMsgUsername = "__console__"
+                                            executeCommand("${commandList.commandList["search"]}${commandString.replace("^${commandList.commandList["queue-delete"]}(\\s+-+($validOptions)+)*".toRegex(), "")}").second.let{ results ->
+                                                latestMsgUsername = ""
+                                                if (results is SearchResults)
+                                                    listOf(results.results.first().link)
+                                                else
+                                                    emptyList()
+                                            }
+                                        }
+                                        else -> emptyList()
+                                    }.toMutableList()
                                     //get positions from message
                                     val positions = if (commandString.contains("([0-9]+(,(\\s+)?)?)+".toRegex())) {
                                         commandString.split("(\\s+|,\\s+|,)".toRegex()).filter {
