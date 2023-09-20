@@ -616,6 +616,11 @@ class ChatReader(
                                     Pair(false, unPlayableTracks)
                                 }
                             }
+                            //queue-playnow command
+                            commandString.contains("^${commandList.commandList["queue-playnow"]}\\s+.+$".toRegex()) ->  {
+                                if (executeCommand("${commandList.commandList["queue-playnext"]} ${commandString.replace("^${commandList.commandList["queue-playnow"]}\\s+".toRegex(), "")}").first)
+                                    return executeCommand("${commandList.commandList["queue-skip"]}")
+                            }
                             //queue-play command
                             commandString.contains("^${commandList.commandList["queue-play"]}$".toRegex()) -> {
                                 if (songQueue.getQueue().isNotEmpty()) {

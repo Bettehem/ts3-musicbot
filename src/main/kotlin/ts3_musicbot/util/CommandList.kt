@@ -8,6 +8,7 @@ data class CommandList(
             Pair("help", "%help"),
             Pair("queue-add", "%queue-add"),
             Pair("queue-playnext", "%queue-playnext"),
+            Pair("queue-playnow", "%queue-playnow"),
             Pair("queue-play", "%queue-play"),
             Pair("queue-list", "%queue-list"),
             Pair("queue-delete", "%queue-delete"),
@@ -57,7 +58,8 @@ data class CommandList(
                         "General commands:\n" +
                         "${commandList["help"]} <command>                              -Shows this help message. Use ${commandList["help"]} <command> to get more help on a specific command.\n" +
                         "${commandList["queue-add"]}                                   -Add track(s) to queue by link or directly searching from yt/sp/sc and adding the first match to the queue.\n" +
-                        "${commandList["queue-playnext"]}                              -Add track/playlist/album to the top of the queue. Add multiple links separated by a comma \",\". Shuffle with the -s option\n" +
+                        "${commandList["queue-playnext"]}                              -Add track/playlist/album etc. to the top of the queue. Add multiple links separated by a comma \",\". Shuffle with the -s option\n" +
+                        "${commandList["queue-playnow"]}                               -Add track/playlist/album etc. to the top of the queue and start playing it immediately.\n" +
                         "${commandList["queue-play"]}                                  -Play the song queue\n" +
                         "${commandList["queue-list"]} <--all,--limit>                  -Lists current songs in queue. Add the -a/--all option to show all tracks or -l/--limit to set a limit to the amount of tracks.\n" +
                         "${commandList["queue-delete"]} <link(s)/position(s)>          -Delete song(s) from the queue. If you want to delete multiple tracks, just separate them with a comma \",\". Optionally you can just use a position to delete a track.\n" +
@@ -159,6 +161,11 @@ data class CommandList(
                         "${commandList["queue-playnext"]} youtube video Haken Initiate\n" +
                         "Example - Search for a playlist on SoundCloud and add it to the queue:\n" +
                         "${commandList["queue-playnext"]} soundcloud playlist jeesjees\n"
+            ),
+            Pair(
+                "queue-playnow", "\n" +
+                        "Showing help for ${commandList["queue-playnow"]} command:\n" +
+                        "${commandList["queue-playnow"]} can be used if you want to add songs to the top of the queue, and start playing them immediately."
             ),
             Pair(
                 "queue-play", "\n" +
