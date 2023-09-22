@@ -56,7 +56,15 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                 when (response.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val itemData = JSONObject(response.data.data).getJSONArray("items").first()
+                            val itemData = JSONObject(response.data.data).getJSONArray("items").let {
+                                if (it.length() > 0) {
+                                    it.first()
+                                } else {
+                                    track = Track(link = videoLink)
+                                    ytJob.complete()
+                                    return@withContext
+                                }
+                            }
                             itemData as JSONObject
                             val releaseDate = ReleaseDate(
                                 LocalDate.parse(itemData.getJSONObject("snippet").getString("publishedAt"), formatter)
