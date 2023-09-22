@@ -239,6 +239,7 @@ class SongQueue(
                 when (firstTrack.serviceType) {
                     Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD -> {
                         //check if youtube-dl is able to download the track
+                        var attempts = 0
                         while (songQueue.isNotEmpty() && !CommandRunner().runCommand(
                                 "youtube-dl --extract-audio --audio-format best --audio-quality 0 " +
                                         "--cookies youtube-dl.cookies --force-ipv4 --age-limit 21 --geo-bypass -s \"${firstTrack.link}\"",
@@ -247,15 +248,20 @@ class SongQueue(
                             ).first.outputText.lines().last()
                                 .contains("\\[(info|youtube)] ${firstTrack.link.getId()}: Downloading ([0-9]+ format\\(s\\):|webpage|API JSON)".toRegex())
                         ) {
-                            println(
-                                "youtube-dl cannot download this track! Skipping...\n" +
-                                        "Check if a newer version of youtube-dl is available and update it to the latest one if you already haven't."
-                            )
-                            songQueue.removeFirst()
-                            if (songQueue.isNotEmpty())
-                                firstTrack = songQueue.first()
-                            else
-                                break
+                            if (attempts < 5) {
+                                println("Error downloading track! Trying again...")
+                                attempts++
+                            } else {
+                                println(
+                                    "youtube-dl cannot download this track! Skipping...\n" +
+                                    "Check if a newer version of youtube-dl is available and update it to the latest one if you already haven't."
+                                )
+                                songQueue.removeFirst()
+                                if (songQueue.isNotEmpty())
+                                    firstTrack = songQueue.first()
+                                else
+                                    break
+                            }
                         }
                         if (songQueue.isNotEmpty()) {
                             playTrack(firstTrack)
