@@ -2033,7 +2033,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
         val readyLink = if (link.link.contains("(https?://)?(spotify\\.link|link\\.tospotify\\.com)/\\S+".toRegex())) {
             Link(
                 sendHttpRequest(URL(link.link), RequestMethod.GET).data.data.lines()
-                .first { it.contains(".*href=\"https?://open.spotify.com/\\w+/\\S+\"".toRegex()) }
+                .first { it.contains(".*href=\"https?://open\\.spotify\\.com/\\w+/\\S+\"".toRegex()) }
                 .replace(".*href=\"".toRegex(), "")
                 .replace("\\?.+$".toRegex(), "")
             )
@@ -2050,9 +2050,9 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
     }
 
     fun resolveId(link: Link): String {
-        return if (link.link.contains("https?://(spotify.link|link.tospotify.com)/\\S+".toRegex())) {
+        return if (link.link.contains("https?://(spotify\\.link|link\\.tospotify\\.com)/\\S+".toRegex())) {
             val resolvedLink = sendHttpRequest(URL(link.link), RequestMethod.GET).data.data.lines()
-                .first { it.contains(".*href=\"https?://open.spotify.com/\\w+/\\S+\"".toRegex()) }
+                .first { it.contains(".*href=\"https?://open\\.spotify\\.com/\\w+/\\S+\"".toRegex()) }
                 .replace(".*href=\"".toRegex(), "")
                 .replace("\\?.+$".toRegex(), "")
             resolvedLink.substringAfterLast("/")
