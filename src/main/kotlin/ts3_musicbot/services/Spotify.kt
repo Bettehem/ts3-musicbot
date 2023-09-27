@@ -385,6 +385,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                 Followers(data.getJSONObject("followers").getInt("total")),
                 Publicity(data.getBoolean("public")),
                 Collaboration(data.getBoolean("collaborative")),
+                TrackList(List(data.getJSONObject("tracks").getInt("total")) { Track() }),
                 Link(data.getJSONObject("external_urls").getString("spotify"))
             )
         }
@@ -421,29 +422,14 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
 
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         println("Error 404! $playlistLink not found!")
-                        playlist = Playlist(
-                            Name(),
-                            User(
-                                Name(),
-                                Name(),
-                                Description(),
-                                Followers(),
-                                Playlists(),
-                                Link()
-                            ),
-                            Description(),
-                            Followers(0),
-                            Publicity(false),
-                            Collaboration(false),
-                            playlistLink
-                        )
+                        playlist = Playlist(link = playlistLink)
                         playlistJob.complete()
                         return@withContext
                     }
 
                     HttpURLConnection.HTTP_BAD_REQUEST -> {
                         println("Error ${playlistData.code}! Bad request!!")
-                        playlist = Playlist()
+                        playlist = Playlist(link = playlistLink)
                         playlistJob.complete()
                         return@withContext
                     }
@@ -1641,6 +1627,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                                         Followers(),
                                         Publicity(it.getBoolean("public")),
                                         Collaboration(it.getBoolean("collaborative")),
+                                        TrackList(List(it.getJSONObject("tracks").getInt("total")) { Track() }),
                                         Link(it.getJSONObject("external_urls").getString("spotify"), it.getString("id"))
                                     )
                                     userPlaylistsJob.complete()

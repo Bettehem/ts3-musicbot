@@ -125,14 +125,14 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                             },
                             Publicity(playlistData.getString("sharing") == "public"),
                             Collaboration(false),
+                            TrackList(List(playlistData.getInt("track_count")) { Track() }),
                             Link(playlistData.getString("permalink_url"))
                         )
-                        val trackAmount = playlistData.getInt("track_count")
                         searchResults.add(
                             SearchResult(
                                 "Playlist:   \t${playlist.name}\n" +
                                         "Owner:    \t${playlist.owner.name}\n" +
-                                        "Tracks:    \t$trackAmount\n" +
+                                        "Tracks:    \t${playlist.tracks.size}\n" +
                                         "Link:     \t\t${playlist.link}\n",
                                 playlist.link
                             )
@@ -367,8 +367,8 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                     Followers()
                 },
                 Publicity(playlistData.getBoolean("public")),
-                Collaboration(false),
-                Link(
+                tracks = TrackList(List(playlistData.getInt("track_count")) { Track() }),
+                link = Link(
                     playlistData.getJSONObject("user").getString("permalink_url"),
                     if (playlistData.get("id") is String) {
                         playlistData.getJSONObject("user").getString("id")
@@ -821,16 +821,19 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                     it as JSONObject
                                     Playlist(
                                         Name(it.getString("title")),
-                                        User(),
-                                        Description(if (!it.isNull("description")) it.getString("description") else ""),
-                                        if (!it.isNull("likes_count")) {
+                                        description = Description(
+                                            if (!it.isNull("description")) it.getString("description") else ""
+                                        ),
+                                        followers = if (!it.isNull("likes_count")) {
                                             Followers(it.getInt("likes_count"))
                                         } else {
                                             Followers()
                                         },
-                                        Publicity(it.getBoolean("public")),
-                                        Collaboration(false),
-                                        Link(
+                                        publicity = Publicity(it.getBoolean("public")),
+                                        tracks = TrackList(
+                                            List(it.getInt("track_count")) { Track() }
+                                        ),
+                                        link = Link(
                                             it.getString("permalink_url"),
                                             if (it.get("id") is Int)
                                                 it.getInt("id").toString()

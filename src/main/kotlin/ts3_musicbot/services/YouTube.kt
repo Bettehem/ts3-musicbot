@@ -132,7 +132,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
         fun fetchPlaylistData(apiKey: String = apiKey1): Response {
             val urlBuilder = StringBuilder()
             urlBuilder.append("$apiUrl/playlists")
-            urlBuilder.append("?part=snippet%2Cstatus")
+            urlBuilder.append("?part=snippet%2Cstatus%2CcontentDetails")
             urlBuilder.append("&id=${playlistLink.getId()}")
             urlBuilder.append("&key=$apiKey")
             return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
@@ -155,6 +155,9 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                 Description(playlistJSON.getJSONObject("snippet").getString("description")),
                                 publicity = Publicity(
                                     playlistJSON.getJSONObject("status").getString("privacyStatus") == "public"
+                                ),
+                                tracks = TrackList(
+                                    List(playlistJSON.getJSONObject("contentDetails").getInt("itemCount")) { Track() }
                                 ),
                                 link = Link("https://www.youtube.com/playlist?list=${playlistJSON.getString("id")}")
                             )

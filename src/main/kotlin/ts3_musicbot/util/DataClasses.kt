@@ -456,6 +456,7 @@ data class Playlist(
     val followers: Followers = Followers(),
     val publicity: Publicity = Publicity(),
     val collaboration: Collaboration = Collaboration(),
+    val tracks: TrackList = TrackList(),
     val link: Link = Link()
 ) {
     override fun toString() = "Playlist Name: \t\t${name.name}\n" +
@@ -474,6 +475,7 @@ data class Playlist(
             } else {
                 "Is Collaborative: \t${collaboration.isCollaborative}\n"
             } +
+            "Tracks:   \t\t\t\t\t${tracks.size}\n" +
             "Link:    \t\t\t\t\t\t${link.link}\n"
 
     fun isEmpty() = name.isEmpty() && owner.isEmpty() && description.isEmpty() && followers.isEmpty() && link.isEmpty()
