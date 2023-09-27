@@ -22,6 +22,7 @@ data class CommandList(
             Pair("queue-nowplaying", "%queue-nowplaying"),
             Pair("queue-pause", "%queue-pause"),
             Pair("queue-resume", "%queue-resume"),
+            Pair("queue-repeat", "%queue-repeat"),
             Pair("info", "%info"),
             Pair("search", "%search"),
             Pair("sp-pause", "%sp-pause"),
@@ -73,6 +74,7 @@ data class CommandList(
                         "${commandList["queue-nowplaying"]}                            -Returns information on the currently playing track\n" +
                         "${commandList["queue-pause"]}                                 -Pauses playback\n" +
                         "${commandList["queue-resume"]}                                -Resumes playback\n" +
+                        "${commandList["queue-repeat"]} <amount>                       -Adds the currently playing song to the top of the queue. <amount> is how many times the song should be queued.\n" +
                         "${commandList["search"]} <service> <type> <text> <limit>      -Search on SoundCloud, Spotify or YouTube. Shows 10 first results by default. <type> can be track, video, playlist or channel. You can set the amount of results with the -l/--limit flag.\n" +
                         "${commandList["info"]} <link/search query>                    -Shows info on the given search query or link(s). <link> can be one or more Spotify, YouTube or SoundCloud links, separated by a comma.\n" +
                         "\n\n" +
@@ -165,7 +167,9 @@ data class CommandList(
             Pair(
                 "queue-playnow", "\n" +
                         "Showing help for ${commandList["queue-playnow"]} command:\n" +
-                        "${commandList["queue-playnow"]} can be used if you want to add songs to the top of the queue, and start playing them immediately."
+                        "${commandList["queue-playnow"]} can be used if you want to add songs to the top of the queue, and start playing them immediately.\n" +
+                        "Example - Search on spotify for the track \"Pink Floyd - Time\", add the first result to the queue and then start playing it:\n" +
+                        "${commandList["queue-playnow"]} sp track pink floyd time"
             ),
             Pair(
                 "queue-play", "\n" +
@@ -284,6 +288,17 @@ data class CommandList(
                         "${commandList["queue-resume"]} resumes playback if the song queue is paused."
             ),
             Pair(
+                "queue-repeat", "\n" +
+                        "Showing help for ${commandList["queue-repeat"]} command:\n" +
+                        "${commandList["queue-repeat"]} Adds the currently playing song back to the top of the queue.\n" +
+                        "Available arguments:\n" +
+                        "-a, --amount <amount>    \tSet how many times the currently playing song should be added to the queue.\n" +
+                        "Example - Repeat the currently playing track once:\n" +
+                        "${commandList["queue-repeat"]}\n" +
+                        "Example - Repeat the currently playing track 5 times:\n" +
+                        "${commandList["queue-repeat"]} -a 5" 
+            ),
+            Pair(
                 "info", "\n" +
                         "Showing help for ${commandList["info"]} command:\n" +
                         "${commandList["info"]} shows information on a given search query or link(s).\n" +
@@ -332,9 +347,9 @@ data class CommandList(
                         "Example 3 - Search on SoundCloud for a user with the name \"bettehem\":\n" +
                         "${commandList["search"]} soundcloud user bettehem\n" +
                         "Example - Search for a Spotify album with the keywords \"The Algorithm Brute Force\" and set a limit to show only 5 search results:\n" +
-                        "${commandList["search"]} album The Algorithm Brute Force --limit 5\n" +
+                        "${commandList["search"]} sp album The Algorithm Brute Force --limit 5\n" +
                         "Example - Search on YouTube for a video with the name \"Jinjer Pisces\":\n" +
-                        "${commandList["search"]} track Jinjer Pisces"
+                        "${commandList["search"]} yt track Jinjer Pisces"
             ),
             Pair(
                 "sp-pause", "\n" +

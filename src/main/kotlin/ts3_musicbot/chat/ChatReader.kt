@@ -1430,6 +1430,16 @@ class ChatReader(
                                 commandJob.complete()
                                 return Pair(true, null)
                             }
+                            //queue-repeat command
+                            commandString.contains("^${commandList.commandList["queue-repeat"]}\\s*((-a|--amount=?)\\s*[0-9]+)?$".toRegex()) -> {
+                                val amount = if (commandString.contains("(-a|--amount=?)\\s*[0-9]+".toRegex())) {
+                                    commandString.replace("^${commandList.commandList["queue-repeat"]}\\s*(-a|--amount=?)\\s*".toRegex(), "").toInt()
+                                } else {
+                                    1
+                                }
+                                val tracks = List(amount) { songQueue.nowPlaying().link.link }.joinToString(",")
+                                executeCommand("${commandList.commandList["queue-playnext"]} $tracks")
+                            }
                             //search command
                             commandString.contains("^${commandList.commandList["search"]}\\s+".toRegex()) -> {
                                 val searchCommand = commandList.commandList["search"]
