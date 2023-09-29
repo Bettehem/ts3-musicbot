@@ -442,7 +442,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             val commands = mutableMapOf<String, String>()
             if (commandsFile.exists()) {
                 commandsFile.readLines().forEach { line ->
-                    if (line.contains("[A-Z_]+(\\s+)?=(\\S+)?".toRegex())) {
+                    if (line.contains("^[A-Z_]+\\s*=\\S*".toRegex())) {
                         val (key, value) = line.lowercase().replaceFirst('_', '-').split("=")
                         if (key == "command-prefix")
                             prefix = value
