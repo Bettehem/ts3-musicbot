@@ -618,10 +618,9 @@ class SongQueue(
                     withContext(job + IO) {
                         println() 
                         while (job.isActive) {
-                            delay(990)
+                            delay(986)
                             trackPosition++
-                            // Prints the Track position timer on the same line 
-                            print("\rTrack Position: $trackPosition/$trackLength seconds") 
+                            print("\rTrack Position: $trackPosition/$trackLength seconds")
                             if (trackPosition > trackLength + 10) {
                                 println("Wait.. what?")
                                 if (trackLength == 0) {
@@ -778,20 +777,27 @@ class SongQueue(
                             }
 
                             "Paused" -> {
-                                if (trackPosition >= trackLength - 10) {
-                                    //Song ended
-                                    //Spotify changes playback status to "Paused" right before the song actually ends,
-                                    //so wait for a brief moment so the song has a chance to end properly.
-                                    if (getPlayer() == "spotify")
+                                if (getPlayer() == "spotify") {
+                                    if (trackPosition >= trackLength - 8) {
+                                        //Song ended
+                                        //Spotify changes playback status to "Paused" right before the song actually ends,
+                                        //so wait for a brief moment so the song has a chance to end properly.
                                         delay(1495)
-                                    trackPositionJob.cancel()
-                                    trackJob.complete()
-                                    listener.onTrackEnded(getPlayer(), track)
-                                    break@loop
-                                } else if (!wasPaused) {
-                                    trackPositionJob.cancel()
-                                    wasPaused = true
-                                    listener.onTrackPaused(getPlayer(), track)
+                                        trackPositionJob.cancel()
+                                        trackJob.complete()
+                                        listener.onTrackEnded(getPlayer(), track)
+                                        break@loop
+                                    } else if (!wasPaused) {
+                                        trackPositionJob.cancel()
+                                        wasPaused = true
+                                        listener.onTrackPaused(getPlayer(), track)
+                                    }
+                                } else {
+                                    if (!wasPaused) {
+                                        trackPositionJob.cancel()
+                                        wasPaused = true
+                                        listener.onTrackPaused(getPlayer(), track)
+                                    }
                                 }
                             }
 
