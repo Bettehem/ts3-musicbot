@@ -4,6 +4,7 @@ out
 .idea/dictionaries
 .idea/inspectionProfiles
 .idea/compiler.xml
+.idea/libraries
 tags
 build
 *.iml
