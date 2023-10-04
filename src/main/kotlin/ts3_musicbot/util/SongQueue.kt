@@ -621,7 +621,7 @@ class SongQueue(
                     withContext(job + IO) {
                         println()
                         while (job.isActive) {
-                            delay(978)
+                            delay(999)
                             trackPosition++
                             print("\rTrack Position: $trackPosition/$trackLength seconds")
                             if (trackPosition > trackLength + 15) {
@@ -699,11 +699,12 @@ class SongQueue(
                                     ).first.outputText.isEmpty()
                                 ) {
                                     println("Waiting for ${getPlayer()} to start.")
-                                    //if playback hasn't started after five seconds, try starting playback again.
-                                    if (attempts < 5) {
+                                    //if playback hasn't started after ten seconds, try starting playback again.
+                                    if (attempts < 10) {
                                         delay(1000)
                                         attempts++
                                     } else {
+                                        println("The player may be stuck, trying to start it again.")
                                         attempts = 0
                                         commandRunner.runCommand("pkill -9 mpv", ignoreOutput = true)
                                         delay(1000)
@@ -720,7 +721,7 @@ class SongQueue(
                         while (!playerStatus().first.outputText.contains("Playing")) {
                             println("Waiting for track to start playing")
                             delay(1000)
-                            if (attempts < 5) {
+                            if (attempts < 10) {
                                 delay(1000)
                                 attempts++
                             } else {
