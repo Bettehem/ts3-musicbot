@@ -254,7 +254,7 @@ class SongQueue(
                             } else {
                                 println(
                                     "youtube-dl cannot download this track! Skipping...\n" +
-                                    "Check if a newer version of youtube-dl is available and update it to the latest one if you already haven't."
+                                            "Check if a newer version of youtube-dl is available and update it to the latest one if you already haven't."
                                 )
                                 songQueue.removeFirst()
                                 if (songQueue.isNotEmpty())
@@ -430,14 +430,47 @@ class SongQueue(
                     printOutput = false
                 )
 
+                //starts the player
+                suspend fun startPlayer() {
+                    startCommand()
+                    delay(3000)
+
+                    //sometimes the spotify player has problems starting, so ensure it actually starts.
+                    var attempts = 0
+                    while (checkProcess().first.outputText.isEmpty()) {
+                        if (attempts < 20) {
+                            println("Waiting for ${botSettings.spotifyPlayer} to start")
+                            delay(1000)
+                            attempts++
+                        } else {
+                            println("The spotify player didn't start or couldn't be detected. Trying again...")
+                            repeat(2) { killCommand() }
+                            delay(1000)
+                            startCommand()
+                            delay(2000)
+                        }
+                    }
+                }
+
+                //restarts the player
+                suspend fun restartPlayer() {
+                    killCommand()
+                    delay(100)
+                    startPlayer()
+                }
+
                 //set the spotify player's config options
-                fun setPrefs() {
+                suspend fun setPrefs() {
                     when (botSettings.spotifyPlayer) {
                         "spotify" -> {
                             //autoplay needs to be disabled so the spotify client doesn't start playing stuff on its own.
                             //friend feed, notifications, release announcements etc. are disabled just for performance.
                             //volume normalization is enabled to get more consistent volume between tracks.
                             val usersPath = System.getProperty("user.home") + "/.config/spotify/Users"
+                            if (!File(usersPath).exists()) {
+                                println("Spotify config files not found, starting player once to create files.")
+                                startPlayer()
+                            }
                             val users = File(usersPath).listFiles()
                             if (users != null && users.isNotEmpty()) {
                                 for (user in users) {
@@ -552,42 +585,12 @@ class SongQueue(
                     }
                 }
 
-                //(re)starts the player
-                suspend fun restartPlayer() {
-                    killCommand()
-                    delay(100)
-                    startCommand()
-                    //sometimes the spotify player has problems starting, so ensure it actually starts.
-                    while (checkProcess().first.outputText.isEmpty()) {
-                        delay(7000)
-                        if (checkProcess().first.outputText.isEmpty()) {
-                            repeat(2) { killCommand() }
-                            delay(1000)
-                            startCommand()
-                            delay(2000)
-                        }
-                    }
-                    //wait for the spotify player to start.
-                    while (trackJob.isActive && commandRunner.runCommand(
-                            "ps aux | grep -E \"[0-9]+:[0-9]+ .*(\\s+)?${botSettings.spotifyPlayer}(\\s+.*)?$\" | grep -v \"grep\"",
-                            printOutput = false
-                        ).first.outputText.isEmpty()
-                    ) {
-                        //do nothing
-                        println("Waiting for ${botSettings.spotifyPlayer} to start")
-                        delay(150)
-                    }
-                }
-
                 if (shouldSetPrefs) {
-                    restartPlayer()
                     setPrefs()
                     startSpotifyPlayer(false)
                 } else {
                     restartPlayer()
                 }
-
-                delay(5000)
             }
 
             //starts playing the track
@@ -616,12 +619,12 @@ class SongQueue(
                 suspend fun startCountingTrackPosition(job: Job) {
                     trackLength = getTrackLength()
                     withContext(job + IO) {
-                        println() 
+                        println()
                         while (job.isActive) {
-                            delay(986)
+                            delay(978)
                             trackPosition++
                             print("\rTrack Position: $trackPosition/$trackLength seconds")
-                            if (trackPosition > trackLength + 10) {
+                            if (trackPosition > trackLength + 15) {
                                 println("Wait.. what?")
                                 if (trackLength == 0) {
                                     println("Huh, why is trackLength 0?!\nTrying to get it again...")
@@ -647,7 +650,7 @@ class SongQueue(
                             println("Waiting for $player to start.")
                             delay(500)
                         }
-                        //Try to start playing song
+                        println("Trying to play track \"${track.link}\" using $player as the player.")
                         var attempts = 0
                         while (!playerStatus().first.outputText.contains("Playing")) {
                             if (attempts < 5) {
@@ -660,9 +663,10 @@ class SongQueue(
                                             } + ":" +
                                             track.link.getId()
                                 )
-                                delay(5000)
+                                delay(2000)
                                 attempts++
                             } else {
+                                println("The player may be stuck, trying to start it again.")
                                 attempts = 0
                                 startSpotifyPlayer()
                             }
@@ -843,12 +847,12 @@ class SongQueue(
                         } else {
                             println("Something went seriously wrong. Restarting the player and starting the song again.")
                             commandRunner.runCommand("pkill -9 ${getPlayer()}", ignoreOutput = true)
+                            trackPositionJob.cancel()
                             if (getPlayer() == botSettings.spotifyPlayer)
                                 startSpotifyPlayer()
                             synchronized(songQueue) { songQueue.add(0, track) }
-                            trackPositionJob.cancel()
                             trackJob.complete()
-                            openTrack()
+                            startTrack()
                             break@loop
                         }
                     }
@@ -857,12 +861,11 @@ class SongQueue(
 
             when (track.link.serviceType()) {
                 Service.ServiceType.SPOTIFY -> {
+                    //first kill mpv in case its running
+                    commandRunner.runCommand("pkill -9 mpv", ignoreOutput = true)
                     CoroutineScope(IO + synchronized(trackJob) { trackJob }).launch {
-                        //first kill mpv in case its running
-                        commandRunner.runCommand("pkill -9 mpv", ignoreOutput = true)
                         if (playerStatus().second.errorText.isNotEmpty())
                             startSpotifyPlayer()
-
                         openTrack()
                     }
                 }
@@ -873,8 +876,8 @@ class SongQueue(
                     //sometimes it won't respect the disabled autoplay setting, and will continue playing something else
                     //after the desired track has finished.
                     when (val player = botSettings.spotifyPlayer) {
-                        "spotify" -> commandRunner.runCommand("pkill -9 $player")
-                        "ncspot" -> commandRunner.runCommand("tmux kill-session -t ncspot")
+                        "spotify" -> commandRunner.runCommand("pkill -9 $player", ignoreOutput = true)
+                        "ncspot" -> commandRunner.runCommand("tmux kill-session -t ncspot", ignoreOutput = true)
                     }
                     CoroutineScope(IO + synchronized(trackJob) { trackJob }).launch {
                         openTrack()
@@ -882,7 +885,7 @@ class SongQueue(
                 }
 
                 else -> {
-                    println("Link type not supported!\n${track.link}")
+                    println("Link type not supported!\nLink: \"${track.link}\"")
                 }
             }
         }

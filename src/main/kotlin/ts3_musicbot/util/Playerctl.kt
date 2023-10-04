@@ -1,6 +1,12 @@
 package ts3_musicbot.util
 
-fun playerctl(player: String, command: String, extra: String = ""): Pair<Output, Error> {
+private fun listPlayers() = CommandRunner().runCommand("dbus-send --print-reply --dest=org.freedesktop.DBus  /org/freedesktop/DBus org.freedesktop.DBus.ListNames | grep 'org.mpris.MediaPlayer2.'", printOutput = false)
+    .first.outputText.lines().map { it.replace("^.*string\\s+\"org\\.mpris\\.MediaPlayer2\\.".toRegex(), "").replace("\".*$".toRegex(), "") }
+
+fun playerctl(
+    player: String = listPlayers().first(),
+    command: String, extra: String = ""
+): Pair<Output, Error> {
     val commandRunner = CommandRunner()
     fun dbusGet(property: String) = commandRunner.runCommand(
         "dbus-send --print-reply --dest=org.mpris.MediaPlayer2.$player /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2.Player' string:'$property'",
@@ -145,6 +151,10 @@ fun playerctl(player: String, command: String, extra: String = ""): Pair<Output,
 
         "next" -> {
             dbusSend("Next")
+        }
+
+        "list" -> {
+            Pair(Output("${listPlayers()}"), Error(""))
         }
 
         else -> Pair(Output(""), Error(""))

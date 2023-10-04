@@ -34,7 +34,8 @@ class Console(
                                 "exit\t\t\t\t\tExits the program.\n" +
                                 "quit\t\t\t\t\tSame as exit.\n" +
                                 "join-channel, jc <channel> -p <password>\tJoin a channel.\n" +
-                                "restart <ts/teamspeak/ncspot>\t\tRestarts the teamspeak/ncspot client.\n"
+                                "restart <ts/teamspeak/ncspot>\t\tRestarts the teamspeak/ncspot client.\n" +
+                                "playerctl -p <player> <args>\t\t\tRun playerctl-like commands.\n"
                     )
                 }
 
@@ -92,6 +93,21 @@ class Console(
                             println("Specify either ts,teamspeak or ncspot!")
                         }
                     }
+                }
+
+                "playerctl" -> {
+                    val player = if (userCommand.contains("^\\w+\\s+-p\\s*\\S+\\s+.+".toRegex())) {
+                        userCommand.replace("^\\w+\\s+-p\\s*".toRegex(), "")
+                            .replace("\\s+.+$".toRegex(), "")
+                    } else ""
+                    val cmd = userCommand.replace("^\\w+\\s+(-p\\s*\\S+\\s+)?".toRegex(), "")
+                    println(
+                        if (player.isNotEmpty()) {
+                            playerctl(player, cmd).first
+                        } else {
+                            playerctl(command = cmd).first
+                        }
+                    )
                 }
 
                 "" -> continue@loop
