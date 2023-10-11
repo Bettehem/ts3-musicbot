@@ -948,6 +948,8 @@ class ChatReader(
                                             tracksToDelete.add(track)
                                         }
                                         if (tracksToDelete.isNotEmpty()) {
+                                            val trackAmount = tracksToDelete.distinct().size
+                                            printToChat(listOf("$trackAmount track${if (trackAmount != 1) "s" else ""} found."))
                                             val msg = StringBuilder()
                                             if (allTracks) {
                                                 msg.appendLine(
@@ -1019,8 +1021,9 @@ class ChatReader(
                                         }
                                         //delete tracks at specified positions
                                         if (positions.isNotEmpty()) {
-                                            messages.add("Deleting track${if (positions.size > 1) "s" else ""}.")
-                                            songQueue.deleteTracks(positions)
+                                            val posAmount = positions.distinct().size
+                                            messages.add("Deleting track${if (posAmount != 1) "s" else ""}.")
+                                            songQueue.deleteTracks(positions.distinct())
                                         }
                                         printToChat(messages)
                                     }
