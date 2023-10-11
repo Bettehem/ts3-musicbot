@@ -34,7 +34,7 @@ class OfficialTSClient(
                     .replace("\"", "\\\"")
                     .replace("&quot;", "\\\"")
                     .replace("`", "\\`")
-                    .replace("$", "\\\\$")
+                    .replace("$", "\\$")
                     .replace("[", "\\\\\\\\\\[")
                     .replace("]", "\\\\\\\\\\]")
             }
