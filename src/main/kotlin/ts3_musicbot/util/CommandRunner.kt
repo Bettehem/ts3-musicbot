@@ -3,12 +3,15 @@ package ts3_musicbot.util
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
-data class Output(val outputText: String) {
-    override fun toString() = outputText
-}
-
-data class Error(val errorText: String) {
-    override fun toString() = errorText
+data class Output(val outputText: String = "", val errorText: String = "") {
+    /**
+     * @return returns outputText by default or "$outputText\n$errorText" if errorText is not empty
+     */
+    override fun toString() =
+        if (errorText.isEmpty())
+            outputText
+        else
+            "${outputText.let { if (it.isEmpty()) it else "$it\n" }}$errorText"
 }
 
 class CommandRunner {
@@ -28,7 +31,7 @@ class CommandRunner {
         printErrors: Boolean = true,
         inheritIO: Boolean = false,
         printCommand: Boolean = false,
-    ): Pair<Output, Error> {
+    ): Output {
         val commandOutput = StringBuilder()
         val errorOutput = StringBuilder()
 
@@ -68,9 +71,9 @@ class CommandRunner {
                 error = stdErr.readLine()
             }
         }
-        return Pair(
-            Output(commandOutput.toString().substringBeforeLast("\n")),
-            Error(errorOutput.toString().substringBeforeLast("\n"))
+        return Output(
+            commandOutput.toString().substringBeforeLast("\n"),
+            errorOutput.toString().substringBeforeLast("\n")
         )
     }
 }

@@ -103,9 +103,9 @@ class Console(
                     val cmd = userCommand.replace("^\\w+\\s+(-p\\s*\\S+\\s+)?".toRegex(), "")
                     println(
                         if (player.isNotEmpty()) {
-                            playerctl(player, cmd).first
+                            playerctl(player, cmd)
                         } else {
-                            playerctl(command = cmd).first
+                            playerctl(command = cmd)
                         }
                     )
                 }

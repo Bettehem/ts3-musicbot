@@ -23,7 +23,7 @@ class OfficialTSClient(
 
     private fun encode(message: String): String {
         val distro =
-            commandRunner.runCommand("cat /etc/issue", printOutput = false).first.outputText
+            commandRunner.runCommand("cat /etc/issue", printOutput = false).outputText
         return when {
             distro.contains("(Ubuntu|Debian)".toRegex()) -> {
                 message.replace(" ", "\\s")
@@ -74,7 +74,7 @@ class OfficialTSClient(
                 "echo \"$queryMsg\"; echo quit) | nc localhost 25639",
         printOutput = false,
         printCommand = false
-    ).first.outputText
+    ).outputText
 
     /**
      * get current user's client id
@@ -239,7 +239,7 @@ class OfficialTSClient(
             delay(1000)
             //wait for teamspeak to start
             while (!commandRunner.runCommand("ps aux | grep ts3client | grep -v grep", printOutput = false)
-                    .first.outputText.contains("ts3client_linux".toRegex())
+                    .outputText.contains("ts3client_linux".toRegex())
             ) {
                 println("Waiting for TeamSpeak process to start...")
                 delay(1000)
@@ -691,13 +691,13 @@ class OfficialTSClient(
 
         return if (
             commandRunner.runCommand("pactl --version", printOutput = false, printCommand = false)
-                .first.outputText.lines().first().replace("^pactl\\s+".toRegex(), "")
+                .outputText.lines().first().replace("^pactl\\s+".toRegex(), "")
                 .substringBefore(".").toInt() < 16
         ) {
             val output = commandRunner.runCommand(
                 "pactl $command",
                 printOutput = false, printCommand = false
-            ).first.outputText
+            ).outputText
             if (output.isNotEmpty())
                 convertToJSON(output)
             else
@@ -707,7 +707,7 @@ class OfficialTSClient(
                 commandRunner.runCommand(
                     "pactl -f json $command",
                     printOutput = false, printCommand = false
-                ).first.outputText
+                ).outputText
             )
         }
     }

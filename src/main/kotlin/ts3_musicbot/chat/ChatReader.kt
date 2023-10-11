@@ -171,12 +171,12 @@ class ChatReader(
                         printOutput = false
                     )
 
-                    if (checkProcess().first.outputText.isEmpty())
+                    if (checkProcess().outputText.isEmpty())
                         startCommand()
                     //sometimes the spotify player has problems starting, so ensure it actually starts.
-                    while (checkProcess().first.outputText.isEmpty()) {
+                    while (checkProcess().outputText.isEmpty()) {
                         delay(7000)
-                        if (checkProcess().first.outputText.isEmpty()) {
+                        if (checkProcess().outputText.isEmpty()) {
                             repeat(2) { killCommand() }
                             delay(500)
                             startCommand()
@@ -187,7 +187,7 @@ class ChatReader(
                     while (commandRunner.runCommand(
                             "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${botSettings.spotifyPlayer}(\\s+\\S+)?$\" | grep -v \"grep\"",
                             printOutput = false
-                        ).first.outputText.isEmpty()
+                        ).outputText.isEmpty()
                     ) {
                         //do nothing
                         println("Waiting for ${botSettings.spotifyPlayer} to start")
@@ -1725,7 +1725,7 @@ class ChatReader(
                                 val lines = StringBuilder()
                                 lines.appendLine("Now playing on Spotify:")
                                 val nowPlaying = playerctl(botSettings.spotifyPlayer, "metadata")
-                                    .first.outputText.lines()
+                                    .outputText.lines()
                                 for (line in nowPlaying) {
                                     when (line.substringAfter("xesam:").split("\\s+".toRegex())[0]) {
                                         "album" -> lines.appendLine(
@@ -1814,10 +1814,10 @@ class ChatReader(
                             //yt-nowplaying command
                             commandString.contains("^${commandList.commandList["yt-nowplaying"]}$".toRegex()) -> {
                                 val metadata = playerctl("mpv", "metadata")
-                                if (metadata.second.errorText.isEmpty()) {
+                                if (metadata.errorText.isEmpty()) {
                                     val nowPlaying = youTube.fetchVideo(
                                         Link(
-                                            metadata.first.outputText.lines()
+                                            metadata.outputText.lines()
                                                 .first { it.contains("xesam:url") }
                                                 .replace("(^.+\\s+\"?|\"?$)".toRegex(), "")
                                         )
@@ -1826,9 +1826,9 @@ class ChatReader(
                                     commandJob.complete()
                                     return Pair(true, nowPlaying)
                                 } else {
-                                    println("Failed to fetch metadata!\n${metadata.second.errorText}")
+                                    println("Failed to fetch metadata!\n${metadata.errorText}")
                                     commandJob.complete()
-                                    return Pair(true, metadata.second.errorText)
+                                    return Pair(true, metadata.errorText)
                                 }
                             }
                             //sc-pause command
@@ -1874,10 +1874,10 @@ class ChatReader(
                             //sc-nowplaying command
                             commandString.contains("^${commandList.commandList["sc-nowplaying"]}$".toRegex()) -> {
                                 val metadata = playerctl("mpv", "metadata")
-                                if (metadata.second.errorText.isEmpty()) {
+                                if (metadata.errorText.isEmpty()) {
                                     val nowPlaying = youTube.fetchVideo(
                                         Link(
-                                            metadata.first.outputText.lines()
+                                            metadata.outputText.lines()
                                                 .first { it.contains("xesam:url") }
                                                 .replace("(^.+\\s+\"?|\"?$)".toRegex(), "")
                                         )
@@ -1886,9 +1886,9 @@ class ChatReader(
                                     commandJob.complete()
                                     return Pair(true, nowPlaying)
                                 } else {
-                                    println("Failed to fetch metadata!\n${metadata.second.errorText}")
+                                    println("Failed to fetch metadata!\n${metadata.errorText}")
                                     commandJob.complete()
-                                    return Pair(true, metadata.second.errorText)
+                                    return Pair(true, metadata.errorText)
                                 }
                             }
 

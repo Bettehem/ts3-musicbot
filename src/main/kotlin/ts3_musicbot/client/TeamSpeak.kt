@@ -71,7 +71,7 @@ class TeamSpeak(
 
     private fun encode(message: String): String {
         val distro =
-            CommandRunner().runCommand("cat /etc/issue", printOutput = false).first.outputText
+            CommandRunner().runCommand("cat /etc/issue", printOutput = false).outputText
         return when {
             distro.contains("(Ubuntu|Debian)".toRegex()) -> {
                 message.replace(" ", "\\\\\\s")

@@ -245,7 +245,7 @@ class SongQueue(
                                         "--cookies youtube-dl.cookies --force-ipv4 --age-limit 21 --geo-bypass -s \"${firstTrack.link}\"",
                                 printOutput = false,
                                 printErrors = false
-                            ).first.outputText.lines().last()
+                            ).outputText.lines().last()
                                 .contains("\\[(info|youtube)] ${firstTrack.link.getId()}: Downloading ([0-9]+ format\\(s\\):|webpage|API JSON)".toRegex())
                         ) {
                             if (attempts < 5) {
@@ -342,8 +342,8 @@ class SongQueue(
 
         fun currentUrl(): String {
             val metadata = playerctl(getPlayer(), "metadata")
-            return if (metadata.second.errorText.isEmpty()) {
-                metadata.first.outputText.lines()
+            return if (metadata.errorText.isEmpty()) {
+                metadata.outputText.lines()
                     .first { it.contains("xesam:url") }.replace("(^.+\\s+\"?|\"?$)".toRegex(), "")
             } else {
                 ""
@@ -354,7 +354,7 @@ class SongQueue(
             //if using pulseaudio, refresh it using pasuspender
             if (
                 commandRunner.runCommand("command -v pasuspender", printOutput = false, printErrors = false)
-                    .first.outputText.isNotEmpty()
+                    .outputText.isNotEmpty()
             )
                 commandRunner.runCommand("pasuspender true", printOutput = false, printErrors = false)
         }
@@ -399,7 +399,7 @@ class SongQueue(
                         if (botSettings.spotifyUsername.isEmpty() || botSettings.spotifyPassword.isEmpty()) {
                             val msg = "Error! Missing Spotify username and/or password in the musicbot's config file!"
                             println(msg)
-                            Pair(Output(""), Error("msg"))
+                            Output(errorText = msg)
                         } else {
                             commandRunner.runCommand(
                                 "xvfb-run -a spotify --no-zygote --disable-gpu" +
@@ -437,7 +437,7 @@ class SongQueue(
 
                     //sometimes the spotify player has problems starting, so ensure it actually starts.
                     var attempts = 0
-                    while (checkProcess().first.outputText.isEmpty()) {
+                    while (checkProcess().outputText.isEmpty()) {
                         if (attempts < 20) {
                             println("Waiting for ${botSettings.spotifyPlayer} to start")
                             delay(1000)
@@ -601,7 +601,7 @@ class SongQueue(
                  */
                 fun getTrackLength(): Int {
                     val lengthMicroseconds: Long = try {
-                        playerctl(getPlayer(), "metadata").first.outputText.lines()
+                        playerctl(getPlayer(), "metadata").outputText.lines()
                             .first { it.contains("mpris:length") }.replace("^.+\\s+".toRegex(), "").toLong()
                     } catch (e: Exception) {
                         //track hasn't started
@@ -645,7 +645,7 @@ class SongQueue(
                         while (commandRunner.runCommand(
                                 "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?$player(.+)?\" | grep -v \"grep\"",
                                 printOutput = false
-                            ).first.outputText.isEmpty()
+                            ).outputText.isEmpty()
                         ) {
                             println("Waiting for $player to start.")
                             delay(500)
@@ -696,7 +696,7 @@ class SongQueue(
                                 while (job.isActive && commandRunner.runCommand(
                                         "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${getPlayer()}(.+)?\" | grep -v \"grep\"",
                                         printOutput = false
-                                    ).first.outputText.isEmpty()
+                                    ).outputText.isEmpty()
                                 ) {
                                     println("Waiting for ${getPlayer()} to start.")
                                     //if playback hasn't started after ten seconds, try starting playback again.
@@ -718,7 +718,7 @@ class SongQueue(
                         startMPV(currentJob)
                         delay(7000)
                         var attempts = 0
-                        while (!playerStatus().first.outputText.contains("Playing")) {
+                        while (!playerStatus().outputText.contains("Playing")) {
                             println("Waiting for track to start playing")
                             delay(1000)
                             if (attempts < 10) {
@@ -749,7 +749,7 @@ class SongQueue(
                 loop@ while (true) {
                     val status = playerStatus()
                     if (currentUrl() == track.link.link || currentUrl().startsWith("https://open.spotify.com/ad/")) {
-                        when (status.first.outputText) {
+                        when (status.outputText) {
                             "Playing" -> {
                                 while (currentUrl().startsWith("https://open.spotify.com/ad/")) {
                                     //wait for ad to finish
@@ -815,7 +815,7 @@ class SongQueue(
                                 } else {
                                     //wait a bit to see if track is actually stopped
                                     delay(3000)
-                                    if (playerStatus().first.outputText.contains("Stopped")) {
+                                    if (playerStatus().outputText.contains("Stopped")) {
                                         trackPositionJob.cancel()
                                         trackJob.complete()
                                         listener.onTrackStopped(getPlayer(), track)
@@ -825,14 +825,14 @@ class SongQueue(
                             }
 
                             else -> {
-                                if (status.second.errorText != "Error org.freedesktop.DBus.Error.ServiceUnknown: The name org.mpris.MediaPlayer2.${getPlayer()} was not provided by any .service files") {
+                                if (status.errorText != "Error org.freedesktop.DBus.Error.ServiceUnknown: The name org.mpris.MediaPlayer2.${getPlayer()} was not provided by any .service files") {
                                     println("Player has stopped")
                                     trackPositionJob.cancel()
                                     trackJob.complete()
                                     listener.onTrackEnded(getPlayer(), track)
                                 } else {
                                     trackPositionJob.cancel()
-                                    val msg = "Unhandled Player Status: ${playerStatus().second.errorText}"
+                                    val msg = "Unhandled Player Status: ${playerStatus().errorText}"
                                     trackJob.completeExceptionally(Throwable(msg))
                                     println(msg)
                                 }
@@ -865,7 +865,7 @@ class SongQueue(
                     //first kill mpv in case its running
                     commandRunner.runCommand("pkill -9 mpv", ignoreOutput = true)
                     CoroutineScope(IO + synchronized(trackJob) { trackJob }).launch {
-                        if (playerStatus().second.errorText.isNotEmpty())
+                        if (playerStatus().errorText.isNotEmpty())
                             startSpotifyPlayer()
                         openTrack()
                     }

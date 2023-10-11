@@ -1,12 +1,12 @@
 package ts3_musicbot.util
 
 private fun listPlayers() = CommandRunner().runCommand("dbus-send --print-reply --dest=org.freedesktop.DBus  /org/freedesktop/DBus org.freedesktop.DBus.ListNames | grep 'org.mpris.MediaPlayer2.'", printOutput = false)
-    .first.outputText.lines().map { it.replace("^.*string\\s+\"org\\.mpris\\.MediaPlayer2\\.".toRegex(), "").replace("\".*$".toRegex(), "") }
+    .outputText.lines().map { it.replace("^.*string\\s+\"org\\.mpris\\.MediaPlayer2\\.".toRegex(), "").replace("\".*$".toRegex(), "") }
 
 fun playerctl(
     player: String = listPlayers().first(),
     command: String, extra: String = ""
-): Pair<Output, Error> {
+): Output {
     val commandRunner = CommandRunner()
     fun dbusGet(property: String) = commandRunner.runCommand(
         "dbus-send --print-reply --dest=org.mpris.MediaPlayer2.$player /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2.Player' string:'$property'",
@@ -83,16 +83,13 @@ fun playerctl(
     return when (command.lowercase()) {
         "status" -> {
             val cmd = dbusGet("PlaybackStatus")
-            Pair(
-                Output(cmd.first.outputText.substringAfter('"').substringBefore('"')),
-                cmd.second
-            )
+            Output(cmd.outputText.substringAfter('"').substringBefore('"'), cmd.errorText)
         }
 
         "metadata" -> {
             val metadata = dbusGet("Metadata")
             val formattedMetadata = StringBuilder()
-            val parsedOutput = parseMetadata(metadata.first.outputText)
+            val parsedOutput = parseMetadata(metadata.outputText)
             val trackId = "mpris:trackid"
             val length = "mpris:length"
             val artUrl = "mpris:artUrl"
@@ -130,7 +127,7 @@ fun playerctl(
                 formattedMetadata.appendLine("$player $trackNum\t${parsedOutput[trackNum]}")
             if (parsedOutput.contains(url))
                 formattedMetadata.appendLine("$player $url\t\t\t${parsedOutput[url]}")
-            Pair(Output(formattedMetadata.toString()), metadata.second)
+            Output(formattedMetadata.toString(), metadata.errorText)
         }
 
         "stop" -> {
@@ -154,9 +151,9 @@ fun playerctl(
         }
 
         "list" -> {
-            Pair(Output("${listPlayers()}"), Error(""))
+            Output("${listPlayers()}")
         }
 
-        else -> Pair(Output(""), Error(""))
+        else -> Output()
     }
 }
