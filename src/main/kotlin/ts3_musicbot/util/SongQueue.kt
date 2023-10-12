@@ -818,8 +818,7 @@ class SongQueue(
                                     //wait a bit to see if track is actually stopped
                                     delay(3000)
                                     if (playerStatus().outputText.contains("Stopped")) {
-                                        listener.onTrackStopped(getPlayer(), track)
-                                        trackJob.cancel()
+                                        stopTrack()
                                         break@loop
                                     }
                                 }
@@ -898,6 +897,7 @@ class SongQueue(
         }
 
         fun stopTrack() {
+            trackPositionJob.cancel()
             trackJob.cancel()
             val player = getPlayer()
             //try stopping playback twice because sometimes once doesn't seem to be enough
