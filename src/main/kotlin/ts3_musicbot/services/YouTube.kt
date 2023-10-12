@@ -701,34 +701,30 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
                             val responseData = JSONObject(searchData.data.data)
-                            when (searchType.type) {
-                                "track", "video" -> {
-                                    val results = responseData.getJSONArray("items")
-                                    for (resultData in results) {
-                                        resultData as JSONObject
+                            val results = responseData.getJSONArray("items")
+                            for (resultData in results) {
+                                resultData as JSONObject
 
+                                when (val type = resultData.getJSONObject("id").getString("kind").substringAfter("#")) {
+                                    "video" -> {
                                         val videoUploader =
-                                            decode(resultData.getJSONObject("snippet").getString("channelTitle"))
+                                        decode(resultData.getJSONObject("snippet").getString("channelTitle"))
                                         val videoTitle = decode(resultData.getJSONObject("snippet").getString("title"))
                                         val videoLink =
-                                            "https://youtu.be/${resultData.getJSONObject("id").getString("videoId")}"
+                                        "https://youtu.be/${resultData.getJSONObject("id").getString("videoId")}"
 
-                                        searchResults.add(
-                                            SearchResult(
-                                                "Uploader: $videoUploader\n" +
-                                                        "Title:    $videoTitle\n" +
-                                                        "Link:     $videoLink\n",
-                                                Link(videoLink)
+                                        if (searchType.type.contains("track|$type".toRegex())) {
+                                            searchResults.add(
+                                                SearchResult(
+                                                    "Uploader: $videoUploader\n" +
+                                                    "Title:    $videoTitle\n" +
+                                                    "Link:     $videoLink\n",
+                                                    Link(videoLink)
+                                                )
                                             )
-                                        )
+                                        }
                                     }
-                                }
-
-                                "playlist" -> {
-                                    val results = responseData.getJSONArray("items")
-                                    for (resultData in results) {
-                                        resultData as JSONObject
-
+                                    "playlist" -> {
                                         val listTitle = decode(resultData.getJSONObject("snippet").getString("title"))
                                         val listCreator = resultData.getJSONObject("snippet").getString("channelTitle")
                                         val listLink =
@@ -737,37 +733,37 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                                     .getString("playlistId")
                                             }"
 
-                                        searchResults.add(
-                                            SearchResult(
-                                                "Playlist: $listTitle\n" +
-                                                        "Creator:    $listCreator\n" +
-                                                        "Link:     $listLink\n",
-                                                Link(listLink)
+                                        if (searchType.type == type) {
+                                            searchResults.add(
+                                                SearchResult(
+                                                    "Playlist: $listTitle\n" +
+                                                    "Creator:    $listCreator\n" +
+                                                    "Link:     $listLink\n",
+                                                    Link(listLink)
+                                                )
                                             )
-                                        )
+                                        }
                                     }
-                                }
-
-                                "channel" -> {
-                                    val results = responseData.getJSONArray("items")
-                                    for (resultData in results) {
-                                        resultData as JSONObject
-
+                                    "channel" -> {
                                         val channelTitle =
                                             decode(resultData.getJSONObject("snippet").getString("title"))
                                         val channelLink =
                                             "https://www.youtube.com/channel/${
                                                 resultData.getJSONObject("id").getString("channelId")
                                             }"
-                                        searchResults.add(
-                                            SearchResult(
-                                                "Channel: $channelTitle\n" +
-                                                        "Link:    $channelLink\n",
-                                                Link(channelLink)
+
+                                        if (searchType.type == type) {
+                                            searchResults.add(
+                                                SearchResult(
+                                                    "Channel: $channelTitle\n" +
+                                                    "Link:    $channelLink\n",
+                                                    Link(channelLink)
+                                                )
                                             )
-                                        )
+                                        }
                                     }
                                 }
+
                             }
                             if (searchResults.size < resultLimit && responseData.has("nextPageToken")) {
                                 searchData = searchData(
