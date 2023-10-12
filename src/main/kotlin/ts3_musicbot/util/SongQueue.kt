@@ -622,7 +622,7 @@ class SongQueue(
                         while (job.isActive) {
                             val startTime = System.currentTimeMillis()
                             print("\rTrack Position: $trackPosition/$trackLength seconds")
-                            if (trackPosition > trackLength + 15) {
+                            if (trackPosition > trackLength + 30) {
                                 println("Wait.. what?")
                                 if (trackLength == 0) {
                                     println("Huh, why is trackLength 0?!\nTrying to get it again...")
@@ -635,7 +635,7 @@ class SongQueue(
                             //The code above will take X amount of time depending on the system it is ran on.
                             //Calculate the time it took and apply a delay to get a total of approximately 1 second of time per loop iteration.
                             val timeUsed = System.currentTimeMillis() - startTime
-                            val delayAmount = 992 - timeUsed
+                            val delayAmount = 995 - timeUsed
                             if (delayAmount > 0)
                                 delay(delayAmount)
                         }
@@ -752,6 +752,7 @@ class SongQueue(
                 }
 
                 loop@ while (trackJob.isActive) {
+                    delay(995)
                     val status = playerStatus()
                     if (currentUrl() == track.link.link || currentUrl().startsWith("https://open.spotify.com/ad/")) {
                         when (status.outputText) {
