@@ -2016,14 +2016,9 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
     }
 
     override suspend fun resolveType(link: Link): LinkType {
-        //check if using the new spotify.link or link.tospotify.com url format and resolve it if needed
-        val readyLink = if (link.link.contains("(https?://)?(spotify\\.link|link\\.tospotify\\.com)/\\S+".toRegex())) {
-            Link(
-                sendHttpRequest(URL(link.link), RequestMethod.GET).data.data.lines()
-                .first { it.contains(".*href=\"https?://open\\.spotify\\.com/\\w+/\\S+\"".toRegex()) }
-                .replace(".*href=\"".toRegex(), "")
-                .replace("\\?.+$".toRegex(), "")
-            )
+        //check if using the new spotify.link or spotify.app.link url format and resolve it if needed
+        val readyLink = if (link.link.contains("(https?://)?spotify(\\.app)?\\.link/\\S+".toRegex())) {
+            Link(sendHttpRequest(URL(link.link), followRedirects = false).url.toString()).clean(this)
         } else {
             link
         }
@@ -2037,12 +2032,9 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
     }
 
     fun resolveId(link: Link): String {
-        return if (link.link.contains("https?://(spotify\\.link|link\\.tospotify\\.com)/\\S+".toRegex())) {
-            val resolvedLink = sendHttpRequest(URL(link.link), RequestMethod.GET).data.data.lines()
-                .first { it.contains(".*href=\"https?://open\\.spotify\\.com/\\w+/\\S+\"".toRegex()) }
-                .replace(".*href=\"".toRegex(), "")
-                .replace("\\?.+$".toRegex(), "")
-            resolvedLink.substringAfterLast("/")
+        return if (link.link.contains("(https?://)?spotify(\\.app)?\\.link/\\S+".toRegex())) {
+            val resolvedLink = Link(sendHttpRequest(URL(link.link), followRedirects = false).url.toString())
+            resolvedLink.getId(this)
         } else {
             link.link.substringAfterLast(":").substringBefore("?")
             .substringAfterLast("/")

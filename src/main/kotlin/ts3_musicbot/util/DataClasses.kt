@@ -157,14 +157,14 @@ data class Link(val link: String = "", val linkId: String = "") {
     fun getId(service: Service = Service(serviceType())) = linkId.ifEmpty {
         when (service.serviceType) {
             Service.ServiceType.SPOTIFY -> {
-                if (link.contains("https?://(spotify.link|link.tospotify.com)/\\S+".toRegex())) {
+                if (link.contains("(https?://)?spotify(\\.app)?\\.link/\\S+".toRegex())) {
                     if (service is Spotify)
                         service.resolveId(this@Link)
                     else
                         Spotify().resolveId(this@Link)
                 } else {
                     link.substringAfterLast(":").substringBefore("?")
-                    .substringAfterLast("/")
+                        .substringAfterLast("/")
                 }
             }
 
@@ -192,7 +192,7 @@ data class Link(val link: String = "", val linkId: String = "") {
                 runBlocking {
                     val soundCloud = if (service is SoundCloud) service else SoundCloud()
                     if (link.startsWith("${soundCloud.apiURL}/"))
-                        link.substringAfterLast("/")
+                        link.substringAfterLast("/").substringBefore("?")
                     else
                         soundCloud.resolveId(this@Link)
                 }
@@ -208,17 +208,18 @@ data class Link(val link: String = "", val linkId: String = "") {
      */
     fun clean(service: Service = Service(serviceType())): Link = when (service.serviceType) {
         Service.ServiceType.SPOTIFY -> Link(
-            "https://open.spotify.com/" +
-                    linkType(service).name.lowercase() + "/" +
-                    getId()
+            "https://open.spotify.com/" + linkType(service).name.lowercase() + "/" + getId(service)
         )
+
         Service.ServiceType.YOUTUBE -> Link(
             when (linkType(service)) {
-                LinkType.VIDEO -> "https://youtu.be/" + getId()
-                LinkType.PLAYLIST -> "https://www.youtube.com/playlist?list=" + getId()
+                LinkType.VIDEO -> "https://youtu.be/" + getId(service)
+                LinkType.PLAYLIST -> "https://www.youtube.com/playlist?list=" + getId(service)
                 else -> link
             }
         )
+
+        Service.ServiceType.SOUNDCLOUD -> Link(link.substringBefore("?"))
         else -> this
     }
 

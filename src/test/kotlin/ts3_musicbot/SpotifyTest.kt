@@ -127,11 +127,11 @@ class SpotifyTest {
         runBlocking(IO) {
             //spotify link to track: Tesseract - War of Being
             val link = Link("https://spotify.link/FwzVyxos3Cb")
-            val type = link.linkType(spotify)
+            val link2 = Link("https://spotify.app.link/FwzVyxos3Cb?_p=c91529c39d067af2e31d90fceb")
             val id = link.getId(spotify)
-            assertEquals(LinkType.TRACK, type)
+            val id2 = link2.getId(spotify)
             assertEquals("0vdffbHjc0qSOOoI2d71OP", id)
-
+            assertEquals(id, id2)
         }
     }
 }

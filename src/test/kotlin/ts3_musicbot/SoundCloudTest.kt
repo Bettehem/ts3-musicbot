@@ -116,4 +116,17 @@ class SoundCloudTest {
             assertEquals("bettehem", user.userName.name)
         }
     }
+
+    @Test
+    fun testResolvingNewUrlFormat() {
+        runBlocking(IO) {
+            //SoundCloud link to track: Episode 130 - Dino Shadix
+            val shortLink = Link("https://on.soundcloud.com/2k9V4")
+            val normalLink = Link("https://soundcloud.com/emengypodcast/episode-130-dino-shadix")
+            val id = shortLink.getId(soundCloud)
+            val id2 = normalLink.getId(soundCloud)
+            assertEquals("1574693542", id)
+            assertEquals(id, id2)
+        }
+    }
 }

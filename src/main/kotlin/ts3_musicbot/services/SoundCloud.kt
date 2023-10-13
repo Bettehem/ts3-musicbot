@@ -15,7 +15,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
-    var clientId = "z59xjnxSZIusnBJv9W3cAnV5rNDF9WpL"
+    var clientId = "f8eB0B44lHhYd7Kvli0IGN2ykOUAscWj"
     private val api2URL = URL("https://api-v2.soundcloud.com")
     val apiURL = URL("https://api.soundcloud.com")
     val supportedSearchTypes = listOf(
@@ -1445,17 +1445,17 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         return artist
     }
 
-    private fun fetchResolvedData(url: String): Response {
+    private fun fetchResolvedData(link: Link): Response {
         val urlBuilder = StringBuilder()
         urlBuilder.append("$api2URL/resolve?")
         urlBuilder.append("client_id=$clientId")
-        urlBuilder.append("&url=$url")
+        urlBuilder.append("&url=${link.link}")
         return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
     }
 
     override suspend fun resolveType(link: Link): LinkType {
         val resolveJob = Job()
-        var linkToSolve = link
+        var linkToSolve = link.clean(this)
         val urlStart = "(https?://)?soundcloud\\.com/[a-z0-9-_]+"
         val deferredType = CoroutineScope(IO + resolveJob).async {
             when {
@@ -1467,12 +1467,9 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                     while (true) {
                         if (linkToSolve.link.contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex()))
                             linkToSolve = Link(
-                                sendHttpRequest(URL(linkToSolve.link), RequestMethod.GET).data.data.lines()
-                                    .first { it.contains("<meta property=\"og:url\"".toRegex()) }
-                                    .replace(".*<meta property=\"og:url\"".toRegex(), "")
-                                    .replace("^\\s*content=\"|\">.*$".toRegex(), "")
-                            )
-                        val typeData = fetchResolvedData(linkToSolve.link.substringBefore('?'))
+                                sendHttpRequest(URL(linkToSolve.link), followRedirects = false).url.toString()
+                            ).clean(this@SoundCloud)
+                        val typeData = fetchResolvedData(linkToSolve)
                         when (typeData.code.code) {
                             HttpURLConnection.HTTP_OK -> {
                                 try {
@@ -1549,13 +1546,10 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
             } else {
                 if (linkToSolve.link.contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex()))
                     linkToSolve = Link(
-                        sendHttpRequest(URL(linkToSolve.link), RequestMethod.GET).data.data.lines()
-                            .first { it.contains("<meta property=\"og:url\"".toRegex()) }
-                            .replace(".*<meta property=\"og:url\"".toRegex(), "")
-                            .replace("^\\s*content=\"|\">.*$".toRegex(), "")
-                    )
+                        sendHttpRequest(URL(linkToSolve.link), followRedirects = false).url.toString()
+                    ).clean(this@SoundCloud)
                 while (true) {
-                    val idData = fetchResolvedData(linkToSolve.link.substringBefore("?"))
+                    val idData = fetchResolvedData(linkToSolve)
                     when (idData.code.code) {
                         HttpURLConnection.HTTP_OK -> {
                             try {
