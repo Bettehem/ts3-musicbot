@@ -16,13 +16,13 @@ data class ResponseCode(val code: Int) {
     override fun toString() = "$code"
 }
 data class ResponseData(val data: String)
-data class Response(val code: ResponseCode, val data: ResponseData, val url: URL)
+data class Response(val code: ResponseCode, val data: ResponseData, val link: Link)
 
 const val HTTP_TOO_MANY_REQUESTS = 429
 
 /**
  * Send http request
- * @param url target URL of the request
+ * @param link target URL of the request
  * @param requestMethod Request method for the http request. Can be GET or POST
  * @param extraProperties Extra properties of the request.
  * @param postData Data of the request.
@@ -31,7 +31,7 @@ const val HTTP_TOO_MANY_REQUESTS = 429
  * @return returns a Response.
  */
 fun sendHttpRequest(
-    url: URL,
+    link: Link,
     requestMethod: RequestMethod = RequestMethod.GET,
     extraProperties: ExtraProperties = ExtraProperties(emptyList()),
     postData: PostData = PostData(emptyList()),
@@ -43,11 +43,11 @@ fun sendHttpRequest(
     ),
     followRedirects: Boolean = true,
 ): Response {
-    val connection = url.openConnection() as HttpURLConnection
+    val connection = URL(link.link).openConnection() as HttpURLConnection
     connection.instanceFollowRedirects = followRedirects
     connection.requestMethod = requestMethod.name
     var responseData = ResponseData("")
-    val responseUrl = if (followRedirects) {
+    val responseLink = if (followRedirects) {
         for (property in defaultProperties.properties) {
             val p = property.split(": ".toRegex())
             connection.setRequestProperty(p[0], p[1])
@@ -86,20 +86,20 @@ fun sendHttpRequest(
                     connection.getHeaderField("Retry-After")
                 }
                 else -> {
-                    println("\n\n\nHTTP $requestMethod request to $url")
+                    println("\n\n\nHTTP $requestMethod request to $link")
                     println("Response Code: ${connection.responseCode}")
                     println("Response message: ${connection.responseMessage}")
                     ""
                 }
             }
         )
-        connection.url
+        Link(connection.url.toString())
     } else {
-        URL(connection.getHeaderField("Location"))
+        Link(connection.getHeaderField("Location"))
     }
     val responseCode = ResponseCode(connection.responseCode)
-    println("\nRequest URL: $url\nRequest Method: $requestMethod\nResponse URL: $responseUrl\nResponse Code: $responseCode\n")
+    println("\nRequest URL: $link\nRequest Method: $requestMethod\nResponse URL: $responseLink\nResponse Code: $responseCode\n")
     connection.disconnect()
-    return Response(responseCode, responseData, responseUrl)
+    return Response(responseCode, responseData, responseLink)
 }
 

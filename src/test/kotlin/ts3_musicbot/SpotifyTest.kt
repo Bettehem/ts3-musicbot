@@ -4,7 +4,6 @@ import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.runBlocking
 import ts3_musicbot.services.Spotify
 import ts3_musicbot.util.Link
-import ts3_musicbot.util.LinkType
 import ts3_musicbot.util.Name
 import kotlin.test.Test
 import kotlin.test.assertEquals

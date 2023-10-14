@@ -192,7 +192,7 @@ data class Link(val link: String = "", val linkId: String = "") {
                 runBlocking {
                     val soundCloud = if (service is SoundCloud) service else SoundCloud()
                     if (link.startsWith("${soundCloud.apiURL}/"))
-                        link.substringAfterLast("/").substringBefore("?")
+                        clean(soundCloud).link.substringAfterLast("/")
                     else
                         soundCloud.resolveId(this@Link)
                 }

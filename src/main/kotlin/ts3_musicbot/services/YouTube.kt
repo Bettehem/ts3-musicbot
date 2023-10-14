@@ -8,7 +8,6 @@ import org.json.JSONException
 import org.json.JSONObject
 import ts3_musicbot.util.*
 import java.net.HttpURLConnection
-import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.time.LocalDate
@@ -38,12 +37,12 @@ class YouTube : Service(ServiceType.YOUTUBE) {
          * @return returns a Response
          */
         fun sendRequest(part: String = "snippet,status", key: String = apiKey1): Response {
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("$apiUrl/videos?")
-            urlBuilder.append("id=${videoLink.getId()}")
-            urlBuilder.append("&part=${part.replace(",", "%2C")}")
-            urlBuilder.append("&key=$key")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+            val linkBuilder = StringBuilder()
+            linkBuilder.append("$apiUrl/videos?")
+            linkBuilder.append("id=${videoLink.getId()}")
+            linkBuilder.append("&part=${part.replace(",", "%2C")}")
+            linkBuilder.append("&key=$key")
+            return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
         val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
@@ -130,12 +129,12 @@ class YouTube : Service(ServiceType.YOUTUBE) {
      */
     override suspend fun fetchPlaylist(playlistLink: Link): Playlist {
         fun fetchPlaylistData(apiKey: String = apiKey1): Response {
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("$apiUrl/playlists")
-            urlBuilder.append("?part=snippet%2Cstatus%2CcontentDetails")
-            urlBuilder.append("&id=${playlistLink.getId()}")
-            urlBuilder.append("&key=$apiKey")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+            val linkBuilder = StringBuilder()
+            linkBuilder.append("$apiUrl/playlists")
+            linkBuilder.append("?part=snippet%2Cstatus%2CcontentDetails")
+            linkBuilder.append("&id=${playlistLink.getId()}")
+            linkBuilder.append("&key=$apiKey")
+            return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
         val playlistJob = Job()
@@ -174,13 +173,13 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                             //try with another api key
                             key = apiKey2
                         } else {
-                            println("HTTP ERROR! CODE: ${playlistData.code.code}")
+                            println("HTTP ERROR! CODE: ${playlistData.code}")
                             break
                         }
                     }
 
                     else -> {
-                        println("HTTP ERROR! CODE: ${playlistData.code.code}")
+                        println("HTTP ERROR! CODE: ${playlistData.code}")
                         break
                     }
                 }
@@ -210,15 +209,15 @@ class YouTube : Service(ServiceType.YOUTUBE) {
             part: String = "snippet,status",
             apiKey: String = apiKey1
         ): Response {
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("$apiUrl/playlistItems?")
-            urlBuilder.append("playlistId=${playlistLink.getId()}")
-            urlBuilder.append("&part=${part.replace(",", "%2C")}")
-            urlBuilder.append("&key=$apiKey")
-            urlBuilder.append("&maxResults=" + if (limit != 0 && limit < maxResults) limit else maxResults)
+            val linkBuilder = StringBuilder()
+            linkBuilder.append("$apiUrl/playlistItems?")
+            linkBuilder.append("playlistId=${playlistLink.getId()}")
+            linkBuilder.append("&part=${part.replace(",", "%2C")}")
+            linkBuilder.append("&key=$apiKey")
+            linkBuilder.append("&maxResults=" + if (limit != 0 && limit < maxResults) limit else maxResults)
             if (pageToken.isNotEmpty())
-                urlBuilder.append("&pageToken=$pageToken")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+                linkBuilder.append("&pageToken=$pageToken")
+            return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
         suspend fun parseItems(data: JSONObject): TrackList {
@@ -463,14 +462,14 @@ class YouTube : Service(ServiceType.YOUTUBE) {
      */
     private suspend fun fetchChannelPlaylists(channelLink: Link): Playlists {
         fun fetchPlaylistsData(apiKey: String = apiKey1, pageToken: String = ""): Response {
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("$apiUrl/playlists")
-            urlBuilder.append("?channelId=${channelLink.getId()}")
-            urlBuilder.append("&part=snippet%2Cstatus&maxResults=50")
-            urlBuilder.append("&key=$apiKey")
+            val linkBuilder = StringBuilder()
+            linkBuilder.append("$apiUrl/playlists")
+            linkBuilder.append("?channelId=${channelLink.getId()}")
+            linkBuilder.append("&part=snippet%2Cstatus&maxResults=50")
+            linkBuilder.append("&key=$apiKey")
             if (pageToken.isNotEmpty())
-                urlBuilder.append("&pageToken=$pageToken")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+                linkBuilder.append("&pageToken=$pageToken")
+            return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
         suspend fun parsePlaylistsData(playlistsData: JSONObject): List<Playlist> {
@@ -504,13 +503,13 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                     if (key == apiKey1)
                                         key = apiKey2
                                     else {
-                                        println("HTTP ERROR! CODE: ${newPageData.code.code}")
+                                        println("HTTP ERROR! CODE: ${newPageData.code}")
                                         break
                                     }
                                 }
 
                                 else -> {
-                                    println("HTTP ERROR! CODE: ${newPageData.code.code}")
+                                    println("HTTP ERROR! CODE: ${newPageData.code}")
                                     break
                                 }
                             }
@@ -558,13 +557,13 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                         if (key == apiKey1)
                             key = apiKey2
                         else {
-                            println("HTTP ERROR! CODE: ${playlistsData.code.code}")
+                            println("HTTP ERROR! CODE: ${playlistsData.code}")
                             break
                         }
                     }
 
                     else -> {
-                        println("HTTP ERROR! CODE: ${playlistsData.code.code}")
+                        println("HTTP ERROR! CODE: ${playlistsData.code}")
                         break
                     }
                 }
@@ -580,12 +579,12 @@ class YouTube : Service(ServiceType.YOUTUBE) {
      */
     suspend fun fetchChannel(link: Link): User {
         fun fetchChannelData(apiKey: String = apiKey1): Response {
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("$apiUrl/channels")
-            urlBuilder.append("?id=${link.getId()}")
-            urlBuilder.append("&part=snippet%2Cstatistics")
-            urlBuilder.append("&key=$apiKey")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+            val linkBuilder = StringBuilder()
+            linkBuilder.append("$apiUrl/channels")
+            linkBuilder.append("?id=${link.getId()}")
+            linkBuilder.append("&part=snippet%2Cstatistics")
+            linkBuilder.append("&key=$apiKey")
+            return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
         val channelJob = Job()
@@ -671,21 +670,21 @@ class YouTube : Service(ServiceType.YOUTUBE) {
             pageToken: String = "",
             link: Link = Link()
         ): Response {
-            val urlBuilder = StringBuilder()
+            val linkBuilder = StringBuilder()
             if (link.isNotEmpty()) {
-                urlBuilder.append(link.link.substringBefore("&key="))
-                urlBuilder.append("&key=$apiKey")
+                linkBuilder.append("$link".substringBefore("&key="))
+                linkBuilder.append("&key=$apiKey")
             } else {
-                urlBuilder.append("$apiUrl/search?")
-                urlBuilder.append("q=${encode(searchQuery.query)}")
-                urlBuilder.append("&type=${searchType.type.replace("track", "video")}")
-                urlBuilder.append("&maxResults=$limit")
-                urlBuilder.append("&part=snippet")
+                linkBuilder.append("$apiUrl/search?")
+                linkBuilder.append("q=${encode(searchQuery.query)}")
+                linkBuilder.append("&type=${searchType.type.replace("track", "video")}")
+                linkBuilder.append("&maxResults=$limit")
+                linkBuilder.append("&part=snippet")
                 if (pageToken.isNotEmpty())
-                    urlBuilder.append("&pageToken=$pageToken")
-                urlBuilder.append("&key=$apiKey")
+                    linkBuilder.append("&pageToken=$pageToken")
+                linkBuilder.append("&key=$apiKey")
             }
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+            return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
         val searchResults = ArrayList<SearchResult>()
@@ -786,7 +785,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                     HttpURLConnection.HTTP_FORBIDDEN -> {
                         if (key == apiKey1) {
                             key = apiKey2
-                            searchData = searchData(key, link = Link(searchData.url.toString()))
+                            searchData = searchData(key, link = searchData.link)
                         } else {
                             println("HTTP ERROR! CODE: ${searchData.code}")
                             searchJob.complete()
@@ -812,20 +811,20 @@ class YouTube : Service(ServiceType.YOUTUBE) {
      */
     override suspend fun resolveType(link: Link): LinkType {
         fun fetchData(apiKey: String = apiKey1): Response {
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("$apiUrl/search?")
-            urlBuilder.append("q=${link.getId()}")
-            urlBuilder.append("&part=snippet")
-            urlBuilder.append("&key=$apiKey")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+            val linkBuilder = StringBuilder()
+            linkBuilder.append("$apiUrl/search?")
+            linkBuilder.append("q=${link.getId()}")
+            linkBuilder.append("&part=snippet")
+            linkBuilder.append("&key=$apiKey")
+            return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
         val resolveJob = Job()
         var key = apiKey1
         return when {
-            link.link.contains("\\S+/playlist\\?\\S+".toRegex()) -> LinkType.PLAYLIST
-            link.link.contains("\\S+/c(hannel)?/\\S+".toRegex()) -> LinkType.CHANNEL
-            link.link.contains("(youtu.be|\\S+((\\w*\\?)?\\S*(vi?))[=/]\\S+)".toRegex()) -> LinkType.VIDEO
+            "$link".contains("\\S+/playlist\\?\\S+".toRegex()) -> LinkType.PLAYLIST
+            "$link".contains("\\S+/c(hannel)?/\\S+".toRegex()) -> LinkType.CHANNEL
+            "$link".contains("(youtu.be|\\S+((\\w*\\?)?\\S*(vi?))[=/]\\S+)".toRegex()) -> LinkType.VIDEO
             else -> withContext(IO + resolveJob) {
                 //Attempt to resolve the track type via YouTube API
                 var linkType = LinkType.OTHER
@@ -857,13 +856,13 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                             if (key == apiKey1)
                                 key = apiKey2
                             else {
-                                println("HTTP ERROR! CODE: ${linkData.code.code}")
+                                println("HTTP ERROR! CODE: ${linkData.code}")
                                 break
                             }
                         }
 
                         else -> {
-                            println("HTTP ERROR! CODE: ${linkData.code.code}")
+                            println("HTTP ERROR! CODE: ${linkData.code}")
                             break
                         }
 
@@ -876,19 +875,19 @@ class YouTube : Service(ServiceType.YOUTUBE) {
     }
 
     suspend fun resolveChannelId(channelLink: Link): String {
-        val channelName = channelLink.link.substringAfterLast("/")
+        val channelName = "$channelLink".substringAfterLast("/")
         fun fetchData(apiKey: String = apiKey1): Response {
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("$apiUrl/search?")
-            urlBuilder.append("q=$channelName")
-            urlBuilder.append("&part=snippet")
-            urlBuilder.append("&type=channel")
-            urlBuilder.append("&key=$apiKey")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+            val linkBuilder = StringBuilder()
+            linkBuilder.append("$apiUrl/search?")
+            linkBuilder.append("q=$channelName")
+            linkBuilder.append("&part=snippet")
+            linkBuilder.append("&type=channel")
+            linkBuilder.append("&key=$apiKey")
+            return sendHttpRequest(Link(linkBuilder.toString()), RequestMethod.GET)
         }
 
-        return if (channelLink.link.contains("\\S+/channel/\\S+".toRegex())) {
-            channelLink.link.substringAfterLast("/")
+        return if ("$channelLink".contains("\\S+/channel/\\S+".toRegex())) {
+            "$channelLink".substringAfterLast("/")
         } else {
             val idJob = Job()
             var key = apiKey1
@@ -904,7 +903,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                     it as JSONObject
                                     it.getJSONObject("id").getString("kind").substringAfter("#") == "channel"
                                             && it.getJSONObject("snippet").getString("title")
-                                        .replace(" ", "") == channelLink.link.substringAfterLast("/")
+                                        .replace(" ", "") == "$channelLink".substringAfterLast("/")
                                 }.let {
                                     it as JSONObject
                                     it.getJSONObject("id").getString("channelId")

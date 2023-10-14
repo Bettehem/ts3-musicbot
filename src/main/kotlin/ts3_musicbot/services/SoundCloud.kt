@@ -32,10 +32,10 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
      */
     fun updateClientId(): String {
         println("Updating SoundCloud ClientId")
-        val lines = sendHttpRequest(URL("https://soundcloud.com")).data.data.lines()
+        val lines = sendHttpRequest(Link("https://soundcloud.com")).data.data.lines()
             .filter { it.contains("^<script crossorigin src=\"https://\\S+\\.js\"></script>".toRegex()) }
         for (line in lines)
-            sendHttpRequest(URL(line.substringAfter('"').substringBefore('"')))
+            sendHttpRequest(Link(line.substringAfter('"').substringBefore('"')))
                 .data.data.let { data ->
                     if (data.contains("client_id=[0-9A-z-_]+\"".toRegex())) {
                         val idLine = data.lines().first { it.contains("client_id=[0-9A-z-_]+\"".toRegex()) }
@@ -48,19 +48,19 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
 
     override suspend fun search(searchType: SearchType, searchQuery: SearchQuery, resultLimit: Int): SearchResults {
         val searchResults = ArrayList<SearchResult>()
-        fun searchData(limit: Int = resultLimit, offset: Int = 0, link: Link = Link("")): Response {
-            val urlBuilder = StringBuilder()
+        fun searchData(limit: Int = resultLimit, offset: Int = 0, link: Link = Link()): Response {
+            val linkBuilder = StringBuilder()
             if (link.isNotEmpty()) {
-                urlBuilder.append("$link")
+                linkBuilder.append("$link")
             } else {
-                urlBuilder.append("$api2URL/search/")
-                urlBuilder.append("${searchType.type.replace("artist", "user")}s")
-                urlBuilder.append("?q=${URLEncoder.encode(searchQuery.query, Charsets.UTF_8.toString())}")
-                urlBuilder.append("&limit=$limit")
-                urlBuilder.append("&offset=$offset")
-                urlBuilder.append("&client_id=$clientId")
+                linkBuilder.append("$api2URL/search/")
+                linkBuilder.append("${searchType.type.replace("artist", "user")}s")
+                linkBuilder.append("?q=${URLEncoder.encode(searchQuery.query, Charsets.UTF_8.toString())}")
+                linkBuilder.append("&limit=$limit")
+                linkBuilder.append("&offset=$offset")
+                linkBuilder.append("&client_id=$clientId")
             }
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+            return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
         suspend fun parseResults(searchData: JSONObject) {
@@ -118,11 +118,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                 link = Link(playlistData.getJSONObject("user").getString("permalink_url"))
                             ),
                             Description(if (!playlistData.isNull("description")) playlistData.getString("description") else ""),
-                            if (!playlistData.isNull("likes_count")) {
-                                Followers(playlistData.getInt("likes_count"))
-                            } else {
-                                Followers()
-                            },
+                            Followers(if (!playlistData.isNull("likes_count")) playlistData.getInt("likes_count") else Followers().amount),
                             Publicity(playlistData.getString("sharing") == "public"),
                             Collaboration(false),
                             TrackList(List(playlistData.getInt("track_count")) { Track() }),
@@ -306,7 +302,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                 //JSON broken, try getting the data again
                                 println("Failed JSON:\n${searchData.data}\n")
                                 println("Failed to get data from JSON, trying again...")
-                                searchData = searchData(link = Link(result.url.toString()))
+                                searchData = searchData(link = result.link)
                             }
                         }
 
@@ -314,7 +310,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                             updateClientId()
                             searchData = searchData(
                                 link = Link(
-                                    result.url.toString()
+                                    result.link.toString()
                                         .replace("client_id=[a-zA-Z0-9]+".toRegex(), "client_id=$clientId")
                                 )
                             )
@@ -333,8 +329,8 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
 
     private suspend fun fetchPlaylistData(link: Link): Response {
         val id = resolveId(link)
-        val urlBuilder = StringBuilder()
-        urlBuilder.append(
+        val linkBuilder = StringBuilder()
+        linkBuilder.append(
             "$api2URL/${
                 if (id.startsWith("soundcloud:system-playlists"))
                     "system-playlists"
@@ -342,9 +338,9 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                     "playlists"
             }/"
         )
-        urlBuilder.append(id)
-        urlBuilder.append("?client_id=$clientId")
-        return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+        linkBuilder.append(id)
+        linkBuilder.append("?client_id=$clientId")
+        return sendHttpRequest(Link(linkBuilder.toString()))
     }
 
     override suspend fun fetchPlaylist(playlistLink: Link): Playlist {
@@ -392,7 +388,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${playlistData.data.data}\n")
+                            println("Failed JSON:\n${playlistData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -401,7 +397,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                         updateClientId()
                     }
 
-                    else -> println("HTTP ERROR! CODE ${playlistData.code.code}")
+                    else -> println("HTTP ERROR! CODE ${playlistData.code}")
                 }
             }
         }
@@ -449,7 +445,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                             return@withContext
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${playlistData.data.data}\n")
+                            println("Failed JSON:\n${playlistData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -458,7 +454,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                         updateClientId()
                     }
 
-                    else -> println("HTTP ERROR! CODE ${playlistData.code.code}")
+                    else -> println("HTTP ERROR! CODE ${playlistData.code}")
                 }
             }
         }
@@ -466,8 +462,8 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
     }
 
     private fun fetchAlbumData(id: String): Response {
-        val urlBuilder = StringBuilder()
-        urlBuilder.append(
+        val linkBuilder = StringBuilder()
+        linkBuilder.append(
             "$api2URL/${
                 if (id.startsWith("soundcloud:system-playlists"))
                     "system-playlists"
@@ -475,14 +471,14 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                     "playlists"
             }/"
         )
-        urlBuilder.append(id)
-        urlBuilder.append("?client_id=$clientId")
-        return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+        linkBuilder.append(id)
+        linkBuilder.append("?client_id=$clientId")
+        return sendHttpRequest(Link(linkBuilder.toString()))
     }
 
     override suspend fun fetchAlbum(albumLink: Link): Album {
-        val id = if (albumLink.link.startsWith("$apiURL/"))
-            albumLink.link.substringAfterLast("/")
+        val id = if ("$albumLink".startsWith("$apiURL/"))
+            "$albumLink".substringAfterLast("/")
         else
             resolveId(albumLink)
         val albumJob = Job()
@@ -518,7 +514,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                             break
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${albumData.data.data}\n")
+                            println("Failed JSON:\n${albumData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -527,7 +523,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                         updateClientId()
                     }
 
-                    else -> println("HTTP ERROR! CODE ${albumData.code.code}")
+                    else -> println("HTTP ERROR! CODE ${albumData.code}")
                 }
             }
             albumJob.complete()
@@ -536,8 +532,8 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
     }
 
     override suspend fun fetchAlbumTracks(albumLink: Link, limit: Int): TrackList {
-        val id = if (albumLink.link.startsWith("$apiURL/"))
-            albumLink.link.substringAfterLast("/")
+        val id = if ("$albumLink".startsWith("$apiURL/"))
+            "$albumLink".substringAfterLast("/")
         else
             resolveId(albumLink)
 
@@ -574,7 +570,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                             break
                         } catch (e: JSONException) {
                             //JSON broken, try getting the data again
-                            println("Failed JSON:\n${albumData.data.data}\n")
+                            println("Failed JSON:\n${albumData.data}\n")
                             println("Failed to get data from JSON, trying again...")
                         }
                     }
@@ -583,7 +579,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                         updateClientId()
                     }
 
-                    else -> println("HTTP ERROR! CODE ${albumData.code.code}")
+                    else -> println("HTTP ERROR! CODE ${albumData.code}")
                 }
             }
             TrackList(trackList)
@@ -599,15 +595,15 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         lateinit var track: Track
 
         suspend fun fetchTrackData(): Response {
-            val id = if (trackLink.link.startsWith("$apiURL/tracks/"))
-                trackLink.link.substringAfterLast("/")
+            val id = if ("$trackLink".startsWith("$apiURL/tracks/"))
+                "$trackLink".substringAfterLast("/")
             else
                 resolveId(trackLink)
 
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("$api2URL/tracks/$id")
-            urlBuilder.append("?client_id=$clientId")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+            val linkBuilder = StringBuilder()
+            linkBuilder.append("$api2URL/tracks/$id")
+            linkBuilder.append("?client_id=$clientId")
+            return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
         fun parseTrackData(trackData: JSONObject): Track {
@@ -675,8 +671,8 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
             val idsBuilder = StringBuilder()
             for (link in trackLinks) {
                 idsBuilder.append(
-                    if (link.link.startsWith("$apiURL/tracks/")) {
-                        link.link.substringAfterLast("/")
+                    if ("$link".startsWith("$apiURL/tracks/")) {
+                        "$link".substringAfterLast("/")
                     } else {
                         resolveId(link)
                     } + ","
@@ -685,10 +681,10 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
             val ids = withContext(IO) {
                 URLEncoder.encode(idsBuilder.toString().substringBeforeLast(","), Charsets.UTF_8.toString())
             }
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("$api2URL/tracks?ids=$ids")
-            urlBuilder.append("&client_id=$clientId")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+            val linkBuilder = StringBuilder()
+            linkBuilder.append("$api2URL/tracks?ids=$ids")
+            linkBuilder.append("&client_id=$clientId")
+            return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
         fun parseTracksData(tracksData: JSONArray): TrackList {
@@ -797,14 +793,14 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
 
     private suspend fun fetchUserPlaylists(userLink: Link): Playlists {
         suspend fun fetchData(): Response {
-            val id = if (userLink.link.startsWith("$apiURL/users/"))
-                userLink.link.substringAfterLast("/")
+            val id = if ("$userLink".startsWith("$apiURL/users/"))
+                "$userLink".substringAfterLast("/")
             else
                 resolveId(userLink)
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("$api2URL/users/$id/playlists")
-            urlBuilder.append("?client_id=$clientId")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+            val linkBuilder = StringBuilder()
+            linkBuilder.append("$api2URL/users/$id/playlists")
+            linkBuilder.append("?client_id=$clientId")
+            return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
         val playlists = ArrayList<Playlist>()
@@ -866,18 +862,18 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         playlistsOnly: Boolean = false
     ): TrackList {
         suspend fun fetchData(link: Link = userLink): Response {
-            val id = if (link.link.startsWith("$api2URL/users/"))
-                link.link.substringBeforeLast("/").substringAfterLast("/")
+            val id = if ("$link".startsWith("$api2URL/users/"))
+                "$link".substringBeforeLast("/").substringAfterLast("/")
             else
-                resolveId(Link(link.link.substringBeforeLast("/")))
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("$api2URL/users/$id/likes")
-            urlBuilder.append("?client_id=$clientId")
-            if (link.link.startsWith("$api2URL/users/"))
-                urlBuilder.append("&${link.link.substringAfter("?")}")
+                resolveId(Link("$link".substringBeforeLast("/")))
+            val linkBuilder = StringBuilder()
+            linkBuilder.append("$api2URL/users/$id/likes")
+            linkBuilder.append("?client_id=$clientId")
+            if ("$link".startsWith("$api2URL/users/"))
+                linkBuilder.append("&$link".substringAfter("?"))
             else
-                urlBuilder.append("&limit=" + if (limit != 0 && limit < 100) limit else 100)
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+                linkBuilder.append("&limit=" + if (limit != 0 && limit < 100) limit else 100)
+            return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
         val likes = ArrayList<Track>()
@@ -1029,19 +1025,19 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         playlistsOnly: Boolean = false
     ): TrackList {
         suspend fun fetchData(link: Link = userLink): Response {
-            val id = if (link.link.startsWith("$api2URL/stream/users/"))
-                link.link.substringBeforeLast("/").substringAfterLast("/")
+            val id = if ("$link".startsWith("$api2URL/stream/users/"))
+                "$link".substringBeforeLast("/").substringAfterLast("/")
             else
-                resolveId(Link(link.link.substringBeforeLast("/")))
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("$api2URL/stream/users/$id/reposts")
-            urlBuilder.append("?client_id=$clientId")
-            if (link.link.startsWith("$api2URL/stream/users/"))
-                urlBuilder.append("&${link.link.substringAfter("?")}")
+                resolveId(Link("$link".substringBeforeLast("/")))
+        val linkBuilder = StringBuilder()
+            linkBuilder.append("$api2URL/stream/users/$id/reposts")
+            linkBuilder.append("?client_id=$clientId")
+            if ("$link".startsWith("$api2URL/stream/users/"))
+                linkBuilder.append("&$link".substringAfter("?"))
             else
-                urlBuilder.append("&limit=" + if (limit != 0 && limit < 100) limit else 100)
+                linkBuilder.append("&limit=" + if (limit != 0 && limit < 100) limit else 100)
 
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+            return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
         val reposts = ArrayList<Track>()
@@ -1203,11 +1199,11 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
      */
     private suspend fun fetchUserTracks(userId: String, tracksAmount: Int): TrackList {
         fun fetchTracksData(): Response {
-            val urlBuilder = StringBuilder()
-            urlBuilder.append("$api2URL/users/$userId/tracks")
-            urlBuilder.append("?limit=$tracksAmount")
-            urlBuilder.append("&client_id=$clientId")
-            return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+            val linkBuilder = StringBuilder()
+            linkBuilder.append("$api2URL/users/$userId/tracks")
+            linkBuilder.append("?limit=$tracksAmount")
+            linkBuilder.append("&client_id=$clientId")
+            return sendHttpRequest(Link(linkBuilder.toString()))
         }
         return if (tracksAmount > 0) {
             val tracksJob = Job()
@@ -1286,16 +1282,16 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
     }
 
     private fun fetchUserData(userId: String): Response {
-        val urlBuilder = StringBuilder()
-        urlBuilder.append("$api2URL/users/$userId")
-        urlBuilder.append("?client_id=$clientId")
-        return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+        val linkBuilder = StringBuilder()
+        linkBuilder.append("$api2URL/users/$userId")
+        linkBuilder.append("?client_id=$clientId")
+        return sendHttpRequest(Link(linkBuilder.toString()))
     }
 
     override suspend fun fetchUser(userLink: Link): User {
         lateinit var user: User
-        val id = if (userLink.link.startsWith("$apiURL/users/"))
-            userLink.link.substringAfterLast("/")
+        val id = if ("$userLink".startsWith("$apiURL/users/"))
+            "$userLink".substringAfterLast("/")
         else
             resolveId(userLink)
 
@@ -1344,18 +1340,18 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
     //therefore we just fetch a User's data, and present it as an Artist
     override suspend fun fetchArtist(artistLink: Link): Artist {
         lateinit var artist: Artist
-        val id = if (artistLink.link.startsWith("$apiURL/users/"))
-            artistLink.link.substringAfterLast("/")
+        val id = if ("$artistLink".startsWith("$apiURL/users/"))
+            "$artistLink".substringAfterLast("/")
         else
             resolveId(artistLink)
         val artistJob = Job()
 
         suspend fun parseArtistData(artistData: JSONObject) {
             fun fetchRelatedArtistsData(): Response {
-                val urlBuilder = StringBuilder()
-                urlBuilder.append("$api2URL/users/$id/relatedartists")
-                urlBuilder.append("?client_id=$clientId")
-                return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+                val linkBuilder = StringBuilder()
+                linkBuilder.append("$api2URL/users/$id/relatedartists")
+                linkBuilder.append("?client_id=$clientId")
+                return sendHttpRequest(Link(linkBuilder.toString()))
             }
 
             val artistsTracks = fetchUserTracks(id, artistData.getInt("track_count"))
@@ -1396,7 +1392,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                             updateClientId()
                         }
 
-                        else -> println("HTTP ERROR! CODE: ${artistsData.code.code}")
+                        else -> println("HTTP ERROR! CODE: ${artistsData.code}")
                     }
                 }
                 relatedArtistsJob.complete()
@@ -1438,7 +1434,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                         updateClientId()
                     }
 
-                    else -> println("HTTP ERROR! CODE: ${artistData.code.code}")
+                    else -> println("HTTP ERROR! CODE: ${artistData.code}")
                 }
             }
         }
@@ -1446,11 +1442,11 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
     }
 
     private fun fetchResolvedData(link: Link): Response {
-        val urlBuilder = StringBuilder()
-        urlBuilder.append("$api2URL/resolve?")
-        urlBuilder.append("client_id=$clientId")
-        urlBuilder.append("&url=${link.link}")
-        return sendHttpRequest(URL(urlBuilder.toString()), RequestMethod.GET)
+        val linkBuilder = StringBuilder()
+        linkBuilder.append("$api2URL/resolve?")
+        linkBuilder.append("client_id=$clientId")
+        linkBuilder.append("&url=${link.link}")
+        return sendHttpRequest(Link(linkBuilder.toString()))
     }
 
     override suspend fun resolveType(link: Link): LinkType {
@@ -1459,16 +1455,14 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         val urlStart = "(https?://)?soundcloud\\.com/[a-z0-9-_]+"
         val deferredType = CoroutineScope(IO + resolveJob).async {
             when {
-                linkToSolve.link.contains("$urlStart/(?!sets|likes|reposts)\\S+".toRegex()) -> LinkType.TRACK
-                linkToSolve.link.contains("$urlStart/likes".toRegex()) -> LinkType.LIKES
-                linkToSolve.link.contains("$urlStart/reposts".toRegex()) -> LinkType.REPOSTS
+                "$linkToSolve".contains("$urlStart/(?!sets|likes|reposts)\\S+".toRegex()) -> LinkType.TRACK
+                "$linkToSolve".contains("$urlStart/likes".toRegex()) -> LinkType.LIKES
+                "$linkToSolve".contains("$urlStart/reposts".toRegex()) -> LinkType.REPOSTS
                 else -> {
                     lateinit var type: LinkType
                     while (true) {
-                        if (linkToSolve.link.contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex()))
-                            linkToSolve = Link(
-                                sendHttpRequest(URL(linkToSolve.link), followRedirects = false).url.toString()
-                            ).clean(this@SoundCloud)
+                        if ("$linkToSolve".contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex()))
+                            linkToSolve = sendHttpRequest(linkToSolve, followRedirects = false).link.clean(this@SoundCloud)
                         val typeData = fetchResolvedData(linkToSolve)
                         when (typeData.code.code) {
                             HttpURLConnection.HTTP_OK -> {
@@ -1534,7 +1528,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         val deferredId = CoroutineScope(IO + resolveJob).async {
             lateinit var id: String
             var linkToSolve = link
-            if (link.link.contains("/(reposts|likes)$".toRegex())) {
+            if ("$link".contains("/(reposts|likes)$".toRegex())) {
                 //As it turns out, neither likes nor reposts have an id.
                 //However, when trying to resolve a likes link, the user is returned, whereas
                 //trying to resolve a reposts link just gives a 404 error.
@@ -1544,10 +1538,8 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                 resolveJob.complete()
                 id
             } else {
-                if (linkToSolve.link.contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex()))
-                    linkToSolve = Link(
-                        sendHttpRequest(URL(linkToSolve.link), followRedirects = false).url.toString()
-                    ).clean(this@SoundCloud)
+                if ("$linkToSolve".contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex()))
+                    linkToSolve = sendHttpRequest(linkToSolve, followRedirects = false).link.clean(this@SoundCloud)
                 while (true) {
                     val idData = fetchResolvedData(linkToSolve)
                     when (idData.code.code) {
