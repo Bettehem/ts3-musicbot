@@ -4,10 +4,12 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
     application
     kotlin("jvm") version "1.9.10"
-    id("org.openjfx.javafxplugin") version "0.0.13"
+    id("org.openjfx.javafxplugin") version "0.1.0"
     id("com.github.johnrengelman.shadow") version "7.1.2"
     id("java")
 }
+
+group = "ts3-musicbot"
 
 repositories {
     mavenCentral()
@@ -24,12 +26,13 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.6.3-native-mt")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.6.3-native-mt")
     implementation("com.github.bettehem:ts3j:master-SNAPSHOT")
+    implementation("org.openjfx:javafx-controls:11")
 }
 
-// JavaFX module to include
+// JavaFX modules to include
 javafx {
-    version = "11.0.2"
-    modules = listOf("javafx.controls")
+    version = "11"
+    modules = listOf("javafx.controls", "javafx.graphics", "javafx.base")
 }
 
 application {
@@ -45,9 +48,23 @@ compileTestKotlin.kotlinOptions {
     jvmTarget = "11"
 }
 
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+    modularity.inferModulePath.set(false)
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(11)
+}
+
+
 tasks.withType<ShadowJar> {
-    archiveBaseName.set("shadow")
+    exclude("module-info.class")
+    archiveBaseName.set("ts3-musicbot")
     archiveFileName.set("ts3-musicbot.jar")
+    archiveClassifier.set("")
     mergeServiceFiles()
     minimize()
     manifest {
