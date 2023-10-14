@@ -1386,6 +1386,7 @@ class ChatReader(
                                     SongQueue.State.QUEUE_STOPPED -> statusMessage.appendLine("Stopped")
                                         .also { stateKnown = true }
                                 }
+                                statusMessage.appendLine("Track Position: " + songQueue.getTrackPosition() + " seconds.")
                                 printToChat(statusMessage.toString().lines())
                                 commandListener.onCommandExecuted(commandString, statusMessage.toString())
                                 commandJob.complete()

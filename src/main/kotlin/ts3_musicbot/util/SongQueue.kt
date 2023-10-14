@@ -31,6 +31,8 @@ class SongQueue(
 
     fun getState() = synchronized(queueState) { queueState }
 
+    fun getTrackPosition() = synchronized(trackPlayer) { "${trackPlayer.trackPosition}/${trackPlayer.getTrackLength()}" }
+
     private val trackPlayer = TrackPlayer(botSettings, teamSpeak, this)
 
     private fun setCurrent(track: Track) = synchronized(trackPlayer) { trackPlayer.track = track }
@@ -350,6 +352,23 @@ class SongQueue(
                 ""
             }
         }
+        /**
+         * Get track length in seconds
+         * @return track length in seconds
+         */
+        fun getTrackLength(): Int {
+            val lengthMicroseconds: Long = try {
+                playerctl(getPlayer(), "metadata").outputText.lines()
+                    .first { it.contains("mpris:length") }.replace("^.+\\s+".toRegex(), "").toLong()
+            } catch (e: Exception) {
+                //track hasn't started
+                0L
+            }
+            val minutes = lengthMicroseconds / 1000000 / 60
+            val seconds = lengthMicroseconds / 1000000 % 60
+            //convert to seconds
+            return (minutes * 60 + seconds).toInt()
+        }
 
         fun refreshPulseAudio() {
             //if using pulseaudio, refresh it using pasuspender
@@ -594,24 +613,6 @@ class SongQueue(
 
             //starts playing the track
             suspend fun openTrack() {
-                /**
-                 * Get track length in seconds
-                 * @return track length in seconds
-                 */
-                fun getTrackLength(): Int {
-                    val lengthMicroseconds: Long = try {
-                        playerctl(getPlayer(), "metadata").outputText.lines()
-                            .first { it.contains("mpris:length") }.replace("^.+\\s+".toRegex(), "").toLong()
-                    } catch (e: Exception) {
-                        //track hasn't started
-                        0L
-                    }
-                    val minutes = lengthMicroseconds / 1000000 / 60
-                    val seconds = lengthMicroseconds / 1000000 % 60
-                    //convert to seconds
-                    return (minutes * 60 + seconds).toInt()
-                }
-
                 var trackLength = getTrackLength()
                 var wasPaused = false
 
