@@ -1184,7 +1184,7 @@ class ChatReader(
                                 val noArgsCommand = removeTags(
                                     commandString.replace(
                                         ("(${commandList.commandList["queue-move"]}\\s+)|" +
-                                                "(\\s*(${availableArgs.joinToString("|")})(\\s*[0-9]+)?)").toRegex(),
+                                                "(\\s*(${availableArgs.joinToString("|")})(\\s*[0-9]+)?\\s*)").toRegex(),
                                         ""
                                     )
                                 ).let { args ->
@@ -1268,7 +1268,7 @@ class ChatReader(
                                         } else {
                                             val indexList = ArrayList<Pair<Link, List<Int>>>()
                                             links.forEach { link ->
-                                                currentList.indexOfFirst { it.link == link }.let {
+                                                currentList.indexOfFirst { "${it.link}" == "$link" }.let {
                                                     indexList.add(Pair(link, listOf(it)))
                                                 }
                                             }
