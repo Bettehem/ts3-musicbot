@@ -32,7 +32,7 @@ dependencies {
 // JavaFX modules to include
 javafx {
     version = "11"
-    modules = listOf("javafx.controls", "javafx.graphics", "javafx.base")
+    modules = listOf("javafx.controls")
 }
 
 application {
@@ -52,7 +52,6 @@ compileTestKotlin.kotlinOptions {
 java {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
-    modularity.inferModulePath.set(false)
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -61,10 +60,8 @@ tasks.withType<JavaCompile>().configureEach {
 
 
 tasks.withType<ShadowJar> {
-    exclude("module-info.class")
     archiveBaseName.set("ts3-musicbot")
     archiveFileName.set("ts3-musicbot.jar")
-    archiveClassifier.set("")
     mergeServiceFiles()
     minimize()
     manifest {

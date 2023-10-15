@@ -159,7 +159,7 @@ class OfficialTSClient(
      * @param channelPassword the password of the channel to join
      */
     fun joinChannel(channelName: String = settings.channelName, channelPassword: String = settings.channelPassword) {
-        println("Attempting to join a channel at \"$channelName\"" + if (channelPassword.isNotEmpty()) "with the password \"$channelPassword\"" else "")
+        println("Attempting to join a channel at \"$channelName\"" + if (channelPassword.isNotEmpty()) " with the password \"$channelPassword\"" else "")
         if (channelName != getCurrentChannelName()) {
             if (channelPassword.isNotEmpty()) {
                 clientQuery("disconnect")
