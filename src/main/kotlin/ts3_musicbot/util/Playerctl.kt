@@ -154,6 +154,11 @@ fun playerctl(
             Output("${listPlayers()}")
         }
 
+        "position" -> {
+            val positionData = dbusGet("Position").outputText.substringAfter("int64").trim().ifEmpty { "0" }
+            Output(positionData)
+        }
+
         else -> Output()
     }
 }
