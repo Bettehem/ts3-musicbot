@@ -26,12 +26,12 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.6.3-native-mt")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.6.3-native-mt")
     implementation("com.github.bettehem:ts3j:master-SNAPSHOT")
-    implementation("org.openjfx:javafx-controls:11")
+    implementation("org.openjfx:javafx-controls:17")
 }
 
 // JavaFX modules to include
 javafx {
-    version = "11"
+    version = "17"
     modules = listOf("javafx.controls")
 }
 
@@ -53,11 +53,6 @@ java {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
 }
-
-tasks.withType<JavaCompile>().configureEach {
-    options.release.set(11)
-}
-
 
 tasks.withType<ShadowJar> {
     archiveBaseName.set("ts3-musicbot")
