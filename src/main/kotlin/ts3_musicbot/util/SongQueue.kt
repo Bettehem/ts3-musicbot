@@ -640,8 +640,9 @@ class SongQueue(
                     println()
                     withContext(job + IO) {
                         while (job.isActive) {
-                            if (playerStatus().outputText == "Playing")
-                                trackPosition = getCurrentPosition()
+                            val currentPos = getCurrentPosition()
+                            if (playerStatus().outputText == "Playing" && currentPos > trackPosition)
+                                trackPosition = currentPos
                             print("\rTrack Position: $trackPosition/$trackLength seconds")
                             if (trackPosition > trackLength + 30) {
                                 println("Wait.. what?")
@@ -652,7 +653,7 @@ class SongQueue(
                                     skipTrack()
                                 }
                             }
-                            delay(1000)
+                            delay(500)
                         }
                     }
                 }
@@ -690,9 +691,9 @@ class SongQueue(
                                             track.link.getId()
                                 )
                                 attempts++
-                                delay(1000)
+                                delay(500)
                                 if (playerStatus().outputText != "Playing")
-                                    delay(2000)
+                                    delay(3500)
                             } else {
                                 println("The player may be stuck, trying to start it again.")
                                 attempts = 0
@@ -808,7 +809,7 @@ class SongQueue(
 
                             "Paused" -> {
                                 if (getPlayer() == "spotify") {
-                                    if (trackPosition >= trackLength - 3) {
+                                    if (trackPosition >= trackLength - 5) {
                                         //Song ended
                                         //Spotify changes playback status to "Paused" right before the song actually ends,
                                         //so wait for a brief moment so the song has a chance to end properly.
@@ -830,7 +831,7 @@ class SongQueue(
                             }
 
                             "Stopped" -> {
-                                if (trackPosition >= trackLength - 3) {
+                                if (trackPosition >= trackLength - 5) {
                                     skipTrack()
                                     break@loop
                                 } else {
@@ -857,7 +858,7 @@ class SongQueue(
                             }
                         }
                     } else {
-                        if (trackPosition >= trackLength - 3) {
+                        if (trackPosition >= trackLength - 5) {
                             skipTrack()
                             break@loop
                         } else {
