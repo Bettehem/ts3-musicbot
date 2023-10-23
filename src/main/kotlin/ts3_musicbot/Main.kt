@@ -276,7 +276,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         if (!File("${officialTSClient.tsClientDirPath}/settings.db").exists())
                             officialTSClient.exportTeamSpeakSettings()
 
-                        if (officialTSClient.startTeamSpeak(true)) {
+                        if (officialTSClient.startTeamSpeak()) {
                             officialTSClient.joinChannel()
                             chatReader = ChatReader(
                                 officialTSClient,
@@ -891,7 +891,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         if (!File("${officialTSClient.tsClientDirPath}/settings.db").exists())
                             officialTSClient.exportTeamSpeakSettings()
 
-                        if (officialTSClient.startTeamSpeak(true)) {
+                        if (officialTSClient.startTeamSpeak()) {
                             statusTextView.text = "Status: Connected."
                             startBotButton.isManaged = false
                             startBotButton.isVisible = false

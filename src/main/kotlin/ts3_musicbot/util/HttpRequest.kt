@@ -47,6 +47,7 @@ fun sendHttpRequest(
     connection.instanceFollowRedirects = followRedirects
     connection.requestMethod = requestMethod.name
     var responseData = ResponseData("")
+    var responseCode = ResponseCode(0)
     val responseLink = if (followRedirects) {
         for (property in defaultProperties.properties) {
             val p = property.split(": ".toRegex())
@@ -58,12 +59,18 @@ fun sendHttpRequest(
         }
         if (connection.requestMethod == RequestMethod.POST.name) {
             connection.doOutput = true
-            val outputStream = connection.outputStream
-            for (data in postData.data) {
-                outputStream.write(data.toByteArray())
+            try {
+                val outputStream = connection.outputStream
+                for (data in postData.data) {
+                    outputStream.write(data.toByteArray())
+                }
+                outputStream.flush()
+                outputStream.close()
+            } catch (e: java.net.SocketException) {
+                println("HTTP request failed due to exception!")
+                e.printStackTrace()
+                responseCode = ResponseCode(400)
             }
-            outputStream.flush()
-            outputStream.close()
         }
         responseData = ResponseData(
             when (connection.responseCode) {
@@ -97,7 +104,8 @@ fun sendHttpRequest(
     } else {
         Link(connection.getHeaderField("Location"))
     }
-    val responseCode = ResponseCode(connection.responseCode)
+    if (responseCode.code == 0)
+        responseCode = ResponseCode(connection.responseCode)
     println("\nRequest URL: $link\nRequest Method: $requestMethod\nResponse URL: $responseLink\nResponse Code: $responseCode\n")
     connection.disconnect()
     return Response(responseCode, responseData, responseLink)

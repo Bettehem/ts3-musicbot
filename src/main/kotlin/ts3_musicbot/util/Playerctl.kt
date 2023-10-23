@@ -4,17 +4,22 @@ private fun listPlayers() = CommandRunner().runCommand("dbus-send --print-reply 
     .outputText.lines().map { it.replace("^.*string\\s+\"org\\.mpris\\.MediaPlayer2\\.".toRegex(), "").replace("\".*$".toRegex(), "") }
 
 fun playerctl(
-    player: String = listPlayers().first(),
+    player: String = listPlayers().firstOrNull().orEmpty(),
     command: String, extra: String = ""
 ): Output {
+    val mediaPlayer = if (player.isNotEmpty()) {
+        listPlayers().firstOrNull { it.startsWith(player) }.orEmpty()
+            .ifEmpty { player }
+    } else player
+
     val commandRunner = CommandRunner()
     fun dbusGet(property: String) = commandRunner.runCommand(
-        "dbus-send --print-reply --dest=org.mpris.MediaPlayer2.$player /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2.Player' string:'$property'",
+        "dbus-send --print-reply --dest=org.mpris.MediaPlayer2.$mediaPlayer /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2.Player' string:'$property'",
         printOutput = false, printErrors = false
     )
 
     fun dbusSend(method: String, data: String = "") = commandRunner.runCommand(
-        "dbus-send --print-reply --dest=org.mpris.MediaPlayer2.$player /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.$method" +
+        "dbus-send --print-reply --dest=org.mpris.MediaPlayer2.$mediaPlayer /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.$method" +
                 if (data.isNotEmpty()) {
                     " string:'$data'"
                 } else {
@@ -102,31 +107,31 @@ fun playerctl(
             val trackNum = "xesam:trackNumber"
             val url = "xesam:url"
             if (parsedOutput.contains(trackId))
-                formattedMetadata.appendLine("$player $trackId\t\t${parsedOutput[trackId]}")
+                formattedMetadata.appendLine("$mediaPlayer $trackId\t\t${parsedOutput[trackId]}")
             if (parsedOutput.contains(length))
-                formattedMetadata.appendLine("$player $length\t\t\t${parsedOutput[length]}")
+                formattedMetadata.appendLine("$mediaPlayer $length\t\t\t${parsedOutput[length]}")
             if (parsedOutput.contains(artUrl))
-                formattedMetadata.appendLine("$player $artUrl\t\t\t${parsedOutput[artUrl]}")
+                formattedMetadata.appendLine("$mediaPlayer $artUrl\t\t\t${parsedOutput[artUrl]}")
             if (parsedOutput.contains(album))
-                formattedMetadata.appendLine("$player $album\t\t\t${parsedOutput[album]}")
+                formattedMetadata.appendLine("$mediaPlayer $album\t\t\t${parsedOutput[album]}")
             if (parsedOutput.contains(albumArtist))
-                formattedMetadata.appendLine("$player $albumArtist\t${
+                formattedMetadata.appendLine("$mediaPlayer $albumArtist\t${
                     parsedOutput[albumArtist].let { if (it is List<*>) it.joinToString() else "" }
                 }")
             if (parsedOutput.contains(artist))
-                formattedMetadata.appendLine("$player $artist\t\t${
+                formattedMetadata.appendLine("$mediaPlayer $artist\t\t${
                     parsedOutput[artist].let { if (it is List<*>) it.joinToString() else "" }
                 }")
             if (parsedOutput.contains(rating))
-                formattedMetadata.appendLine("$player $rating\t\t${parsedOutput[rating]}")
+                formattedMetadata.appendLine("$mediaPlayer $rating\t\t${parsedOutput[rating]}")
             if (parsedOutput.contains(discNum))
-                formattedMetadata.appendLine("$player $discNum\t\t${parsedOutput[discNum]}")
+                formattedMetadata.appendLine("$mediaPlayer $discNum\t\t${parsedOutput[discNum]}")
             if (parsedOutput.contains(title))
-                formattedMetadata.appendLine("$player $title\t\t\t${parsedOutput[title]}")
+                formattedMetadata.appendLine("$mediaPlayer $title\t\t\t${parsedOutput[title]}")
             if (parsedOutput.contains(trackNum))
-                formattedMetadata.appendLine("$player $trackNum\t${parsedOutput[trackNum]}")
+                formattedMetadata.appendLine("$mediaPlayer $trackNum\t${parsedOutput[trackNum]}")
             if (parsedOutput.contains(url))
-                formattedMetadata.appendLine("$player $url\t\t\t${parsedOutput[url]}")
+                formattedMetadata.appendLine("$mediaPlayer $url\t\t\t${parsedOutput[url]}")
             Output(formattedMetadata.toString(), metadata.errorText)
         }
 

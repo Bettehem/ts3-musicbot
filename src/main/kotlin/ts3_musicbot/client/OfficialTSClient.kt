@@ -25,7 +25,7 @@ class OfficialTSClient(
         val distro =
             commandRunner.runCommand("cat /etc/issue", printOutput = false).outputText
         return when {
-            distro.contains("(Ubuntu|Debian)".toRegex()) -> {
+            distro.lowercase().contains("(ubuntu|debian|droidian)".toRegex()) -> {
                 message.replace(" ", "\\s")
                     .replace("\n", "\\\\\\n")
                     .replace("/", "\\/")
@@ -73,6 +73,7 @@ class OfficialTSClient(
         "(echo \"auth apikey=${settings.apiKey}\"; " +
                 "echo \"$queryMsg\"; echo quit) | nc localhost 25639",
         printOutput = false,
+        printErrors = false,
         printCommand = false
     ).outputText
 
@@ -158,21 +159,28 @@ class OfficialTSClient(
      * @param channelName the name of the channel to join
      * @param channelPassword the password of the channel to join
      */
-    fun joinChannel(channelName: String = settings.channelName, channelPassword: String = settings.channelPassword) {
+    suspend fun joinChannel(channelName: String = settings.channelName, channelPassword: String = settings.channelPassword) {
         println("Attempting to join a channel at \"$channelName\"" + if (channelPassword.isNotEmpty()) " with the password \"$channelPassword\"" else "")
-        if (channelName != getCurrentChannelName()) {
-            if (channelPassword.isNotEmpty()) {
-                clientQuery("disconnect")
-                clientQuery(
-                    "connect address=${settings.serverAddress} password=${encode(settings.serverPassword)} " +
-                            "nickname=${encode(settings.nickname)} " +
-                            "channel=${encode(channelName)} channel_pw=${encode(channelPassword)}"
-                )
-            } else {
-                val channelId = getChannelId(channelName)
-                clientQuery("clientmove cid=$channelId clid=${getCurrentUserId()}")
+
+        val currentChannelName = getCurrentChannelName()
+        if (currentChannelName == "not connected") {
+            println("Connection failed! Trying again...")
+            restartClient()
+        } else {
+            if (channelName != currentChannelName) {
+                if (channelPassword.isNotEmpty()) {
+                    clientQuery("disconnect")
+                    clientQuery(
+                        "connect address=${settings.serverAddress} password=${encode(settings.serverPassword)} " +
+                                "nickname=${encode(settings.nickname)} " +
+                                "channel=${encode(channelName)} channel_pw=${encode(channelPassword)}"
+                    )
+                } else {
+                    val channelId = getChannelId(channelName)
+                    clientQuery("clientmove cid=$channelId clid=${getCurrentUserId()}")
+                }
+                updateChannelFile()
             }
-            updateChannelFile()
         }
     }
 
@@ -180,20 +188,27 @@ class OfficialTSClient(
      * get then name of the current channel
      * @return returns the name of the current channel
      */
-    private fun getCurrentChannelName(): String =
-        decode(
-            clientQuery("channelconnectinfo").lines().first { it.startsWith("path=") }
-                .substringAfter("path=").substringBefore(' ')
-        )
+    private fun getCurrentChannelName(): String {
+        val connectInfo = clientQuery("channelconnectinfo").lines()
+        return when {
+            connectInfo.any { it.startsWith("path=") } -> decode(
+                    connectInfo.first { it.startsWith("path=") }
+                        .substringAfter("path=").substringBefore(' ')
+                    )
+            connectInfo.any { it.contains("msg=not\\sconnected") } -> decode(
+                connectInfo.first { it.contains("msg=not\\sconnected") }
+                    .substringAfter("msg=")
+            )
+            else -> ""
+        }
+    }
 
     /**
-     * Start the TeamSpeak Client
-     * @param connectToServer Set to true if you want to connect to the server too.
+     * Start the TeamSpeak Client and connect to server
      * @return returns true if starting teamspeak is successful, false if requirements aren't met
      */
-    suspend fun startTeamSpeak(connectToServer: Boolean): Boolean {
-        if (connectToServer && settings.apiKey.isEmpty())
-            settings.apiKey = getApiKey()
+    suspend fun startTeamSpeak(): Boolean {
+        settings.apiKey = settings.apiKey.ifEmpty { getApiKey() }
 
         if (settings.serverAddress.isNotEmpty()) {
             /**
@@ -211,49 +226,56 @@ class OfficialTSClient(
             //start teamspeak
             commandRunner.runCommand(
                 ignoreOutput = true,
-                command = "xvfb-run -a teamspeak3 -nosingleinstance " +
-                        (if (connectToServer)
-                            " \"" +
-                                    (if (settings.serverAddress.isNotEmpty()) "ts3server://${settings.serverAddress}" else "") +
-                                    "?port=${settings.serverPort}" +
-                                    "&nickname=${
-                                        withContext(IO) {
-                                            URLEncoder.encode(settings.nickname, Charsets.UTF_8.toString())
-                                        }.replace("+", "%20")
-                                    }" +
-                                    (if ((settings.serverPassword.isNotEmpty()))
-                                        "&password=${
-                                            withContext(IO) {
-                                                URLEncoder.encode(
-                                                    settings.serverPassword,
-                                                    Charsets.UTF_8.toString().replace("+", "%20")
-                                                )
-                                            }
-                                        }"
-                                    else "") +
-                                    "\""
-                        else "")
-                        + " &"
-
+                command = "xvfb-run -a teamspeak3 -nosingleinstance" +
+                        " \"" +
+                        (if (settings.serverAddress.isNotEmpty()) "ts3server://${settings.serverAddress}" else "") +
+                        "?port=${settings.serverPort}" +
+                        "&nickname=${
+                            withContext(IO) {
+                                URLEncoder.encode(settings.nickname, Charsets.UTF_8.toString())
+                            }.replace("+", "%20")
+                        }" +
+                        (if ((settings.serverPassword.isNotEmpty()))
+                            "&password=${
+                                withContext(IO) {
+                                    URLEncoder.encode(
+                                        settings.serverPassword,
+                                        Charsets.UTF_8.toString().replace("+", "%20")
+                                    )
+                                }
+                            }"
+                        else "") +
+                        "\" &",
+                inheritIO = false
             )
             delay(1000)
             //wait for teamspeak to start
+            println()
+            var dotsAmount = 0
             while (!commandRunner.runCommand("ps aux | grep ts3client | grep -v grep", printOutput = false)
                     .outputText.contains("ts3client_linux".toRegex())
             ) {
-                println("Waiting for TeamSpeak process to start...")
+                print("\rWaiting for TeamSpeak's process to start" + ".".repeat(dotsAmount) + "    ")
                 delay(1000)
+                if (dotsAmount < 3)
+                    dotsAmount++
+                else
+                    dotsAmount = 0
             }
-            if (connectToServer) {
-                while (getVirtualServerName().isEmpty()) {
-                    println("Waiting for TeamSpeak to connect to server...")
-                    delay(1000)
-                }
-                println("Getting server name...")
-                serverName = getVirtualServerName()
-                println("Server name: $serverName")
-                audioSetup()
+            println()
+            dotsAmount = 0
+            while (getVirtualServerName().isEmpty()) {
+                print("\rWaiting for TeamSpeak to connect to server" + ".".repeat(dotsAmount) + "    ")
+                delay(1000)
+                if (dotsAmount < 3)
+                    dotsAmount++
+                else
+                    dotsAmount = 0
             }
+            println("\nGetting server name...")
+            serverName = getVirtualServerName()
+            println("Server name: $serverName")
+            audioSetup()
             delay(1000)
             return true
         } else {
@@ -264,12 +286,42 @@ class OfficialTSClient(
     private suspend fun getApiKey(): String {
         println("Getting ClientQuery api key from $tsClientDirPath/clientquery.ini")
         val clientQueryIni = File("$tsClientDirPath/clientquery.ini")
-        while (!clientQueryIni.exists()) {
-            println("ClientQuery file doesn't exist!\nStarting TeamSpeak client to generate the file...")
-            stopTeamSpeak()
-            startTeamSpeak(false)
+        suspend fun generateFile() {
+            println("Trying to generate file.")
+            killTeamSpeak()
+            delay(500)
+            val logFile = File("/tmp/tsOutput.log")
+            if (!logFile.exists()) {
+                logFile.createNewFile()
+            } else {
+                logFile.delete()
+                logFile.createNewFile()
+            }
+            commandRunner.runCommand(
+                "xvfb-run -a teamspeak3 1> /tmp/tsOutput.log &",
+                printCommand = true,
+                inheritIO = true
+            )
+            println()
+            var dotsAmount = 0
+            while (!logFile.readLines().any { it.contains("Addon installed: ClientQuery") }) {
+                print("\rWaiting for TeamSpeak to install ClientQuery addon" + ".".repeat(dotsAmount) + "    ")
+                delay(1000)
+                if (dotsAmount < 3)
+                    dotsAmount++
+                else
+                    dotsAmount = 0
+            }
+            println("\nDone.")
+            logFile.delete()
+            delay(2000)
+            killTeamSpeak()
         }
-        stopTeamSpeak()
+
+        while (!clientQueryIni.exists()) {
+            println("File doesn't exist!")
+            generateFile()
+        }
         return clientQueryIni.readLines().first { it.startsWith("api_key=") }.substringAfter("=")
     }
 
@@ -430,18 +482,22 @@ class OfficialTSClient(
     suspend fun stopTeamSpeak() {
         clientQuery("disconnect")
         delay(500)
-        commandRunner.runCommand(
-            "pkill -9 ts3client_linux",
-            ignoreOutput = true,
-            printCommand = false,
-            printOutput = false
-        )
-        commandRunner.runCommand(
-            "pkill -9 ts3client_linux",
-            ignoreOutput = true,
-            printCommand = false,
-            printOutput = false
-        )
+        killTeamSpeak()
+    }
+
+    /**
+     * Kills the ts3client_linux process
+     */
+    private suspend fun killTeamSpeak() {
+        repeat(4) {
+            commandRunner.runCommand(
+                "pkill -9 ts3client_linux",
+                ignoreOutput = true,
+                printCommand = false,
+                printOutput = false
+            )
+            delay(200)
+        }
     }
 
     /**
@@ -450,7 +506,7 @@ class OfficialTSClient(
      */
     suspend fun restartClient(): Boolean {
         stopTeamSpeak()
-        return if (startTeamSpeak(true)) {
+        return if (startTeamSpeak()) {
             joinChannel()
             true
         } else false
@@ -689,11 +745,10 @@ class OfficialTSClient(
             return pactlJSON.toJSONArray(pactlJSON.names())
         }
 
-        return if (
-            commandRunner.runCommand("pactl --version", printOutput = false, printCommand = false)
+        val pactlVersion = commandRunner.runCommand("pactl --version", printOutput = false, printCommand = false)
                 .outputText.lines().first().replace("^pactl\\s+".toRegex(), "")
-                .substringBefore(".").toInt() < 16
-        ) {
+                .substringBefore(".").toInt() 
+        return if (pactlVersion < 16) {
             val output = commandRunner.runCommand(
                 "pactl $command",
                 printOutput = false, printCommand = false
@@ -743,8 +798,13 @@ class OfficialTSClient(
                 it as JSONObject
                 it.getInt("index")
             }
+
+            val defaultSinkName = commandRunner.runCommand(
+                "pacmd list-sinks | grep -e 'index:' -e 'name:' | grep -A 1 -E '\\s+\\*\\s+index:' | grep 'name'",
+                printCommand = false, printOutput = false
+            ).outputText.replace("(^\\s*name:\\s*<|>.*$)".toRegex(), "")
             commandRunner.runCommand(
-                "pactl move-source-output $tsSourceOutputId \$(pactl get-default-sink).monitor",
+                "pactl move-source-output $tsSourceOutputId $defaultSinkName.monitor",
                 printCommand = false, printOutput = false
             )
             println("Audio setup done.")

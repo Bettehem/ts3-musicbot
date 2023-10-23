@@ -95,6 +95,10 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                         delay(data.data.data.toLong() * 1000)
                     }
 
+                    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                        println("Request failed! Trying again...")
+                    }
+
                     else -> println("HTTP ERROR! CODE: ${data.code}")
 
                 }

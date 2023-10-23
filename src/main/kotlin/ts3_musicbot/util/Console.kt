@@ -22,28 +22,24 @@ class Console(
         loop@ while (true) {
             val userCommand = console.readLine("Command: ")
             when (val command = userCommand.replace("\\s+.*$".toRegex(), "")) {
-                "help" -> {
-                    println(
-                        "\n\nTS3 MusicBot help:\n\n" +
-                                "<command>\t\t\t\t<explanation>\n" +
-                                "help\t\t\t\t\tShows this help message.\n" +
-                                "${commandList.commandList["help"]}\t\t\t\t\tShows commands for controlling the actual bot.\n" +
-                                "say\t\t\t\t\tSend a message to the chat.\n" +
-                                "save-settings\t\t\t\tSaves current settings in to a config file.\n" +
-                                "clear\t\t\t\t\tClears the screen.\n" +
-                                "exit\t\t\t\t\tExits the program.\n" +
-                                "quit\t\t\t\t\tSame as exit.\n" +
-                                "join-channel, jc <channel> -p <password>\tJoin a channel.\n" +
-                                "restart <ts/teamspeak/ncspot>\t\tRestarts the teamspeak/ncspot client.\n" +
-                                "playerctl -p <player> <args>\t\t\tRun playerctl-like commands.\n"
-                    )
-                }
+                "help" -> println(
+                    "\n\nTS3 MusicBot help:\n\n" +
+                            "<command>\t\t\t\t<explanation>\n" +
+                            "help\t\t\t\t\tShows this help message.\n" +
+                            "${commandList.commandList["help"]}\t\t\t\t\tShows commands for controlling the actual bot.\n" +
+                            "say\t\t\t\t\tSend a message to the chat.\n" +
+                            "save-settings\t\t\t\tSaves current settings in to a config file.\n" +
+                            "clear\t\t\t\t\tClears the screen.\n" +
+                            "exit\t\t\t\t\tExits the program.\n" +
+                            "quit\t\t\t\t\tSame as exit.\n" +
+                            "join-channel, jc <channel> -p <password>\tJoin a channel.\n" +
+                            "restart <ts/teamspeak/ncspot>\t\tRestarts the teamspeak/ncspot client.\n" +
+                            "playerctl -p <player> <args>\t\t\tRun playerctl-like commands.\n"
+                )
 
-                "say" -> {
-                    when (teamSpeak) {
-                        is TeamSpeak -> teamSpeak.sendMsgToChannel(userCommand.replace("^say\\s+".toRegex(), ""))
-                        is OfficialTSClient -> teamSpeak.sendMsgToChannel(userCommand.replace("^say\\s+".toRegex(), ""))
-                    }
+                "say" -> when (teamSpeak) {
+                    is TeamSpeak -> teamSpeak.sendMsgToChannel(userCommand.replace("^say\\s+".toRegex(), ""))
+                    is OfficialTSClient -> teamSpeak.sendMsgToChannel(userCommand.replace("^say\\s+".toRegex(), ""))
                 }
 
                 "save-settings" -> consoleUpdateListener.onCommandIssued(command)
@@ -58,41 +54,35 @@ class Console(
                         else ""
                     when (teamSpeak) {
                         is TeamSpeak -> teamSpeak.joinChannel(channelName, channelPassword)
-                        is OfficialTSClient -> teamSpeak.joinChannel(channelName, channelPassword)
+                        is OfficialTSClient -> CoroutineScope(IO).launch {
+                            teamSpeak.joinChannel(channelName, channelPassword)
+                        }
                     }
                 }
 
-                "restart" -> {
-                    when (userCommand.replace("$command\\s+".toRegex(), "").replace("\\s+.*$", "").lowercase()) {
-                        "ts", "teamspeak" -> {
-                            CoroutineScope(IO).launch {
-                                when (teamSpeak) {
-                                    is OfficialTSClient -> launch { teamSpeak.restartClient() }
-                                    is TeamSpeak -> launch { teamSpeak.reconnect() }
-                                }
-                            }
-                        }
-
-                        "ncspot" -> {
-                            CoroutineScope(IO).launch {
-                                playerctl("ncspot", "stop")
-                                commandRunner.runCommand(
-                                    "tmux kill-session -t ncspot",
-                                    ignoreOutput = true
-                                )
-                                delay(100)
-                                commandRunner.runCommand(
-                                    "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
-                                    ignoreOutput = true,
-                                    printCommand = true
-                                )
-                            }
-                        }
-
-                        else -> {
-                            println("Specify either ts,teamspeak or ncspot!")
+                "restart" -> when (userCommand.replace("$command\\s+".toRegex(), "").replace("\\s+.*$", "").lowercase()) {
+                    "ts", "teamspeak" -> CoroutineScope(IO).launch {
+                        when (teamSpeak) {
+                            is OfficialTSClient -> launch { teamSpeak.restartClient() }
+                            is TeamSpeak -> launch { teamSpeak.reconnect() }
                         }
                     }
+
+                    "ncspot" -> CoroutineScope(IO).launch {
+                        playerctl("ncspot", "stop")
+                        commandRunner.runCommand(
+                            "tmux kill-session -t ncspot",
+                            ignoreOutput = true
+                        )
+                        delay(100)
+                        commandRunner.runCommand(
+                            "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
+                            ignoreOutput = true,
+                            printCommand = true
+                        )
+                    }
+
+                    else -> println("Specify either ts,teamspeak or ncspot!")
                 }
 
                 "playerctl" -> {
