@@ -1779,6 +1779,11 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                                         updateToken()
                                     }
 
+                                    HttpURLConnection.HTTP_NOT_FOUND -> {
+                                        println("ERROR 404!\nThe link \"${data.link}\" couldn't be found.")
+                                        return@withContext
+                                    }
+
                                     HTTP_TOO_MANY_REQUESTS -> {
                                         println("Too many requests! Waiting for ${data.data} seconds.")
                                         //wait for given time before next request.
@@ -1814,6 +1819,11 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
 
                         HttpURLConnection.HTTP_UNAUTHORIZED -> {
                             updateToken()
+                        }
+
+                        HttpURLConnection.HTTP_NOT_FOUND -> {
+                            println("ERROR 404!\nThe link \"${episodesData.link}\" couldn't be found.")
+                            return@withContext
                         }
 
                         HTTP_TOO_MANY_REQUESTS -> {
