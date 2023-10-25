@@ -1609,6 +1609,26 @@ class ChatReader(
                                 commandJob.complete()
                                 return Pair(success, links)
                             }
+                            //goto command
+                            commandString.contains("^${commandList.commandList["goto"]}\\s+\\S+".toRegex()) -> {
+                                val password = if (commandString.contains("-p\\s+\\S+".toRegex())) {
+                                    commandString.replace("^.*-p\\s*".toRegex(), "")
+                                } else { "" }.replace("(^\"|\"$)".toRegex(), "")
+                                val channelToJoin = commandString.replace("^${commandList.commandList["goto"]}\\s+".toRegex(), "")
+                                    .replace("\\s*-p\\s*\"?.*\"?(\\s+|$)".toRegex(), "")
+                                    .replace("(^\"|\"$)".toRegex(), "")
+                                when (client) {
+                                    is TeamSpeak -> client.joinChannel(channelToJoin, password)
+                                    is OfficialTSClient -> client.joinChannel(channelToJoin, password)
+                                }
+                            }
+                            //return command
+                            commandString.contains("^${commandList.commandList["return"]}".toRegex()) -> {
+                                when (client) {
+                                    is TeamSpeak -> client.joinChannel()
+                                    is OfficialTSClient -> client.joinChannel()
+                                }
+                            }
                             //sp-pause command
                             commandString.contains("^${commandList.commandList["sp-pause"]}$".toRegex()) -> {
                                 playerctl(botSettings.spotifyPlayer, "pause")

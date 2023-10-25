@@ -143,7 +143,7 @@ class OfficialTSClient(
 
                 fun checkPid(pid: String, name: String) = getChannelName(pid) == encode(name)
                 if (checkPid(pid, channelPath.first())) {
-                    pid = getChannelList().first { it.contains("cid=$pid") }.substringAfter("pid=").substringBefore(' ')
+                    pid = getChannelList().first { it.contains("cid=$pid(\\s+|$)".toRegex()) }.substringAfter("pid=").substringBefore(' ')
                     channelPath.removeFirst()
                 } else {
                     continue@channelLoop
@@ -170,6 +170,7 @@ class OfficialTSClient(
             if (channelName != currentChannelName) {
                 if (channelPassword.isNotEmpty()) {
                     clientQuery("disconnect")
+                    delay(500)
                     clientQuery(
                         "connect address=${settings.serverAddress} password=${encode(settings.serverPassword)} " +
                                 "nickname=${encode(settings.nickname)} " +

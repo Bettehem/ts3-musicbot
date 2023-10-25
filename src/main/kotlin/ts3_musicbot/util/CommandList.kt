@@ -25,6 +25,8 @@ data class CommandList(
             Pair("queue-repeat", "%queue-repeat"),
             Pair("info", "%info"),
             Pair("search", "%search"),
+            Pair("goto", "%goto"),
+            Pair("return", "%return"),
             Pair("sp-pause", "%sp-pause"),
             Pair("sp-resume", "%sp-resume"),
             Pair("sp-play", "%sp-play"),
@@ -77,6 +79,8 @@ data class CommandList(
                         "${commandList["queue-repeat"]} <amount>                       -Adds the currently playing song to the top of the queue. <amount> is how many times the song should be queued.\n" +
                         "${commandList["search"]} <service> <type> <text> <limit>      -Search on SoundCloud, Spotify or YouTube. Shows 10 first results by default. <type> can be track, video, playlist or channel. You can set the amount of results with the -l/--limit flag.\n" +
                         "${commandList["info"]} <link/search query>                    -Shows info on the given search query or link(s). <link> can be one or more Spotify, YouTube or SoundCloud links, separated by a comma.\n" +
+                        "${commandList["goto"]} <channelpath> -p <channelpassword>     -Move the bot to a different channel.\n" +
+                        "${commandList["return"]}                                      -Return the bot back to the original channel.\n" +
                         "\n\n" +
                         "Player specific commands:\n" +
                         "(These aren't normally needed. Using the commands above is recommended instead)\n" +
@@ -350,6 +354,22 @@ data class CommandList(
                         "${commandList["search"]} sp album The Algorithm Brute Force --limit 5\n" +
                         "Example - Search on YouTube for a video with the name \"Jinjer Pisces\":\n" +
                         "${commandList["search"]} yt track Jinjer Pisces"
+            ),
+            Pair(
+                "goto", "\n" +
+                        "Showing help for ${commandList["goto"]} command:\n" +
+                        "${commandList["goto"]} can be used to move the bot to another channel.\n" +
+                        "Example - Move to a channel at \"Music/MusicBot\":\n" +
+                        "${commandList["goto"]} Music/MusicBot\n" +
+                        "Example 2 - Move to a channel at \"Music/MusicBot\" with the password \"123\":\n" +
+                        "${commandList["goto"]} Music/MusicBot -p 123\n" +
+                        "Example 3 - Move to a channel at \"Music/Music Bot\" with the password \"secret password\"\n" +
+                        "${commandList["goto"]} \"Music/Music Bot\" -p \"secret password\"\n"
+            ),
+            Pair(
+                "return", "\n" +
+                        "Showing help for ${commandList["return"]} command:\n" +
+                        "${commandList["goto"]} can be used to return the bot to the original channel."
             ),
             Pair(
                 "sp-pause", "\n" +
