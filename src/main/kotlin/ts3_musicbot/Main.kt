@@ -313,7 +313,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     if (botSettings.serverAddress.isNotEmpty()) {
                         teamSpeak = TeamSpeak(botSettings)
                         teamSpeak.connect()
-                        teamSpeak.joinChannel()
+                        runBlocking {
+                            teamSpeak.joinChannel()
+                        }
                         chatReader = ChatReader(
                             teamSpeak,
                             botSettings,
@@ -943,7 +945,9 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         startBotButton.isVisible = false
                         stopBotButton.isManaged = true
                         stopBotButton.isVisible = true
-                        teamSpeak.joinChannel()
+                        runBlocking {
+                            teamSpeak.joinChannel()
+                        }
                         chatReader = ChatReader(
                             teamSpeak,
                             settings,

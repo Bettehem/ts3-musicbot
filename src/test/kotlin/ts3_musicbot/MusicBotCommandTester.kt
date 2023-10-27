@@ -7,6 +7,7 @@ import ts3_musicbot.chat.ChatReader
 import ts3_musicbot.chat.ChatUpdate
 import ts3_musicbot.chat.ChatUpdateListener
 import ts3_musicbot.chat.CommandListener
+import ts3_musicbot.client.Client
 import ts3_musicbot.services.SoundCloud
 import ts3_musicbot.services.Spotify
 import ts3_musicbot.services.YouTube
@@ -25,7 +26,8 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
     private val youTubePlaylistLink = Link("https://www.youtube.com/playlist?list=PLVzaRVhV8Ebb5m6IIEpOJeOIBMKk4AVwm")
     private val soundCloudLink = Link("https://soundcloud.com/iamleeya/something-worth-dreaming-of")
     private val soundCloudPlaylistLink = Link("https://soundcloud.com/bettehem/sets/jeesjees")
-    private val chatReader = ChatReader("Test", BotSettings(market = spotifyMarket), this, this, commandList)
+    private val botSettings = BotSettings(market = spotifyMarket)
+    private val chatReader = ChatReader(Client(botSettings), botSettings, this, this, commandList)
     private var commandCompleted = Pair("", false)
 
     private fun runCommand(
@@ -41,7 +43,7 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
     fun testHelpCommand() {
         runBlocking(IO) {
             commandCompleted = Pair("", false)
-            val chatReader = ChatReader("Test", BotSettings(), this@MusicBotCommandTester, object : CommandListener {
+            val chatReader = ChatReader(Client(botSettings), BotSettings(), this@MusicBotCommandTester, object : CommandListener {
                 override fun onCommandExecuted(command: String, output: String, extra: Any?) {
                     if (command.substringAfter("%help").isNotEmpty()) {
                         assertEquals(commandList.helpMessages[command.substringAfter(" ")], output)

@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import ts3_musicbot.client.Client
 import ts3_musicbot.client.OfficialTSClient
 import ts3_musicbot.client.TeamSpeak
 import kotlin.system.exitProcess
@@ -11,7 +12,7 @@ import kotlin.system.exitProcess
 class Console(
     private val commandList: CommandList,
     private val consoleUpdateListener: ConsoleUpdateListener,
-    private val teamSpeak: Any
+    private val client: Client
 ) {
     private val commandRunner = CommandRunner()
 
@@ -37,11 +38,7 @@ class Console(
                             "playerctl -p <player> <args>\t\t\tRun playerctl-like commands.\n"
                 )
 
-                "say" -> when (teamSpeak) {
-                    is TeamSpeak -> teamSpeak.sendMsgToChannel(userCommand.replace("^say\\s+".toRegex(), ""))
-                    is OfficialTSClient -> teamSpeak.sendMsgToChannel(userCommand.replace("^say\\s+".toRegex(), ""))
-                }
-
+                "say" -> client.sendMsgToChannel(userCommand.replace("^\\s+".toRegex(), ""))
                 "save-settings" -> consoleUpdateListener.onCommandIssued(command)
                 "clear" -> print("\u001b[H\u001b[2J")
                 "exit" -> exit(command)
@@ -52,19 +49,16 @@ class Console(
                         if (userCommand.contains("^\\S+\\s+.*\\s+-p\\s+.*\\S+$".toRegex()))
                             userCommand.replace("^\\S+\\s+.*\\s+-p\\s+".toRegex(), "")
                         else ""
-                    when (teamSpeak) {
-                        is TeamSpeak -> teamSpeak.joinChannel(channelName, channelPassword)
-                        is OfficialTSClient -> CoroutineScope(IO).launch {
-                            teamSpeak.joinChannel(channelName, channelPassword)
-                        }
+                    CoroutineScope(IO).launch {
+                        client.joinChannel(channelName, channelPassword)
                     }
                 }
 
                 "restart" -> when (userCommand.replace("$command\\s+".toRegex(), "").replace("\\s+.*$", "").lowercase()) {
                     "ts", "teamspeak" -> CoroutineScope(IO).launch {
-                        when (teamSpeak) {
-                            is OfficialTSClient -> launch { teamSpeak.restartClient() }
-                            is TeamSpeak -> launch { teamSpeak.reconnect() }
+                        when (client) {
+                            is OfficialTSClient -> launch { client.restartClient() }
+                            is TeamSpeak -> launch { client.reconnect() }
                         }
                     }
 
@@ -121,9 +115,9 @@ class Console(
             if (exitTeamSpeak.contentEquals("y") || exitTeamSpeak.contentEquals("yes") || exitTeamSpeak.contentEquals("")) {
                 confirmed = true
                 CoroutineScope(IO).launch {
-                    when (teamSpeak) {
-                        is TeamSpeak -> launch { teamSpeak.disconnect() }
-                        is OfficialTSClient -> launch { teamSpeak.stopTeamSpeak() }
+                    when (client) {
+                        is TeamSpeak -> launch { client.disconnect() }
+                        is OfficialTSClient -> launch { client.stopTeamSpeak() }
                     }
                     delay(1000)
                 }

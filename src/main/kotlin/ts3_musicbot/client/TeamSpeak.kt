@@ -10,18 +10,16 @@ import java.io.File
 import java.net.InetAddress
 import java.net.InetSocketAddress
 
-class TeamSpeak(
-    private val botSettings: BotSettings
-) : TS3Listener {
-    private val client: LocalTeamspeakClientSocket = LocalTeamspeakClientSocket()
+class TeamSpeak(botSettings: BotSettings) : Client(botSettings), TS3Listener {
+    private val clientSocket: LocalTeamspeakClientSocket = LocalTeamspeakClientSocket()
 
     init {
-        client.addListener(this)
-        client.setIdentity(getIdentity())
-        client.nickname = botSettings.nickname
+        clientSocket.addListener(this)
+        clientSocket.setIdentity(getIdentity())
+        clientSocket.nickname = botSettings.nickname
     }
 
-    fun addListener(listener: TS3Listener) = client.addListener(listener)
+    fun addListener(listener: TS3Listener) = clientSocket.addListener(listener)
 
     private fun getIdentity(): LocalIdentity {
         val identityFile = File("${botSettings.nickname}_${botSettings.serverAddress}.identity")
@@ -47,18 +45,18 @@ class TeamSpeak(
         port: Int = botSettings.serverPort
     ): Boolean {
         //connect to server and timeout if no connection after 10 seconds
-        client.connect(InetSocketAddress(InetAddress.getByName(address), port), password, 10000L)
-        client.waitForState(ClientConnectionState.CONNECTED, 10000L)
-        client.subscribeAll()
+        clientSocket.connect(InetSocketAddress(InetAddress.getByName(address), port), password, 10000L)
+        clientSocket.waitForState(ClientConnectionState.CONNECTED, 10000L)
+        clientSocket.subscribeAll()
 
-        return client.isConnected
+        return clientSocket.isConnected
     }
 
     /**
      * Disconnect from current server
      */
     fun disconnect() {
-        client.disconnect("Disconnecting")
+        clientSocket.disconnect("Disconnecting")
     }
 
     /**
@@ -105,7 +103,7 @@ class TeamSpeak(
      * A channel's data will look something like this:
      * cid=90 pid=6 channel_order=85 channel_name=Test\sChannel channel_flag_are_subscribed=1 total_clients=0
      */
-    fun getChannelList(): List<String> = client.listChannels().map {
+    override fun getChannelList(): List<String> = clientSocket.listChannels().map {
         encode("cid=${it.id} pid=${it.parentChannelId} channel_order=${it.order} channel_name=${it.name} channel_flag_are_subscribed=1 total_clients=${it.totalClients}")
     }
 
@@ -115,7 +113,7 @@ class TeamSpeak(
      * A client's data will look something like this
      * clid=83 cid=8 client_database_id=100 client_nickname=TeamSpeakUser client_type=0
      */
-    fun getClientList(): List<String> = client.listClients().map {
+    override fun getClientList(): List<String> = clientSocket.listClients().map {
         encode("clid=${it.id} cid=${it.channelId} client_database_id=${it.databaseId} client_nickname=${it.nickname} client_type=${it.type}")
     }
 
@@ -126,7 +124,7 @@ class TeamSpeak(
      */
     private fun getChannelId(channelName: String): Int {
         val targetChannel = channelName.substringAfterLast("/")
-        val channelList = client.listChannels()
+        val channelList = clientSocket.listChannels()
         val channels = if (channelList.any { it.name == targetChannel })
             channelList.filter { it.name == targetChannel }
         else emptyList()
@@ -157,25 +155,25 @@ class TeamSpeak(
 
     /**
      * Join a channel
-     * @param name name of the channel to join
-     * @param password channel password
+     * @param channelName name of the channel to join
+     * @param channelPassword channel password
      * @return returns true if successful
      */
-    fun joinChannel(name: String = botSettings.channelName, password: String = botSettings.channelPassword): Boolean {
+    override suspend fun joinChannel(channelName: String, channelPassword: String): Boolean {
         try {
-            client.joinChannel(getChannelId(name), password)
+            clientSocket.joinChannel(getChannelId(channelName), channelPassword)
         } catch (e: Exception) {
             e.printStackTrace()
             println("Failed to join channel!")
         }
-        return client.getClientInfo(client.clientId).channelId == getChannelId(name)
+        return clientSocket.getClientInfo(clientSocket.clientId).channelId == getChannelId(channelName)
     }
 
     /**
      * Send a message to current channel
      * @param message the message to send
      */
-    fun sendMsgToChannel(message: String) {
+    override fun sendMsgToChannel(message: String) {
         val tsCharLimit = 8192
 
         /**
@@ -184,7 +182,7 @@ class TeamSpeak(
          */
         fun sendTeamSpeakMessage(message: String) {
             try {
-                client.sendChannelMessage(client.getClientInfo(client.clientId).channelId, message)
+                clientSocket.sendChannelMessage(clientSocket.getClientInfo(clientSocket.clientId).channelId, message)
             } catch (e: Exception) {
                 e.printStackTrace()
                 println("Failed to send message!")

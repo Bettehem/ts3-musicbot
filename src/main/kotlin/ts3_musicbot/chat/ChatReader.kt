@@ -6,6 +6,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.flow.*
+import ts3_musicbot.client.Client
 import ts3_musicbot.client.OfficialTSClient
 import ts3_musicbot.client.TeamSpeak
 import ts3_musicbot.services.Service
@@ -16,7 +17,7 @@ import ts3_musicbot.util.*
 import java.util.*
 
 class ChatReader(
-    private val client: Any,
+    private val client: Client,
     private val botSettings: BotSettings,
     private var onChatUpdateListener: ChatUpdateListener,
     var commandListener: CommandListener,
@@ -1069,17 +1070,7 @@ class ChatReader(
                             commandString.contains("^${commandList.commandList["queue-voteskip"]}$".toRegex()) -> {
                                 val userList = ArrayList<String>()
                                 //get channel list
-                                val channelList = when (client) {
-                                    is TeamSpeak -> {
-                                        client.getChannelList()
-                                    }
-
-                                    is OfficialTSClient -> {
-                                        client.getChannelList()
-                                    }
-
-                                    else -> emptyList()
-                                }.map {
+                                val channelList = client.getChannelList().map {
                                     Pair(
                                         it.substringAfter("channel_name=").substringBefore(" "),
                                         it.substringAfter("cid=").substringBefore(" ")
@@ -1089,11 +1080,7 @@ class ChatReader(
                                 //get users in current channel
                                 for (channel in channelList) {
                                     if (channel.first == botSettings.channelName.substringAfterLast("/")) {
-                                        val tsUserListData = when (client) {
-                                            is TeamSpeak -> client.getClientList()
-                                            is OfficialTSClient -> client.getClientList()
-                                            else -> emptyList()
-                                        }
+                                        val tsUserListData = client.getClientList()
                                         for (line in tsUserListData) {
                                             if (line.contains("clid=".toRegex())) {
                                                 val clientDataList = line.split("\\|".toRegex())
@@ -1386,7 +1373,11 @@ class ChatReader(
                                     SongQueue.State.QUEUE_STOPPED -> statusMessage.appendLine("Stopped")
                                         .also { stateKnown = true }
                                 }
-                                statusMessage.appendLine("Track Position: " + songQueue.getTrackPosition() + " seconds.")
+                                val trackLength = songQueue.getTrackLength()
+                                if (trackLength > 0) {
+                                    val trackPosition = songQueue.getTrackPosition()
+                                    statusMessage.appendLine("Track Position: $trackPosition/$trackLength seconds.")
+                                }
                                 printToChat(statusMessage.toString().lines())
                                 commandListener.onCommandExecuted(commandString, statusMessage.toString())
                                 commandJob.complete()
@@ -1617,17 +1608,11 @@ class ChatReader(
                                 val channelToJoin = commandString.replace("^${commandList.commandList["goto"]}\\s+".toRegex(), "")
                                     .replace("\\s*-p\\s*\"?.*\"?(\\s+|$)".toRegex(), "")
                                     .replace("(^\"|\"$)".toRegex(), "")
-                                when (client) {
-                                    is TeamSpeak -> client.joinChannel(channelToJoin, password)
-                                    is OfficialTSClient -> client.joinChannel(channelToJoin, password)
-                                }
+                                client.joinChannel(channelToJoin, password)
                             }
                             //return command
                             commandString.contains("^${commandList.commandList["return"]}".toRegex()) -> {
-                                when (client) {
-                                    is TeamSpeak -> client.joinChannel()
-                                    is OfficialTSClient -> client.joinChannel()
-                                }
+                                client.joinChannel()
                             }
                             //sp-pause command
                             commandString.contains("^${commandList.commandList["sp-pause"]}$".toRegex()) -> {
@@ -1972,48 +1957,41 @@ class ChatReader(
             messages.forEach { println(it) }
         } else {
             for (message in messages) {
-                when (client) {
-                    is TeamSpeak -> client.sendMsgToChannel(message)
-                    is OfficialTSClient -> client.sendMsgToChannel(message)
-                }
+                client.sendMsgToChannel(message)
             }
         }
     }
 
     private suspend fun chatUpdated(line: String, userName: String = "") {
         when (client) {
-            is TeamSpeak -> {
-                withContext(IO) {
-                    parseLine(line)
-                    onChatUpdateListener.onChatUpdated(ChatUpdate(userName, line))
-                }
+            is TeamSpeak -> withContext(IO) {
+                parseLine(line)
+                onChatUpdateListener.onChatUpdated(ChatUpdate(userName, line))
             }
 
-            is OfficialTSClient -> {
-                when (client.channelFile.extension) {
-                    "txt" -> {
-                        //extract message
-                        if (line.startsWith("<")) {
-                            latestMsgUsername = line.substringAfter("> ").substringBeforeLast(": ")
-                            val time = Time(Calendar.getInstance())
-                            val rawTime =
-                                line.split(" ".toRegex())[0].substringAfter("<").substringBefore(">")
-                                    .split(":".toRegex())
-                            time.hour = rawTime[0]
-                            time.minute = rawTime[1]
-                            time.second = rawTime[2]
+            is OfficialTSClient -> when (client.channelFile.extension) {
+                "txt" -> {
+                    //extract message
+                    if (line.startsWith("<")) {
+                        latestMsgUsername = line.substringAfter("> ").substringBeforeLast(": ")
+                        val time = Time(Calendar.getInstance())
+                        val rawTime =
+                            line.split(" ".toRegex())[0].substringAfter("<").substringBefore(">")
+                                .split(":".toRegex())
+                        time.hour = rawTime[0]
+                        time.minute = rawTime[1]
+                        time.second = rawTime[2]
 
-                            val userMessage = line.substringAfter("$latestMsgUsername: ")
-                            parseLine(userMessage)
-                            withContext(IO) {
-                                onChatUpdateListener.onChatUpdated(ChatUpdate(latestMsgUsername, userMessage))
-                            }
+                        val userMessage = line.substringAfter("$latestMsgUsername: ")
+                        parseLine(userMessage)
+                        withContext(IO) {
+                            onChatUpdateListener.onChatUpdated(ChatUpdate(latestMsgUsername, userMessage))
                         }
                     }
+                }
 
-                    else -> {
-                        println("Error! file format \"${client.channelFile.extension}\" not supported!")
-                    }
+                else -> {
+                    println("Error! file format \"${client.channelFile.extension}\" not supported!")
                 }
             }
         }

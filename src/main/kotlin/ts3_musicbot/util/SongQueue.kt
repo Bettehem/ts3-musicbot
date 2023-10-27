@@ -32,7 +32,11 @@ class SongQueue(
 
     fun getState() = synchronized(queueState) { queueState }
     fun getTrackPosition() = synchronized(trackPlayer) {
-        "${trackPlayer.trackPosition}/${trackPlayer.getTrackLength()}"
+        trackPlayer.trackPosition
+    }
+
+    fun getTrackLength() = synchronized(trackPlayer) {
+        trackPlayer.getTrackLength()
     }
 
     private fun setCurrent(track: Track) = synchronized(trackPlayer) { trackPlayer.track = track }

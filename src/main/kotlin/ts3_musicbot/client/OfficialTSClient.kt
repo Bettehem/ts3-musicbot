@@ -13,9 +13,7 @@ import java.net.URLEncoder
 import kotlin.properties.Delegates
 import kotlin.system.exitProcess
 
-class OfficialTSClient(
-    private val settings: BotSettings
-) {
+class OfficialTSClient(botSettings: BotSettings): Client(botSettings) {
     val tsClientDirPath = "${System.getProperty("user.home")}/.ts3client"
     lateinit var channelFile: File
     private lateinit var serverName: String
@@ -70,7 +68,7 @@ class OfficialTSClient(
      * @return returns proper data only when connected to a server
      */
     private fun clientQuery(queryMsg: String) = CommandRunner().runCommand(
-        "(echo \"auth apikey=${settings.apiKey}\"; " +
+        "(echo \"auth apikey=${botSettings.apiKey}\"; " +
                 "echo \"$queryMsg\"; echo quit) | nc localhost 25639",
         printOutput = false,
         printErrors = false,
@@ -94,7 +92,7 @@ class OfficialTSClient(
      * A channel's data will look something like this:
      * cid=90 pid=6 channel_order=85 channel_name=TestChannel channel_flag_are_subscribed=1 total_clients=0
      */
-    fun getChannelList(): List<String> {
+    override fun getChannelList(): List<String> {
         val channels = clientQuery("channellist").lines()
         return if (channels.any { it.startsWith("cid=") })
             channels.first { it.startsWith("cid=") }.split("|")
@@ -107,7 +105,7 @@ class OfficialTSClient(
      * A client's data will look something like this
      * clid=83 cid=8 client_database_id=100 client_nickname=TeamSpeakUser client_type=0
      */
-    fun getClientList(): List<String> {
+    override fun getClientList(): List<String> {
         val clients = clientQuery("clientlist").lines()
         return if (clients.any { it.startsWith("clid=") })
             clients.first { it.startsWith("clid=") }.split("|")
@@ -119,16 +117,16 @@ class OfficialTSClient(
      * @param channelName path to channel
      * @return returns the channel's id
      */
-    private fun getChannelId(channelName: String): String {
+    private fun getChannelId(channelName: String): Int {
         val targetChannel = channelName.substringAfterLast("/")
         val channelList = getChannelList()
         val channels = if (channelList.any { it.contains("channel_name=${encode(targetChannel)}") })
             channelList.filter { it.contains("channel_name=${encode(targetChannel)}") }
         else emptyList()
 
-        var targetCid = "0"
+        var targetCid = 0
         channelLoop@ for (channelData in channels) {
-            fun getChannelId(): String = channelData.substringAfter("cid=").substringBefore(' ')
+            fun getChannelId(): Int = channelData.substringAfter("cid=").substringBefore(' ').toInt()
 
             val subChannels = channelName.split('/')
             val channelPath = ArrayList<String>()
@@ -158,22 +156,24 @@ class OfficialTSClient(
      * join a specific channel
      * @param channelName the name of the channel to join
      * @param channelPassword the password of the channel to join
+     * @return returns true if successful
      */
-    suspend fun joinChannel(channelName: String = settings.channelName, channelPassword: String = settings.channelPassword) {
+    override suspend fun joinChannel(channelName: String, channelPassword: String): Boolean {
         println("Attempting to join a channel at \"$channelName\"" + if (channelPassword.isNotEmpty()) " with the password \"$channelPassword\"" else "")
 
         val currentChannelName = getCurrentChannelName()
-        if (currentChannelName == "not connected") {
+        return if (currentChannelName == "not connected") {
             println("Connection failed! Trying again...")
             restartClient()
+            false
         } else {
             if (channelName != currentChannelName) {
                 if (channelPassword.isNotEmpty()) {
                     clientQuery("disconnect")
                     delay(500)
                     clientQuery(
-                        "connect address=${settings.serverAddress} password=${encode(settings.serverPassword)} " +
-                                "nickname=${encode(settings.nickname)} " +
+                        "connect address=${botSettings.serverAddress} password=${encode(botSettings.serverPassword)} " +
+                                "nickname=${encode(botSettings.nickname)} " +
                                 "channel=${encode(channelName)} channel_pw=${encode(channelPassword)}"
                     )
                 } else {
@@ -181,7 +181,8 @@ class OfficialTSClient(
                     clientQuery("clientmove cid=$channelId clid=${getCurrentUserId()}")
                 }
                 updateChannelFile()
-            }
+                channelName == getCurrentChannelName()
+            } else true
         }
     }
 
@@ -209,9 +210,9 @@ class OfficialTSClient(
      * @return returns true if starting teamspeak is successful, false if requirements aren't met
      */
     suspend fun startTeamSpeak(): Boolean {
-        settings.apiKey = settings.apiKey.ifEmpty { getApiKey() }
+        botSettings.apiKey = botSettings.apiKey.ifEmpty { getApiKey() }
 
-        if (settings.serverAddress.isNotEmpty()) {
+        if (botSettings.serverAddress.isNotEmpty()) {
             /**
              * get the current TeamSpeak server's name
              * @return returns current server name when connected and empty string if not
@@ -229,18 +230,18 @@ class OfficialTSClient(
                 ignoreOutput = true,
                 command = "xvfb-run -a teamspeak3 -nosingleinstance" +
                         " \"" +
-                        (if (settings.serverAddress.isNotEmpty()) "ts3server://${settings.serverAddress}" else "") +
-                        "?port=${settings.serverPort}" +
+                        (if (botSettings.serverAddress.isNotEmpty()) "ts3server://${botSettings.serverAddress}" else "") +
+                        "?port=${botSettings.serverPort}" +
                         "&nickname=${
                             withContext(IO) {
-                                URLEncoder.encode(settings.nickname, Charsets.UTF_8.toString())
+                                URLEncoder.encode(botSettings.nickname, Charsets.UTF_8.toString())
                             }.replace("+", "%20")
                         }" +
-                        (if ((settings.serverPassword.isNotEmpty()))
+                        (if ((botSettings.serverPassword.isNotEmpty()))
                             "&password=${
                                 withContext(IO) {
                                     URLEncoder.encode(
-                                        settings.serverPassword,
+                                        botSettings.serverPassword,
                                         Charsets.UTF_8.toString().replace("+", "%20")
                                     )
                                 }
@@ -519,7 +520,7 @@ class OfficialTSClient(
      */
     private fun updateChannelFile() {
         var file = File("")
-        if (settings.channelFilePath.isEmpty()) {
+        if (botSettings.channelFilePath.isEmpty()) {
             //get a path to the channel.txt file
             println("\nGetting path to channel.txt file...")
             val chatDir = File("${System.getProperty("user.home")}/.ts3client/chats")
@@ -549,7 +550,7 @@ class OfficialTSClient(
                 }
             }
         } else {
-            file = File(settings.channelFilePath)
+            file = File(botSettings.channelFilePath)
         }
 
         channelFile = file
@@ -559,7 +560,7 @@ class OfficialTSClient(
      * Sends a message to the current Channel
      * @param message The message to send
      */
-    fun sendMsgToChannel(message: String) {
+    override fun sendMsgToChannel(message: String) {
         //TeamSpeak's character limit is 8192 per message
         val tsCharLimit = 8192
 
