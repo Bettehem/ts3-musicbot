@@ -17,50 +17,6 @@ class OfficialTSClient(botSettings: BotSettings): Client(botSettings) {
     val tsClientDirPath = "${System.getProperty("user.home")}/.ts3client"
     lateinit var channelFile: File
     private lateinit var serverName: String
-    private val commandRunner = CommandRunner()
-
-    private fun encode(message: String): String {
-        val distro =
-            commandRunner.runCommand("cat /etc/issue", printOutput = false).outputText
-        return when {
-            distro.lowercase().contains("(ubuntu|debian|droidian)".toRegex()) -> {
-                message.replace(" ", "\\s")
-                    .replace("\n", "\\\\\\n")
-                    .replace("/", "\\/")
-                    .replace("|", "\\\\p")
-                    .replace("'", "\\\\'")
-                    .replace("\"", "\\\"")
-                    .replace("&quot;", "\\\"")
-                    .replace("`", "\\`")
-                    .replace("$", "\\$")
-                    .replace("[", "\\\\\\\\\\[")
-                    .replace("]", "\\\\\\\\\\]")
-            }
-
-            else -> {
-                message.replace(" ", "\\s")
-                    .replace("\n", "\\n")
-                    .replace("/", "\\/")
-                    .replace("|", "\\p")
-                    .replace("'", "\\'")
-                    .replace("\"", "\\\"")
-                    .replace("&quot;", "\\\"")
-                    .replace("`", "\\`")
-                    .replace("$", "\\$")
-                    .replace("[", "\\\\\\[")
-                    .replace("]", "\\\\\\]")
-            }
-        }
-    }
-
-    private fun decode(message: String) = message.replace("\\s", " ")
-        .replace("\\n", "\n")
-        .replace("\\/", "/")
-        .replace("\\p", "|")
-        .replace("\\'", "'")
-        .replace("\\\"", "\"")
-        .replace("\\`", "`")
-        .replace("\\$", "$")
 
     /**
      * Perform a TeamSpeak ClientQuery

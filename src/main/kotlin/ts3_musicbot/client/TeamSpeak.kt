@@ -67,36 +67,6 @@ class TeamSpeak(botSettings: BotSettings) : Client(botSettings), TS3Listener {
         connect()
     }
 
-    private fun encode(message: String): String {
-        val distro =
-            CommandRunner().runCommand("cat /etc/issue", printOutput = false).outputText
-        return when {
-            distro.contains("(Ubuntu|Debian)".toRegex()) -> {
-                message.replace(" ", "\\\\\\s")
-                    .replace("\n", "\\\\\\n")
-                    .replace("/", "\\/")
-                    .replace("|", "\\\\p")
-                    .replace("'", "\\\\'")
-                    .replace("\"", "\\\"")
-                    .replace("&quot;", "\\\"")
-                    .replace("`", "\\`")
-                    .replace("$", "\\\\$")
-            }
-
-            else -> {
-                message.replace(" ", "\\s")
-                    .replace("\n", "\\n")
-                    .replace("/", "\\/")
-                    .replace("|", "\\p")
-                    .replace("'", "\\'")
-                    .replace("\"", "\\\"")
-                    .replace("&quot;", "\\\"")
-                    .replace("`", "\\`")
-                    .replace("$", "\\$")
-            }
-        }
-    }
-
     /**
      * Get current channel list
      * @return returns a list of Strings, each containing a channel's data
