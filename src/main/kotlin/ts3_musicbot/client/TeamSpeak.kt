@@ -5,7 +5,6 @@ import com.github.manevolent.ts3j.identity.LocalIdentity
 import com.github.manevolent.ts3j.protocol.client.ClientConnectionState
 import com.github.manevolent.ts3j.protocol.socket.client.LocalTeamspeakClientSocket
 import ts3_musicbot.util.BotSettings
-import ts3_musicbot.util.CommandRunner
 import java.io.File
 import java.net.InetAddress
 import java.net.InetSocketAddress

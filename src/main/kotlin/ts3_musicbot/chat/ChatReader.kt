@@ -1164,7 +1164,7 @@ class ChatReader(
                                     ) {
                                         commandString.split("(\\s+|,\\s*)".toRegex()).filter {
                                             it.contains("(\\[URL])?https?://\\S+,?(\\[/URL])?".toRegex())
-                                        }.map { Link(removeTags(it)) }
+                                        }.map { Link(removeTags(it)).clean() }
                                     } else {
                                         emptyList()
                                     }
@@ -1195,7 +1195,7 @@ class ChatReader(
                                             }
                                             if (indexList.isNotEmpty())
                                                 links.forEachIndexed { index, link ->
-                                                    newArgs = newArgs.replace(
+                                                    newArgs = Link(newArgs).clean().link.replace(
                                                         link.link,
                                                         indexList[index].second.joinToString(",")
                                                     )
@@ -1216,7 +1216,7 @@ class ChatReader(
                                                 }
                                                 if (indexList.isNotEmpty())
                                                     links.forEachIndexed { index, link ->
-                                                        newArgs = newArgs.replace(
+                                                        newArgs = Link(newArgs).clean().link.replace(
                                                             link.link,
                                                             indexList[index].second.joinToString(",")
                                                         )
@@ -1261,7 +1261,7 @@ class ChatReader(
                                             }
                                             if (indexList.isNotEmpty())
                                                 links.forEachIndexed { index, link ->
-                                                    newArgs = newArgs.replace(
+                                                    newArgs = Link(newArgs).clean().link.replace(
                                                         link.link,
                                                         indexList[index].second.joinToString(",")
                                                     )
