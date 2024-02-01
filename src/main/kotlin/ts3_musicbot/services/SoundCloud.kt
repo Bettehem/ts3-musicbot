@@ -46,7 +46,12 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         return clientId
     }
 
-    override suspend fun search(searchType: SearchType, searchQuery: SearchQuery, resultLimit: Int): SearchResults {
+    override suspend fun search(
+        searchType: SearchType,
+        searchQuery: SearchQuery,
+        resultLimit: Int,
+        encodeQuery: Boolean
+    ): SearchResults {
         val searchResults = ArrayList<SearchResult>()
         fun searchData(limit: Int = resultLimit, offset: Int = 0, link: Link = Link()): Response {
             val linkBuilder = StringBuilder()
@@ -55,7 +60,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
             } else {
                 linkBuilder.append("$api2URL/search/")
                 linkBuilder.append("${searchType.type.replace("artist", "user")}s")
-                linkBuilder.append("?q=${URLEncoder.encode(searchQuery.query, Charsets.UTF_8.toString())}")
+                linkBuilder.append("?q=${if (encodeQuery) encode(searchQuery.query) else searchQuery.query}")
                 linkBuilder.append("&limit=$limit")
                 linkBuilder.append("&offset=$offset")
                 linkBuilder.append("&client_id=$clientId")
@@ -1029,7 +1034,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                 "$link".substringBeforeLast("/").substringAfterLast("/")
             else
                 resolveId(Link("$link".substringBeforeLast("/")))
-        val linkBuilder = StringBuilder()
+            val linkBuilder = StringBuilder()
             linkBuilder.append("$api2URL/stream/users/$id/reposts")
             linkBuilder.append("?client_id=$clientId")
             if ("$link".startsWith("$api2URL/stream/users/"))
@@ -1462,7 +1467,8 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                     lateinit var type: LinkType
                     while (true) {
                         if ("$linkToSolve".contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex()))
-                            linkToSolve = sendHttpRequest(linkToSolve, followRedirects = false).link.clean(this@SoundCloud)
+                            linkToSolve = sendHttpRequest(linkToSolve, followRedirects = false).link
+                                .clean(this@SoundCloud)
                         val typeData = fetchResolvedData(linkToSolve)
                         when (typeData.code.code) {
                             HttpURLConnection.HTTP_OK -> {

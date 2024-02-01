@@ -4,7 +4,6 @@ import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONException
@@ -13,8 +12,6 @@ import ts3_musicbot.util.*
 import java.lang.IllegalArgumentException
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLDecoder
-import java.net.URLEncoder
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatterBuilder
@@ -32,24 +29,6 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
         LinkType.SHOW,
         LinkType.EPISODE
     )
-
-    private fun encode(text: String) = runBlocking {
-        withContext(IO) {
-            URLEncoder.encode(text, Charsets.UTF_8.toString())
-                .replace("'", "&#39;")
-                .replace("&", "&amp;")
-                .replace("/", "&#x2F;")
-        }
-    }
-
-    private fun decode(text: String) = runBlocking {
-        withContext(IO) {
-            URLDecoder.decode(text, Charsets.UTF_8.toString())
-                .replace("&#39;", "'")
-                .replace("&amp;", "&")
-                .replace("&#x2F;", "/")
-        }
-    }
 
     suspend fun updateToken() {
         println("Updating Spotify access token...")
@@ -107,7 +86,12 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
         return token
     }
 
-    override suspend fun search(searchType: SearchType, searchQuery: SearchQuery, resultLimit: Int): SearchResults {
+    override suspend fun search(
+        searchType: SearchType,
+        searchQuery: SearchQuery,
+        resultLimit: Int,
+        encodeQuery: Boolean
+    ): SearchResults {
         val searchResults = ArrayList<SearchResult>()
 
         fun searchData(limit: Int = resultLimit, offset: Int = 0, link: Link = Link("")): Response {
@@ -116,7 +100,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                 linkBuilder.append("$link")
             } else {
                 linkBuilder.append("$apiURL/search?")
-                linkBuilder.append("q=${encode(searchQuery.query)}")
+                linkBuilder.append("q=${if (encodeQuery) encode(searchQuery.query) else searchQuery.query}")
                 linkBuilder.append("&type=${searchType.type.replace("podcast", "show")}")
                 linkBuilder.append("&limit=$limit")
                 linkBuilder.append("&offset=$offset")
@@ -2021,7 +2005,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
             resolvedLink.getId(this)
         } else {
             "$link".substringAfterLast(":").substringBefore("?")
-            .substringAfterLast("/")
+                .substringAfterLast("/")
         }
     }
 }

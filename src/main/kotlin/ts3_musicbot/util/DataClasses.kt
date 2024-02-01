@@ -21,6 +21,7 @@ enum class LinkType {
     TRACK,
     USER,
     VIDEO,
+    QUERY,
     OTHER
 }
 
@@ -154,7 +155,7 @@ data class Link(val link: String = "", val linkId: String = "") {
         else -> LinkType.OTHER
     }
 
-    fun getId(service: Service = Service(serviceType())) = linkId.ifEmpty {
+    fun getId(service: Service = Service(serviceType())): String = linkId.ifEmpty {
         when (service.serviceType) {
             Service.ServiceType.SPOTIFY -> {
                 if (link.contains("(https?://)?spotify(\\.app)?\\.link/\\S+".toRegex())) {
@@ -169,7 +170,8 @@ data class Link(val link: String = "", val linkId: String = "") {
             }
 
             Service.ServiceType.YOUTUBE -> {
-                if (linkType(service) == LinkType.CHANNEL) {
+                val linkType = linkType(service)
+                if (linkType == LinkType.CHANNEL) {
                     runBlocking {
                         if (service is YouTube)
                             service.resolveChannelId(this@Link)
@@ -177,14 +179,18 @@ data class Link(val link: String = "", val linkId: String = "") {
                             YouTube().resolveChannelId(this@Link)
                     }
                 } else {
-                    val idFrom = when (linkType(service)) {
-                        LinkType.VIDEO -> "(vi?)"
-                        LinkType.PLAYLIST -> "(list)"
-                        else -> ""
+                    if (linkType == LinkType.QUERY) {
+                        this@Link.clean(service).getId(service)
+                    } else {
+                        val idFrom = when (linkType) {
+                            LinkType.VIDEO -> "(vi?)"
+                            LinkType.PLAYLIST -> "(list)"
+                            else -> "".also { println("Cannot get id from this link: $link") }
+                        }
+                        link.substringAfterLast("/")
+                            .replace("(\\w*\\?\\S*$idFrom=)?".toRegex(), "")
+                            .replace("[&?]\\S+".toRegex(), "")
                     }
-                    link.substringAfterLast("/")
-                        .replace("(\\w*\\?\\S*$idFrom=)?".toRegex(), "")
-                        .replace("[&?]\\S+".toRegex(), "")
                 }
             }
 
@@ -212,9 +218,19 @@ data class Link(val link: String = "", val linkId: String = "") {
         )
 
         Service.ServiceType.YOUTUBE -> Link(
-            when (linkType(service)) {
+            when (val linkType = linkType(service)) {
                 LinkType.VIDEO -> "https://youtu.be/" + getId(service)
                 LinkType.PLAYLIST -> "https://www.youtube.com/playlist?list=" + getId(service)
+                LinkType.QUERY -> runBlocking {
+                    //first search for the actual video the user wants and use the first result
+                    val query = this@Link.link.substringAfter("search_query=").substringBefore('&')
+                    val results = service.search(SearchType(linkType.name.lowercase()), SearchQuery(query), 1, false)
+                    if (results.isNotEmpty())
+                        results.results.first().link.link
+                    else
+                        link
+                }
+
                 else -> link
             }
         )

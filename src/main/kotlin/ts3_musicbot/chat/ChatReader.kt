@@ -423,11 +423,11 @@ class ChatReader(
                                     }
 
                                     val service = rawLink.getService()
-                                    val id = rawLink.getId(service)
                                     //Remove tracking stuff & other junk from the link
                                     val link = rawLink.clean(service)
                                     println("Cleaned Link: $link")
 
+                                    val id = link.getId(service)
                                     if (trackCache.any { it.first == link }) {
                                         println("Match found in cache for link: $link")
                                         val tracks = filterList(
@@ -618,8 +618,16 @@ class ChatReader(
                                 }
                             }
                             //queue-playnow command
-                            commandString.contains("^${commandList.commandList["queue-playnow"]}\\s+.+$".toRegex()) ->  {
-                                if (executeCommand("${commandList.commandList["queue-playnext"]} ${commandString.replace("^${commandList.commandList["queue-playnow"]}\\s+".toRegex(), "")}").first)
+                            commandString.contains("^${commandList.commandList["queue-playnow"]}\\s+.+$".toRegex()) -> {
+                                if (executeCommand(
+                                        "${commandList.commandList["queue-playnext"]} ${
+                                            commandString.replace(
+                                                "^${commandList.commandList["queue-playnow"]}\\s+".toRegex(),
+                                                ""
+                                            )
+                                        }"
+                                    ).first
+                                )
                                     return executeCommand("${commandList.commandList["queue-skip"]}")
                             }
                             //queue-play command
@@ -768,9 +776,23 @@ class ChatReader(
                                                 it.contains("(\\[URL])?https?://\\S+,?(\\[/URL])?".toRegex())
                                             }.map { Link(removeTags(it.replace(",\\[/URL]".toRegex(), "[/URL]"))) }
                                         }
-                                        commandString.contains("^${commandList.commandList["queue-delete"]}(\\s+-+($validOptions)+)*\\s+(${services.joinToString("|")})\\s+\\w+\\s+.+(\\s+-+($validOptions)+)*".toRegex()) -> {
+
+                                        commandString.contains(
+                                            "^${commandList.commandList["queue-delete"]}(\\s+-+($validOptions)+)*\\s+(${
+                                                services.joinToString(
+                                                    "|"
+                                                )
+                                            })\\s+\\w+\\s+.+(\\s+-+($validOptions)+)*".toRegex()
+                                        ) -> {
                                             latestMsgUsername = "__console__"
-                                            executeCommand("${commandList.commandList["search"]}${commandString.replace("^${commandList.commandList["queue-delete"]}(\\s+-+($validOptions)+)*".toRegex(), "")}").second.let{ results ->
+                                            executeCommand(
+                                                "${commandList.commandList["search"]}${
+                                                    commandString.replace(
+                                                        "^${commandList.commandList["queue-delete"]}(\\s+-+($validOptions)+)*".toRegex(),
+                                                        ""
+                                                    )
+                                                }"
+                                            ).second.let { results ->
                                                 latestMsgUsername = ""
                                                 if (results is SearchResults)
                                                     listOf(results.results.first().link)
@@ -778,6 +800,7 @@ class ChatReader(
                                                     emptyList()
                                             }
                                         }
+
                                         else -> emptyList()
                                     }.toMutableList()
                                     //get positions from message
@@ -801,7 +824,8 @@ class ChatReader(
                                             val rawLink = links[i]
                                             val service = getService(rawLink)
                                             val link = rawLink.clean(service)
-                                            when (link.linkType()) {
+                                            //if any link type needs extra actions taken, do those here
+                                            when (rawLink.linkType()) {
                                                 LinkType.PLAYLIST -> {
                                                     printToChat(listOf("Please wait, fetching tracks in the list:\n$link"))
                                                     links.remove(link)
@@ -919,6 +943,11 @@ class ChatReader(
                                                                 .map { episode -> episode.link }
                                                         )
                                                     }
+                                                }
+
+                                                LinkType.QUERY -> {
+                                                    links.remove(rawLink)
+                                                    links.add(link)
                                                 }
 
                                                 LinkType.VIDEO, LinkType.EPISODE, LinkType.TRACK, LinkType.OTHER -> {}
@@ -1428,7 +1457,10 @@ class ChatReader(
                             //queue-repeat command
                             commandString.contains("^${commandList.commandList["queue-repeat"]}\\s*((-a|--amount=?)\\s*[0-9]+)?$".toRegex()) -> {
                                 val amount = if (commandString.contains("(-a|--amount=?)\\s*[0-9]+".toRegex())) {
-                                    commandString.replace("^${commandList.commandList["queue-repeat"]}\\s*(-a|--amount=?)\\s*".toRegex(), "").toInt()
+                                    commandString.replace(
+                                        "^${commandList.commandList["queue-repeat"]}\\s*(-a|--amount=?)\\s*".toRegex(),
+                                        ""
+                                    ).toInt()
                                 } else {
                                     1
                                 }
@@ -1604,10 +1636,13 @@ class ChatReader(
                             commandString.contains("^${commandList.commandList["goto"]}\\s+\\S+".toRegex()) -> {
                                 val password = if (commandString.contains("-p\\s+\\S+".toRegex())) {
                                     commandString.replace("^.*-p\\s*".toRegex(), "")
-                                } else { "" }.replace("(^\"|\"$)".toRegex(), "")
-                                val channelToJoin = commandString.replace("^${commandList.commandList["goto"]}\\s+".toRegex(), "")
-                                    .replace("\\s*-p\\s*\"?.*\"?(\\s+|$)".toRegex(), "")
-                                    .replace("(^\"|\"$)".toRegex(), "")
+                                } else {
+                                    ""
+                                }.replace("(^\"|\"$)".toRegex(), "")
+                                val channelToJoin =
+                                    commandString.replace("^${commandList.commandList["goto"]}\\s+".toRegex(), "")
+                                        .replace("\\s*-p\\s*\"?.*\"?(\\s+|$)".toRegex(), "")
+                                        .replace("(^\"|\"$)".toRegex(), "")
                                 client.joinChannel(channelToJoin, password)
                             }
                             //return command
