@@ -1034,7 +1034,8 @@ class ChatReader(
                                                                                     positionsText.toString()
                                                                                         .substringBeforeLast(",")
                                                                                 }
-                                                                        }\n\n"
+                                                                        }\n\n" +
+                                                                        "For more info, run" + commandList.commandList["help"] + " " + commandList.commandList["queue-delete"]
                                                             )
                                                         }
                                                     } else {
@@ -1062,24 +1063,59 @@ class ChatReader(
                                 }
                             }
                             //queue-clear command
-                            commandString.contains("^${commandList.commandList["queue-clear"]}$".toRegex()) -> {
-                                songQueue.clearQueue()
-                                return Pair(
-                                    if (songQueue.getQueue().isEmpty()) {
-                                        printToChat(listOf("Cleared the queue."))
+                            commandString.contains("^${commandList.commandList["queue-clear"]}(\\s+--\\w+)?$".toRegex()) -> {
+                                lateinit var msg: String
+                                val isSuccessful: Boolean
+                                when {
+                                    commandString.contains("--all") -> {
+                                        songQueue.clearQueue()
                                         trackCache.clear()
-                                        println("Cleared the track cache.")
-                                        commandListener.onCommandExecuted(commandString, "Cleared the queue.")
-                                        commandJob.complete()
-                                        true
-                                    } else {
-                                        printToChat(listOf("Could not clear the queue!"))
-                                        commandListener.onCommandExecuted(commandString, "Could not clear the queue!")
-                                        commandJob.complete()
-                                        false
-                                    },
-                                    null
-                                )
+                                        isSuccessful = if (songQueue.getQueue().isEmpty()) {
+                                            if (trackCache.isEmpty()) {
+                                                msg = "Cleared the queue and track cache."
+                                                true
+                                            } else {
+                                                msg = "Cleared the queue but failed to clear the track cache."
+                                                false
+                                            }
+                                        } else {
+                                            if (trackCache.isEmpty()) {
+                                                msg = "Cleared the track cache but failed to clear the queue."
+                                                false
+                                            } else {
+                                                msg = "Failed to clear the queue and track cache."
+                                                false
+                                            }
+                                        }
+                                    }
+
+                                    commandString.contains("--cache") -> {
+                                        trackCache.clear()
+                                        isSuccessful = if (trackCache.isEmpty()) {
+                                            msg = "Cleared the track cache."
+                                            true
+                                        } else {
+                                            msg = "Failed to clear the track cache."
+                                            false
+                                        }
+                                    }
+
+                                    else -> {
+                                        songQueue.clearQueue()
+                                        isSuccessful = if (songQueue.getQueue().isEmpty()) {
+                                            msg = "Cleared the queue."
+                                            true
+                                        } else {
+                                            msg = "Failed to clear the queue."
+                                            false
+                                        }
+                                    }
+                                }
+
+                                printToChat(listOf(msg))
+                                commandListener.onCommandExecuted(commandString, msg)
+                                commandJob.complete()
+                                return Pair(isSuccessful, null)
                             }
                             //queue-shuffle command
                             commandString.contains("^${commandList.commandList["queue-shuffle"]}$".toRegex()) -> {

@@ -120,7 +120,8 @@ data class CommandList(
                         "${commandList["queue-add"]} lets you add songs, albums and playlists to the end of the song queue.\n" +
                         "You can also pass in a link to an artist, which will result in the artist's top tracks getting added to the queue.\n" +
                         "Instead of using links, you can search like with the ${commandList["search"]} command,\n" +
-                        "but the first search result will be automatically added to the queue.\n" +
+                        "but the first search result will be automatically added to the queue. For more information on how to search,\n" +
+                        "see ${commandList["help"]} ${commandList["search"]}\n" +
                         "Counting starts from 0, so the first song is at position 0, second is at 1 and so on.\n" +
                         "You can add options either before or after song link(s).\n" +
                         "Available options:\n" +
@@ -139,7 +140,7 @@ data class CommandList(
                         "Example - Search for a video on YouTube and add it to the queue:\n" +
                         "${commandList["queue-add"]} youtube video Haken Initiate\n" +
                         "Example - Search for a playlist on SoundCloud and add it to the queue:\n" +
-                        "${commandList["queue-add"]} soundcloud playlist jeesjees\n"
+                        "${commandList["queue-add"]} soundcloud playlist jeesjees"
             ),
             Pair(
                 "queue-playnext", "\n" +
@@ -166,7 +167,7 @@ data class CommandList(
                         "Example - Search for a video on YouTube and add it to the queue:\n" +
                         "${commandList["queue-playnext"]} youtube video Haken Initiate\n" +
                         "Example - Search for a playlist on SoundCloud and add it to the queue:\n" +
-                        "${commandList["queue-playnext"]} soundcloud playlist jeesjees\n"
+                        "${commandList["queue-playnext"]} soundcloud playlist jeesjees"
             ),
             Pair(
                 "queue-playnow", "\n" +
@@ -216,12 +217,19 @@ data class CommandList(
                         "Example - Delete all tracks where the an artist appears:\n" +
                         "${commandList["queue-delete"]} -A https://open.spotify.com/artist/4l0zTor5S32Yly4uw96Bto\n" +
                         "Example - Delete all tracks where the spotify artist \"lil pump\" appears:\n" +
-                        "${commandList["queue-delete"]} -aA sp artist lil pump\n"
+                        "${commandList["queue-delete"]} -aA sp artist lil pump"
             ),
             Pair(
                 "queue-clear", "\n" +
                         "Showing help for ${commandList["queue-clear"]} command:\n" +
-                        "${commandList["queue-clear"]} command clears the song queue."
+                        "By default, ${commandList["queue-clear"]} command clears the song queue.\n" +
+                        "Available arguments:\n" +
+                        "--cache    \t\tClear only the track cache.\n" +
+                        "--all      \t\tClear both the song queue and track cache.\n" +
+                        "Example - Clear the song queue:\n" +
+                        "${commandList["queue-clear"]}\n" +
+                        "Example - Clear only the track cache:\n" +
+                        "${commandList["queue-clear"]} --cache"
             ),
             Pair(
                 "queue-shuffle", "\n" +
@@ -268,7 +276,7 @@ data class CommandList(
             Pair(
                 "queue-stop", "\n" +
                         "Showing help for ${commandList["queue-stop"]} command:\n" +
-                        "${commandList["queue-stop"]} stops the song queue.\n"
+                        "${commandList["queue-stop"]} stops the song queue."
             ),
             Pair(
                 "queue-status", "\n" +
@@ -364,7 +372,7 @@ data class CommandList(
                         "Example 2 - Move to a channel at \"Music/MusicBot\" with the password \"123\":\n" +
                         "${commandList["goto"]} Music/MusicBot -p 123\n" +
                         "Example 3 - Move to a channel at \"Music/Music Bot\" with the password \"secret password\"\n" +
-                        "${commandList["goto"]} \"Music/Music Bot\" -p \"secret password\"\n"
+                        "${commandList["goto"]} \"Music/Music Bot\" -p \"secret password\""
             ),
             Pair(
                 "return", "\n" +
