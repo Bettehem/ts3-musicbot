@@ -641,7 +641,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         scVolumeTextView.isVisible = false
         scVolumeEditText.isVisible = false
         ytVolumeTextView.text =
-            "Set MPV Media Player volume for SoundCloud playback. Defaults to ${BotSettings().ytVolume}"
+            "Set MPV Media Player volume for YouTube playback. Defaults to ${BotSettings().ytVolume}"
         ytVolumeTextView.isVisible = false
         ytVolumeEditText.isVisible = false
 
@@ -934,7 +934,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         } else {
                             statusTextView.text =
                                 "Error!\nYou need to provide at least the server address where the bot should connect to."
-                            println("Error!\nOptions -a, -s and -n are required. See -h or --help for more information")
+                            println("Error!\nOption -s is required. See -h or --help for more information")
                         }
                     }
                 } else {
