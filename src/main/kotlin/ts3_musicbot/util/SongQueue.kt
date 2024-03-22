@@ -546,7 +546,7 @@ class SongQueue(
                                             newPrefs.appendLine("${it.key}=${it.value}")
                                         }
                                         prefsFile.delete()
-                                        prefsFile.createNewFile()
+                                        runBlocking { prefsFile.createNewFile() }
                                         prefsFile.writeText(newPrefs.toString())
                                     }
                                 }
@@ -610,7 +610,7 @@ class SongQueue(
                                 if (configFile.exists())
                                     configFile.delete()
 
-                                configFile.createNewFile()
+                                runBlocking { configFile.createNewFile() }
                                 configFile.writeText(newConfig.toString())
                             }
                         }
