@@ -245,13 +245,12 @@ class SongQueue(
                     Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD -> {
                         //check if youtube-dl is able to download the track
                         var attempts = 0
-                        while (songQueue.isNotEmpty() && !CommandRunner().runCommand(
+                        while (songQueue.isNotEmpty() && CommandRunner().runCommand(
                                 "youtube-dl --extract-audio --audio-format best --audio-quality 0 " +
-                                        "--cookies youtube-dl.cookies --force-ipv4 --age-limit 21 --geo-bypass -s \"${firstTrack.link}\"",
+                                        "--cookies youtube-dl.cookies --force-ipv4 --age-limit 21 --geo-bypass -s \"${firstTrack.link}\"; echo $?",
                                 printOutput = false,
                                 printErrors = false
-                            ).outputText.lines().last()
-                                .contains("\\[(info|youtube)] ${firstTrack.link.getId()}: Downloading ([0-9]+ format\\(s\\):|webpage|API JSON)".toRegex())
+                            ).outputText.lines().last() != "0"
                         ) {
                             if (attempts < 5) {
                                 println("Error downloading track! Trying again...")
