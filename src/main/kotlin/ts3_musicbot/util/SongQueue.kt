@@ -242,7 +242,7 @@ class SongQueue(
             if (songQueue.isNotEmpty()) {
                 var firstTrack = songQueue.first()
                 when (firstTrack.serviceType) {
-                    Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD -> {
+                    Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD, Service.ServiceType.BANDCAMP -> {
                         //check if youtube-dl is able to download the track
                         var attempts = 0
                         while (songQueue.isNotEmpty() && CommandRunner().runCommand(
@@ -340,7 +340,7 @@ class SongQueue(
          */
         fun getPlayer() = when (track.serviceType) {
             Service.ServiceType.SPOTIFY -> botSettings.spotifyPlayer
-            Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD -> "mpv"
+            Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD, Service.ServiceType.BANDCAMP -> "mpv"
             else -> ""
         }
 
@@ -705,12 +705,14 @@ class SongQueue(
                         }
                     }
 
-                    Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD -> {
+                    Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD, Service.ServiceType.BANDCAMP -> {
                         suspend fun startMPV(job: Job) {
-                            val volume = if (type == Service.ServiceType.SOUNDCLOUD)
-                                botSettings.scVolume
-                            else
-                                botSettings.ytVolume
+                            val volume = when (type) {
+                                Service.ServiceType.SOUNDCLOUD -> botSettings.scVolume
+                                Service.ServiceType.YOUTUBE -> botSettings.ytVolume
+                                Service.ServiceType.BANDCAMP -> botSettings.bcVolume
+                                else -> 100
+                            }
 
                             val mpvRunnable = Runnable {
                                 commandRunner.runCommand(
@@ -884,7 +886,7 @@ class SongQueue(
                     }
                 }
 
-                Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD -> {
+                Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD, Service.ServiceType.BANDCAMP -> {
                     //First kill the spotify player in case its running.
                     //Although this shouldn't be needed, at least in the case of the official spotify client,
                     //sometimes it won't respect the disabled autoplay setting, and will continue playing something else

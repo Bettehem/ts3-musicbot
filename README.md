@@ -1,6 +1,6 @@
 TS3 MusicBot lets you control and listen to your music from a TeamSpeak server's channel via the chat.<br>
 <br>
-TS3 MusicBot can play music from Spotify, YouTube and SoundCloud. Support for other services possibly coming in the future.<br>
+TS3 MusicBot can play music from Spotify, YouTube, SoundCloud and Bandcamp. Support for other services possibly coming in the future.<br>
 TS3 MusicBot doesn't require you to be an admin on the server you are using the bot on, you only need permission to speak in the desired channel and use the chat.<br>
 <br>
 <h4>Features:</h4>
@@ -8,8 +8,9 @@ TS3 MusicBot doesn't require you to be an admin on the server you are using the 
 - Spotify Support! Unlike other bots, this Spotify support is legit!*<br>
 - YouTube Support.<br>
 - SoundCloud Support.<br>
+- Bandcamp Support.
 - Built in Spotify, YouTube and SoundCloud search.<br>
-- You can have tracks from Spotify, YouTube and SoundCloud all in the same queue!<br>
+- You can have tracks from Spotify, YouTube, SoundCloud and Bandcamp all in the same queue!<br>
 - Supports adding multiple tracks, albums and playlists etc. to the queue simultaneously.<br>
 - Add whole playlists to the queue. This is something that isn't possible even in the official Spotify client!<br>
 - Supports adding a Spotify artist's top tracks to the queue.<br>

@@ -86,6 +86,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
     private var scVolumeEditText = TextField()
     private var ytVolumeTextView = Label()
     private var ytVolumeEditText = TextField()
+    private var bcVolumeTextView = Label()
+    private var bcVolumeEditText = TextField()
     private var loadCustomCommandsButton = Button()
     private var saveSettingsButton = Button()
     private var loadSettingsButton = Button()
@@ -118,6 +120,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 var spotifyPassword = defaultSettings.spotifyPassword
                 var scVolume = defaultSettings.scVolume
                 var ytVolume = defaultSettings.ytVolume
+                var bcVolume = defaultSettings.bcVolume
                 var useOfficialTsClient = true
 
                 val helpMessage = "\n" +
@@ -140,7 +143,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "--command-config         Provide a config file where to read custom commands from\n" +
                         "--use-internal-tsclient  Use the internal TeamSpeak client instead of the official one.(WIP!)\n" +
                         "--sc-volume <volume>     Set the volume for MPV media player when playing SoundCloud content.\n" +
-                        "--yt-volume <volume>     Set the volume for MPV media player when playing YouTube content.\n"
+                        "--yt-volume <volume>     Set the volume for MPV media player when playing YouTube content.\n" +
+                        "--bc-volume <volume>     Set the volume for MPV media player when playing Bandcamp content.\n"
 
                 //go through given arguments and save them
                 for (argPos in args.indices) {
@@ -236,6 +240,11 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             if (args.size >= argPos + 1)
                                 ytVolume = args[argPos + 1].toInt()
                         }
+
+                        "--bc-volume" -> {
+                            if (args.size >= argPos + 1)
+                                bcVolume = args[argPos + 1].toInt()
+                        }
                     }
                 }
 
@@ -258,7 +267,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             spotifyPassword,
                             useOfficialTsClient,
                             scVolume,
-                            ytVolume
+                            ytVolume,
+                            bcVolume
                         )
                     }
 
@@ -395,6 +405,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 fileWriter.println("USE_OFFICIAL_TSCLIENT=${botSettings.useOfficialTsClient}")
                 fileWriter.println("SC_VOLUME=${botSettings.scVolume}")
                 fileWriter.println("YT_VOLUME=${botSettings.ytVolume}")
+                fileWriter.println("BC_VOLUME=${botSettings.bcVolume}")
                 fileWriter.println()
                 fileWriter.close()
             }
@@ -431,6 +442,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
 
                         "SC_VOLUME" -> settings.scVolume = line.substringAfter("=").replace(" ", "").toInt()
                         "YT_VOLUME" -> settings.ytVolume = line.substringAfter("=").replace(" ", "").toInt()
+                        "BC_VOLUME" -> settings.bcVolume = line.substringAfter("=").replace(" ", "").toInt()
                     }
                 }
             }
@@ -645,6 +657,11 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         ytVolumeTextView.isVisible = false
         ytVolumeEditText.isVisible = false
 
+        bcVolumeTextView.text =
+            "Set MPV Media Player volume for YouTube playback. Defaults to ${BotSettings().ytVolume}"
+        bcVolumeTextView.isVisible = false
+        bcVolumeEditText.isVisible = false
+
         loadCustomCommandsButton.text = "Load custom commands"
         loadCustomCommandsButton.isVisible = false
 
@@ -714,6 +731,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         scVolumeEditText.isVisible = showAdvanced
         ytVolumeTextView.isVisible = showAdvanced
         ytVolumeEditText.isVisible = showAdvanced
+        bcVolumeTextView.isVisible = showAdvanced
+        bcVolumeEditText.isVisible = showAdvanced
         loadCustomCommandsButton.isVisible = showAdvanced
     }
 
@@ -785,6 +804,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             scVolumeEditText,
             ytVolumeTextView,
             ytVolumeEditText,
+            bcVolumeTextView,
+            bcVolumeEditText,
             loadCustomCommandsButton
         )
         scrollPane.content = itemLayout
@@ -879,6 +900,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     }
                     scVolumeEditText.text = settings.scVolume.toString()
                     ytVolumeEditText.text = settings.ytVolume.toString()
+                    bcVolumeEditText.text = settings.bcVolume.toString()
                 } else {
                     println("Could not load file!")
                 }
@@ -1030,7 +1052,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         spPasswordEditText.text,
         tsClientRadioGroup.selectedToggle == tsClientOfficialRadioButton,
         scVolumeEditText.text.ifEmpty { "${BotSettings().scVolume}" }.toInt(),
-        ytVolumeEditText.text.ifEmpty { "${BotSettings().ytVolume}" }.toInt()
+        ytVolumeEditText.text.ifEmpty { "${BotSettings().ytVolume}" }.toInt(),
+        bcVolumeEditText.text.ifEmpty { "${BotSettings().bcVolume}" }.toInt()
     )
 
 

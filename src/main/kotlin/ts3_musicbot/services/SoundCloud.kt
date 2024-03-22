@@ -1343,7 +1343,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
 
     //SoundCloud doesn't have "Artists", but SoundCloud seems to treat users with uploaded tracks as artists,
     //therefore we just fetch a User's data, and present it as an Artist
-    override suspend fun fetchArtist(artistLink: Link): Artist {
+    override suspend fun fetchArtist(artistLink: Link, fetchRecommendations: Boolean): Artist {
         lateinit var artist: Artist
         val id = if ("$artistLink".startsWith("$apiURL/users/"))
             "$artistLink".substringAfterLast("/")

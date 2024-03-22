@@ -12,6 +12,7 @@ open class Service(val serviceType: ServiceType) {
         SOUNDCLOUD,
         SPOTIFY,
         YOUTUBE,
+        BANDCAMP,
         OTHER
     }
 
@@ -35,7 +36,7 @@ open class Service(val serviceType: ServiceType) {
 
     open suspend fun fetchAlbum(albumLink: Link) = Album()
     open suspend fun fetchAlbumTracks(albumLink: Link, limit: Int = 0) = TrackList()
-    open suspend fun fetchArtist(artistLink: Link) = Artist()
+    open suspend fun fetchArtist(artistLink: Link, fetchRecommendations: Boolean = true) = Artist()
     open suspend fun fetchPlaylist(playlistLink: Link) = Playlist()
     open suspend fun fetchPlaylistTracks(playlistLink: Link, limit: Int = 0) = TrackList()
     open suspend fun fetchTrack(trackLink: Link) = Track()

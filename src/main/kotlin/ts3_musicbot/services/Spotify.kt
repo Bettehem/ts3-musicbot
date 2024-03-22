@@ -1178,7 +1178,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
         return track
     }
 
-    override suspend fun fetchArtist(artistLink: Link): Artist {
+    override suspend fun fetchArtist(artistLink: Link, fetchRecommendations: Boolean): Artist {
         fun fetchArtistData(): Response {
             val linkBuilder = StringBuilder()
             linkBuilder.append("$apiURL/artists/")

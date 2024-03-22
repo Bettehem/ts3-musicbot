@@ -1,10 +1,7 @@
 package ts3_musicbot.util
 
 import kotlinx.coroutines.runBlocking
-import ts3_musicbot.services.Service
-import ts3_musicbot.services.SoundCloud
-import ts3_musicbot.services.Spotify
-import ts3_musicbot.services.YouTube
+import ts3_musicbot.services.*
 import java.lang.IllegalArgumentException
 import java.time.LocalDate
 
@@ -22,6 +19,7 @@ enum class LinkType {
     USER,
     VIDEO,
     QUERY,
+    RECOMMENDED,
     OTHER
 }
 
@@ -116,6 +114,7 @@ data class Link(val link: String = "", val linkId: String = "") {
         link.contains("\\S+soundcloud\\S+".toRegex()) -> Service.ServiceType.SOUNDCLOUD
         link.contains("spotify") -> Service.ServiceType.SPOTIFY
         link.contains("\\S+youtu\\.?be\\S+".toRegex()) -> Service.ServiceType.YOUTUBE
+        link.contains("\\S*bandcamp\\.com\\S*".toRegex()) -> Service.ServiceType.BANDCAMP
         else -> Service.ServiceType.OTHER
     }
 
@@ -149,6 +148,15 @@ data class Link(val link: String = "", val linkId: String = "") {
                     service.resolveType(this@Link)
                 else
                     YouTube().resolveType(this@Link)
+            }
+        }
+
+        Service.ServiceType.BANDCAMP -> {
+            runBlocking {
+                if (service is Bandcamp)
+                    service.resolveType(this@Link)
+                else
+                    Bandcamp().resolveType(this@Link)
             }
         }
 
@@ -204,6 +212,10 @@ data class Link(val link: String = "", val linkId: String = "") {
                 }
             }
 
+            Service.ServiceType.BANDCAMP -> {
+                this@Link.link
+            }
+
             Service.ServiceType.OTHER -> ""
         }
     }
@@ -234,8 +246,7 @@ data class Link(val link: String = "", val linkId: String = "") {
                 else -> link
             }
         )
-
-        Service.ServiceType.SOUNDCLOUD -> Link(link.substringBefore("?"))
+        Service.ServiceType.SOUNDCLOUD, Service.ServiceType.BANDCAMP -> Link(link.substringBefore("?"))
         else -> this
     }
 

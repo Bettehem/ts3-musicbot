@@ -9,10 +9,7 @@ import kotlinx.coroutines.flow.*
 import ts3_musicbot.client.Client
 import ts3_musicbot.client.OfficialTSClient
 import ts3_musicbot.client.TeamSpeak
-import ts3_musicbot.services.Service
-import ts3_musicbot.services.SoundCloud
-import ts3_musicbot.services.Spotify
-import ts3_musicbot.services.YouTube
+import ts3_musicbot.services.*
 import ts3_musicbot.util.*
 import java.util.*
 
@@ -29,6 +26,7 @@ class ChatReader(
     private val spotify = Spotify(botSettings.market)
     private val youTube = YouTube()
     private val soundCloud = SoundCloud()
+    private val bandcamp = Bandcamp()
     private val voteSkipUsers = ArrayList<Pair<String, Boolean>>()
     private val trackCache = ArrayList<Pair<Link, TrackList>>()
     var latestMsgUsername = ""
@@ -396,7 +394,7 @@ class ChatReader(
                                     if (args[i].contains("$pattern*r".toRegex())) {
                                         shouldReverse = true
                                     }
-                                    if (args[i].contains("((\\[URL])?((https?://)?(spotify\\.link|link\\.tospotify\\.com|open\\.spotify\\.com|soundcloud\\.com|((m|www)\\.)?youtu\\.?be(\\.com)?)).+(\\[/URL])?)|(spotify:(track|album|playlist|show|episode|artist):.+)".toRegex())) {
+                                    if (args[i].contains("((\\[URL])?((https?://)?(spotify\\.link|link\\.tospotify\\.com|open\\.spotify\\.com|soundcloud\\.com|((m|www)\\.)?youtu\\.?be(\\.com)?|\\S*\\.?bandcamp\\.com\\S*)).+(\\[/URL])?)|(spotify:(track|album|playlist|show|episode|artist):.+)".toRegex())) {
                                         //add links to ArrayList
                                         if (args[i].contains(","))
                                             links.addAll(
@@ -419,6 +417,7 @@ class ChatReader(
                                         Service.ServiceType.SOUNDCLOUD -> soundCloud
                                         Service.ServiceType.SPOTIFY -> spotify
                                         Service.ServiceType.YOUTUBE -> youTube
+                                        Service.ServiceType.BANDCAMP -> bandcamp
                                         Service.ServiceType.OTHER -> Service(Service.ServiceType.OTHER)
                                     }
 
@@ -750,6 +749,7 @@ class ChatReader(
                                     Service.ServiceType.SPOTIFY -> spotify
                                     Service.ServiceType.SOUNDCLOUD -> soundCloud
                                     Service.ServiceType.YOUTUBE -> youTube
+                                    Service.ServiceType.BANDCAMP -> bandcamp
                                     else -> Service(Service.ServiceType.OTHER)
                                 }
                                 if (songQueue.getQueue().isNotEmpty()) {
@@ -948,6 +948,12 @@ class ChatReader(
                                                 LinkType.QUERY -> {
                                                     links.remove(rawLink)
                                                     links.add(link)
+                                                }
+
+                                                LinkType.RECOMMENDED -> {
+                                                    links.remove(rawLink)
+                                                    if (service is Bandcamp)
+                                                        service.fetchRecommendedAlbums(link)
                                                 }
 
                                                 LinkType.VIDEO, LinkType.EPISODE, LinkType.TRACK, LinkType.OTHER -> {}
@@ -1640,6 +1646,13 @@ class ChatReader(
                                             LinkType.PLAYLIST -> soundCloud.fetchPlaylist(link)
                                             LinkType.ARTIST -> soundCloud.fetchArtist(link)
                                             LinkType.USER -> soundCloud.fetchUser(link)
+                                            else -> null
+                                        }.also { if (it != null) output.add(it) }
+
+                                        Service.ServiceType.BANDCAMP -> when (link.linkType()) {
+                                            LinkType.TRACK -> bandcamp.fetchTrack(link)
+                                            LinkType.ALBUM -> bandcamp.fetchAlbum(link)
+                                            LinkType.ARTIST -> bandcamp.fetchArtist(link)
                                             else -> null
                                         }.also { if (it != null) output.add(it) }
 
