@@ -15,7 +15,7 @@ class BandcampTest {
             //Bandcamp link to track: Side B from Echo Chamber (2023 Year End Mixtape)
             val testLink = Link("https://visceraandvapor.bandcamp.com/track/side-b-3")
             val track = bandcamp.fetchTrack(testLink)
-            assertEquals("\uD835\uDC3A\uD835\uDC42\uD835\uDC45\uD835\uDC38", track.artists.artists[0].name.name)
+            assertEquals("https://visceraandvapor.bandcamp.com/album/echo-chamber-2023-year-end-mixtape", track.album.link.link)
             assertEquals("Side B", track.title.name)
         }
     }
