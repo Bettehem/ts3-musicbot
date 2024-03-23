@@ -16,9 +16,28 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                 val lines = request.data.data.lines()
                 val trackData =
                     JSONObject(lines[lines.indexOfFirst { it.contains("<script type=\"application/ld+json\">") } + 1])
-                Track(
-                    Album(
-                        Name(trackData.getJSONObject("inAlbum").getString("name")),
+                if ("$trackLink".contains("https://\\S+\\.bandcamp\\.com/album/\\S+#t[0-9]+$".toRegex())) {
+                    val trackItem = trackData.getJSONObject("track").getJSONArray("itemListElement")
+                        .first {
+                            it as JSONObject
+                            it.getInt("position") == "$trackLink".substringAfter("#t").toInt()
+                        }.let { it as JSONObject }.getJSONObject("item")
+                    Track(
+                        Album(
+                            Name(trackData.getString("name")),
+                            Artists(
+                                listOf(
+                                    Artist(
+                                        Name(trackData.getJSONObject("byArtist").getString("name")),
+                                        Link(trackData.getJSONObject("byArtist").getString("@id"))
+                                    )
+                                )
+                            ),
+                            ReleaseDate(LocalDate.parse(trackData.getString("datePublished"), formatter)),
+                            TrackList(),
+                            Link(trackData.getString("@id")),
+                            Genres(trackData.getJSONArray("keywords").map { it as String })
+                        ),
                         Artists(
                             listOf(
                                 Artist(
@@ -27,23 +46,40 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                                 )
                             )
                         ),
-                        ReleaseDate(LocalDate.parse(trackData.getString("datePublished"), formatter)),
-                        TrackList(),
-                        Link(trackData.getJSONObject("inAlbum").getString("@id")),
-                        Genres(trackData.getJSONArray("keywords").map { it as String })
-                    ),
-                    Artists(
-                        listOf(
-                            Artist(
-                                Name(trackData.getJSONObject("byArtist").getString("name")),
-                                Link(trackData.getJSONObject("byArtist").getString("@id"))
+                        Name(trackItem.getString("name")),
+                        Link(trackItem.getString("@id")),
+                        Playability(trackItem.has("duration"))
+                    )
+                } else {
+                    Track(
+                        Album(
+                            Name(trackData.getJSONObject("inAlbum").getString("name")),
+                            Artists(
+                                listOf(
+                                    Artist(
+                                        Name(trackData.getJSONObject("byArtist").getString("name")),
+                                        Link(trackData.getJSONObject("byArtist").getString("@id"))
+                                    )
+                                )
+                            ),
+                            ReleaseDate(LocalDate.parse(trackData.getString("datePublished"), formatter)),
+                            TrackList(),
+                            Link(trackData.getJSONObject("inAlbum").getString("@id")),
+                            Genres(trackData.getJSONArray("keywords").map { it as String })
+                        ),
+                        Artists(
+                            listOf(
+                                Artist(
+                                    Name(trackData.getJSONObject("byArtist").getString("name")),
+                                    Link(trackData.getJSONObject("byArtist").getString("@id"))
+                                )
                             )
-                        )
-                    ),
-                    Name(trackData.getString("name")),
-                    Link(trackData.getString("@id")),
-                    Playability(true)
-                )
+                        ),
+                        Name(trackData.getString("name")),
+                        Link(trackData.getString("@id")),
+                        Playability(trackData.has("duration"))
+                    )
+                }
             }
 
             else -> Track()
@@ -104,7 +140,7 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                             ),
                             Name(trackData.getString("name")),
                             Link(trackData.getString("@id")),
-                            Playability(true)
+                            Playability(trackData.has("duration"))
                         )
                     }.let { list ->
                         if (limit != 0 && list.size > limit)
@@ -215,7 +251,7 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
 
     override suspend fun resolveType(link: Link): LinkType {
         return when {
-            "$link".contains("https?://\\S+\\.bandcamp\\.com/track/\\S+".toRegex()) -> LinkType.TRACK
+            "$link".contains("https?://\\S+\\.bandcamp\\.com/(track/\\S+|album/\\S+#t[0-9]+$)".toRegex()) -> LinkType.TRACK
             "$link".contains("https?://\\S+\\.bandcamp\\.com/album/\\S+".toRegex()) -> LinkType.ALBUM
             "$link".contains("https?://bandcamp\\.com/recommended/\\S+".toRegex()) -> LinkType.RECOMMENDED
             "$link".contains("https?://\\S+\\.bandcamp\\.com(/(music|merch|community))?".toRegex()) -> LinkType.ARTIST

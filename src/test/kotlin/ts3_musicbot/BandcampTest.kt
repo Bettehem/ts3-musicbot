@@ -21,6 +21,17 @@ class BandcampTest {
     }
 
     @Test
+    fun testGettingTrack2() {
+        runBlocking(Dispatchers.IO) {
+            //Bandcamp link to track: Purified by Vengeance (feat. Mark Holcomb of Periphery & Mick Gordon)
+            val testLink = Link("https://daathofficial.bandcamp.com/album/the-deceivers#t7")
+            val track = bandcamp.fetchTrack(testLink)
+            assertEquals("https://daathofficial.bandcamp.com/album/the-deceivers", track.album.link.link)
+            assertEquals("Purified by Vengeance (feat. Mark Holcomb of Periphery & Mick Gordon)", track.title.name)
+        }
+    }
+
+    @Test
     fun testGettingAlbum() {
         runBlocking(Dispatchers.IO) {
             //Bandcamp link to album: Echo Chamber (2023 Year End Mixtape)
@@ -51,6 +62,19 @@ class BandcampTest {
             assertEquals("War Of Being", album.name.name)
             assertEquals("TesseracT", album.artists.artists.first().name.name)
             assertEquals(9, album.tracks.size)
+        }
+    }
+
+    @Test
+    fun testGettingAlbum4() {
+        runBlocking(Dispatchers.IO) {
+            //Bandcamp link to album: Chasing Shadows
+            val testLink = Link("https://sunnataofficial.bandcamp.com/album/chasing-shadows")
+            val album = bandcamp.fetchAlbum(testLink)
+            assertEquals("Chasing Shadows", album.name.name)
+            assert(album.tracks.trackList[0].playability.isPlayable)
+            assert(!album.tracks.trackList[1].playability.isPlayable)
+            assert(album.tracks.trackList[4].playability.isPlayable)
         }
     }
 
