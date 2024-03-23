@@ -256,7 +256,7 @@ class ChatReader(
 
                             //queue-add command
                             //queue-playnext command
-                            commandString.contains("^(${commandList.commandList["queue-add"]}|${commandList.commandList["queue-playnext"]})(\\s+-\\w*(r|s|t|P|([lp]\\s*[0-9]+)))*(\\s*(\\[URL])?((spotify:(user:\\S+:)?(track|album|playlist|show|episode|artist):\\S+)|(https?://\\S+)|((sp|spotify|yt|youtube|sc|soundcloud)\\s+(track|album|playlist|show|episode|artist|video|user)\\s+.+))(\\[/URL])?\\s*,?\\s*)+(\\s+-\\w*(r|s|t|P|([lp]\\s*[0-9]+)))*\$".toRegex()) -> {
+                            commandString.contains("^(${commandList.commandList["queue-add"]}|${commandList.commandList["queue-playnext"]})(\\s+-\\w*(r|s|t|P|([lp]\\s*[0-9]+)))*(\\s*(\\[URL])?((spotify:(user:\\S+:)?(track|album|playlist|show|episode|artist):\\S+)|(https?://\\S+)|((sp|spotify|yt|youtube|sc|soundcloud|bc|bandcamp)\\s+(track|album|playlist|show|episode|artist|video|user)\\s+.+))(\\[/URL])?\\s*,?\\s*)+(\\s+-\\w*(r|s|t|P|([lp]\\s*[0-9]+)))*\$".toRegex()) -> {
                                 val trackAddedMsg = "Added track to queue."
                                 val trackNotPlayableMsg = "Track is not playable."
                                 val tracksAddedMsg = "Added tracks to queue."
@@ -307,7 +307,7 @@ class ChatReader(
                                     return TrackList(trackList.trackList.filter { it.playability.isPlayable })
                                 }
 
-                                if (commandString.contains("\\s+(sp|spotify|yt|youtube|sc|soundcloud)\\s+\\w+\\s+.+".toRegex())) {
+                                if (commandString.contains("\\s+(sp|spotify|yt|youtube|sc|soundcloud|bc|bandcamp)\\s+\\w+\\s+.+".toRegex())) {
                                     when {
                                         commandString.contains("\\s+(sp|spotify)\\s+".toRegex()) ->
                                             spotify.search(
@@ -355,6 +355,21 @@ class ChatReader(
                                                     links.add(it.first().link)
                                             }
 
+                                        commandString.contains("\\s+(bc|bandcamp)\\s+".toRegex()) ->
+                                            bandcamp.search(
+                                                SearchType(
+                                                    commandString.split("\\s+(bc|bandcamp)\\s+".toRegex()).last()
+                                                        .substringBefore(" ")
+                                                ),
+                                                SearchQuery(
+                                                    commandString.split("\\s+(bc|bandcamp)\\s+\\w+\\s+".toRegex())
+                                                        .last()
+                                                ),
+                                                1
+                                            ).results.let {
+                                                if (it.isNotEmpty())
+                                                    links.add(it.first().link)
+                                            }
                                     }
                                 }
                                 //get arguments in command
@@ -744,7 +759,7 @@ class ChatReader(
                                 }
                             }
                             //queue-delete command
-                            commandString.contains("^${commandList.commandList["queue-delete"]}((\\s+(-a|--all|-A|--all-artist-tracks|-f|--first))?\\s+((sp|spotify|yt|youtube|sc|soundcloud)\\s+\\w+\\s+|((\\[URL])?https?://\\S+,?\\s*))*(\\s+(-a|--all|-A|--all-artist-tracks|-f|--first))?|([0-9]+,?\\s*)+)".toRegex()) -> {
+                            commandString.contains("^${commandList.commandList["queue-delete"]}((\\s+(-a|--all|-A|--all-artist-tracks|-f|--first))?\\s+((sp|spotify|yt|youtube|sc|soundcloud|bc|bandcamp)\\s+\\w+\\s+|((\\[URL])?https?://\\S+,?\\s*))*(\\s+(-a|--all|-A|--all-artist-tracks|-f|--first))?|([0-9]+,?\\s*)+)".toRegex()) -> {
                                 fun getService(link: Link): Service = when (link.serviceType()) {
                                     Service.ServiceType.SPOTIFY -> spotify
                                     Service.ServiceType.SOUNDCLOUD -> soundCloud
@@ -769,7 +784,7 @@ class ChatReader(
                                             firstMatchOnly = true
                                     }
                                     //get links from message
-                                    val services = listOf("sp", "spotify", "yt", "youtube", "sc", "soundcloud")
+                                    val services = listOf("sp", "spotify", "yt", "youtube", "sc", "soundcloud", "bc", "bandcamp")
                                     val links = when {
                                         commandString.contains("^${commandList.commandList["queue-delete"]}(\\s+-+($validOptions)+)*\\s+((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+-+($validOptions)+)*".toRegex()) -> {
                                             commandString.split("(\\s+|,\\s+|,)".toRegex()).filter {
@@ -1518,6 +1533,7 @@ class ChatReader(
                                     "sc", "soundcloud" -> Service.ServiceType.SOUNDCLOUD
                                     "sp", "spotify" -> Service.ServiceType.SPOTIFY
                                     "yt", "youtube" -> Service.ServiceType.YOUTUBE
+                                    "bc", "bandcamp" -> Service.ServiceType.BANDCAMP
                                     else -> Service.ServiceType.OTHER
                                 }
                                 val searchType = SearchType(
@@ -1529,6 +1545,10 @@ class ChatReader(
                                         Service.ServiceType.SPOTIFY -> spotify.supportedSearchTypes.contains(searchType.getType())
                                         Service.ServiceType.YOUTUBE -> youTube.supportedSearchTypes.contains(searchType.getType())
                                         Service.ServiceType.SOUNDCLOUD -> soundCloud.supportedSearchTypes.contains(
+                                            searchType.getType()
+                                        )
+
+                                        Service.ServiceType.BANDCAMP -> bandcamp.supportedSearchTypes.contains(
                                             searchType.getType()
                                         )
 
@@ -1569,6 +1589,12 @@ class ChatReader(
                                             limit
                                         )
 
+                                        Service.ServiceType.BANDCAMP -> bandcamp.search(
+                                            searchType,
+                                            searchQuery,
+                                            limit
+                                        )
+
                                         else -> SearchResults(emptyList())
                                     }
                                     return if (results.isNotEmpty()) {
@@ -1597,7 +1623,8 @@ class ChatReader(
                             }
                             //info command
                             commandString.contains("^${commandList.commandList["info"]}\\s+".toRegex()) -> {
-                                val services = listOf("sp", "spotify", "yt", "youtube", "sc", "soundcloud")
+                                val services =
+                                    listOf("sp", "spotify", "yt", "youtube", "sc", "soundcloud", "bc", "bandcamp")
                                 val links = if (commandString.contains(
                                         "^${commandList.commandList["info"]}\\s+(${
                                             services.joinToString("|")

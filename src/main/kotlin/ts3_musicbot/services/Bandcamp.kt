@@ -9,6 +9,113 @@ import java.time.format.DateTimeFormatter
 
 class Bandcamp : Service(ServiceType.BANDCAMP) {
     private val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss z")
+    val supportedSearchTypes = listOf(
+        LinkType.TRACK,
+        LinkType.ALBUM,
+        LinkType.ARTIST,
+    )
+
+    override suspend fun search(
+        searchType: SearchType,
+        searchQuery: SearchQuery,
+        resultLimit: Int,
+        encodeQuery: Boolean
+    ): SearchResults {
+        val itemType = when (searchType.getType()) {
+            LinkType.ALBUM -> "a"
+            LinkType.ARTIST -> "b"
+            LinkType.TRACK -> "t"
+            else -> ""
+        }
+        val linkBuilder = StringBuilder()
+        linkBuilder.append("https://bandcamp.com/search?")
+        linkBuilder.append("q=" + if (encodeQuery) encode(searchQuery.query) else searchQuery)
+        if (itemType.isNotEmpty())
+            linkBuilder.append("&=item_type=$itemType")
+        val response = sendHttpRequest(Link(linkBuilder.toString()))
+        return when (response.code.code) {
+            HttpURLConnection.HTTP_OK -> {
+                val results = response.data.data
+                    .substringAfter("<ul class=\"result-items\">")
+                    .substringBefore("</ul>")
+                    .split("(.*<li class=\"searchresult data-search\"\n\\s+data-search=\".+\">|</li>)".toRegex())
+                    .map { item ->
+                        item.substringAfter("<div class=\"result-info\">").substringBeforeLast("</div>")
+                            .split("(<div|</div>)".toRegex()).associate {
+                                Pair(
+                                    it.substringAfter("class=\"").substringBefore("\">"),
+                                    it.substringAfter("\">").trim()
+                                )
+                            }.filterNot { it.key.contains("^(\\s+|\n+)+$".toRegex()) }
+                    }
+                    .map { data ->
+                        val resultType = data["itemtype"]?.let { SearchType(it).getType() }
+                        if (resultType == searchType.getType()) {
+                            when (resultType) {
+                                LinkType.ARTIST -> {
+                                    val artistName = data["heading"]!!.substringAfter("\">").substringBefore("</a>").trim()
+                                    val genres = data["genre"]!!.substringAfter("genre: ")
+                                    val artistLink = data["itemurl"]!!.substringAfter("\">").substringBefore("</a>")
+                                    SearchResult(
+                                        "Artist:    \t\t\t$artistName\n" +
+                                                if (genres.isNotEmpty()) {
+                                                    "Genres:    \t\t$genres\n"
+                                                } else {
+                                                    ""
+                                                } +
+                                                "Link:      \t\t\t$artistLink\n",
+                                        Link(artistLink)
+                                    )
+                                }
+
+                                LinkType.ALBUM -> {
+                                    val artistName = data["subhead"]!!.substringAfter("by ").trim()
+                                    val albumName = data["heading"]!!.substringAfter("\">").substringBefore("</a>").trim()
+                                    val albumLink = data["itemurl"]!!.substringAfter("\">").substringBefore("</a>")
+                                    SearchResult(
+                                        "Artist: \t\t$artistName\n" +
+                                                "Album:  \t$albumName\n" +
+                                                "Link:   \t\t$albumLink\n",
+                                        Link(albumLink)
+                                    )
+                                }
+
+                                LinkType.TRACK -> {
+                                    val artistName = data["subhead"]!!.substringAfter("by ").trim()
+                                        .substringAfter("by ")
+                                    val trackName = data["heading"]!!.substringAfter("\">").substringBefore("</a>").trim()
+                                    val trackLink = data["itemurl"]!!.substringAfter("\">").substringBefore("</a>")
+                                    SearchResult(
+                                        "Artist: \t\t$artistName\n" +
+                                                if (data["subhead"]!!.contains("^.*from .+".toRegex())) {
+                                                    "Album:  \t" + data["subhead"]!!.substringAfter("from ")
+                                                        .substringBefore("\n") + "\n"
+                                                } else {
+                                                    ""
+                                                } +
+                                                "Title:  \t\t$trackName\n" +
+                                                "Link:   \t\t$trackLink\n",
+                                        Link(trackLink)
+                                    )
+                                }
+                                else -> SearchResult("", Link())
+                            }
+                        } else {
+                            SearchResult("", Link())
+                        }
+                    }
+                SearchResults(
+                    if (resultLimit != 0 && results.size > resultLimit)
+                        results.subList(0, resultLimit)
+                    else
+                        results
+                )
+            }
+
+            else -> SearchResults(emptyList())
+        }
+    }
+
     override suspend fun fetchTrack(trackLink: Link): Track {
         val request = sendHttpRequest(trackLink)
         return when (request.code.code) {
@@ -57,7 +164,12 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                             Artists(
                                 listOf(
                                     Artist(
-                                        Name(trackData.getJSONObject("byArtist").getString("name")),
+                                        Name(
+                                            if (trackData.getJSONObject("inAlbum").has("byArtist"))
+                                                trackData.getJSONObject("inAlbum").getJSONObject("byArtist").getString("name")
+                                            else
+                                                trackData.getJSONObject("byArtist").getString("name")
+                                        ),
                                         Link(trackData.getJSONObject("byArtist").getString("@id"))
                                     )
                                 )
@@ -70,7 +182,12 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                         Artists(
                             listOf(
                                 Artist(
-                                    Name(trackData.getJSONObject("byArtist").getString("name")),
+                                    Name(
+                                        if (trackData.getJSONObject("inAlbum").has("byArtist"))
+                                            trackData.getJSONObject("inAlbum").getJSONObject("byArtist").getString("name")
+                                        else
+                                            trackData.getJSONObject("byArtist").getString("name")
+                                    ),
                                     Link(trackData.getJSONObject("byArtist").getString("@id"))
                                 )
                             )
@@ -128,6 +245,15 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                         Track(
                             Album(
                                 Name(albumData.getString("name")),
+                                Artists(
+                                    listOf(
+                                        Artist(
+                                            Name(albumData.getJSONObject("byArtist").getString("name")),
+                                            Link(albumData.getString("@id").substringBefore("/album"))
+                                        )
+                                    )
+                                ),
+                                ReleaseDate(LocalDate.parse(albumData.getString("datePublished"), formatter)),
                                 link = Link(albumData.getString("@id"))
                             ),
                             Artists(
@@ -254,7 +380,7 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
             "$link".contains("https?://\\S+\\.bandcamp\\.com/(track/\\S+|album/\\S+#t[0-9]+$)".toRegex()) -> LinkType.TRACK
             "$link".contains("https?://\\S+\\.bandcamp\\.com/album/\\S+".toRegex()) -> LinkType.ALBUM
             "$link".contains("https?://bandcamp\\.com/recommended/\\S+".toRegex()) -> LinkType.RECOMMENDED
-            "$link".contains("https?://\\S+\\.bandcamp\\.com(/(music|merch|community))?".toRegex()) -> LinkType.ARTIST
+            "$link".contains("https?://\\S+\\.bandcamp\\.com(/(music|merch|community))?$".toRegex()) -> LinkType.ARTIST
             else -> LinkType.OTHER
         }
     }

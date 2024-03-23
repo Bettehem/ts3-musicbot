@@ -77,7 +77,7 @@ data class CommandList(
                         "${commandList["queue-pause"]}                                 -Pauses playback\n" +
                         "${commandList["queue-resume"]}                                -Resumes playback\n" +
                         "${commandList["queue-repeat"]} <amount>                       -Adds the currently playing song to the top of the queue. <amount> is how many times the song should be queued.\n" +
-                        "${commandList["search"]} <service> <type> <text> <limit>      -Search on SoundCloud, Spotify or YouTube. Shows 10 first results by default. <type> can be track, video, playlist or channel. You can set the amount of results with the -l/--limit flag.\n" +
+                        "${commandList["search"]} <service> <type> <text> <limit>      -Search on SoundCloud, Spotify, YouTube or Bandcamp. Shows 10 first results by default. <type> can be track, video, playlist or channel. You can set the amount of results with the -l/--limit flag.\n" +
                         "${commandList["info"]} <link/search query>                    -Shows info on the given search query or link(s). <link> can be one or more Spotify, YouTube or SoundCloud links, separated by a comma.\n" +
                         "${commandList["goto"]} <channelpath> -p <channelpassword>     -Move the bot to a different channel.\n" +
                         "${commandList["return"]}                                      -Return the bot back to the original channel.\n" +
@@ -338,13 +338,14 @@ data class CommandList(
                         "sp, spotify    \t\tDo a Spotify search.\n" +
                         "sc, soundcloud \t\tDo a SoundCloud search.\n" +
                         "yt, youtube    \t\tDo a YouTube search.\n" +
+                        "bc, bandcamp   \t\tDo a Bandcamp search.\n" +
                         "After that, specify what type of search you are doing.\n" +
                         "Available search types:\n" +
-                        "track    \t\tSearch for a track. (Spotify, YouTube, SoundCloud)\n" +
+                        "track    \t\tSearch for a track. (Spotify, YouTube, SoundCloud, Bandcamp)\n" +
                         "playlist    \tSearch for a playlist. (Spotify, YouTube, SoundCloud)\n" +
                         "user      \t\tSearch for a user. (SoundCloud)\n" +
-                        "album   \t\tSearch for an album. (Spotify, SoundCloud)\n" +
-                        "artist   \t\tSearch for an artist. (Spotify, SoundCloud)\n" +
+                        "album   \t\tSearch for an album. (Spotify, SoundCloud, Bandcamp)\n" +
+                        "artist   \t\tSearch for an artist. (Spotify, SoundCloud, Bandcamp)\n" +
                         "podcast  \t\tSearch for a podcast. (Spotify)\n" +
                         "show     \t\tSame as podcast. (Spotify)\n" +
                         "episode  \t\tSearch for a podcast episode. (Spotify)\n" +

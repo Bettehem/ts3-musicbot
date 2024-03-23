@@ -4,6 +4,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import ts3_musicbot.services.Bandcamp
 import ts3_musicbot.util.Link
+import ts3_musicbot.util.SearchQuery
+import ts3_musicbot.util.SearchType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -28,6 +30,17 @@ class BandcampTest {
             val track = bandcamp.fetchTrack(testLink)
             assertEquals("https://daathofficial.bandcamp.com/album/the-deceivers", track.album.link.link)
             assertEquals("Purified by Vengeance (feat. Mark Holcomb of Periphery & Mick Gordon)", track.title.name)
+        }
+    }
+    @Test
+    fun testGettingTrack3() {
+        runBlocking(Dispatchers.IO) {
+            //Bandcamp link to track: Affinity.exe
+            val testLink = Link("https://insideoutmusic.bandcamp.com/track/affinity-exe")
+            val track = bandcamp.fetchTrack(testLink)
+            assertEquals("Haken", track.artists.artists.first().name.name)
+            assertEquals("Affinity.exe", track.title.name)
+            assertEquals("Affinity (Deluxe Edition)", track.album.name.name)
         }
     }
 
@@ -79,6 +92,17 @@ class BandcampTest {
     }
 
     @Test
+    fun testGettingAlbum5() {
+        runBlocking(Dispatchers.IO) {
+            //Bandcamp link to album: Affinity (Deluxe Edition)
+            val testLink = Link("https://insideoutmusic.bandcamp.com/album/affinity-deluxe-edition")
+            val album = bandcamp.fetchAlbum(testLink)
+            assertEquals("Affinity (Deluxe Edition)", album.name.name)
+            assertEquals("Haken", album.artists.artists.first().name.name)
+        }
+    }
+
+    @Test
     fun testGettingArtist() {
         runBlocking(Dispatchers.IO) {
             //Bandcamp link to artist: dirty river
@@ -86,6 +110,15 @@ class BandcampTest {
             val artist = bandcamp.fetchArtist(testLink)
             assertEquals("dirty river", artist.name.name)
             assert(artist.albums.albums.first { it.name.name == "dirty river" }.tracks.size == 11)
+        }
+    }
+
+    @Test
+    fun testSearchingAlbum() {
+        runBlocking(Dispatchers.IO) {
+            //Search on bandcamp for an album with the keywords "tesseract polaris"
+            val results = bandcamp.search(SearchType("album"), SearchQuery("tesseract polaris"))
+            assert(results.results.any { it.link.link == "https://kscopemusic.bandcamp.com/album/polaris" })
         }
     }
 }
