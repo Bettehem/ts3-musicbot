@@ -109,7 +109,7 @@ data class Name(val name: String = "") {
     fun ifNotEmpty(fn: (name: Name) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
-data class Link(val link: String = "", val linkId: String = "") {
+data class Link(val link: String = "", val linkId: String = "", val linkedFrom: String = "") {
     fun serviceType() = when {
         link.contains("\\S+soundcloud\\S+".toRegex()) -> Service.ServiceType.SOUNDCLOUD
         link.contains("spotify") -> Service.ServiceType.SPOTIFY

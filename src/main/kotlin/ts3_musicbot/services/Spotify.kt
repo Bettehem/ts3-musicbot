@@ -1059,6 +1059,16 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                 )
             })
             val title = Name(trackData.getString("name"))
+            val link = if (trackData.has("linked_from")) {
+                val linkedFrom = trackData.getJSONObject("linked_from")
+                    .getJSONObject("external_urls").getString("spotify")
+                Link(
+                    trackData.getJSONObject("external_urls").getString("spotify"),
+                    linkedFrom = linkedFrom
+                )
+            } else {
+                trackLink
+            }
             println("Checking playability...")
             val isPlayable = if (trackData.getBoolean("is_playable")) {
                 true
@@ -1068,11 +1078,11 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                 withContext(IO + trackJob) {
                     while (true) {
                         val id = trackData.getString("id")
-                        val trackData2 = if (id != trackLink.getId()) {
+                        val trackData2 = if (id != link.getId()) {
                             val newLink = Link("https://open.spotify.com/track/$id")
                             fetchTrackData(newLink)
                         } else {
-                            fetchTrackData(trackLink)
+                            fetchTrackData(link)
                         }
                         when (trackData2.code.code) {
                             HttpURLConnection.HTTP_OK -> {
@@ -1118,7 +1128,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                 println("Track is playable.")
             else
                 println("Track isn't playable.")
-            return Track(album, artists, title, trackLink, Playability(isPlayable))
+            return Track(album, artists, title, link, Playability(isPlayable))
         }
 
         lateinit var track: Track
