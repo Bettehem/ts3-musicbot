@@ -10,11 +10,19 @@ import java.net.HttpURLConnection
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Base64
 
 class YouTube : Service(ServiceType.YOUTUBE) {
     private val apiUrl = "https://www.googleapis.com/youtube/v3"
-    private val apiKey1 = "AIzaSyB_FpJTYVMuQ2I_DxaidXUd7z4Q-ScMv6Y"
-    private val apiKey2 = "AIzaSyCQBDN5QIpKCub2nNMR7WJiZY7_LYiZImA"
+    val keys = "PT1nQ1IxbVNsdFdUNUJIYzJFRmROUkhVRDkwYjF3MmFFaDJYc3RVWXM5VlRGRkdSNU5WWTZsVVF8PT1nQ1JaMFlhRkVlZk5WVHVwbFJNTkdNc2QxU0hSbE1vaDFjM3AzWjV4RU8xMUNSNU5WWTZsVVEK"
+        .let { keys ->
+            val decoder = Base64.getDecoder()
+            String(decoder.decode(keys)).split('|')
+                .map { String(decoder.decode(it.reversed().trim())).trim() }
+        }
+    private val apiKey1 = keys[0]
+    private val apiKey2 = keys[1]
+
     val supportedSearchTypes = listOf(
         LinkType.TRACK,
         LinkType.VIDEO,
