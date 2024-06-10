@@ -86,7 +86,7 @@ class BandcampTest {
             val album = bandcamp.fetchAlbum(testLink)
             assertEquals("Chasing Shadows", album.name.name)
             assert(album.tracks.trackList[0].playability.isPlayable)
-            assert(!album.tracks.trackList[1].playability.isPlayable)
+            assert(album.tracks.trackList[1].playability.isPlayable)
             assert(album.tracks.trackList[4].playability.isPlayable)
         }
     }
