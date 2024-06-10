@@ -1,4 +1,4 @@
-package ts3_musicbot
+package ts3musicbot
 
 import javafx.application.Application
 import javafx.event.ActionEvent
@@ -9,19 +9,19 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.stage.FileChooser
 import javafx.stage.Stage
-import ts3_musicbot.chat.ChatReader
-import ts3_musicbot.chat.ChatUpdate
-import ts3_musicbot.chat.ChatUpdateListener
-import ts3_musicbot.chat.CommandListener
-import ts3_musicbot.client.TeamSpeak
-import ts3_musicbot.util.CommandList
+import ts3musicbot.chat.ChatReader
+import ts3musicbot.chat.ChatUpdate
+import ts3musicbot.chat.ChatUpdateListener
+import ts3musicbot.chat.CommandListener
+import ts3musicbot.client.TeamSpeak
+import ts3musicbot.util.CommandList
 import java.io.File
 import java.io.PrintWriter
 import kotlin.system.exitProcess
 import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.IO
-import ts3_musicbot.client.OfficialTSClient
-import ts3_musicbot.util.*
+import ts3musicbot.client.OfficialTSClient
+import ts3musicbot.util.*
 
 var inputFilePath = ""
 private lateinit var window: Stage

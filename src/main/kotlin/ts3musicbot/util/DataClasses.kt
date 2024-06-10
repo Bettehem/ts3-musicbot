@@ -1,7 +1,7 @@
-package ts3_musicbot.util
+package ts3musicbot.util
 
 import kotlinx.coroutines.runBlocking
-import ts3_musicbot.services.*
+import ts3musicbot.services.*
 import java.lang.IllegalArgumentException
 import java.time.LocalDate
 

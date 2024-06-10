@@ -1,7 +1,7 @@
-package ts3_musicbot.client
+package ts3musicbot.client
 
-import ts3_musicbot.util.BotSettings
-import ts3_musicbot.util.CommandRunner
+import ts3musicbot.util.BotSettings
+import ts3musicbot.util.CommandRunner
 
 open class Client(open val botSettings: BotSettings) {
     protected val commandRunner = CommandRunner()

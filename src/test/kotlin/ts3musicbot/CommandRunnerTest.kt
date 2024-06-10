@@ -1,6 +1,6 @@
-package ts3_musicbot
+package ts3musicbot
 
-import ts3_musicbot.util.CommandRunner
+import ts3musicbot.util.CommandRunner
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

@@ -1,4 +1,4 @@
-package ts3_musicbot.util
+package ts3musicbot.util
 
 private fun listPlayers() = CommandRunner().runCommand("dbus-send --print-reply --dest=org.freedesktop.DBus  /org/freedesktop/DBus org.freedesktop.DBus.ListNames | grep 'org.mpris.MediaPlayer2.'", printOutput = false)
     .outputText.lines().map { it.replace("^.*string\\s+\"org\\.mpris\\.MediaPlayer2\\.".toRegex(), "").replace("\".*$".toRegex(), "") }

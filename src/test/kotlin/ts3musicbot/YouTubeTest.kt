@@ -1,9 +1,9 @@
-package ts3_musicbot
+package ts3musicbot
 
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.runBlocking
-import ts3_musicbot.services.YouTube
-import ts3_musicbot.util.Link
+import ts3musicbot.services.YouTube
+import ts3musicbot.util.Link
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

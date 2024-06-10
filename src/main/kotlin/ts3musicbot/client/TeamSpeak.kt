@@ -1,10 +1,10 @@
-package ts3_musicbot.client
+package ts3musicbot.client
 
 import com.github.manevolent.ts3j.event.TS3Listener
 import com.github.manevolent.ts3j.identity.LocalIdentity
 import com.github.manevolent.ts3j.protocol.client.ClientConnectionState
 import com.github.manevolent.ts3j.protocol.socket.client.LocalTeamspeakClientSocket
-import ts3_musicbot.util.BotSettings
+import ts3musicbot.util.BotSettings
 import java.io.File
 import java.net.InetAddress
 import java.net.InetSocketAddress

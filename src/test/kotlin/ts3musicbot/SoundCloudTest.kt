@@ -1,11 +1,11 @@
-package ts3_musicbot
+package ts3musicbot
 
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.runBlocking
-import ts3_musicbot.services.SoundCloud
-import ts3_musicbot.util.Link
-import ts3_musicbot.util.SearchQuery
-import ts3_musicbot.util.SearchType
+import ts3musicbot.services.SoundCloud
+import ts3musicbot.util.Link
+import ts3musicbot.util.SearchQuery
+import ts3musicbot.util.SearchType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

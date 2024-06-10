@@ -1,17 +1,17 @@
-package ts3_musicbot
+package ts3musicbot
 
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import ts3_musicbot.chat.ChatReader
-import ts3_musicbot.chat.ChatUpdate
-import ts3_musicbot.chat.ChatUpdateListener
-import ts3_musicbot.chat.CommandListener
-import ts3_musicbot.client.Client
-import ts3_musicbot.services.SoundCloud
-import ts3_musicbot.services.Spotify
-import ts3_musicbot.services.YouTube
-import ts3_musicbot.util.*
+import ts3musicbot.chat.ChatReader
+import ts3musicbot.chat.ChatUpdate
+import ts3musicbot.chat.ChatUpdateListener
+import ts3musicbot.chat.CommandListener
+import ts3musicbot.client.Client
+import ts3musicbot.services.SoundCloud
+import ts3musicbot.services.Spotify
+import ts3musicbot.services.YouTube
+import ts3musicbot.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

@@ -1,4 +1,4 @@
-package ts3_musicbot.chat
+package ts3musicbot.chat
 
 import com.github.manevolent.ts3j.event.TS3Listener
 import com.github.manevolent.ts3j.event.TextMessageEvent
@@ -6,11 +6,11 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.Default
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.flow.*
-import ts3_musicbot.client.Client
-import ts3_musicbot.client.OfficialTSClient
-import ts3_musicbot.client.TeamSpeak
-import ts3_musicbot.services.*
-import ts3_musicbot.util.*
+import ts3musicbot.client.Client
+import ts3musicbot.client.OfficialTSClient
+import ts3musicbot.client.TeamSpeak
+import ts3musicbot.services.*
+import ts3musicbot.util.*
 import java.util.*
 
 class ChatReader(

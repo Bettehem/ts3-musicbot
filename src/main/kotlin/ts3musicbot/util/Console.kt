@@ -1,12 +1,12 @@
-package ts3_musicbot.util
+package ts3musicbot.util
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import ts3_musicbot.client.Client
-import ts3_musicbot.client.OfficialTSClient
-import ts3_musicbot.client.TeamSpeak
+import ts3musicbot.client.Client
+import ts3musicbot.client.OfficialTSClient
+import ts3musicbot.client.TeamSpeak
 import kotlin.system.exitProcess
 
 class Console(

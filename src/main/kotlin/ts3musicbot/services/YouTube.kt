@@ -1,11 +1,11 @@
-package ts3_musicbot.services
+package ts3musicbot.services
 
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import org.json.JSONException
 import org.json.JSONObject
-import ts3_musicbot.util.*
+import ts3musicbot.util.*
 import java.net.HttpURLConnection
 import java.time.LocalDate
 import java.time.ZoneId

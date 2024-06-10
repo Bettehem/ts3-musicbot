@@ -1,9 +1,9 @@
-package ts3_musicbot.services
+package ts3musicbot.services
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import ts3_musicbot.util.*
+import ts3musicbot.util.*
 import java.net.URLDecoder
 import java.net.URLEncoder
 

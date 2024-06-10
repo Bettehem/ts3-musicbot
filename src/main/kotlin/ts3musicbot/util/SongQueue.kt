@@ -1,11 +1,11 @@
-package ts3_musicbot.util
+package ts3musicbot.util
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.IO
 import java.util.*
 import kotlin.collections.ArrayList
-import ts3_musicbot.client.OfficialTSClient
-import ts3_musicbot.services.Service
+import ts3musicbot.client.OfficialTSClient
+import ts3musicbot.services.*
 import java.io.File
 
 private var songQueue = Collections.synchronizedList(ArrayList<Track>())

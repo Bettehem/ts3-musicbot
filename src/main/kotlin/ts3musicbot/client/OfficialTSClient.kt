@@ -1,12 +1,12 @@
-package ts3_musicbot.client
+package ts3musicbot.client
 
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import ts3_musicbot.util.BotSettings
-import ts3_musicbot.util.CommandRunner
+import ts3musicbot.util.BotSettings
+import ts3musicbot.util.CommandRunner
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URLEncoder

@@ -1,7 +1,7 @@
-package ts3_musicbot.services
+package ts3musicbot.services
 
 import org.json.JSONObject
-import ts3_musicbot.util.*
+import ts3musicbot.util.*
 import java.net.HttpURLConnection
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
