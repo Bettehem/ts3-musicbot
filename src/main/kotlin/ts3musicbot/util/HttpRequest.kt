@@ -3,7 +3,7 @@ package ts3musicbot.util
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
-import java.net.URL
+import java.net.URI
 
 enum class RequestMethod {
     POST,
@@ -43,7 +43,7 @@ fun sendHttpRequest(
     ),
     followRedirects: Boolean = true,
 ): Response {
-    val connection = URL(link.link).openConnection() as HttpURLConnection
+    val connection = URI(link.link).toURL().openConnection() as HttpURLConnection
     connection.instanceFollowRedirects = followRedirects
     connection.requestMethod = requestMethod.name
     var responseData = ResponseData("")

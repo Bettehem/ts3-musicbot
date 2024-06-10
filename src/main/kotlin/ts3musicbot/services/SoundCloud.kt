@@ -8,7 +8,7 @@ import org.json.JSONException
 import org.json.JSONObject
 import ts3musicbot.util.*
 import java.net.HttpURLConnection
-import java.net.URL
+import java.net.URI
 import java.net.URLEncoder
 import java.time.LocalDate
 import java.time.ZoneId
@@ -16,8 +16,8 @@ import java.time.format.DateTimeFormatter
 
 class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
     var clientId = "f8eB0B44lHhYd7Kvli0IGN2ykOUAscWj"
-    private val api2URL = URL("https://api-v2.soundcloud.com")
-    val apiURL = URL("https://api.soundcloud.com")
+    private val api2URL = URI("https://api-v2.soundcloud.com")
+    val apiURL = URI("https://api.soundcloud.com")
     val supportedSearchTypes = listOf(
         LinkType.TRACK,
         LinkType.PLAYLIST,

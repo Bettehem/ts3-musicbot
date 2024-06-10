@@ -11,7 +11,7 @@ import org.json.JSONObject
 import ts3musicbot.util.*
 import java.lang.IllegalArgumentException
 import java.net.HttpURLConnection
-import java.net.URL
+import java.net.URI
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatterBuilder
@@ -19,7 +19,7 @@ import java.time.temporal.ChronoField
 
 class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
     private val defaultMarket = "US"
-    private val apiURL = URL("https://api.spotify.com/v1")
+    private val apiURI = URI("https://api.spotify.com/v1")
     private var accessToken = ""
     val supportedSearchTypes = listOf(
         LinkType.TRACK,
@@ -99,7 +99,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
             if (link.isNotEmpty()) {
                 linkBuilder.append("$link")
             } else {
-                linkBuilder.append("$apiURL/search?")
+                linkBuilder.append("$apiURI/search?")
                 linkBuilder.append("q=${if (encodeQuery) encode(searchQuery.query) else searchQuery.query}")
                 linkBuilder.append("&type=${searchType.type.replace("podcast", "show")}")
                 linkBuilder.append("&limit=$limit")
@@ -352,7 +352,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
 
     private fun fetchPlaylistData(playlistLink: Link): Response {
         val linkBuilder = StringBuilder()
-        linkBuilder.append("$apiURL/playlists/")
+        linkBuilder.append("$apiURI/playlists/")
         linkBuilder.append(playlistLink.getId())
         linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
         return sendHttpRequest(
@@ -693,7 +693,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
 
     private fun fetchAlbumData(albumLink: Link): Response {
         val linkBuilder = StringBuilder()
-        linkBuilder.append("$apiURL/albums/")
+        linkBuilder.append("$apiURI/albums/")
         linkBuilder.append(albumLink.getId())
         linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
         return sendHttpRequest(
@@ -853,7 +853,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
 
                 fun fetchAlbumTrackData(): Response {
                     val linkBuilder = StringBuilder()
-                    linkBuilder.append("$apiURL/albums/")
+                    linkBuilder.append("$apiURI/albums/")
                     linkBuilder.append(albumLink.getId())
                     linkBuilder.append("/tracks?limit=20")
                     linkBuilder.append("&offset=$listOffset")
@@ -984,7 +984,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
     override suspend fun fetchTrack(trackLink: Link): Track {
         fun fetchTrackData(link: Link, spMarket: String = ""): Response {
             val linkBuilder = StringBuilder()
-            linkBuilder.append("$apiURL/tracks/")
+            linkBuilder.append("$apiURI/tracks/")
             linkBuilder.append(link.getId())
             if (spMarket.isNotEmpty())
                 linkBuilder.append("?market=$spMarket")
@@ -1191,7 +1191,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
     override suspend fun fetchArtist(artistLink: Link, fetchRecommendations: Boolean): Artist {
         fun fetchArtistData(): Response {
             val linkBuilder = StringBuilder()
-            linkBuilder.append("$apiURL/artists/")
+            linkBuilder.append("$apiURI/artists/")
             linkBuilder.append(artistLink.getId())
             linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
@@ -1202,7 +1202,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
 
         fun fetchTopTracks(): Response {
             val linkBuilder = StringBuilder()
-            linkBuilder.append("$apiURL/artists/")
+            linkBuilder.append("$apiURI/artists/")
             linkBuilder.append(artistLink.getId())
             linkBuilder.append("/top-tracks")
             linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
@@ -1214,7 +1214,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
 
         fun fetchAlbums(offset: Int = 0): Response {
             val linkBuilder = StringBuilder()
-            linkBuilder.append("$apiURL/artists/")
+            linkBuilder.append("$apiURI/artists/")
             linkBuilder.append(artistLink.getId())
             linkBuilder.append("/albums")
             linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
@@ -1229,7 +1229,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
 
         fun fetchRelatedArtists(): Response {
             val linkBuilder = StringBuilder()
-            linkBuilder.append("$apiURL/artists/")
+            linkBuilder.append("$apiURI/artists/")
             linkBuilder.append(artistLink.getId())
             linkBuilder.append("/related-artists")
             linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
@@ -1550,7 +1550,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
         lateinit var user: User
         fun fetchUserData(): Response {
             val linkBuilder = StringBuilder()
-            linkBuilder.append("$apiURL/users/")
+            linkBuilder.append("$apiURI/users/")
             linkBuilder.append(userLink.getId())
             linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
@@ -1561,7 +1561,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
 
         fun fetchUserPlaylistsData(): Response {
             val linkBuilder = StringBuilder()
-            linkBuilder.append("$apiURL/users/${userLink.getId()}/playlists")
+            linkBuilder.append("$apiURI/users/${userLink.getId()}/playlists")
             linkBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
             return sendHttpRequest(
                 Link(linkBuilder.toString()),
@@ -1678,7 +1678,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
 
     private fun fetchShowData(showLink: Link): Response {
         val linkBuilder = StringBuilder()
-        linkBuilder.append("$apiURL/shows/")
+        linkBuilder.append("$apiURI/shows/")
         linkBuilder.append(showLink.getId())
         linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
         return sendHttpRequest(
@@ -1695,7 +1695,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
 
             fun fetchEpisodesData(offset: Int = 0): Response {
                 val linkBuilder = StringBuilder()
-                linkBuilder.append("$apiURL/shows/")
+                linkBuilder.append("$apiURI/shows/")
                 linkBuilder.append(showLink.getId())
                 linkBuilder.append("/episodes")
                 linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
@@ -1898,7 +1898,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
 
         fun fetchEpisodeData(): Response {
             val linkBuilder = StringBuilder()
-            linkBuilder.append("$apiURL/episodes/")
+            linkBuilder.append("$apiURI/episodes/")
             linkBuilder.append(episodeLink.getId())
             linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
