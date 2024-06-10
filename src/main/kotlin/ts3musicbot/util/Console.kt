@@ -12,19 +12,20 @@ import kotlin.system.exitProcess
 class Console(
     private val commandList: CommandList,
     private val consoleUpdateListener: ConsoleUpdateListener,
-    private val client: Client
+    private val client: Client,
 ) {
     private val commandRunner = CommandRunner()
 
     fun startConsole() {
-        //start console
+        // start console
         val console = System.console()
         println("Enter command \"help\" for all commands.")
         loop@ while (true) {
             val userCommand = console.readLine("Command: ")
             when (val command = userCommand.replace("\\s+.*$".toRegex(), "")) {
-                "help" -> println(
-                    "\n\nTS3 MusicBot help:\n\n" +
+                "help" ->
+                    println(
+                        "\n\nTS3 MusicBot help:\n\n" +
                             "<command>\t\t\t\t<explanation>\n" +
                             "help\t\t\t\t\tShows this help message.\n" +
                             "${commandList.commandList["help"]}\t\t\t\t\tShows commands for controlling the actual bot.\n" +
@@ -35,8 +36,8 @@ class Console(
                             "quit\t\t\t\t\tSame as exit.\n" +
                             "join-channel, jc <channel> -p <password>\tJoin a channel.\n" +
                             "restart <ts/teamspeak/ncspot>\t\tRestarts the teamspeak/ncspot client.\n" +
-                            "playerctl -p <player> <args>\t\t\tRun playerctl-like commands.\n"
-                )
+                            "playerctl -p <player> <args>\t\t\tRun playerctl-like commands.\n",
+                    )
 
                 "say" -> client.sendMsgToChannel(userCommand.replace("^\\s+".toRegex(), ""))
                 "save-settings" -> consoleUpdateListener.onCommandIssued(command)
@@ -46,62 +47,71 @@ class Console(
                 "join-channel", "jc" -> {
                     val channelName = userCommand.replace("(^\\S+\\s+|\\s+(-p).*$)".toRegex(), "")
                     val channelPassword =
-                        if (userCommand.contains("^\\S+\\s+.*\\s+-p\\s+.*\\S+$".toRegex()))
+                        if (userCommand.contains("^\\S+\\s+.*\\s+-p\\s+.*\\S+$".toRegex())) {
                             userCommand.replace("^\\S+\\s+.*\\s+-p\\s+".toRegex(), "")
-                        else ""
+                        } else {
+                            ""
+                        }
                     CoroutineScope(IO).launch {
                         client.joinChannel(channelName, channelPassword)
                     }
                 }
 
-                "restart" -> when (userCommand.replace("$command\\s+".toRegex(), "").replace("\\s+.*$", "").lowercase()) {
-                    "ts", "teamspeak" -> CoroutineScope(IO).launch {
-                        when (client) {
-                            is OfficialTSClient -> launch { client.restartClient() }
-                            is TeamSpeak -> launch { client.reconnect() }
-                        }
-                    }
+                "restart" ->
+                    when (userCommand.replace("$command\\s+".toRegex(), "").replace("\\s+.*$", "").lowercase()) {
+                        "ts", "teamspeak" ->
+                            CoroutineScope(IO).launch {
+                                when (client) {
+                                    is OfficialTSClient -> launch { client.restartClient() }
+                                    is TeamSpeak -> launch { client.reconnect() }
+                                }
+                            }
 
-                    "ncspot" -> CoroutineScope(IO).launch {
-                        playerctl("ncspot", "stop")
-                        commandRunner.runCommand(
-                            "tmux kill-session -t ncspot",
-                            ignoreOutput = true
-                        )
-                        delay(100)
-                        commandRunner.runCommand(
-                            "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
-                            ignoreOutput = true,
-                            printCommand = true
-                        )
-                    }
+                        "ncspot" ->
+                            CoroutineScope(IO).launch {
+                                playerctl("ncspot", "stop")
+                                commandRunner.runCommand(
+                                    "tmux kill-session -t ncspot",
+                                    ignoreOutput = true,
+                                )
+                                delay(100)
+                                commandRunner.runCommand(
+                                    "tmux new -s ncspot -n player -d; tmux send-keys -t ncspot \"ncspot\" Enter",
+                                    ignoreOutput = true,
+                                    printCommand = true,
+                                )
+                            }
 
-                    else -> println("Specify either ts,teamspeak or ncspot!")
-                }
+                        else -> println("Specify either ts,teamspeak or ncspot!")
+                    }
 
                 "playerctl" -> {
-                    val player = if (userCommand.contains("^\\w+\\s+-p\\s*\\S+\\s+.+".toRegex())) {
-                        userCommand.replace("^\\w+\\s+-p\\s*".toRegex(), "")
-                            .replace("\\s+.+$".toRegex(), "")
-                    } else ""
+                    val player =
+                        if (userCommand.contains("^\\w+\\s+-p\\s*\\S+\\s+.+".toRegex())) {
+                            userCommand.replace("^\\w+\\s+-p\\s*".toRegex(), "")
+                                .replace("\\s+.+$".toRegex(), "")
+                        } else {
+                            ""
+                        }
                     val cmd = userCommand.replace("^\\w+\\s+(-p\\s*\\S+\\s+)?".toRegex(), "")
                     println(
                         if (player.isNotEmpty()) {
                             playerctl(player, cmd)
                         } else {
                             playerctl(command = cmd)
-                        }
+                        },
                     )
                 }
 
                 "" -> continue@loop
                 else -> {
-                    if (command.startsWith(commandList.commandPrefix) && !command.startsWith("${commandList.commandPrefix}say"))
+                    if (command.startsWith(commandList.commandPrefix) && !command.startsWith("${commandList.commandPrefix}say")) {
                         consoleUpdateListener.onCommandIssued(userCommand)
-                    else if (command.contains("^\\\\?!.+".toRegex())) {
+                    } else if (command.contains("^\\\\?!.+".toRegex())) {
                         commandRunner.runCommand(userCommand.substringAfter("!"), inheritIO = true)
-                    } else
+                    } else {
                         println("Command $command not found! Type \"help\" to see available commands.")
+                    }
                 }
             }
         }

@@ -7,15 +7,21 @@ import java.net.URI
 
 enum class RequestMethod {
     POST,
-    GET
+    GET,
 }
+
 data class DefaultProperties(val properties: List<String>)
+
 data class ExtraProperties(val properties: List<String>)
+
 data class PostData(val data: List<String>)
+
 data class ResponseCode(val code: Int) {
     override fun toString() = "$code"
 }
+
 data class ResponseData(val data: String)
+
 data class Response(val code: ResponseCode, val data: ResponseData, val link: Link)
 
 const val HTTP_TOO_MANY_REQUESTS = 429
@@ -35,12 +41,13 @@ fun sendHttpRequest(
     requestMethod: RequestMethod = RequestMethod.GET,
     extraProperties: ExtraProperties = ExtraProperties(emptyList()),
     postData: PostData = PostData(emptyList()),
-    defaultProperties: DefaultProperties = DefaultProperties(
-        listOf(
-            "Content-Type: application/x-www-form-urlencoded",
-            "User-Agent: Mozilla/5.0"
-        )
-    ),
+    defaultProperties: DefaultProperties =
+        DefaultProperties(
+            listOf(
+                "Content-Type: application/x-www-form-urlencoded",
+                "User-Agent: Mozilla/5.0",
+            ),
+        ),
     followRedirects: Boolean = true,
 ): Response {
     val connection = URI(link.link).toURL().openConnection() as HttpURLConnection
@@ -48,66 +55,68 @@ fun sendHttpRequest(
     connection.requestMethod = requestMethod.name
     var responseData = ResponseData("")
     var responseCode = ResponseCode(0)
-    val responseLink = if (followRedirects) {
-        for (property in defaultProperties.properties) {
-            val p = property.split(": ".toRegex())
-            connection.setRequestProperty(p[0], p[1])
-        }
-        for (property in extraProperties.properties) {
-            val p = property.split(":".toRegex())
-            connection.setRequestProperty(p[0], p[1])
-        }
-        if (connection.requestMethod == RequestMethod.POST.name) {
-            connection.doOutput = true
-            try {
-                val outputStream = connection.outputStream
-                for (data in postData.data) {
-                    outputStream.write(data.toByteArray())
-                }
-                outputStream.flush()
-                outputStream.close()
-            } catch (e: java.net.SocketException) {
-                println("HTTP request failed due to exception!")
-                e.printStackTrace()
-                responseCode = ResponseCode(400)
+    val responseLink =
+        if (followRedirects) {
+            for (property in defaultProperties.properties) {
+                val p = property.split(": ".toRegex())
+                connection.setRequestProperty(p[0], p[1])
             }
-        }
-        responseData = ResponseData(
-            when (connection.responseCode) {
-                HttpURLConnection.HTTP_OK -> {
-                    val bufferedReader = BufferedReader(InputStreamReader(connection.inputStream))
-                    var output = bufferedReader.readLine()
-                    val readyOutput = StringBuilder()
-                    while (output != null) {
-                        readyOutput.appendLine(output)
-                        output = bufferedReader.readLine()
+            for (property in extraProperties.properties) {
+                val p = property.split(":".toRegex())
+                connection.setRequestProperty(p[0], p[1])
+            }
+            if (connection.requestMethod == RequestMethod.POST.name) {
+                connection.doOutput = true
+                try {
+                    val outputStream = connection.outputStream
+                    for (data in postData.data) {
+                        outputStream.write(data.toByteArray())
                     }
-                    readyOutput.toString()
-                }
-                HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                    "Unauthorized"
-                }
-
-                //Code 429 stands for TOO_MANY_REQUESTS
-                HTTP_TOO_MANY_REQUESTS -> {
-                    connection.getHeaderField("Retry-After")
-                }
-                else -> {
-                    println("\n\n\nHTTP $requestMethod request to $link")
-                    println("Response Code: ${connection.responseCode}")
-                    println("Response message: ${connection.responseMessage}")
-                    ""
+                    outputStream.flush()
+                    outputStream.close()
+                } catch (e: java.net.SocketException) {
+                    println("HTTP request failed due to exception!")
+                    e.printStackTrace()
+                    responseCode = ResponseCode(400)
                 }
             }
-        )
-        Link(connection.url.toString())
-    } else {
-        Link(connection.getHeaderField("Location"))
-    }
-    if (responseCode.code == 0)
+            responseData =
+                ResponseData(
+                    when (connection.responseCode) {
+                        HttpURLConnection.HTTP_OK -> {
+                            val bufferedReader = BufferedReader(InputStreamReader(connection.inputStream))
+                            var output = bufferedReader.readLine()
+                            val readyOutput = StringBuilder()
+                            while (output != null) {
+                                readyOutput.appendLine(output)
+                                output = bufferedReader.readLine()
+                            }
+                            readyOutput.toString()
+                        }
+                        HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                            "Unauthorized"
+                        }
+
+                        // Code 429 stands for TOO_MANY_REQUESTS
+                        HTTP_TOO_MANY_REQUESTS -> {
+                            connection.getHeaderField("Retry-After")
+                        }
+                        else -> {
+                            println("\n\n\nHTTP $requestMethod request to $link")
+                            println("Response Code: ${connection.responseCode}")
+                            println("Response message: ${connection.responseMessage}")
+                            ""
+                        }
+                    },
+                )
+            Link(connection.url.toString())
+        } else {
+            Link(connection.getHeaderField("Location"))
+        }
+    if (responseCode.code == 0) {
         responseCode = ResponseCode(connection.responseCode)
+    }
     println("\nRequest URL: $link\nRequest Method: $requestMethod\nResponse URL: $responseLink\nResponse Code: $responseCode\n")
     connection.disconnect()
     return Response(responseCode, responseData, responseLink)
 }
-

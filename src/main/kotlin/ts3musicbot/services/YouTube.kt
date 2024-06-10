@@ -5,7 +5,29 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import org.json.JSONException
 import org.json.JSONObject
-import ts3musicbot.util.*
+import ts3musicbot.util.Album
+import ts3musicbot.util.Artist
+import ts3musicbot.util.Artists
+import ts3musicbot.util.Description
+import ts3musicbot.util.Followers
+import ts3musicbot.util.Link
+import ts3musicbot.util.LinkType
+import ts3musicbot.util.Name
+import ts3musicbot.util.Playability
+import ts3musicbot.util.Playlist
+import ts3musicbot.util.Playlists
+import ts3musicbot.util.Publicity
+import ts3musicbot.util.ReleaseDate
+import ts3musicbot.util.RequestMethod
+import ts3musicbot.util.Response
+import ts3musicbot.util.SearchQuery
+import ts3musicbot.util.SearchResult
+import ts3musicbot.util.SearchResults
+import ts3musicbot.util.SearchType
+import ts3musicbot.util.Track
+import ts3musicbot.util.TrackList
+import ts3musicbot.util.User
+import ts3musicbot.util.sendHttpRequest
 import java.net.HttpURLConnection
 import java.time.LocalDate
 import java.time.ZoneId
@@ -14,8 +36,11 @@ import java.util.Base64
 
 class YouTube : Service(ServiceType.YOUTUBE) {
     private val apiUrl = "https://www.googleapis.com/youtube/v3"
-    val keys = "PT1nQ1IxbVNsdFdUNUJIYzJFRmROUkhVRDkwYjF3MmFFaDJYc3RVWXM5VlRGRkdSNU5WWTZsVVF8PT1nQ1JaMFlhRkVlZk5WVHVwbFJNTkdNc2QxU0hSbE1vaDFjM3AzWjV4RU8xMUNSNU5WWTZsVVEK"
-        .let { keys ->
+    private val keys =
+        (
+            "PT1nQ1IxbVNsdFdUNUJIYzJFRmROUkhVRDkwYjF3MmFFaDJYc3RVWXM5VlRGRkdS" +
+                "NU5WWTZsVVF8PT1nQ1JaMFlhRkVlZk5WVHVwbFJNTkdNc2QxU0hSbE1vaDFjM3AzWjV4RU8xMUNSNU5WWTZsVVEK"
+        ).let { keys ->
             val decoder = Base64.getDecoder()
             String(decoder.decode(keys)).split('|')
                 .map { String(decoder.decode(it.reversed().trim())).trim() }
@@ -23,12 +48,13 @@ class YouTube : Service(ServiceType.YOUTUBE) {
     private val apiKey1 = keys[0]
     private val apiKey2 = keys[1]
 
-    val supportedSearchTypes = listOf(
-        LinkType.TRACK,
-        LinkType.VIDEO,
-        LinkType.PLAYLIST,
-        LinkType.CHANNEL,
-    )
+    val supportedSearchTypes =
+        listOf(
+            LinkType.TRACK,
+            LinkType.VIDEO,
+            LinkType.PLAYLIST,
+            LinkType.CHANNEL,
+        )
 
     /**
      * Fetch a video/track from YouTube
@@ -41,7 +67,10 @@ class YouTube : Service(ServiceType.YOUTUBE) {
          * @param part tells the API what type of information to return
          * @return returns a Response
          */
-        fun sendRequest(part: String = "snippet,status", key: String = apiKey1): Response {
+        fun sendRequest(
+            part: String = "snippet,status",
+            key: String = apiKey1,
+        ): Response {
             val linkBuilder = StringBuilder()
             linkBuilder.append("$apiUrl/videos?")
             linkBuilder.append("id=${videoLink.getId()}")
@@ -60,40 +89,44 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                 when (response.code.code) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
-                            val itemData = JSONObject(response.data.data).getJSONArray("items").let {
-                                if (it.length() > 0) {
-                                    it.first()
-                                } else {
-                                    track = Track(link = videoLink)
-                                    ytJob.complete()
-                                    return@withContext
+                            val itemData =
+                                JSONObject(response.data.data).getJSONArray("items").let {
+                                    if (it.length() > 0) {
+                                        it.first()
+                                    } else {
+                                        track = Track(link = videoLink)
+                                        ytJob.complete()
+                                        return@withContext
+                                    }
                                 }
-                            }
                             itemData as JSONObject
-                            val releaseDate = ReleaseDate(
-                                LocalDate.parse(itemData.getJSONObject("snippet").getString("publishedAt"), formatter)
-                            )
-                            val isPlayable = when (itemData.getJSONObject("status").getString("privacyStatus")) {
-                                "public", "unlisted" -> true
-                                else -> false
-                            }
-                            track = Track(
-                                Album(releaseDate = releaseDate),
-                                Artists(
-                                    listOf(
-                                        itemData.getJSONObject("snippet").let { artist ->
-                                            Artist(
-                                                Name(artist.getString("channelTitle")),
-                                                Link("https://www.youtube.com/channel/${artist.getString("channelId")}")
-                                            )
-                                        }
-                                    )
-                                ),
-                                Name(itemData.getJSONObject("snippet").getString("title")),
-                                Link("https://youtu.be/${itemData.getString("id")}"),
-                                Playability(isPlayable),
-                                description = Description(itemData.getJSONObject("snippet").getString("description"))
-                            )
+                            val releaseDate =
+                                ReleaseDate(
+                                    LocalDate.parse(itemData.getJSONObject("snippet").getString("publishedAt"), formatter),
+                                )
+                            val isPlayable =
+                                when (itemData.getJSONObject("status").getString("privacyStatus")) {
+                                    "public", "unlisted" -> true
+                                    else -> false
+                                }
+                            track =
+                                Track(
+                                    Album(releaseDate = releaseDate),
+                                    Artists(
+                                        listOf(
+                                            itemData.getJSONObject("snippet").let { artist ->
+                                                Artist(
+                                                    Name(artist.getString("channelTitle")),
+                                                    Link("https://www.youtube.com/channel/${artist.getString("channelId")}"),
+                                                )
+                                            },
+                                        ),
+                                    ),
+                                    Name(itemData.getJSONObject("snippet").getString("title")),
+                                    Link("https://youtu.be/${itemData.getString("id")}"),
+                                    Playability(isPlayable),
+                                    description = Description(itemData.getJSONObject("snippet").getString("description")),
+                                )
                             ytJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
@@ -103,7 +136,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
 
                     HttpURLConnection.HTTP_FORBIDDEN -> {
                         if (key == apiKey1) {
-                            //try with another api key
+                            // try with another api key
                             key = apiKey2
                         } else {
                             println("HTTP ERROR! CODE: ${response.code}")
@@ -153,18 +186,21 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                         try {
                             val playlistJSON = JSONObject(playlistData.data.data).getJSONArray("items").first()
                             playlistJSON as JSONObject
-                            playlist = Playlist(
-                                Name(playlistJSON.getJSONObject("snippet").getString("title")),
-                                User(Name(playlistJSON.getJSONObject("snippet").getString("channelTitle"))),
-                                Description(playlistJSON.getJSONObject("snippet").getString("description")),
-                                publicity = Publicity(
-                                    playlistJSON.getJSONObject("status").getString("privacyStatus") == "public"
-                                ),
-                                tracks = TrackList(
-                                    List(playlistJSON.getJSONObject("contentDetails").getInt("itemCount")) { Track() }
-                                ),
-                                link = Link("https://www.youtube.com/playlist?list=${playlistJSON.getString("id")}")
-                            )
+                            playlist =
+                                Playlist(
+                                    Name(playlistJSON.getJSONObject("snippet").getString("title")),
+                                    User(Name(playlistJSON.getJSONObject("snippet").getString("channelTitle"))),
+                                    Description(playlistJSON.getJSONObject("snippet").getString("description")),
+                                    publicity =
+                                        Publicity(
+                                            playlistJSON.getJSONObject("status").getString("privacyStatus") == "public",
+                                        ),
+                                    tracks =
+                                        TrackList(
+                                            List(playlistJSON.getJSONObject("contentDetails").getInt("itemCount")) { Track() },
+                                        ),
+                                    link = Link("https://www.youtube.com/playlist?list=${playlistJSON.getString("id")}"),
+                                )
                             break
                         } catch (e: JSONException) {
                             e.printStackTrace()
@@ -175,7 +211,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
 
                     HttpURLConnection.HTTP_FORBIDDEN -> {
                         if (key == apiKey1) {
-                            //try with another api key
+                            // try with another api key
                             key = apiKey2
                         } else {
                             println("HTTP ERROR! CODE: ${playlistData.code}")
@@ -200,7 +236,10 @@ class YouTube : Service(ServiceType.YOUTUBE) {
      * @param limit limit the amount of tracks to be returned
      * @return returns a list of videos/tracks
      */
-    override suspend fun fetchPlaylistTracks(playlistLink: Link, limit: Int): TrackList {
+    override suspend fun fetchPlaylistTracks(
+        playlistLink: Link,
+        limit: Int,
+    ): TrackList {
         /**
          * Send a request to YouTube API to get playlist items
          * @param maxResults max results to receive. 50 is the maximum per request
@@ -212,7 +251,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
             maxResults: Int = 50,
             pageToken: String = "",
             part: String = "snippet,status",
-            apiKey: String = apiKey1
+            apiKey: String = apiKey1,
         ): Response {
             val linkBuilder = StringBuilder()
             linkBuilder.append("$apiUrl/playlistItems?")
@@ -220,8 +259,9 @@ class YouTube : Service(ServiceType.YOUTUBE) {
             linkBuilder.append("&part=${part.replace(",", "%2C")}")
             linkBuilder.append("&key=$apiKey")
             linkBuilder.append("&maxResults=" + if (limit != 0 && limit < maxResults) limit else maxResults)
-            if (pageToken.isNotEmpty())
+            if (pageToken.isNotEmpty()) {
                 linkBuilder.append("&pageToken=$pageToken")
+            }
             return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
@@ -239,13 +279,16 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                 withContext(IO + getPageJob) {
                     while (listItems.size < totalItems) {
                         while (true) {
-                            val result = sendRequest(
-                                pageToken = if (listItems.size > 0) {
-                                    pageData.getString(("nextPageToken"))
-                                } else {
-                                    ""
-                                }, apiKey = key
-                            )
+                            val result =
+                                sendRequest(
+                                    pageToken =
+                                        if (listItems.size > 0) {
+                                            pageData.getString(("nextPageToken"))
+                                        } else {
+                                            ""
+                                        },
+                                    apiKey = key,
+                                )
                             when (result.code.code) {
                                 HttpURLConnection.HTTP_OK -> {
                                     pageData = JSONObject(result.data.data)
@@ -266,32 +309,34 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                                     else -> false
                                                 }
                                             val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
-                                            val releaseDate = ReleaseDate(
-                                                LocalDate.parse(
-                                                    item.getJSONObject("snippet").getString("publishedAt"),
-                                                    formatter
+                                            val releaseDate =
+                                                ReleaseDate(
+                                                    LocalDate.parse(
+                                                        item.getJSONObject("snippet").getString("publishedAt"),
+                                                        formatter,
+                                                    ),
                                                 )
-                                            )
-                                            val track = Track(
-                                                Album(releaseDate = releaseDate),
-                                                Artists(
-                                                    listOf(
-                                                        item.getJSONObject("snippet").let { artist ->
-                                                            Artist(
-                                                                Name(artist.getString("videoOwnerChannelTitle")),
-                                                                Link(
-                                                                    "https://www.youtube.com/channel/${
-                                                                        artist.getString("videoOwnerChannelId")
-                                                                    }"
+                                            val track =
+                                                Track(
+                                                    Album(releaseDate = releaseDate),
+                                                    Artists(
+                                                        listOf(
+                                                            item.getJSONObject("snippet").let { artist ->
+                                                                Artist(
+                                                                    Name(artist.getString("videoOwnerChannelTitle")),
+                                                                    Link(
+                                                                        "https://www.youtube.com/channel/${
+                                                                            artist.getString("videoOwnerChannelId")
+                                                                        }",
+                                                                    ),
                                                                 )
-                                                            )
-                                                        }
-                                                    )
-                                                ),
-                                                Name(title),
-                                                Link(videoLink),
-                                                Playability(isPlayable)
-                                            )
+                                                            },
+                                                        ),
+                                                    ),
+                                                    Name(title),
+                                                    Link(videoLink),
+                                                    Playability(isPlayable),
+                                                )
                                             if (limit != 0) {
                                                 if (listItems.size < limit) {
                                                     listItems.add(track)
@@ -314,9 +359,9 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                 }
 
                                 HttpURLConnection.HTTP_FORBIDDEN -> {
-                                    if (key == apiKey1)
+                                    if (key == apiKey1) {
                                         key = apiKey2
-                                    else {
+                                    } else {
                                         println("HTTP ERROR! CODE: ${result.code}")
                                         getPageJob.complete()
                                         return@withContext
@@ -329,7 +374,6 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                     return@withContext
                                 }
                             }
-
                         }
                     }
                 }
@@ -362,34 +406,41 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                         val releaseDate =
                                             ReleaseDate(
                                                 LocalDate.parse(
-                                                    item.getJSONObject("snippet").getString("publishedAt"), formatter
-                                                )
+                                                    item.getJSONObject("snippet").getString("publishedAt"),
+                                                    formatter,
+                                                ),
                                             )
-                                        val track = Track(
-                                            Album(releaseDate = releaseDate),
-                                            Artists(
-                                                listOf(
-                                                    item.getJSONObject("snippet").let { artist ->
-                                                        Artist(
-                                                            Name(artist.getString("videoOwnerChannelTitle")),
-                                                            Link("https://www.youtube.com/channel/${artist.getString("videoOwnerChannelId")}")
-                                                        )
-                                                    }
-                                                )
-                                            ),
-                                            Name(title),
-                                            Link(videoLink),
-                                            Playability(isPlayable)
-                                        )
-                                        if (limit != 0)
-                                            if (listItems.size < limit)
+                                        val track =
+                                            Track(
+                                                Album(releaseDate = releaseDate),
+                                                Artists(
+                                                    listOf(
+                                                        item.getJSONObject("snippet").let { artist ->
+                                                            Artist(
+                                                                Name(artist.getString("videoOwnerChannelTitle")),
+                                                                Link(
+                                                                    "https://www.youtube.com/channel/${artist.getString(
+                                                                        "videoOwnerChannelId",
+                                                                    )}",
+                                                                ),
+                                                            )
+                                                        },
+                                                    ),
+                                                ),
+                                                Name(title),
+                                                Link(videoLink),
+                                                Playability(isPlayable),
+                                            )
+                                        if (limit != 0) {
+                                            if (listItems.size < limit) {
                                                 listItems.add(track)
-                                            else {
+                                            } else {
                                                 println("Limit reached!")
                                                 break
                                             }
-                                        else
+                                        } else {
                                             listItems.add(track)
+                                        }
                                     } catch (e: Exception) {
                                         totalItems -= 1
                                     }
@@ -399,9 +450,9 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                             }
 
                             HttpURLConnection.HTTP_FORBIDDEN -> {
-                                if (key == apiKey1)
+                                if (key == apiKey1) {
                                     key = apiKey2
-                                else {
+                                } else {
                                     println("HTTP ERROR! CODE: ${result.code}")
                                     playlistJob.complete()
                                     return@withContext
@@ -440,9 +491,9 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                     }
 
                     HttpURLConnection.HTTP_FORBIDDEN -> {
-                        if (key == apiKey1)
+                        if (key == apiKey1) {
                             key = apiKey2
-                        else {
+                        } else {
                             println("HTTP ERROR! CODE: ${response.code}")
                             playlistJob.complete()
                             return@withContext
@@ -466,14 +517,18 @@ class YouTube : Service(ServiceType.YOUTUBE) {
      * @return returns a list of the channel's playlists.
      */
     private suspend fun fetchChannelPlaylists(channelLink: Link): Playlists {
-        fun fetchPlaylistsData(apiKey: String = apiKey1, pageToken: String = ""): Response {
+        fun fetchPlaylistsData(
+            apiKey: String = apiKey1,
+            pageToken: String = "",
+        ): Response {
             val linkBuilder = StringBuilder()
             linkBuilder.append("$apiUrl/playlists")
             linkBuilder.append("?channelId=${channelLink.getId()}")
             linkBuilder.append("&part=snippet%2Cstatus&maxResults=50")
             linkBuilder.append("&key=$apiKey")
-            if (pageToken.isNotEmpty())
+            if (pageToken.isNotEmpty()) {
                 linkBuilder.append("&pageToken=$pageToken")
+            }
             return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
@@ -485,42 +540,44 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                     val itemsJob = Job()
                     var key = apiKey1
                     var pageToken = playlistsData.getString("nextPageToken")
-                    items = withContext(IO + itemsJob) {
-                        lateinit var newItems: JSONObject
-                        while (true) {
-                            val newPageData = fetchPlaylistsData(key, pageToken)
-                            when (newPageData.code.code) {
-                                HttpURLConnection.HTTP_OK -> {
-                                    try {
-                                        val pageJSON = JSONObject(newPageData.data.data)
-                                        if (pageJSON.has("nextPageToken"))
-                                            pageToken = pageJSON.getString("nextPageToken")
-                                        newItems = pageJSON
-                                        break
-                                    } catch (e: JSONException) {
-                                        e.printStackTrace()
-                                        println("Error! JSON Broken!")
-                                        break
+                    items =
+                        withContext(IO + itemsJob) {
+                            lateinit var newItems: JSONObject
+                            while (true) {
+                                val newPageData = fetchPlaylistsData(key, pageToken)
+                                when (newPageData.code.code) {
+                                    HttpURLConnection.HTTP_OK -> {
+                                        try {
+                                            val pageJSON = JSONObject(newPageData.data.data)
+                                            if (pageJSON.has("nextPageToken")) {
+                                                pageToken = pageJSON.getString("nextPageToken")
+                                            }
+                                            newItems = pageJSON
+                                            break
+                                        } catch (e: JSONException) {
+                                            e.printStackTrace()
+                                            println("Error! JSON Broken!")
+                                            break
+                                        }
                                     }
-                                }
 
-                                HttpURLConnection.HTTP_FORBIDDEN -> {
-                                    if (key == apiKey1)
-                                        key = apiKey2
-                                    else {
+                                    HttpURLConnection.HTTP_FORBIDDEN -> {
+                                        if (key == apiKey1) {
+                                            key = apiKey2
+                                        } else {
+                                            println("HTTP ERROR! CODE: ${newPageData.code}")
+                                            break
+                                        }
+                                    }
+
+                                    else -> {
                                         println("HTTP ERROR! CODE: ${newPageData.code}")
                                         break
                                     }
                                 }
-
-                                else -> {
-                                    println("HTTP ERROR! CODE: ${newPageData.code}")
-                                    break
-                                }
                             }
+                            newItems.getJSONArray("items")
                         }
-                        newItems.getJSONArray("items")
-                    }
                 }
                 playlists.addAll(
                     items.map {
@@ -531,9 +588,9 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                             User(Name(snippet.getString("channelTitle"))),
                             Description(snippet.getString("description")),
                             publicity = Publicity(it.getJSONObject("status").getString("privacyStatus") == "public"),
-                            link = Link("https://www.youtube.com/playlist?list=${it.getString("id")}")
+                            link = Link("https://www.youtube.com/playlist?list=${it.getString("id")}"),
                         )
-                    }
+                    },
                 )
             }
             return playlists
@@ -559,9 +616,9 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                     }
 
                     HttpURLConnection.HTTP_FORBIDDEN -> {
-                        if (key == apiKey1)
+                        if (key == apiKey1) {
                             key = apiKey2
-                        else {
+                        } else {
                             println("HTTP ERROR! CODE: ${playlistsData.code}")
                             break
                         }
@@ -603,14 +660,15 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                         try {
                             val channelJSON = JSONObject(channelData.data.data).getJSONArray("items").first()
                             channelJSON as JSONObject
-                            channel = User(
-                                Name(channelJSON.getJSONObject("snippet").getString("title")),
-                                Name(channelJSON.getString("id")),
-                                Description(channelJSON.getJSONObject("snippet").getString("description")),
-                                Followers(channelJSON.getJSONObject("statistics").getInt("subscriberCount")),
-                                fetchChannelPlaylists(link),
-                                link
-                            )
+                            channel =
+                                User(
+                                    Name(channelJSON.getJSONObject("snippet").getString("title")),
+                                    Name(channelJSON.getString("id")),
+                                    Description(channelJSON.getJSONObject("snippet").getString("description")),
+                                    Followers(channelJSON.getJSONObject("statistics").getInt("subscriberCount")),
+                                    fetchChannelPlaylists(link),
+                                    link,
+                                )
                             break
                         } catch (e: JSONException) {
                             e.printStackTrace()
@@ -620,9 +678,9 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                     }
 
                     HttpURLConnection.HTTP_FORBIDDEN -> {
-                        if (key == apiKey1)
+                        if (key == apiKey1) {
                             key = apiKey2
-                        else {
+                        } else {
                             println("HTTP ERROR! CODE: ${channelData.code.code}")
                             break
                         }
@@ -655,13 +713,13 @@ class YouTube : Service(ServiceType.YOUTUBE) {
         searchType: SearchType,
         searchQuery: SearchQuery,
         resultLimit: Int,
-        encodeQuery: Boolean
+        encodeQuery: Boolean,
     ): SearchResults {
         fun searchData(
             apiKey: String = apiKey1,
             limit: Int = resultLimit,
             pageToken: String = "",
-            link: Link = Link()
+            link: Link = Link(),
         ): Response {
             val linkBuilder = StringBuilder()
             if (link.isNotEmpty()) {
@@ -673,8 +731,9 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                 linkBuilder.append("&type=${searchType.type.replace("track", "video")}")
                 linkBuilder.append("&maxResults=$limit")
                 linkBuilder.append("&part=snippet")
-                if (pageToken.isNotEmpty())
+                if (pageToken.isNotEmpty()) {
                     linkBuilder.append("&pageToken=$pageToken")
+                }
                 linkBuilder.append("&key=$apiKey")
             }
             return sendHttpRequest(Link(linkBuilder.toString()))
@@ -685,7 +744,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
         val searchJob = Job()
         var key = apiKey1
         withContext(IO + searchJob) {
-            //YouTube allows a maximum of 50 results, so we have to do searches in smaller chunks in case the user wants more than 50 results
+            // YouTube allows a maximum of 50 results, so we have to do searches in smaller chunks in case the user wants more than 50 results
             val maxResults = 50
             var searchData = searchData(key, if (resultLimit > maxResults) maxResults else resultLimit)
             while (true) {
@@ -709,10 +768,10 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                             searchResults.add(
                                                 SearchResult(
                                                     "Uploader: $videoUploader\n" +
-                                                            "Title:    $videoTitle\n" +
-                                                            "Link:     $videoLink\n",
-                                                    Link(videoLink)
-                                                )
+                                                        "Title:    $videoTitle\n" +
+                                                        "Link:     $videoLink\n",
+                                                    Link(videoLink),
+                                                ),
                                             )
                                         }
                                     }
@@ -730,10 +789,10 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                             searchResults.add(
                                                 SearchResult(
                                                     "Playlist: $listTitle\n" +
-                                                            "Creator:    $listCreator\n" +
-                                                            "Link:     $listLink\n",
-                                                    Link(listLink)
-                                                )
+                                                        "Creator:    $listCreator\n" +
+                                                        "Link:     $listLink\n",
+                                                    Link(listLink),
+                                                ),
                                             )
                                         }
                                     }
@@ -750,21 +809,21 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                             searchResults.add(
                                                 SearchResult(
                                                     "Channel: $channelTitle\n" +
-                                                            "Link:    $channelLink\n",
-                                                    Link(channelLink)
-                                                )
+                                                        "Link:    $channelLink\n",
+                                                    Link(channelLink),
+                                                ),
                                             )
                                         }
                                     }
                                 }
-
                             }
                             if (searchResults.size < resultLimit && responseData.has("nextPageToken")) {
-                                searchData = searchData(
-                                    key,
-                                    resultLimit - searchResults.size,
-                                    responseData.getString("nextPageToken")
-                                )
+                                searchData =
+                                    searchData(
+                                        key,
+                                        resultLimit - searchResults.size,
+                                        responseData.getString("nextPageToken"),
+                                    )
                             } else {
                                 searchJob.complete()
                                 return@withContext
@@ -821,61 +880,63 @@ class YouTube : Service(ServiceType.YOUTUBE) {
             "$link".contains("\\S+/c(hannel)?/\\S+".toRegex()) -> LinkType.CHANNEL
             "$link".contains("(youtu\\.be|\\S+((\\w*\\?)?\\S*(vi?))[=/]\\S+)".toRegex()) -> LinkType.VIDEO
             "$link".contains("\\S+/results\\?\\S+".toRegex()) -> LinkType.QUERY
-            else -> withContext(IO + resolveJob) {
-                //Attempt to resolve the link type via YouTube API
-                var linkType = LinkType.OTHER
-                while (true) {
-                    val linkData = fetchData(key)
-                    when (linkData.code.code) {
-                        HttpURLConnection.HTTP_OK -> {
-                            try {
-                                val dataJSON = JSONObject(linkData.data.data)
-                                val results = dataJSON.getJSONArray("items")
-                                if (results.length() > 0) {
-                                    linkType = dataJSON.getJSONArray("items").first { itemData ->
-                                        itemData as JSONObject
-                                        itemData.getJSONObject("id").getString("kind").substringAfter("#").let {
-                                            itemData.getJSONObject("id").getString("${it}Id")
-                                        } == link.getId()
-                                    }.let { itemData ->
-                                        itemData as JSONObject
-                                        LinkType.valueOf(
-                                            itemData.getJSONObject("id").getString("kind").substringAfter("#")
-                                                .uppercase()
-                                        )
+            else ->
+                withContext(IO + resolveJob) {
+                    // Attempt to resolve the link type via YouTube API
+                    var linkType = LinkType.OTHER
+                    while (true) {
+                        val linkData = fetchData(key)
+                        when (linkData.code.code) {
+                            HttpURLConnection.HTTP_OK -> {
+                                try {
+                                    val dataJSON = JSONObject(linkData.data.data)
+                                    val results = dataJSON.getJSONArray("items")
+                                    if (results.length() > 0) {
+                                        linkType =
+                                            dataJSON.getJSONArray("items").first { itemData ->
+                                                itemData as JSONObject
+                                                itemData.getJSONObject("id").getString("kind").substringAfter("#").let {
+                                                    itemData.getJSONObject("id").getString("${it}Id")
+                                                } == link.getId()
+                                            }.let { itemData ->
+                                                itemData as JSONObject
+                                                LinkType.valueOf(
+                                                    itemData.getJSONObject("id").getString("kind").substringAfter("#")
+                                                        .uppercase(),
+                                                )
+                                            }
                                     }
+                                    break
+                                } catch (e: JSONException) {
+                                    e.printStackTrace()
+                                    println("Error! Broken JSON!")
                                 }
-                                break
-                            } catch (e: JSONException) {
-                                e.printStackTrace()
-                                println("Error! Broken JSON!")
                             }
-                        }
 
-                        HttpURLConnection.HTTP_FORBIDDEN -> {
-                            if (key == apiKey1)
-                                key = apiKey2
-                            else {
+                            HttpURLConnection.HTTP_FORBIDDEN -> {
+                                if (key == apiKey1) {
+                                    key = apiKey2
+                                } else {
+                                    println("HTTP ERROR! CODE: ${linkData.code}")
+                                    break
+                                }
+                            }
+
+                            else -> {
                                 println("HTTP ERROR! CODE: ${linkData.code}")
                                 break
                             }
                         }
-
-                        else -> {
-                            println("HTTP ERROR! CODE: ${linkData.code}")
-                            break
-                        }
-
                     }
+                    resolveJob.complete()
+                    linkType
                 }
-                resolveJob.complete()
-                linkType
-            }
         }
     }
 
     suspend fun resolveChannelId(channelLink: Link): String {
         val channelName = "$channelLink".substringAfterLast("/")
+
         fun fetchData(apiKey: String = apiKey1): Response {
             val linkBuilder = StringBuilder()
             linkBuilder.append("$apiUrl/search?")
@@ -899,15 +960,16 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                         HttpURLConnection.HTTP_OK -> {
                             try {
                                 val resultsJSON = JSONObject(channelData.data.data)
-                                id = resultsJSON.getJSONArray("items").first {
-                                    it as JSONObject
-                                    it.getJSONObject("id").getString("kind").substringAfter("#") == "channel"
-                                            && it.getJSONObject("snippet").getString("title")
-                                        .replace(" ", "") == "$channelLink".substringAfterLast("/")
-                                }.let {
-                                    it as JSONObject
-                                    it.getJSONObject("id").getString("channelId")
-                                }
+                                id =
+                                    resultsJSON.getJSONArray("items").first {
+                                        it as JSONObject
+                                        it.getJSONObject("id").getString("kind").substringAfter("#") == "channel" &&
+                                            it.getJSONObject("snippet").getString("title")
+                                                .replace(" ", "") == "$channelLink".substringAfterLast("/")
+                                    }.let {
+                                        it as JSONObject
+                                        it.getJSONObject("id").getString("channelId")
+                                    }
                                 break
                             } catch (e: JSONException) {
                                 e.printStackTrace()
@@ -917,9 +979,9 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                         }
 
                         HttpURLConnection.HTTP_FORBIDDEN -> {
-                            if (key == apiKey1)
+                            if (key == apiKey1) {
                                 key = apiKey2
-                            else {
+                            } else {
                                 println("HTTP ERROR! CODE: ${channelData.code.code}")
                                 break
                             }
@@ -936,6 +998,4 @@ class YouTube : Service(ServiceType.YOUTUBE) {
             }
         }
     }
-
 }
-

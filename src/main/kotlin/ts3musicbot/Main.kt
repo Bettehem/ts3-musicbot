@@ -4,24 +4,37 @@ import javafx.application.Application
 import javafx.event.ActionEvent
 import javafx.event.EventHandler
 import javafx.scene.Scene
-import javafx.scene.control.*
+import javafx.scene.control.Button
+import javafx.scene.control.CheckBox
+import javafx.scene.control.Label
+import javafx.scene.control.PasswordField
+import javafx.scene.control.RadioButton
+import javafx.scene.control.ScrollPane
+import javafx.scene.control.TextArea
+import javafx.scene.control.TextField
+import javafx.scene.control.ToggleGroup
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.stage.FileChooser
 import javafx.stage.Stage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import ts3musicbot.chat.ChatReader
 import ts3musicbot.chat.ChatUpdate
 import ts3musicbot.chat.ChatUpdateListener
 import ts3musicbot.chat.CommandListener
+import ts3musicbot.client.OfficialTSClient
 import ts3musicbot.client.TeamSpeak
+import ts3musicbot.util.BotSettings
 import ts3musicbot.util.CommandList
+import ts3musicbot.util.CommandRunner
+import ts3musicbot.util.Console
+import ts3musicbot.util.ConsoleUpdateListener
 import java.io.File
 import java.io.PrintWriter
 import kotlin.system.exitProcess
-import kotlinx.coroutines.*
-import kotlinx.coroutines.Dispatchers.IO
-import ts3musicbot.client.OfficialTSClient
-import ts3musicbot.util.*
 
 var inputFilePath = ""
 private lateinit var window: Stage
@@ -96,12 +109,10 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
 
     private var settings = BotSettings()
 
-
     companion object : ChatUpdateListener, CommandListener {
         @JvmStatic
         fun main(args: Array<String>) {
-
-            //check if command line arguments are provided
+            // check if command line arguments are provided
             if (args.isNotEmpty()) {
                 val defaultSettings = BotSettings()
                 var apiKey = ""
@@ -123,7 +134,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 var bcVolume = defaultSettings.bcVolume
                 var useOfficialTsClient = true
 
-                val helpMessage = "\n" +
+                val helpMessage =
+                    "\n" +
                         "TS3 Music Bot help message\n" +
                         "Available options:\n" +
                         "-h, --help               Show this help message\n" +
@@ -133,7 +145,8 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "-P, --serverpassword     Server's password\n" +
                         "-c, --channelname        The channel's name the bot should connect to after connecting to the server.\n" +
                         "--channelpassword        The channel's password the bot should connect to.\n" +
-                        "-C, --channelfile        Provide a path to a channel.txt file. You also need to provide the channel name with -c option.\n" +
+                        "-C, --channelfile        Provide a path to a channel.txt file. " +
+                        "You also need to provide the channel name with -c option.\n" +
                         "-n, --nickname           The nickname of the bot.\n" +
                         "-m, --market             Specify a market/country for Spotify.\n" +
                         "--spotify <client>       Specify a spotify client to use. Can be spotify, ncspot or spotifyd.\n" +
@@ -146,7 +159,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "--yt-volume <volume>     Set the volume for MPV media player when playing YouTube content.\n" +
                         "--bc-volume <volume>     Set the volume for MPV media player when playing Bandcamp content.\n"
 
-                //go through given arguments and save them
+                // go through given arguments and save them
                 for (argPos in args.indices) {
                     when (args[argPos]) {
                         "-h", "--help" -> {
@@ -155,95 +168,113 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         }
 
                         "-a", "--apikey" -> {
-                            //"if (args.size >= argPos +1)" is a safe check
-                            //in case a user provides a flag, but no argument
-                            if (args.size >= argPos + 1)
+                            // "if (args.size >= argPos +1)" is a safe check
+                            // in case a user provides a flag, but no argument
+                            if (args.size >= argPos + 1) {
                                 apiKey = args[argPos + 1]
+                            }
                         }
 
                         "-s", "--serveraddress" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 serverAddress = args[argPos + 1]
+                            }
                         }
 
                         "-p", "--serverport" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 serverPort = args[argPos + 1].toInt()
+                            }
                         }
 
                         "-P", "--serverpassword" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 serverPassword = args[argPos + 1]
+                            }
                         }
 
                         "-c", "--channelname" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 channelName = args[argPos + 1]
+                            }
                         }
 
                         "--channelpassword" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 channelPassword = args[argPos + 1]
+                            }
                         }
 
                         "-C", "--channelfile" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 channelFilePath = args[argPos + 1]
+                            }
                         }
 
                         "-n", "--nickname" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 nickname = args[argPos + 1]
+                            }
                         }
 
                         "-m", "--market" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 market = args[argPos + 1]
+                            }
                         }
 
                         "--spotify" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 spotifyPlayer = args[argPos + 1]
+                            }
                         }
 
                         "--sp-user" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 spotifyUsername = args[argPos + 1]
+                            }
                         }
 
                         "--sp-pass" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 spotifyPassword = args[argPos + 1]
+                            }
                         }
 
                         "--config" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 configFile = args[argPos + 1]
+                            }
                         }
 
                         "--command-config" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 commandConfig = args[argPos + 1]
+                            }
                         }
 
                         "--use-internal-tsclient" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 useOfficialTsClient = false
+                            }
                         }
 
                         "--sc-volume" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 scVolume = args[argPos + 1].toInt()
+                            }
                         }
 
                         "--yt-volume" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 ytVolume = args[argPos + 1].toInt()
+                            }
                         }
 
                         "--bc-volume" -> {
-                            if (args.size >= argPos + 1)
+                            if (args.size >= argPos + 1) {
                                 bcVolume = args[argPos + 1].toInt()
+                            }
                         }
                     }
                 }
@@ -268,7 +299,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             useOfficialTsClient,
                             scVolume,
                             ytVolume,
-                            bcVolume
+                            bcVolume,
                         )
                     }
 
@@ -276,95 +307,114 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     commandList = loadCommands(File(commandConfig))
                 }
                 if (botSettings.useOfficialTsClient) {
-                    //connect to desired server and channel,
-                    //after which find the server's channel file and start listening for commands
+                    // connect to desired server and channel,
+                    // after which find the server's channel file and start listening for commands
                     println("Starting TeamSpeak 3...")
                     println("Connecting to server at: ${botSettings.serverAddress}, port ${botSettings.serverPort}.")
                     println("Using ${botSettings.nickname} as the bot\'s nickname.")
                     officialTSClient = OfficialTSClient(botSettings)
                     CoroutineScope(IO).launch {
-                        if (!File("${officialTSClient.tsClientDirPath}/settings.db").exists())
+                        if (!File("${officialTSClient.tsClientDirPath}/settings.db").exists()) {
                             officialTSClient.exportTeamSpeakSettings()
+                        }
 
                         if (officialTSClient.startTeamSpeak()) {
                             officialTSClient.joinChannel()
-                            chatReader = ChatReader(
-                                officialTSClient,
-                                botSettings,
-                                this@Companion,
-                                this@Companion,
-                                commandList
-                            )
+                            chatReader =
+                                ChatReader(
+                                    officialTSClient,
+                                    botSettings,
+                                    this@Companion,
+                                    this@Companion,
+                                    commandList,
+                                )
                             if (chatReader.startReading()) {
                                 println("Bot ${botSettings.nickname} started listening to the chat in channel ${botSettings.channelName}.")
-                                val console = Console(commandList, object : ConsoleUpdateListener {
-                                    override fun onCommandIssued(command: String) {
-                                        if (command.startsWith(commandList.commandPrefix)) {
-                                            chatReader.latestMsgUsername = "__console__"
-                                            chatReader.parseLine(command)
-                                        } else {
-                                            when (command) {
-                                                "save-settings" -> {
-                                                    saveSettings(botSettings, showGui = false)
+                                val console =
+                                    Console(
+                                        commandList,
+                                        object : ConsoleUpdateListener {
+                                            override fun onCommandIssued(command: String) {
+                                                if (command.startsWith(commandList.commandPrefix)) {
+                                                    chatReader.latestMsgUsername = "__console__"
+                                                    chatReader.parseLine(command)
+                                                } else {
+                                                    when (command) {
+                                                        "save-settings" -> {
+                                                            saveSettings(botSettings, showGui = false)
+                                                        }
+                                                    }
                                                 }
                                             }
-                                        }
-                                    }
-                                }, officialTSClient)
+                                        },
+                                        officialTSClient,
+                                    )
                                 console.startConsole()
-                            } else print("Error: Bot wasn't able start reading the chat!")
+                            } else {
+                                print("Error: Bot wasn't able start reading the chat!")
+                            }
                         } else {
                             println("Error!\nOption -s is required. See -h or --help for more information")
                             exitProcess(0)
                         }
                     }
                 } else {
-                    //use built-in teamspeak client
+                    // use built-in teamspeak client
                     if (botSettings.serverAddress.isNotEmpty()) {
                         teamSpeak = TeamSpeak(botSettings)
                         teamSpeak.connect()
                         runBlocking {
                             teamSpeak.joinChannel()
                         }
-                        chatReader = ChatReader(
-                            teamSpeak,
-                            botSettings,
-                            this@Companion,
-                            this@Companion,
-                            commandList
-                        )
+                        chatReader =
+                            ChatReader(
+                                teamSpeak,
+                                botSettings,
+                                this@Companion,
+                                this@Companion,
+                                commandList,
+                            )
                         if (chatReader.startReading()) {
                             println("Bot ${botSettings.nickname} started listening to the chat in channel ${botSettings.channelName}.")
-                            val console = Console(commandList, object : ConsoleUpdateListener {
-                                override fun onCommandIssued(command: String) {
-                                    if (command.startsWith(commandList.commandPrefix)) {
-                                        chatReader.latestMsgUsername = "__console__"
-                                        chatReader.parseLine(command)
-                                    } else {
-                                        when (command) {
-                                            "save-settings" -> {
-                                                saveSettings(botSettings, showGui = false)
+                            val console =
+                                Console(
+                                    commandList,
+                                    object : ConsoleUpdateListener {
+                                        override fun onCommandIssued(command: String) {
+                                            if (command.startsWith(commandList.commandPrefix)) {
+                                                chatReader.latestMsgUsername = "__console__"
+                                                chatReader.parseLine(command)
+                                            } else {
+                                                when (command) {
+                                                    "save-settings" -> {
+                                                        saveSettings(botSettings, showGui = false)
+                                                    }
+                                                }
                                             }
                                         }
-                                    }
-                                }
-                            }, teamSpeak)
+                                    },
+                                    teamSpeak,
+                                )
                             console.startConsole()
-                        } else print("Error: Bot wasn't able to start reading the chat!")
+                        } else {
+                            print("Error: Bot wasn't able to start reading the chat!")
+                        }
                     } else {
                         println("Error!\nOption -s is required. See -h or --help for more information")
                         exitProcess(0)
                     }
                 }
             } else {
-                //launch graphical window
+                // launch graphical window
                 launch(Main::class.java, *args)
             }
-
         }
 
-        private fun saveSettings(botSettings: BotSettings = BotSettings(), showGui: Boolean) {
-            //save settings to a config file
+        private fun saveSettings(
+            botSettings: BotSettings = BotSettings(),
+            showGui: Boolean,
+        ) {
+            // save settings to a config file
             val file: File?
 
             if (showGui) {
@@ -379,14 +429,16 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 val console = System.console()
                 val configPath =
                     console.readLine("Enter path where to save config (Default location is your current directory): ")
-                file = if (configPath.isNotEmpty()) {
-                    if (File(configPath).isDirectory)
-                        File("$configPath/ts3-musicbot.config")
-                    else
-                        File(configPath)
-                } else {
-                    File("${System.getProperty("user.dir")}/ts3-musicbot.config")
-                }
+                file =
+                    if (configPath.isNotEmpty()) {
+                        if (File(configPath).isDirectory) {
+                            File("$configPath/ts3-musicbot.config")
+                        } else {
+                            File(configPath)
+                        }
+                    } else {
+                        File("${System.getProperty("user.dir")}/ts3-musicbot.config")
+                    }
             }
             if (file != null) {
                 val fileWriter = PrintWriter(file)
@@ -427,18 +479,21 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         "SERVER_PASSWORD" -> settings.serverPassword = line.substringAfter("=")
                         "CHANNEL_NAME" -> settings.channelName = line.substringAfter("=")
                         "CHANNEL_PASSWORD" -> settings.channelPassword = line.substringAfter("=")
-                        "CHANNEL_FILE_PATH" -> settings.channelFilePath =
-                            line.substringAfter("=").substringBeforeLast(" ")
+                        "CHANNEL_FILE_PATH" ->
+                            settings.channelFilePath =
+                                line.substringAfter("=").substringBeforeLast(" ")
 
                         "NICKNAME" -> settings.nickname = line.substringAfter("=").replace("\\s+$".toRegex(), "")
                         "MARKET" -> settings.market = line.substringAfter("=").replace(" ", "")
                         "SPOTIFY_PLAYER" -> settings.spotifyPlayer = line.substringAfter("=").replace(" ", "")
-                        "SPOTIFY_USERNAME" -> settings.spotifyUsername =
-                            line.substringAfter("=").replace("\\s+".toRegex(), "")
+                        "SPOTIFY_USERNAME" ->
+                            settings.spotifyUsername =
+                                line.substringAfter("=").replace("\\s+".toRegex(), "")
 
                         "SPOTIFY_PASSWORD" -> settings.spotifyPassword = line.substringAfter("=")
-                        "USE_OFFICIAL_TSCLIENT" -> settings.useOfficialTsClient =
-                            line.substringAfter("=").replace(" ", "").toBoolean()
+                        "USE_OFFICIAL_TSCLIENT" ->
+                            settings.useOfficialTsClient =
+                                line.substringAfter("=").replace(" ", "").toBoolean()
 
                         "SC_VOLUME" -> settings.scVolume = line.substringAfter("=").replace(" ", "").toInt()
                         "YT_VOLUME" -> settings.ytVolume = line.substringAfter("=").replace(" ", "").toInt()
@@ -458,10 +513,11 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                 commandsFile.readLines().forEach { line ->
                     if (line.contains("^[A-Z_]+\\s*=\\S*".toRegex())) {
                         val (key, value) = line.lowercase().replaceFirst('_', '-').split("=")
-                        if (key == "command-prefix")
+                        if (key == "command-prefix") {
                             prefix = value
-                        else
+                        } else {
                             commands[key] = value.substringBefore(" ")
+                        }
                     }
                 }
             }
@@ -478,17 +534,24 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             }
         }
 
-        override fun onCommandExecuted(command: String, output: String, extra: Any?) {
+        override fun onCommandExecuted(
+            command: String,
+            output: String,
+            extra: Any?,
+        ) {
             print("\nCommand \"${command.substringBefore(" ")}\" has been executed.\nOutput:\n$output\n\nCommand: ")
         }
 
-        override fun onCommandProgress(command: String, output: String, extra: Any?) {
+        override fun onCommandProgress(
+            command: String,
+            output: String,
+            extra: Any?,
+        ) {
             print("\n\"${command.substringBefore(" ")}\" command progress update:\nOutput:\n$output\n\nCommand: ")
         }
     }
 
-
-    //everything below this comment is for the gui stuff
+    // everything below this comment is for the gui stuff
     override fun start(p0: Stage?) {
         try {
             window = (p0 ?: return)
@@ -515,26 +578,30 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
 
         showAdvancedOptions(false)
 
-        fun CheckBox.handlePasswordVisibility(pwField: PasswordField, textField: TextField) {
+        fun CheckBox.handlePasswordVisibility(
+            pwField: PasswordField,
+            textField: TextField,
+        ) {
             val showPwText = "Show password"
             textField.isManaged = false
             textField.isVisible = false
             this.text = showPwText
-            this.onAction = EventHandler {
-                if (this.isSelected) {
-                    pwField.isManaged = false
-                    pwField.isVisible = false
-                    textField.text = pwField.text
-                    textField.isManaged = true
-                    textField.isVisible = true
-                } else {
-                    textField.isManaged = false
-                    textField.isVisible = false
-                    pwField.text = textField.text
-                    pwField.isManaged = true
-                    pwField.isVisible = true
+            this.onAction =
+                EventHandler {
+                    if (this.isSelected) {
+                        pwField.isManaged = false
+                        pwField.isVisible = false
+                        textField.text = pwField.text
+                        textField.isManaged = true
+                        textField.isVisible = true
+                    } else {
+                        textField.isManaged = false
+                        textField.isVisible = false
+                        pwField.text = textField.text
+                        pwField.isManaged = true
+                        pwField.isVisible = true
+                    }
                 }
-            }
         }
 
         hideAdvancedSettingsRadioButton.text = "Hide advanced settings"
@@ -672,14 +739,12 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         stopBotButton.isManaged = false
         stopBotButton.isVisible = false
 
-
         browseChannelFileButton.onAction = this
         loadCustomCommandsButton.onAction = this
         saveSettingsButton.onAction = this
         loadSettingsButton.onAction = this
         startBotButton.onAction = this
         stopBotButton.onAction = this
-
 
         statusTextView.text = "Status: Bot not active."
         statusTextView.isEditable = false
@@ -737,7 +802,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
     }
 
     private fun ui() {
-        //prepare layout
+        // prepare layout
         val statusLayout = VBox()
         layout.spacing = 5.0
         layout.setPrefSize(640.0, 700.0)
@@ -747,13 +812,13 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             loadSettingsButton,
             startBotButton,
             stopBotButton,
-            statusLayout
+            statusLayout,
         )
 
-        //build scene
+        // build scene
         scene = Scene(layout, 640.0, 700.0)
 
-        //setup window
+        // setup window
         window.title = "TeamSpeak 3 Music Bot"
         window.scene = scene
 
@@ -806,14 +871,13 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
             ytVolumeEditText,
             bcVolumeTextView,
             bcVolumeEditText,
-            loadCustomCommandsButton
+            loadCustomCommandsButton,
         )
         scrollPane.content = itemLayout
         scrollPane.minHeight = 250.0
         scrollPane.isFitToWidth = true
         scrollPane.isFitToHeight = true
         scrollPane.heightProperty().addListener { _ -> scrollPane.vvalue = 0.0 }
-
 
         statusLayout.children.addAll(statusTextView)
         statusLayout.minHeight = 75.0
@@ -908,12 +972,13 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
 
             startBotButton -> {
                 val settings = getSettings()
-                //start teamspeak
+                // start teamspeak
                 if (settings.useOfficialTsClient) {
                     officialTSClient = OfficialTSClient(settings)
                     CoroutineScope(IO).launch {
-                        if (!File("${officialTSClient.tsClientDirPath}/settings.db").exists())
+                        if (!File("${officialTSClient.tsClientDirPath}/settings.db").exists()) {
                             officialTSClient.exportTeamSpeakSettings()
+                        }
 
                         if (officialTSClient.startTeamSpeak()) {
                             statusTextView.text = "Status: Connected."
@@ -922,29 +987,35 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                             stopBotButton.isManaged = true
                             stopBotButton.isVisible = true
                             officialTSClient.joinChannel()
-                            chatReader = ChatReader(
-                                officialTSClient,
-                                settings,
-                                this@Main,
-                                this@Main,
-                                commandList
-                            )
+                            chatReader =
+                                ChatReader(
+                                    officialTSClient,
+                                    settings,
+                                    this@Main,
+                                    this@Main,
+                                    commandList,
+                                )
                             if (chatReader.startReading()) {
                                 println("Bot ${settings.nickname} started listening to the chat in channel ${settings.channelName}.")
-                                val console = Console(commandList, object : ConsoleUpdateListener {
-                                    override fun onCommandIssued(command: String) {
-                                        if (command.startsWith(commandList.commandPrefix)) {
-                                            chatReader.latestMsgUsername = "__console__"
-                                            chatReader.parseLine(command)
-                                        } else {
-                                            when (command) {
-                                                "save-settings" -> {
-                                                    saveSettings(settings, showGui = false)
+                                val console =
+                                    Console(
+                                        commandList,
+                                        object : ConsoleUpdateListener {
+                                            override fun onCommandIssued(command: String) {
+                                                if (command.startsWith(commandList.commandPrefix)) {
+                                                    chatReader.latestMsgUsername = "__console__"
+                                                    chatReader.parseLine(command)
+                                                } else {
+                                                    when (command) {
+                                                        "save-settings" -> {
+                                                            saveSettings(settings, showGui = false)
+                                                        }
+                                                    }
                                                 }
                                             }
-                                        }
-                                    }
-                                }, officialTSClient)
+                                        },
+                                        officialTSClient,
+                                    )
                                 CoroutineScope(IO).launch {
                                     console.startConsole()
                                 }
@@ -970,29 +1041,35 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                         runBlocking {
                             teamSpeak.joinChannel()
                         }
-                        chatReader = ChatReader(
-                            teamSpeak,
-                            settings,
-                            this@Main,
-                            this@Main,
-                            commandList
-                        )
+                        chatReader =
+                            ChatReader(
+                                teamSpeak,
+                                settings,
+                                this@Main,
+                                this@Main,
+                                commandList,
+                            )
                         if (chatReader.startReading()) {
                             println("Bot ${settings.nickname} started listening to the chat in channel ${settings.channelName}.")
-                            val console = Console(commandList, object : ConsoleUpdateListener {
-                                override fun onCommandIssued(command: String) {
-                                    if (command.startsWith(commandList.commandPrefix)) {
-                                        chatReader.latestMsgUsername = "__console__"
-                                        chatReader.parseLine(command)
-                                    } else {
-                                        when (command) {
-                                            "save-settings" -> {
-                                                saveSettings(settings, showGui = false)
+                            val console =
+                                Console(
+                                    commandList,
+                                    object : ConsoleUpdateListener {
+                                        override fun onCommandIssued(command: String) {
+                                            if (command.startsWith(commandList.commandPrefix)) {
+                                                chatReader.latestMsgUsername = "__console__"
+                                                chatReader.parseLine(command)
+                                            } else {
+                                                when (command) {
+                                                    "save-settings" -> {
+                                                        saveSettings(settings, showGui = false)
+                                                    }
+                                                }
                                             }
                                         }
-                                    }
-                                }
-                            }, teamSpeak)
+                                    },
+                                    teamSpeak,
+                                )
                             CoroutineScope(IO).launch {
                                 console.startConsole()
                             }
@@ -1017,7 +1094,7 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
                     commandRunner.runCommand("wmctrl -c TeamSpeak; sleep 2; wmctrl -c TeamSpeak", ignoreOutput = true)
                     commandRunner.runCommand(
                         "pkill mpv; pkill ncspot; tmux kill-session -t ncspot",
-                        ignoreOutput = true
+                        ignoreOutput = true,
                     )
                 } else {
                     teamSpeak.disconnect()
@@ -1031,31 +1108,31 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         }
     }
 
-    //gets settings from text fields in gui
-    private fun getSettings(): BotSettings = BotSettings(
-        apiKeyEditText.text,
-        serverAddressEditText.text,
-        if (serverPortEditText.text.isNotEmpty()) serverPortEditText.text.toInt() else BotSettings().serverPort,
-        serverPasswordEditText.text,
-        channelNameEditText.text,
-        channelPasswordEditText.text,
-        channelFilePathEditText.text,
-        nicknameEditText.text,
-        marketEditText.text,
-        when (spotifyPlayerRadioGroup.selectedToggle) {
-            spotifyRadioButton -> "spotify"
-            ncspotRadioButton -> "ncspot"
-            spotifydRadioButton -> "spotifyd"
-            else -> BotSettings().spotifyPlayer
-        },
-        spUsernameEditText.text,
-        spPasswordEditText.text,
-        tsClientRadioGroup.selectedToggle == tsClientOfficialRadioButton,
-        scVolumeEditText.text.ifEmpty { "${BotSettings().scVolume}" }.toInt(),
-        ytVolumeEditText.text.ifEmpty { "${BotSettings().ytVolume}" }.toInt(),
-        bcVolumeEditText.text.ifEmpty { "${BotSettings().bcVolume}" }.toInt()
-    )
-
+    // gets settings from text fields in gui
+    private fun getSettings(): BotSettings =
+        BotSettings(
+            apiKeyEditText.text,
+            serverAddressEditText.text,
+            if (serverPortEditText.text.isNotEmpty()) serverPortEditText.text.toInt() else BotSettings().serverPort,
+            serverPasswordEditText.text,
+            channelNameEditText.text,
+            channelPasswordEditText.text,
+            channelFilePathEditText.text,
+            nicknameEditText.text,
+            marketEditText.text,
+            when (spotifyPlayerRadioGroup.selectedToggle) {
+                spotifyRadioButton -> "spotify"
+                ncspotRadioButton -> "ncspot"
+                spotifydRadioButton -> "spotifyd"
+                else -> BotSettings().spotifyPlayer
+            },
+            spUsernameEditText.text,
+            spPasswordEditText.text,
+            tsClientRadioGroup.selectedToggle == tsClientOfficialRadioButton,
+            scVolumeEditText.text.ifEmpty { "${BotSettings().scVolume}" }.toInt(),
+            ytVolumeEditText.text.ifEmpty { "${BotSettings().ytVolume}" }.toInt(),
+            bcVolumeEditText.text.ifEmpty { "${BotSettings().bcVolume}" }.toInt(),
+        )
 
     override fun onChatUpdated(update: ChatUpdate) {
         if (commandList.commandList.any { update.message.startsWith(it.value) }) {
@@ -1069,13 +1146,21 @@ class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, Comma
         }
     }
 
-    override fun onCommandExecuted(command: String, output: String, extra: Any?) {
+    override fun onCommandExecuted(
+        command: String,
+        output: String,
+        extra: Any?,
+    ) {
         val text = "\nCommand \"${command.substringBefore(" ")}\" has been executed.\nOutput:\n$output\n"
         println(text)
         updateStatus(text)
     }
 
-    override fun onCommandProgress(command: String, output: String, extra: Any?) {
+    override fun onCommandProgress(
+        command: String,
+        output: String,
+        extra: Any?,
+    ) {
         val text = "\n\"${command.substringBefore(" ")}\" command progress update:\nOutput:\n$output\n"
         print(text)
         updateStatus(text)

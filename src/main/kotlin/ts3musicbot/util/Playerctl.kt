@@ -1,31 +1,48 @@
 package ts3musicbot.util
 
-private fun listPlayers() = CommandRunner().runCommand("dbus-send --print-reply --dest=org.freedesktop.DBus  /org/freedesktop/DBus org.freedesktop.DBus.ListNames | grep 'org.mpris.MediaPlayer2.'", printOutput = false)
-    .outputText.lines().map { it.replace("^.*string\\s+\"org\\.mpris\\.MediaPlayer2\\.".toRegex(), "").replace("\".*$".toRegex(), "") }
+private fun listPlayers() =
+    CommandRunner().runCommand(
+        "dbus-send --print-reply --dest=org.freedesktop.DBus  /org/freedesktop/DBus " +
+            "org.freedesktop.DBus.ListNames | grep 'org.mpris.MediaPlayer2.'",
+        printOutput = false,
+    )
+        .outputText.lines().map { it.replace("^.*string\\s+\"org\\.mpris\\.MediaPlayer2\\.".toRegex(), "").replace("\".*$".toRegex(), "") }
 
 fun playerctl(
     player: String = listPlayers().firstOrNull().orEmpty(),
-    command: String, extra: String = ""
+    command: String,
+    extra: String = "",
 ): Output {
-    val mediaPlayer = if (player.isNotEmpty()) {
-        listPlayers().firstOrNull { it.startsWith(player) }.orEmpty()
-            .ifEmpty { player }
-    } else player
+    val mediaPlayer =
+        if (player.isNotEmpty()) {
+            listPlayers().firstOrNull { it.startsWith(player) }.orEmpty()
+                .ifEmpty { player }
+        } else {
+            player
+        }
 
     val commandRunner = CommandRunner()
-    fun dbusGet(property: String) = commandRunner.runCommand(
-        "dbus-send --print-reply --dest=org.mpris.MediaPlayer2.$mediaPlayer /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2.Player' string:'$property'",
-        printOutput = false, printErrors = false
-    )
 
-    fun dbusSend(method: String, data: String = "") = commandRunner.runCommand(
+    fun dbusGet(property: String) =
+        commandRunner.runCommand(
+            "dbus-send --print-reply --dest=org.mpris.MediaPlayer2.$mediaPlayer /org/mpris/MediaPlayer2 " +
+                "org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2.Player' string:'$property'",
+            printOutput = false,
+            printErrors = false,
+        )
+
+    fun dbusSend(
+        method: String,
+        data: String = "",
+    ) = commandRunner.runCommand(
         "dbus-send --print-reply --dest=org.mpris.MediaPlayer2.$mediaPlayer /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.$method" +
-                if (data.isNotEmpty()) {
-                    " string:'$data'"
-                } else {
-                    ""
-                },
-        printOutput = false, printErrors = false
+            if (data.isNotEmpty()) {
+                " string:'$data'"
+            } else {
+                ""
+            },
+        printOutput = false,
+        printErrors = false,
     )
 
     fun parseMetadata(metadata: String): Map<String, Any> {
@@ -51,24 +68,27 @@ fun playerctl(
 
                         "string" -> {
                             val str = line.substringAfter('"').substringBeforeLast('"')
-                            if (inSubArray)
+                            if (inSubArray) {
                                 subArray.add(str)
-                            else
+                            } else {
                                 metadataMap[key] = str
+                            }
                         }
 
-                        "object" -> if (line.substringAfter("$variant ").startsWith("path")) {
-                            metadataMap[key] = line.replace("(^.+\\s+\"|\"$)".toRegex(), "'")
-                        }
+                        "object" ->
+                            if (line.substringAfter("$variant ").startsWith("path")) {
+                                metadataMap[key] = line.replace("(^.+\\s+\"|\"$)".toRegex(), "'")
+                            }
 
                         "uint64", "int64" -> metadataMap[key] = line.substringAfter("$variant ").toLong()
                         "double" -> metadataMap[key] = line.substringAfter("$variant ").toFloat()
                         "int32" -> metadataMap[key] = line.substringAfter("$variant ").toInt()
 
-                        else -> println(
-                            "Encountered unknown variant \"$variant\" when parsing MPRIS metadata!\n" +
-                                    "Metadata:\n$metadata"
-                        )
+                        else ->
+                            println(
+                                "Encountered unknown variant \"$variant\" when parsing MPRIS metadata!\n" +
+                                    "Metadata:\n$metadata",
+                            )
                     }
                 }
 
@@ -106,32 +126,47 @@ fun playerctl(
             val title = "xesam:title"
             val trackNum = "xesam:trackNumber"
             val url = "xesam:url"
-            if (parsedOutput.contains(trackId))
+            if (parsedOutput.contains(trackId)) {
                 formattedMetadata.appendLine("$mediaPlayer $trackId\t\t${parsedOutput[trackId]}")
-            if (parsedOutput.contains(length))
+            }
+            if (parsedOutput.contains(length)) {
                 formattedMetadata.appendLine("$mediaPlayer $length\t\t\t${parsedOutput[length]}")
-            if (parsedOutput.contains(artUrl))
+            }
+            if (parsedOutput.contains(artUrl)) {
                 formattedMetadata.appendLine("$mediaPlayer $artUrl\t\t\t${parsedOutput[artUrl]}")
-            if (parsedOutput.contains(album))
+            }
+            if (parsedOutput.contains(album)) {
                 formattedMetadata.appendLine("$mediaPlayer $album\t\t\t${parsedOutput[album]}")
-            if (parsedOutput.contains(albumArtist))
-                formattedMetadata.appendLine("$mediaPlayer $albumArtist\t${
-                    parsedOutput[albumArtist].let { if (it is List<*>) it.joinToString() else "" }
-                }")
-            if (parsedOutput.contains(artist))
-                formattedMetadata.appendLine("$mediaPlayer $artist\t\t${
-                    parsedOutput[artist].let { if (it is List<*>) it.joinToString() else "" }
-                }")
-            if (parsedOutput.contains(rating))
+            }
+            if (parsedOutput.contains(albumArtist)) {
+                formattedMetadata.appendLine(
+                    "$mediaPlayer $albumArtist\t${
+                        parsedOutput[albumArtist].let { if (it is List<*>) it.joinToString() else "" }
+                    }",
+                )
+            }
+            if (parsedOutput.contains(artist)) {
+                formattedMetadata.appendLine(
+                    "$mediaPlayer $artist\t\t${
+                        parsedOutput[artist].let { if (it is List<*>) it.joinToString() else "" }
+                    }",
+                )
+            }
+            if (parsedOutput.contains(rating)) {
                 formattedMetadata.appendLine("$mediaPlayer $rating\t\t${parsedOutput[rating]}")
-            if (parsedOutput.contains(discNum))
+            }
+            if (parsedOutput.contains(discNum)) {
                 formattedMetadata.appendLine("$mediaPlayer $discNum\t\t${parsedOutput[discNum]}")
-            if (parsedOutput.contains(title))
+            }
+            if (parsedOutput.contains(title)) {
                 formattedMetadata.appendLine("$mediaPlayer $title\t\t\t${parsedOutput[title]}")
-            if (parsedOutput.contains(trackNum))
+            }
+            if (parsedOutput.contains(trackNum)) {
                 formattedMetadata.appendLine("$mediaPlayer $trackNum\t${parsedOutput[trackNum]}")
-            if (parsedOutput.contains(url))
+            }
+            if (parsedOutput.contains(url)) {
                 formattedMetadata.appendLine("$mediaPlayer $url\t\t\t${parsedOutput[url]}")
+            }
             Output(formattedMetadata.toString(), metadata.errorText)
         }
 

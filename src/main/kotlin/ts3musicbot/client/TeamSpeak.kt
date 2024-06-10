@@ -41,9 +41,9 @@ class TeamSpeak(botSettings: BotSettings) : Client(botSettings), TS3Listener {
     fun connect(
         address: String = botSettings.serverAddress,
         password: String = botSettings.serverPassword,
-        port: Int = botSettings.serverPort
+        port: Int = botSettings.serverPort,
     ): Boolean {
-        //connect to server and timeout if no connection after 10 seconds
+        // connect to server and timeout if no connection after 10 seconds
         clientSocket.connect(InetSocketAddress(InetAddress.getByName(address), port), password, 10000L)
         clientSocket.waitForState(ClientConnectionState.CONNECTED, 10000L)
         clientSocket.subscribeAll()
@@ -72,9 +72,13 @@ class TeamSpeak(botSettings: BotSettings) : Client(botSettings), TS3Listener {
      * A channel's data will look something like this:
      * cid=90 pid=6 channel_order=85 channel_name=Test\sChannel channel_flag_are_subscribed=1 total_clients=0
      */
-    override fun getChannelList(): List<String> = clientSocket.listChannels().map {
-        encode("cid=${it.id} pid=${it.parentChannelId} channel_order=${it.order} channel_name=${it.name} channel_flag_are_subscribed=1 total_clients=${it.totalClients}")
-    }
+    override fun getChannelList(): List<String> =
+        clientSocket.listChannels().map {
+            encode(
+                "cid=${it.id} pid=${it.parentChannelId} channel_order=${it.order} channel_name=${it.name} " +
+                    "channel_flag_are_subscribed=1 total_clients=${it.totalClients}",
+            )
+        }
 
     /**
      * Get a list of clients on the current server.
@@ -82,9 +86,13 @@ class TeamSpeak(botSettings: BotSettings) : Client(botSettings), TS3Listener {
      * A client's data will look something like this
      * clid=83 cid=8 client_database_id=100 client_nickname=TeamSpeakUser client_type=0
      */
-    override fun getClientList(): List<String> = clientSocket.listClients().map {
-        encode("clid=${it.id} cid=${it.channelId} client_database_id=${it.databaseId} client_nickname=${it.nickname} client_type=${it.type}")
-    }
+    override fun getClientList(): List<String> =
+        clientSocket.listClients().map {
+            encode(
+                "clid=${it.id} cid=${it.channelId} client_database_id=${it.databaseId} " +
+                    "client_nickname=${it.nickname} client_type=${it.type}",
+            )
+        }
 
     /**
      * get a channel's id
@@ -94,9 +102,12 @@ class TeamSpeak(botSettings: BotSettings) : Client(botSettings), TS3Listener {
     private fun getChannelId(channelName: String): Int {
         val targetChannel = channelName.substringAfterLast("/")
         val channelList = clientSocket.listChannels()
-        val channels = if (channelList.any { it.name == targetChannel })
-            channelList.filter { it.name == targetChannel }
-        else emptyList()
+        val channels =
+            if (channelList.any { it.name == targetChannel }) {
+                channelList.filter { it.name == targetChannel }
+            } else {
+                emptyList()
+            }
 
         var targetCid = 0
         channelLoop@ for (channelData in channels) {
@@ -109,7 +120,10 @@ class TeamSpeak(botSettings: BotSettings) : Client(botSettings), TS3Listener {
             while (channelPath.isNotEmpty()) {
                 fun getChannelName(cid: Int) = channelList.first { it.id == cid }.name
 
-                fun checkPid(pid: Int, name: String) = getChannelName(pid) == name
+                fun checkPid(
+                    pid: Int,
+                    name: String,
+                ) = getChannelName(pid) == name
                 if (checkPid(pid, channelPath.first())) {
                     pid = channelList.first { it.id == pid }.parentChannelId
                     channelPath.removeFirst()
@@ -128,7 +142,10 @@ class TeamSpeak(botSettings: BotSettings) : Client(botSettings), TS3Listener {
      * @param channelPassword channel password
      * @return returns true if successful
      */
-    override suspend fun joinChannel(channelName: String, channelPassword: String): Boolean {
+    override suspend fun joinChannel(
+        channelName: String,
+        channelPassword: String,
+    ): Boolean {
         try {
             clientSocket.joinChannel(getChannelId(channelName), channelPassword)
         } catch (e: Exception) {
@@ -158,82 +175,98 @@ class TeamSpeak(botSettings: BotSettings) : Client(botSettings), TS3Listener {
             }
         }
 
-
-        //splits the message in to size of tsCharLimit at most
-        //and then returns the result as a pair. First item contains the
-        //correctly sized message, and the second part contains anything that is left over.
+        // splits the message in to size of tsCharLimit at most
+        // and then returns the result as a pair. First item contains the
+        // correctly sized message, and the second part contains anything that is left over.
         fun splitMessage(msg: String): Pair<String, String> {
-            val escapedLength = encode(
-                msg.substring(
-                    0,
-                    if (msg.length > tsCharLimit)
-                        tsCharLimit + 1
-                    else
-                        msg.lastIndex + 1
-                )
-            ).length
-            val charLimit = if (escapedLength <= tsCharLimit) msg.length else {
-                //address the extended message length that the escape characters add
-                val compensation = escapedLength - msg.substring(
-                    0,
-                    if (msg.length > tsCharLimit)
-                        tsCharLimit
-                    else
-                        msg.lastIndex
-                ).length
-                //first split the message in to a size that fits tsCharLimit
-                msg.substring(0, tsCharLimit - compensation + 1).let { str ->
-                    //find index where to split the string.
-                    //Only check at most 10 last lines from the message.
-                    str.lastIndexOf(
-                        "\n\n",
-                        "\\n".toRegex().findAll(str).map { it.range.first }.toList().let {
-                            if (it.size < 10 && str.length < tsCharLimit - compensation + 1) 0
-                            else it.reversed().last()
-                        }
-                    ).let { index ->
-                        if (index == -1) {
-                            //no empty lines were found so find the last newline character
-                            //and use that as the index
-                            str.let { text ->
-                                text.indexOfLast { it == '\n' }.let { lastNewline ->
-                                    if (lastNewline == -1) {
-                                        //if no newlines are found, use the last space
-                                        text.indexOfLast { it == ' ' }.let {
-                                            if (it == -1) tsCharLimit else it
-                                        }
-                                    } else lastNewline
-                                }
-                            }
+            val escapedLength =
+                encode(
+                    msg.substring(
+                        0,
+                        if (msg.length > tsCharLimit) {
+                            tsCharLimit + 1
                         } else {
-                            index + 1
+                            msg.lastIndex + 1
+                        },
+                    ),
+                ).length
+            val charLimit =
+                if (escapedLength <= tsCharLimit) {
+                    msg.length
+                } else {
+                    // address the extended message length that the escape characters add
+                    val compensation =
+                        escapedLength -
+                            msg.substring(
+                                0,
+                                if (msg.length > tsCharLimit) {
+                                    tsCharLimit
+                                } else {
+                                    msg.lastIndex
+                                },
+                            ).length
+                    // first split the message in to a size that fits tsCharLimit
+                    msg.substring(0, tsCharLimit - compensation + 1).let { str ->
+                        // find index where to split the string.
+                        // Only check at most 10 last lines from the message.
+                        str.lastIndexOf(
+                            "\n\n",
+                            "\\n".toRegex().findAll(str).map { it.range.first }.toList().let {
+                                if (it.size < 10 && str.length < tsCharLimit - compensation + 1) {
+                                    0
+                                } else {
+                                    it.reversed().last()
+                                }
+                            },
+                        ).let { index ->
+                            if (index == -1) {
+                                // no empty lines were found so find the last newline character
+                                // and use that as the index
+                                str.let { text ->
+                                    text.indexOfLast { it == '\n' }.let { lastNewline ->
+                                        if (lastNewline == -1) {
+                                            // if no newlines are found, use the last space
+                                            text.indexOfLast { it == ' ' }.let {
+                                                if (it == -1) tsCharLimit else it
+                                            }
+                                        } else {
+                                            lastNewline
+                                        }
+                                    }
+                                }
+                            } else {
+                                index + 1
+                            }
                         }
                     }
                 }
-            }
             return Pair(
                 msg.substring(0, charLimit),
-                if (escapedLength > tsCharLimit)
+                if (escapedLength > tsCharLimit) {
                     msg.substring(charLimit, msg.lastIndex + 1)
-                else
+                } else {
                     ""
+                },
             )
         }
 
         var msg = message
         while (true) {
-            //If msg has more tha one line, add an empty line to the start of the message if there isn't one already.
-            if (msg.lines().size > 1)
+            // If msg has more tha one line, add an empty line to the start of the message if there isn't one already.
+            if (msg.lines().size > 1) {
                 msg = msg.replace("^\n?".toRegex(), ":\n")
+            }
             val split = splitMessage(msg)
             sendTeamSpeakMessage(split.first)
-            val escapedLength = split.second.substring(
-                0,
-                if (split.second.length > tsCharLimit)
-                    tsCharLimit + 1
-                else
-                    split.second.lastIndex + 1
-            ).length
+            val escapedLength =
+                split.second.substring(
+                    0,
+                    if (split.second.length > tsCharLimit) {
+                        tsCharLimit + 1
+                    } else {
+                        split.second.lastIndex + 1
+                    },
+                ).length
             if (escapedLength > tsCharLimit) {
                 msg = split.second
             } else {

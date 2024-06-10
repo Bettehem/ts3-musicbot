@@ -23,14 +23,13 @@ class SoundCloudTest {
     @Test
     fun testSearchingTrack() {
         runBlocking(IO) {
-            //SoundCloud link to track: i am leeya - something worth dreaming of (leeyas mashup)
+            // SoundCloud link to track: i am leeya - something worth dreaming of (leeyas mashup)
             val testLink = Link("https://soundcloud.com/iamleeya/something-worth-dreaming-of")
             val result =
                 soundCloud.search(SearchType("track"), SearchQuery("leeya something worth dreaming of"))
                     .toString()
             assert(result.contains("Track Link:    \t\t$testLink"))
         }
-
     }
 
     @Test
@@ -45,7 +44,7 @@ class SoundCloudTest {
     @Test
     fun testGettingTrack() {
         runBlocking(IO) {
-            //SoundCloud link to track: i am leeya - something worth dreaming of (leeyas mashup)
+            // SoundCloud link to track: i am leeya - something worth dreaming of (leeyas mashup)
             val testLink = Link("https://soundcloud.com/iamleeya/something-worth-dreaming-of")
             val track = soundCloud.fetchTrack(testLink)
             assertEquals("ajnabiyeh", track.artists.artists[0].name.name)
@@ -56,7 +55,7 @@ class SoundCloudTest {
     @Test
     fun testGettingPlaylist() {
         runBlocking(IO) {
-            //SoundCloud link to playlist: jeesjees
+            // SoundCloud link to playlist: jeesjees
             val testLink = Link("https://soundcloud.com/bettehem/sets/jeesjees")
             val playlist = soundCloud.fetchPlaylist(testLink)
             assertEquals("jeesjees", playlist.name.name)
@@ -67,7 +66,7 @@ class SoundCloudTest {
     @Test
     fun testGettingPlaylistTracks() {
         runBlocking(IO) {
-            //SoundCloud link to playlist: jeesjees
+            // SoundCloud link to playlist: jeesjees
             val testLink = Link("https://soundcloud.com/bettehem/sets/jeesjees")
             val playlist = soundCloud.fetchPlaylistTracks(testLink)
             assertEquals("Louis The Child", playlist.trackList[1].artists.artists[0].name.name)
@@ -78,7 +77,7 @@ class SoundCloudTest {
     @Test
     fun testGettingUserLikes() {
         runBlocking(IO) {
-            //SoundCloud link to user bettehem's likes
+            // SoundCloud link to user bettehem's likes
             val testLink = Link("https://soundcloud.com/bettehem/likes")
             val likes = soundCloud.fetchUserLikes(testLink)
             assertTrue { likes.isNotEmpty() }
@@ -88,7 +87,7 @@ class SoundCloudTest {
     @Test
     fun testGettingUserReposts() {
         runBlocking(IO) {
-            //SoundCloud link to user bettehem's reposts
+            // SoundCloud link to user bettehem's reposts
             val testLink = Link("https://soundcloud.com/bettehem/reposts")
             val reposts = soundCloud.fetchUserReposts(testLink)
             assertTrue { reposts.isNotEmpty() }
@@ -98,7 +97,7 @@ class SoundCloudTest {
     @Test
     fun testGettingAlbum() {
         runBlocking(IO) {
-            //SoundCloud link to album: Brute Force
+            // SoundCloud link to album: Brute Force
             val testLink = Link("https://soundcloud.com/the-algorithm/sets/brute-force-1")
             val album = soundCloud.fetchAlbum(testLink)
             assertEquals("Brute Force", album.name.name)
@@ -110,7 +109,7 @@ class SoundCloudTest {
     @Test
     fun testGettingUser() {
         runBlocking(IO) {
-            //SoundCloud link to user: bettehem
+            // SoundCloud link to user: bettehem
             val testLink = Link("https://soundcloud.com/bettehem")
             val user = soundCloud.fetchUser(testLink)
             assertEquals("bettehem", user.userName.name)
@@ -120,7 +119,7 @@ class SoundCloudTest {
     @Test
     fun testResolvingNewUrlFormat() {
         runBlocking(IO) {
-            //SoundCloud link to track: Episode 130 - Dino Shadix
+            // SoundCloud link to track: Episode 130 - Dino Shadix
             val shortLink = Link("https://on.soundcloud.com/2k9V4")
             val normalLink = Link("https://soundcloud.com/emengypodcast/episode-130-dino-shadix")
             val id = shortLink.getId(soundCloud)

@@ -16,5 +16,5 @@ class BotSettings(
     var useOfficialTsClient: Boolean = true,
     var scVolume: Int = 77,
     var ytVolume: Int = 89,
-    var bcVolume: Int = 90
+    var bcVolume: Int = 90,
 )

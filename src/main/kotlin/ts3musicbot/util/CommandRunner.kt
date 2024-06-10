@@ -8,10 +8,11 @@ data class Output(val outputText: String = "", val errorText: String = "") {
      * @return returns outputText by default or "$outputText\n$errorText" if errorText is not empty
      */
     override fun toString() =
-        if (errorText.isEmpty())
+        if (errorText.isEmpty()) {
             outputText
-        else
+        } else {
             "${outputText.let { if (it.isEmpty()) it else "$it\n" }}$errorText"
+        }
 }
 
 class CommandRunner {
@@ -38,8 +39,9 @@ class CommandRunner {
         val commands = listOf("sh", "-c", command)
         val processBuilder = ProcessBuilder(commands)
 
-        if (printCommand)
+        if (printCommand) {
             println("Running command \"$command\"")
+        }
         val process: Process
         if (inheritIO) {
             process = processBuilder.inheritIO().start()
@@ -47,7 +49,6 @@ class CommandRunner {
         } else {
             process = processBuilder.start()
         }
-
 
         if (!ignoreOutput) {
             val stdOut = BufferedReader(InputStreamReader(process.inputStream))
@@ -73,7 +74,7 @@ class CommandRunner {
         }
         return Output(
             commandOutput.toString().substringBeforeLast("\n"),
-            errorOutput.toString().substringBeforeLast("\n")
+            errorOutput.toString().substringBeforeLast("\n"),
         )
     }
 }

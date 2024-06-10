@@ -9,14 +9,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class SpotifyTest {
-    //Set to your own country
+    // Set to your own country
     private val spotifyMarket = "US"
     private val spotify = Spotify(spotifyMarket).also { runBlocking(IO) { it.updateToken() } }
 
     @Test
     fun testGettingTrack() {
         runBlocking(IO) {
-            //Spotify link to track: SikTh - Peep Show
+            // Spotify link to track: SikTh - Peep Show
             val trackLink = Link("https://open.spotify.com/track/19gtYiBXEhSyTCOe1GyKDB")
             val track = spotify.fetchTrack(trackLink)
             assertEquals("The Trees Are Dead & Dried Out, Wait for Something Wild", track.album.name.name)
@@ -28,7 +28,7 @@ class SpotifyTest {
     @Test
     fun testGettingPlaylist() {
         runBlocking(IO) {
-            //spotify link to playlist: Prog
+            // spotify link to playlist: Prog
             val playlistLink = Link("https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt")
             val playlist = spotify.fetchPlaylist(playlistLink)
             assertEquals("Prog", playlist.name.name)
@@ -39,14 +39,14 @@ class SpotifyTest {
     @Test
     fun testGettingPlaylistTracks() {
         runBlocking(IO) {
-            //Spotify link to playlist: Prog
+            // Spotify link to playlist: Prog
             val playlistLink = Link("https://open.spotify.com/playlist/0wlRan09Ls8XDmFXNo07Tt")
             val playlistTracks = spotify.fetchPlaylistTracks(playlistLink)
             assertEquals("Altered State", playlistTracks.trackList[2].album.name.name)
             assertEquals("TesseracT", playlistTracks.trackList[2].artists.artists[0].name.name)
             assert(
-                playlistTracks.trackList[2].title.name.startsWith("Of Matter")
-                        && playlistTracks.trackList[2].title.name.endsWith("Resist")
+                playlistTracks.trackList[2].title.name.startsWith("Of Matter") &&
+                    playlistTracks.trackList[2].title.name.endsWith("Resist"),
             )
         }
     }
@@ -54,7 +54,7 @@ class SpotifyTest {
     @Test
     fun testGettingAlbum() {
         runBlocking(IO) {
-            //Spotify link to album: Destrier
+            // Spotify link to album: Destrier
             val albumLink = Link("https://open.spotify.com/album/1syoohGc0fQAoJWy57XZUF?si=ATPp0MnORemSb2BPgar5EA")
             val album = spotify.fetchAlbum(albumLink)
             assertEquals("Destrier", album.name.name)
@@ -65,7 +65,7 @@ class SpotifyTest {
     @Test
     fun testGettingAlbumTracks() {
         runBlocking(IO) {
-            //Spotify link to album: Destrier
+            // Spotify link to album: Destrier
             val albumLink = Link("https://open.spotify.com/album/1syoohGc0fQAoJWy57XZUF?si=ATPp0MnORemSb2BPgar5EA")
             val albumTracks = spotify.fetchAlbumTracks(albumLink)
             assertEquals("Destrier", albumTracks.trackList[0].album.name.name)
@@ -77,7 +77,7 @@ class SpotifyTest {
     @Test
     fun testGettingArtist() {
         runBlocking(IO) {
-            //Spotify link to artist: TesseracT
+            // Spotify link to artist: TesseracT
             val artistLink = Link("https://open.spotify.com/artist/23ytwhG1pzX6DIVWRWvW1r?si=GNhxGVI_To-4z5doq2PE7A")
             val artist = spotify.fetchArtist(artistLink)
             assertEquals("TesseracT", artist.name.name)
@@ -87,7 +87,7 @@ class SpotifyTest {
     @Test
     fun testGettingUser() {
         runBlocking(IO) {
-            //Spotify link to user: Bettehem
+            // Spotify link to user: Bettehem
             val userLink = Link("https://open.spotify.com/user/bettehem")
             val user = spotify.fetchUser(userLink)
             assertEquals("bettehem", user.userName.name)
@@ -97,7 +97,7 @@ class SpotifyTest {
     @Test
     fun testGettingShow() {
         runBlocking(IO) {
-            //spotify link to show: Ascension with Simon Dumont
+            // spotify link to show: Ascension with Simon Dumont
             val showLink = Link("https://open.spotify.com/show/7kTddVIBh6IMGiwDHpj3zL")
             val show = spotify.fetchShow(showLink)
             assertEquals("Ascension with Simon Dumont", show.name.name)
@@ -108,15 +108,16 @@ class SpotifyTest {
     @Test
     fun testGettingEpisode() {
         runBlocking(IO) {
-            //spotify link to episode 1 from show Ascension with Simon Dumont
+            // spotify link to episode 1 from show Ascension with Simon Dumont
             val episodeLink = Link("https://open.spotify.com/episode/3tR0C41CUqAZfA7f0eek9L")
             val episode = spotify.fetchEpisode(episodeLink)
             assertEquals("Ep. 1 Tom Wallisch", episode.name.name)
             assertEquals(
                 "Fresh off of their \"Resurrection\" edit reboot, the God-Fathers of ski style return. " +
-                        "Simon Dumont is launching his new show and bringing the crew along with him. " +
-                        "Tom Wallisch slides into the studio with Simon in order to quickly go over the past and look forward to the future of skiing.",
-                episode.description.text
+                    "Simon Dumont is launching his new show and bringing the crew along with him. " +
+                    "Tom Wallisch slides into the studio with Simon in order to quickly go over the past " +
+                    "and look forward to the future of skiing.",
+                episode.description.text,
             )
         }
     }
@@ -124,7 +125,7 @@ class SpotifyTest {
     @Test
     fun testResolvingNewUrlFormat() {
         runBlocking(IO) {
-            //spotify link to track: Tesseract - War of Being
+            // spotify link to track: Tesseract - War of Being
             val link = Link("https://spotify.link/FwzVyxos3Cb")
             val link2 = Link("https://spotify.app.link/FwzVyxos3Cb?_p=c91529c39d067af2e31d90fceb")
             val id = link.getId(spotify)
