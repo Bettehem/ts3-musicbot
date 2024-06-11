@@ -11,6 +11,7 @@ plugins {
 }
 
 group = "ts3-musicbot"
+version = "master"
 
 repositories {
     mavenCentral()
@@ -18,10 +19,10 @@ repositories {
 }
 
 dependencies {
+    testImplementation(kotlin("test"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.10")
     implementation(platform("org.jetbrains.kotlin:kotlin-bom"))
     testImplementation("org.jetbrains.kotlin:kotlin-test")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
 
     implementation("org.json:json:20230227")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.6.3-native-mt")
@@ -30,6 +31,12 @@ dependencies {
     implementation("org.openjfx:javafx-controls:17")
 }
 
+tasks.test {
+    useJUnitPlatform()
+}
+kotlin {
+    jvmToolchain(11)
+}
 // JavaFX modules to include
 javafx {
     version = "17"
@@ -38,7 +45,7 @@ javafx {
 
 application {
     // Define the main class for the application.
-    mainClass.set("ts3musicbot.Main")
+    mainClass = "ts3musicbot.Main"
 }
 val compileKotlin: KotlinCompile by tasks
 compileKotlin.kotlinOptions {
@@ -60,7 +67,7 @@ tasks.withType<ShadowJar> {
     mergeServiceFiles()
     minimize()
     manifest {
-        attributes(mapOf("Main-Class" to "ts3_musicbot.Main"))
+        attributes(mapOf("Main-Class" to application.mainClass))
     }
 }
 
