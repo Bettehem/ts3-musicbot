@@ -575,12 +575,6 @@ class ChatReader(
                                             }
 
                                             LinkType.PLAYLIST, LinkType.SHOW, LinkType.ALBUM -> {
-                                                val tracks = filterList(
-                                                    when (type) {
-                                                        LinkType.PLAYLIST -> service.fetchPlaylistTracks(
-                                                            link,
-                                                            trackLimit
-                                                        )
                                                 val tracks =
                                                     filterList(
                                                         when (type) {
