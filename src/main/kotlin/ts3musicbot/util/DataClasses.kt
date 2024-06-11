@@ -23,7 +23,6 @@ enum class LinkType {
     VIDEO,
     QUERY,
     RECOMMENDED,
-    OTHER
     OTHER,
 }
 
