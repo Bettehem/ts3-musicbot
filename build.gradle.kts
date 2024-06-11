@@ -38,7 +38,7 @@ javafx {
 
 application {
     // Define the main class for the application.
-    mainClass.set("ts3_musicbot.Main")
+    mainClass.set("ts3musicbot.Main")
 }
 val compileKotlin: KotlinCompile by tasks
 compileKotlin.kotlinOptions {
