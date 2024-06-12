@@ -16,6 +16,7 @@ enum class LinkType {
     EPISODE,
     LIKES,
     PLAYLIST,
+    SYSTEM_PLAYLIST,
     REPOSTS,
     SHOW,
     TRACK,

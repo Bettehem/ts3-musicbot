@@ -574,11 +574,11 @@ class ChatReader(
                                                 commandSuccessful.add(Pair(trackAdded, Pair(msg, track)))
                                             }
 
-                                            LinkType.PLAYLIST, LinkType.SHOW, LinkType.ALBUM -> {
+                                            LinkType.PLAYLIST, LinkType.SYSTEM_PLAYLIST, LinkType.SHOW, LinkType.ALBUM -> {
                                                 val tracks =
                                                     filterList(
                                                         when (type) {
-                                                            LinkType.PLAYLIST ->
+                                                            LinkType.PLAYLIST, LinkType.SYSTEM_PLAYLIST ->
                                                                 service.fetchPlaylistTracks(
                                                                     link,
                                                                     trackLimit,
@@ -975,7 +975,7 @@ class ChatReader(
                                             val link = rawLink.clean(service)
                                             // if any link type needs extra actions taken, do those here
                                             when (rawLink.linkType()) {
-                                                LinkType.PLAYLIST -> {
+                                                LinkType.PLAYLIST, LinkType.SYSTEM_PLAYLIST -> {
                                                     printToChat(listOf("Please wait, fetching tracks in the list:\n$link"))
                                                     links.remove(link)
                                                     links.addAll(
@@ -1874,7 +1874,7 @@ class ChatReader(
                                                 when (link.linkType()) {
                                                     LinkType.TRACK -> soundCloud.fetchTrack(link)
                                                     LinkType.ALBUM -> soundCloud.fetchAlbum(link)
-                                                    LinkType.PLAYLIST -> soundCloud.fetchPlaylist(link)
+                                                    LinkType.PLAYLIST, LinkType.SYSTEM_PLAYLIST -> soundCloud.fetchPlaylist(link)
                                                     LinkType.ARTIST -> soundCloud.fetchArtist(link)
                                                     LinkType.USER -> soundCloud.fetchUser(link)
                                                     else -> null

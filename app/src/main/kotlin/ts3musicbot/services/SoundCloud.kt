@@ -50,6 +50,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         listOf(
             LinkType.TRACK,
             LinkType.PLAYLIST,
+            LinkType.SYSTEM_PLAYLIST,
             LinkType.ALBUM,
             LinkType.USER,
             LinkType.ARTIST,
@@ -404,6 +405,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
 
     override suspend fun fetchPlaylist(playlistLink: Link): Playlist {
         lateinit var playlist: Playlist
+        val isSystemPlaylist = playlistLink.linkType(this) == LinkType.SYSTEM_PLAYLIST
 
         fun parsePlaylistData(playlistData: JSONObject): Playlist {
             return Playlist(
@@ -423,15 +425,20 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                 } else {
                     Followers()
                 },
-                Publicity(playlistData.getBoolean("public")),
-                tracks = TrackList(List(playlistData.getInt("track_count")) { Track() }),
+                Publicity(playlistData.getBoolean(if (isSystemPlaylist) "is_public" else "public")),
+                tracks =
+                    if (isSystemPlaylist) {
+                        TrackList(List(playlistData.getJSONArray("tracks").length()) { Track() })
+                    } else {
+                        TrackList(List(playlistData.getInt("track_count")) { Track() })
+                    },
                 link =
                     Link(
-                        playlistData.getJSONObject("user").getString("permalink_url"),
+                        playlistData.getString("permalink_url"),
                         if (playlistData.get("id") is String) {
-                            playlistData.getJSONObject("user").getString("id")
+                            playlistData.getString("id")
                         } else {
-                            playlistData.getJSONObject("user").getInt("id").toString()
+                            playlistData.getInt("id").toString()
                         },
                     ),
             )
@@ -1583,13 +1590,14 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
     override suspend fun resolveType(link: Link): LinkType {
         val resolveJob = Job()
         var linkToSolve = link.clean(this)
-        val urlStart = "(https?://)?soundcloud\\.com/[a-z0-9-_]+"
+        val urlStart = "(https?://)?soundcloud\\.com"
         val deferredType =
             CoroutineScope(IO + resolveJob).async {
                 when {
-                    "$linkToSolve".contains("$urlStart/(?!sets|likes|reposts)\\S+".toRegex()) -> LinkType.TRACK
-                    "$linkToSolve".contains("$urlStart/likes".toRegex()) -> LinkType.LIKES
-                    "$linkToSolve".contains("$urlStart/reposts".toRegex()) -> LinkType.REPOSTS
+                    "$linkToSolve".contains("$urlStart/[a-z0-9-_]+/(?!sets|likes|reposts)\\S+".toRegex()) -> LinkType.TRACK
+                    "$linkToSolve".contains("$urlStart/[a-z0-9-_]+/likes".toRegex()) -> LinkType.LIKES
+                    "$linkToSolve".contains("$urlStart/[a-z0-9-_]+/reposts".toRegex()) -> LinkType.REPOSTS
+                    "$linkToSolve".contains("$urlStart/discover/sets".toRegex()) -> LinkType.SYSTEM_PLAYLIST
                     else -> {
                         lateinit var type: LinkType
                         while (true) {
@@ -1610,7 +1618,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                                     if (data.getBoolean("is_album")) {
                                                         LinkType.ALBUM
                                                     } else {
-                                                        LinkType.valueOf(kind)
+                                                        LinkType.valueOf(kind.uppercase())
                                                     }
                                                 }
 
@@ -1619,12 +1627,12 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                                     if (data.getInt("track_count") > 0) {
                                                         LinkType.ARTIST
                                                     } else {
-                                                        LinkType.valueOf(kind)
+                                                        LinkType.valueOf(kind.uppercase())
                                                     }
                                                 }
 
                                                 else -> {
-                                                    LinkType.valueOf(kind)
+                                                    LinkType.valueOf(kind.uppercase().replace('-', '_'))
                                                 }
                                             }
                                         break
