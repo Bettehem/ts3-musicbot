@@ -1,5 +1,6 @@
 package ts3musicbot.services
 
+import org.json.JSONArray
 import org.json.JSONObject
 import ts3musicbot.util.Album
 import ts3musicbot.util.Albums
@@ -374,6 +375,71 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
         }
     }
 
+    suspend fun fetchDiscover(discoverLink: Link): TrackList {
+        var format = "digital"
+        var sorting = "top"
+        var genre = "all"
+        var subGenre = ""
+        var page = 0
+        val linkBuilder = StringBuilder()
+        for (part in discoverLink.link.substringAfterLast('/').replace("#discover", "").split("[?&]".toRegex())) {
+            val value = part.substringAfter('=')
+            when (part.substringBefore('=')) {
+                "g" -> genre = value
+                "t" -> subGenre = value
+                "s" -> sorting = value
+                "p" -> page = value.toInt()
+                "f" -> format = value
+            }
+        }
+        if (format != "digital") {
+            println("Non digital formats are unsupported! Changing to digital...")
+            format = "digital"
+        }
+        linkBuilder.append("https://bandcamp.com/api/discover/3/get_web?")
+        linkBuilder.append("f=$format")
+        linkBuilder.append("&g=$genre")
+        if (subGenre.isNotEmpty()) linkBuilder.append("&t=$subGenre")
+        linkBuilder.append("&s=$sorting")
+        linkBuilder.append("&p=$page")
+        val response = sendHttpRequest(Link(linkBuilder.toString()))
+
+        suspend fun parseItems(data: JSONArray): TrackList {
+            val tracks = ArrayList<Track>()
+            for (item in data) {
+                item as JSONObject
+                when (item.getString("type")) {
+                    "a" -> {
+                        val urlHints = item.getJSONObject("url_hints")
+                        val subDomain = urlHints.getString("subdomain")
+                        val slug = urlHints.getString("slug")
+                        tracks.addAll(
+                            fetchAlbumTracks(
+                                Link("https://$subDomain.bandcamp.com/album/$slug"),
+                            ).trackList,
+                        )
+                    }
+                }
+            }
+            return TrackList(tracks)
+        }
+
+        return when (response.code.code) {
+            HttpURLConnection.HTTP_OK -> {
+                try {
+                    val data = JSONObject(response.data.data)
+                    parseItems(data.getJSONArray("items"))
+                } catch (e: Exception) {
+                    println("Failed JSON:\n${response.data}\n")
+                    println("Failed to get data from JSON, trying again...")
+                    TrackList()
+                }
+            }
+
+            else -> TrackList()
+        }
+    }
+
     /**
      * Fetch recommended artists for the given artist link
      * @param recommendationsLink Link to get recommendations from
@@ -417,6 +483,7 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
             "$link".contains("https?://\\S+\\.bandcamp\\.com/album/\\S+".toRegex()) -> LinkType.ALBUM
             "$link".contains("https?://bandcamp\\.com/recommended/\\S+".toRegex()) -> LinkType.RECOMMENDED
             "$link".contains("https?://\\S+\\.bandcamp\\.com(/(music|merch|community))?$".toRegex()) -> LinkType.ARTIST
+            "$link".contains("https?://bandcamp\\.com/(discover\\S*|\\S*#discover$)".toRegex()) -> LinkType.DISCOVER
             else -> LinkType.OTHER
         }
     }

@@ -123,4 +123,13 @@ class BandcampTest {
             assert(results.results.any { it.link.link == "https://kscopemusic.bandcamp.com/album/polaris" })
         }
     }
+
+    @Test
+    fun testGettingDiscover() {
+        runBlocking {
+            val testLink = Link("https://bandcamp.com/?g=metal&s=top&p=0&gn=0&f=digital&t=progressive-metal#discover")
+            val trackList = bandcamp.fetchDiscover(testLink)
+            assert(trackList.size > 0)
+        }
+    }
 }

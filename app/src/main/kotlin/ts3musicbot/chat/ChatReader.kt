@@ -695,6 +695,32 @@ class ChatReader(
                                                 commandSuccessful.add(Pair(tracksAdded, Pair(msg, trackList)))
                                             }
 
+                                            LinkType.DISCOVER -> {
+                                                val tracks =
+                                                    when (service) {
+                                                        is Bandcamp ->
+                                                            TrackList(
+                                                                filterList(service.fetchDiscover(link), link).trackList.let { list ->
+                                                                    if (trackLimit != 0 && list.size > trackLimit) {
+                                                                        list.subList(0, trackLimit)
+                                                                    } else {
+                                                                        list
+                                                                    }
+                                                                },
+                                                            )
+                                                        else -> TrackList()
+                                                    }
+                                                var trackList = if (shouldReverse) tracks.reversed() else tracks
+                                                trackList = if (shouldShuffle) trackList.shuffled() else trackList
+                                                val tracksAdded = songQueue.addAllToQueue(trackList, customPosition)
+                                                val msg = if (tracksAdded) tracksAddedMsg else tracksAddingErrorMsg
+                                                if (tracksAdded) {
+                                                    trackCache.add(Pair(link, tracks))
+                                                }
+                                                commandListener.onCommandProgress(commandString, msg, trackList)
+                                                commandSuccessful.add(Pair(tracksAdded, Pair(msg, trackList)))
+                                            }
+
                                             else -> {
                                                 val msg = "Link type \"$type\" for link $link is not supported!"
                                                 commandListener.onCommandProgress(commandString, msg, link)
@@ -1104,6 +1130,13 @@ class ChatReader(
                                                     links.remove(rawLink)
                                                     if (service is Bandcamp) {
                                                         service.fetchRecommendedAlbums(link)
+                                                    }
+                                                }
+
+                                                LinkType.DISCOVER -> {
+                                                    links.remove(rawLink)
+                                                    if (service is Bandcamp) {
+                                                        service.fetchDiscover(link)
                                                     }
                                                 }
 

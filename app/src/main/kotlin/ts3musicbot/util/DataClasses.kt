@@ -24,6 +24,7 @@ enum class LinkType {
     VIDEO,
     QUERY,
     RECOMMENDED,
+    DISCOVER,
     OTHER,
 }
 
@@ -278,7 +279,9 @@ data class Link(val link: String = "", val linkId: String = "", val linkedFrom: 
                         else -> link
                     },
                 )
-            Service.ServiceType.SOUNDCLOUD, Service.ServiceType.BANDCAMP -> Link(link.substringBefore("?"))
+            Service.ServiceType.SOUNDCLOUD -> Link(link.substringBefore("?"))
+
+            Service.ServiceType.BANDCAMP -> Link(link.replace("from=\\S+&".toRegex(), ""))
             else -> this
         }
 
