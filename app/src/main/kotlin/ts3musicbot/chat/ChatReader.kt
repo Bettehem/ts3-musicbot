@@ -1160,9 +1160,6 @@ class ChatReader(
 
                                                 LinkType.DISCOVER -> {
                                                     links.remove(rawLink)
-                                                    if (service is Bandcamp) {
-                                                        service.fetchDiscover(link)
-                                                    }
                                                     links.addAll(
                                                         if (trackCache.any { it.first == link }) {
                                                             println("Tracks found in cache!")
