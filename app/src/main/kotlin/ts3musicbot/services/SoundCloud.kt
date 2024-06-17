@@ -431,7 +431,11 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                             playlistData.getJSONObject("user").getInt("id").toString(),
                         ),
                 ),
-                Description(playlistData.getString("description")),
+                if (!playlistData.isNull("description")) {
+                    Description(playlistData.getString("description"))
+                } else {
+                    Description()
+                },
                 if (!playlistData.isNull("likes_count")) {
                     Followers(playlistData.getInt("likes_count"))
                 } else {
