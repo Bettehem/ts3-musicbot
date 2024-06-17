@@ -402,7 +402,10 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
         )
     }
 
-    override suspend fun fetchPlaylist(playlistLink: Link): Playlist {
+    override suspend fun fetchPlaylist(
+        playlistLink: Link,
+        shouldFetchTracks: Boolean,
+    ): Playlist {
         lateinit var playlist: Playlist
 
         suspend fun parsePlaylistData(data: JSONObject): Playlist {
@@ -413,7 +416,11 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                 Followers(data.getJSONObject("followers").getInt("total")),
                 Publicity(data.getBoolean("public")),
                 Collaboration(data.getBoolean("collaborative")),
-                TrackList(List(data.getJSONObject("tracks").getInt("total")) { Track() }),
+                if (shouldFetchTracks) {
+                    fetchPlaylistTracks(playlistLink)
+                } else {
+                    TrackList(List(data.getJSONObject("tracks").getInt("total")) { Track() })
+                },
                 Link(data.getJSONObject("external_urls").getString("spotify")),
             )
         }

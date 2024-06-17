@@ -163,9 +163,13 @@ class YouTube : Service(ServiceType.YOUTUBE) {
     /**
      * Fetch a playlist's data (not tracks) from YouTube
      * @param playlistLink link to playlist
+     * @param shouldFetchTracks set to true if the playlist's tracks should be fetched too
      * @return returns a Playlist containing the given playlist's information
      */
-    override suspend fun fetchPlaylist(playlistLink: Link): Playlist {
+    override suspend fun fetchPlaylist(
+        playlistLink: Link,
+        shouldFetchTracks: Boolean,
+    ): Playlist {
         fun fetchPlaylistData(apiKey: String = apiKey1): Response {
             val linkBuilder = StringBuilder()
             linkBuilder.append("$apiUrl/playlists")
@@ -186,20 +190,23 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                         try {
                             val playlistJSON = JSONObject(playlistData.data.data).getJSONArray("items").first()
                             playlistJSON as JSONObject
+                            val listLink = Link("https://www.youtube.com/playlist?list=${playlistJSON.getString("id")}")
                             playlist =
                                 Playlist(
                                     Name(playlistJSON.getJSONObject("snippet").getString("title")),
                                     User(Name(playlistJSON.getJSONObject("snippet").getString("channelTitle"))),
                                     Description(playlistJSON.getJSONObject("snippet").getString("description")),
                                     publicity =
-                                        Publicity(
-                                            playlistJSON.getJSONObject("status").getString("privacyStatus") == "public",
-                                        ),
+                                        Publicity(playlistJSON.getJSONObject("status").getString("privacyStatus") == "public"),
                                     tracks =
-                                        TrackList(
-                                            List(playlistJSON.getJSONObject("contentDetails").getInt("itemCount")) { Track() },
-                                        ),
-                                    link = Link("https://www.youtube.com/playlist?list=${playlistJSON.getString("id")}"),
+                                        if (shouldFetchTracks) {
+                                            fetchPlaylistTracks(listLink)
+                                        } else {
+                                            TrackList(
+                                                List(playlistJSON.getJSONObject("contentDetails").getInt("itemCount")) { Track() },
+                                            )
+                                        },
+                                    link = listLink,
                                 )
                             break
                         } catch (e: JSONException) {

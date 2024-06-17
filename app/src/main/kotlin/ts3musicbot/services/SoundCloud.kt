@@ -403,11 +403,23 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         return sendHttpRequest(Link(linkBuilder.toString()))
     }
 
-    override suspend fun fetchPlaylist(playlistLink: Link): Playlist {
+    override suspend fun fetchPlaylist(
+        playlistLink: Link,
+        shouldFetchTracks: Boolean,
+    ): Playlist {
         lateinit var playlist: Playlist
         val isSystemPlaylist = playlistLink.linkType(this) == LinkType.SYSTEM_PLAYLIST
 
-        fun parsePlaylistData(playlistData: JSONObject): Playlist {
+        suspend fun parsePlaylistData(playlistData: JSONObject): Playlist {
+            val listLink =
+                Link(
+                    playlistData.getString("permalink_url"),
+                    if (playlistData.get("id") is String) {
+                        playlistData.getString("id")
+                    } else {
+                        playlistData.getInt("id").toString()
+                    },
+                )
             return Playlist(
                 Name(playlistData.getString("title")),
                 User(
@@ -427,20 +439,16 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                 },
                 Publicity(playlistData.getBoolean(if (isSystemPlaylist) "is_public" else "public")),
                 tracks =
-                    if (isSystemPlaylist) {
-                        TrackList(List(playlistData.getJSONArray("tracks").length()) { Track() })
+                    if (shouldFetchTracks) {
+                        fetchPlaylistTracks(listLink)
                     } else {
-                        TrackList(List(playlistData.getInt("track_count")) { Track() })
-                    },
-                link =
-                    Link(
-                        playlistData.getString("permalink_url"),
-                        if (playlistData.get("id") is String) {
-                            playlistData.getString("id")
+                        if (isSystemPlaylist) {
+                            TrackList(List(playlistData.getJSONArray("tracks").length()) { Track() })
                         } else {
-                            playlistData.getInt("id").toString()
-                        },
-                    ),
+                            TrackList(List(playlistData.getInt("track_count")) { Track() })
+                        }
+                    },
+                link = listLink,
             )
         }
 

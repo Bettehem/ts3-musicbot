@@ -58,7 +58,10 @@ open class Service(val serviceType: ServiceType) {
         fetchRecommendations: Boolean = true,
     ) = Artist()
 
-    open suspend fun fetchPlaylist(playlistLink: Link) = Playlist()
+    open suspend fun fetchPlaylist(
+        playlistLink: Link,
+        shouldFetchTracks: Boolean = false,
+    ) = Playlist()
 
     open suspend fun fetchPlaylistTracks(
         playlistLink: Link,
