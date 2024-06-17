@@ -24,6 +24,17 @@ open class Service(val serviceType: ServiceType) {
         YOUTUBE,
         BANDCAMP,
         OTHER,
+        ;
+
+        override fun toString(): String {
+            return when (this) {
+                SOUNDCLOUD -> "SoundCloud"
+                SPOTIFY -> "Spotify"
+                YOUTUBE -> "YouTube"
+                BANDCAMP -> "Bandcamp"
+                else -> super.toString()
+            }
+        }
     }
 
     protected open fun encode(text: String) =

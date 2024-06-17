@@ -363,6 +363,8 @@ data class Albums(val albums: List<Album> = emptyList()) {
         return strBuilder.toString()
     }
 
+    fun getTrackList() = TrackList(albums.flatMap { it.tracks.trackList })
+
     fun isEmpty() = albums.isEmpty()
 
     fun isNotEmpty() = albums.isNotEmpty()
@@ -594,6 +596,8 @@ data class Playlist(
 data class Playlists(val lists: List<Playlist> = emptyList()) {
     val size = lists.size
 
+    fun getTrackList() = TrackList(lists.flatMap { it.tracks.trackList })
+
     fun isEmpty() = lists.isEmpty()
 
     fun isNotEmpty() = lists.isNotEmpty()
@@ -622,4 +626,41 @@ data class Show(
     fun isEmpty() = name.isEmpty() && publisher.isEmpty() && description.isEmpty() && episodes.isEmpty() && link.isEmpty()
 
     fun isNotEmpty() = name.isNotEmpty() || publisher.isNotEmpty() || description.isNotEmpty() || episodes.isNotEmpty() || link.isNotEmpty()
+}
+
+data class Discover(
+    val name: Name = Name(),
+    val albums: Albums = Albums(),
+    val playlists: Playlists = Playlists(),
+    val link: Link = Link(),
+    val useCustomName: Boolean = false,
+) {
+    override fun toString() =
+        if (useCustomName) {
+            "$name"
+        } else {
+            "${if (name.isEmpty()) Name() else name}\n"
+        } +
+            "$name from ${link.serviceType()}\n" +
+            "$name link:\t\t\t      $link\n" +
+            (if (albums.isNotEmpty()) "Albums:\n$albums\n" else "") +
+            (if (playlists.isNotEmpty()) "Playlists:\n$playlists\n" else "")
+
+    fun getTrackList() = TrackList(playlists.lists.flatMap { it.tracks.trackList } + albums.albums.flatMap { it.tracks.trackList })
+
+    fun isEmpty() = name.isEmpty() && albums.isEmpty() && playlists.isEmpty() && link.isEmpty()
+
+    fun isNotEmpty() = name.isNotEmpty() || albums.isNotEmpty() || playlists.isNotEmpty() || link.isNotEmpty()
+}
+
+data class Discoveries(val discoveries: List<Discover> = emptyList()) {
+    val size = discoveries.size
+
+    fun getTrackList() = TrackList(discoveries.flatMap { it.getTrackList().trackList })
+
+    fun isEmpty() = discoveries.isEmpty()
+
+    fun isNotEmpty() = discoveries.isNotEmpty()
+
+    fun ifNotEmpty(fn: (discoveries: Discoveries) -> Any) = if (isNotEmpty()) fn(this) else this
 }

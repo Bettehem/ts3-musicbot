@@ -700,7 +700,25 @@ class ChatReader(
                                                     when (service) {
                                                         is Bandcamp ->
                                                             TrackList(
-                                                                filterList(service.fetchDiscover(link), link).trackList.let { list ->
+                                                                filterList(
+                                                                    service.fetchDiscover(link).getTrackList(),
+                                                                    link,
+                                                                ).trackList.let {
+                                                                        list ->
+                                                                    if (trackLimit != 0 && list.size > trackLimit) {
+                                                                        list.subList(0, trackLimit)
+                                                                    } else {
+                                                                        list
+                                                                    }
+                                                                },
+                                                            )
+                                                        is SoundCloud ->
+                                                            TrackList(
+                                                                filterList(
+                                                                    service.fetchDiscover(link).getTrackList(),
+                                                                    link,
+                                                                ).trackList.let {
+                                                                        list ->
                                                                     if (trackLimit != 0 && list.size > trackLimit) {
                                                                         list.subList(0, trackLimit)
                                                                     } else {
@@ -1115,8 +1133,7 @@ class ChatReader(
                                                                 trackCache.first { it.first == link }.second.trackList
                                                             } else {
                                                                 service.fetchShow(link).episodes.toTrackList().trackList
-                                                            }
-                                                                .map { episode -> episode.link },
+                                                            }.map { episode -> episode.link },
                                                         )
                                                     }
                                                 }
@@ -1129,7 +1146,15 @@ class ChatReader(
                                                 LinkType.RECOMMENDED -> {
                                                     links.remove(rawLink)
                                                     if (service is Bandcamp) {
-                                                        service.fetchRecommendedAlbums(link)
+                                                        links.addAll(
+                                                            if (trackCache.any { it.first == link }) {
+                                                                println("Tracks found in cache!")
+                                                                trackCache.first { it.first == link }.second.trackList
+                                                            } else {
+                                                                service.fetchRecommendedAlbums(link)
+                                                                    .getTrackList().trackList
+                                                            }.map { it.link },
+                                                        )
                                                     }
                                                 }
 
@@ -1138,6 +1163,18 @@ class ChatReader(
                                                     if (service is Bandcamp) {
                                                         service.fetchDiscover(link)
                                                     }
+                                                    links.addAll(
+                                                        if (trackCache.any { it.first == link }) {
+                                                            println("Tracks found in cache!")
+                                                            trackCache.first { it.first == link }.second.trackList
+                                                        } else {
+                                                            when (service) {
+                                                                is Bandcamp -> service.fetchDiscover(link).getTrackList().trackList
+                                                                is SoundCloud -> service.fetchDiscover(link).getTrackList().trackList
+                                                                else -> emptyList()
+                                                            }
+                                                        }.map { it.link },
+                                                    )
                                                 }
 
                                                 LinkType.VIDEO, LinkType.EPISODE, LinkType.TRACK, LinkType.OTHER -> {}

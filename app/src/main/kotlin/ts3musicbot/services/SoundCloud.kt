@@ -11,10 +11,13 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import ts3musicbot.util.Album
+import ts3musicbot.util.Albums
 import ts3musicbot.util.Artist
 import ts3musicbot.util.Artists
 import ts3musicbot.util.Collaboration
 import ts3musicbot.util.Description
+import ts3musicbot.util.Discover
+import ts3musicbot.util.Discoveries
 import ts3musicbot.util.Followers
 import ts3musicbot.util.Genres
 import ts3musicbot.util.Likes
@@ -54,6 +57,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
             LinkType.ALBUM,
             LinkType.USER,
             LinkType.ARTIST,
+            LinkType.DISCOVER,
         )
 
     /**
@@ -565,12 +569,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
     }
 
     override suspend fun fetchAlbum(albumLink: Link): Album {
-        val id =
-            if ("$albumLink".startsWith("$apiURI/")) {
-                "$albumLink".substringAfterLast("/")
-            } else {
-                resolveId(albumLink)
-            }
+        val id = resolveId(albumLink)
         val albumJob = Job()
         return withContext(IO + albumJob) {
             lateinit var album: Album
@@ -626,13 +625,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         albumLink: Link,
         limit: Int,
     ): TrackList {
-        val id =
-            if ("$albumLink".startsWith("$apiURI/")) {
-                "$albumLink".substringAfterLast("/")
-            } else {
-                resolveId(albumLink)
-            }
-
+        val id = resolveId(albumLink)
         val albumJob = Job()
         return withContext(IO + albumJob) {
             val trackList = ArrayList<Track>()
@@ -694,13 +687,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         lateinit var track: Track
 
         suspend fun fetchTrackData(): Response {
-            val id =
-                if ("$trackLink".startsWith("$apiURI/tracks/")) {
-                    "$trackLink".substringAfterLast("/")
-                } else {
-                    resolveId(trackLink)
-                }
-
+            val id = resolveId(trackLink)
             val linkBuilder = StringBuilder()
             linkBuilder.append("$api2URI/tracks/$id")
             linkBuilder.append("?client_id=$clientId")
@@ -898,12 +885,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
 
     private suspend fun fetchUserPlaylists(userLink: Link): Playlists {
         suspend fun fetchData(): Response {
-            val id =
-                if ("$userLink".startsWith("$apiURI/users/")) {
-                    "$userLink".substringAfterLast("/")
-                } else {
-                    resolveId(userLink)
-                }
+            val id = resolveId(userLink)
             val linkBuilder = StringBuilder()
             linkBuilder.append("$api2URI/users/$id/playlists")
             linkBuilder.append("?client_id=$clientId")
@@ -974,12 +956,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         playlistsOnly: Boolean = false,
     ): TrackList {
         suspend fun fetchData(link: Link = userLink): Response {
-            val id =
-                if ("$link".startsWith("$api2URI/users/")) {
-                    "$link".substringBeforeLast("/").substringAfterLast("/")
-                } else {
-                    resolveId(Link("$link".substringBeforeLast("/")))
-                }
+            val id = resolveId(Link("$link".substringBeforeLast('/')))
             val linkBuilder = StringBuilder()
             linkBuilder.append("$api2URI/users/$id/likes")
             linkBuilder.append("?client_id=$clientId")
@@ -1146,12 +1123,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         playlistsOnly: Boolean = false,
     ): TrackList {
         suspend fun fetchData(link: Link = userLink): Response {
-            val id =
-                if ("$link".startsWith("$api2URI/stream/users/")) {
-                    "$link".substringBeforeLast("/").substringAfterLast("/")
-                } else {
-                    resolveId(Link("$link".substringBeforeLast("/")))
-                }
+            val id = resolveId(Link("$link".substringBeforeLast('/')))
             val linkBuilder = StringBuilder()
             linkBuilder.append("$api2URI/stream/users/$id/reposts")
             linkBuilder.append("?client_id=$clientId")
@@ -1427,12 +1399,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
 
     override suspend fun fetchUser(userLink: Link): User {
         lateinit var user: User
-        val id =
-            if ("$userLink".startsWith("$apiURI/users/")) {
-                "$userLink".substringAfterLast("/")
-            } else {
-                resolveId(userLink)
-            }
+        val id = resolveId(userLink)
 
         suspend fun parseUserData(userData: JSONObject): User {
             return User(
@@ -1481,12 +1448,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         fetchRecommendations: Boolean,
     ): Artist {
         lateinit var artist: Artist
-        val id =
-            if ("$artistLink".startsWith("$apiURI/users/")) {
-                "$artistLink".substringAfterLast("/")
-            } else {
-                resolveId(artistLink)
-            }
+        val id = resolveId(artistLink)
         val artistJob = Job()
 
         suspend fun parseArtistData(artistData: JSONObject) {
@@ -1591,6 +1553,80 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         return artist
     }
 
+    suspend fun fetchDiscover(discoverLink: Link): Discoveries {
+        val discoveries = ArrayList<Discover>()
+
+        fun fetchDiscoverData(): Response {
+            val linkBuilder = StringBuilder()
+            linkBuilder.append("$api2URI/mixed-selections?")
+            linkBuilder.append("client_id=$clientId")
+            return sendHttpRequest(Link(linkBuilder.toString()))
+        }
+
+        suspend fun parseDiscoverData(jsonData: JSONObject) {
+            for (discovery in jsonData.getJSONArray("collection")) {
+                discovery as JSONObject
+                val name = Name(discovery.getString("title"))
+                val albums = ArrayList<Album>()
+                val playlists = ArrayList<Playlist>()
+
+                for (item in discovery.getJSONObject("items").getJSONArray("collection")) {
+                    item as JSONObject
+                    val kind = item.getString("kind")
+                    val type =
+                        when (kind) {
+                            "playlist" -> if (item.getBoolean("is_album")) LinkType.ALBUM else LinkType.PLAYLIST
+                            else -> LinkType.valueOf(kind.uppercase())
+                        }
+                    val link = Link(item.getString("uri"))
+                    when (type) {
+                        LinkType.PLAYLIST -> playlists.add(fetchPlaylist(link, true))
+                        LinkType.ALBUM -> albums.add(fetchAlbum(link))
+                        else -> println("Unsupported item type: $kind")
+                    }
+                }
+
+                discoveries.add(
+                    Discover(
+                        name,
+                        Albums(albums),
+                        Playlists(playlists),
+                        discoverLink,
+                        name.name.endsWith("on SoundCloud"),
+                    ),
+                )
+            }
+        }
+
+        val discoverJob = Job()
+        withContext(IO + discoverJob) {
+            while (true) {
+                val discoverData = fetchDiscoverData()
+                when (discoverData.code.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val data = JSONObject(discoverData.data.data)
+                            parseDiscoverData(data)
+                            discoverJob.complete()
+                            return@withContext
+                        } catch (e: Exception) {
+                            // JSON broken, try getting the data again
+                            println("Failed JSON:\n${discoverData.data}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
+                    }
+
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        updateClientId()
+                    }
+
+                    else -> println("HTTP ERROR! CODE: ${discoverData.code}")
+                }
+            }
+        }
+        return Discoveries(discoveries)
+    }
+
     private fun fetchResolvedData(link: Link): Response {
         val linkBuilder = StringBuilder()
         linkBuilder.append("$api2URI/resolve?")
@@ -1606,10 +1642,11 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         val deferredType =
             CoroutineScope(IO + resolveJob).async {
                 when {
-                    "$linkToSolve".contains("$urlStart/[a-z0-9-_]+/(?!sets|likes|reposts)\\S+".toRegex()) -> LinkType.TRACK
+                    "$linkToSolve".contains("$urlStart/(?!playlists?)[a-z0-9-_]+/(?!sets|likes|reposts)\\S+".toRegex()) -> LinkType.TRACK
                     "$linkToSolve".contains("$urlStart/[a-z0-9-_]+/likes".toRegex()) -> LinkType.LIKES
                     "$linkToSolve".contains("$urlStart/[a-z0-9-_]+/reposts".toRegex()) -> LinkType.REPOSTS
                     "$linkToSolve".contains("$urlStart/discover/sets".toRegex()) -> LinkType.SYSTEM_PLAYLIST
+                    "$linkToSolve".contains("$urlStart/discover$".toRegex()) -> LinkType.DISCOVER
                     else -> {
                         lateinit var type: LinkType
                         while (true) {
@@ -1686,53 +1723,65 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
             CoroutineScope(IO + resolveJob).async {
                 lateinit var id: String
                 var linkToSolve = link
-                if ("$link".contains("/(reposts|likes)$".toRegex())) {
-                    // As it turns out, neither likes nor reposts have an id.
-                    // However, when trying to resolve a likes link, the user is returned, whereas
-                    // trying to resolve a reposts link just gives a 404 error.
-                    // So instead of trying to resolve reposts/likes, just return an empty id.
-                    println("$link doesn't have an id!")
-                    id = ""
-                    resolveJob.complete()
-                    id
-                } else {
-                    if ("$linkToSolve".contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex())) {
-                        linkToSolve = sendHttpRequest(linkToSolve, followRedirects = false).link.clean(this@SoundCloud)
-                    }
-                    while (true) {
-                        val idData = fetchResolvedData(linkToSolve)
-                        when (idData.code.code) {
-                            HttpURLConnection.HTTP_OK -> {
-                                try {
-                                    val data = JSONObject(idData.data.data)
-                                    when (data.get("id")) {
-                                        is String -> id = data.getString("id")
-                                        is Int -> id = data.getInt("id").toString()
-                                    }
-                                    break
-                                } catch (e: JSONException) {
-                                    // JSON broken, try getting the data again
-                                    println("Failed JSON:\n${idData.data}\n")
-                                    println("Failed to get data from JSON, trying again...")
+                if ("$linkToSolve".contains("^($apiURI|$api2URI)/\\S+".toRegex())) {
+                    id =
+                        when (resolveType(link)) {
+                            LinkType.LIKES, LinkType.REPOSTS ->
+                                if ("$linkToSolve".contains("^$api2URI/(stream/)?users/".toRegex())) {
+                                    "$linkToSolve".substringBeforeLast('/').substringAfterLast('/')
+                                } else {
+                                    "$linkToSolve".substringBeforeLast('/')
                                 }
-                            }
+                            else -> "$linkToSolve".substringAfterLast('/')
+                        }
+                } else {
+                    if ("$link".contains("/(reposts|likes)$".toRegex())) {
+                        // As it turns out, neither likes nor reposts have an id.
+                        // However, when trying to resolve a likes link, the user is returned, whereas
+                        // trying to resolve a reposts link just gives a 404 error.
+                        // So instead of trying to resolve reposts/likes, just return an empty id.
+                        println("$link doesn't have an id!")
+                        id = ""
+                        resolveJob.complete()
+                    } else {
+                        if ("$linkToSolve".contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex())) {
+                            linkToSolve = sendHttpRequest(linkToSolve, followRedirects = false).link.clean(this@SoundCloud)
+                        }
+                        while (true) {
+                            val idData = fetchResolvedData(linkToSolve)
+                            when (idData.code.code) {
+                                HttpURLConnection.HTTP_OK -> {
+                                    try {
+                                        val data = JSONObject(idData.data.data)
+                                        when (data.get("id")) {
+                                            is String -> id = data.getString("id")
+                                            is Int -> id = data.getInt("id").toString()
+                                        }
+                                        break
+                                    } catch (e: JSONException) {
+                                        // JSON broken, try getting the data again
+                                        println("Failed JSON:\n${idData.data}\n")
+                                        println("Failed to get data from JSON, trying again...")
+                                    }
+                                }
 
-                            HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                                updateClientId()
-                            }
+                                HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                                    updateClientId()
+                                }
 
-                            HttpURLConnection.HTTP_NOT_FOUND -> {
-                                println("Error 404! $link not found!")
-                                id = ""
-                                break
-                            }
+                                HttpURLConnection.HTTP_NOT_FOUND -> {
+                                    println("Error 404! $link not found!")
+                                    id = ""
+                                    break
+                                }
 
-                            else -> println("HTTP ERROR! CODE ${idData.code}")
+                                else -> println("HTTP ERROR! CODE ${idData.code}")
+                            }
                         }
                     }
-                    resolveJob.complete()
-                    id
                 }
+                resolveJob.complete()
+                id
             }
         return deferredId.await()
     }

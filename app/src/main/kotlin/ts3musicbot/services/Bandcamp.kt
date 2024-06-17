@@ -6,6 +6,8 @@ import ts3musicbot.util.Album
 import ts3musicbot.util.Albums
 import ts3musicbot.util.Artist
 import ts3musicbot.util.Artists
+import ts3musicbot.util.Discover
+import ts3musicbot.util.Discoveries
 import ts3musicbot.util.Genres
 import ts3musicbot.util.Link
 import ts3musicbot.util.LinkType
@@ -375,7 +377,7 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
         }
     }
 
-    suspend fun fetchDiscover(discoverLink: Link): TrackList {
+    suspend fun fetchDiscover(discoverLink: Link): Discoveries {
         var format = "digital"
         var sorting = "top"
         var genre = "all"
@@ -404,8 +406,9 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
         linkBuilder.append("&p=$page")
         val response = sendHttpRequest(Link(linkBuilder.toString()))
 
-        suspend fun parseItems(data: JSONArray): TrackList {
-            val tracks = ArrayList<Track>()
+        suspend fun parseItems(data: JSONArray): Discoveries {
+            val discoveries = ArrayList<Discover>()
+            val albums = ArrayList<Album>()
             for (item in data) {
                 item as JSONObject
                 when (item.getString("type")) {
@@ -413,15 +416,21 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                         val urlHints = item.getJSONObject("url_hints")
                         val subDomain = urlHints.getString("subdomain")
                         val slug = urlHints.getString("slug")
-                        tracks.addAll(
-                            fetchAlbumTracks(
-                                Link("https://$subDomain.bandcamp.com/album/$slug"),
-                            ).trackList,
+
+                        albums.add(
+                            fetchAlbum(Link("https://$subDomain.bandcamp.com/album/$slug")),
                         )
                     }
                 }
             }
-            return TrackList(tracks)
+            discoveries.add(
+                Discover(
+                    Name("Discover $genre/$subGenre"),
+                    Albums(albums),
+                    link = discoverLink,
+                ),
+            )
+            return Discoveries(discoveries)
         }
 
         return when (response.code.code) {
@@ -432,11 +441,11 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                 } catch (e: Exception) {
                     println("Failed JSON:\n${response.data}\n")
                     println("Failed to get data from JSON, trying again...")
-                    TrackList()
+                    Discoveries()
                 }
             }
 
-            else -> TrackList()
+            else -> Discoveries()
         }
     }
 
