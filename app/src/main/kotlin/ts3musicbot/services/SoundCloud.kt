@@ -43,7 +43,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
-    var clientId = "f8eB0B44lHhYd7Kvli0IGN2ykOUAscWj"
+    var clientId = "Tl7CY6xVpYugZsGNqmzUhDCRX3urIPNv"
     private val api2URI = URI("https://api-v2.soundcloud.com")
     val apiURI = URI("https://api.soundcloud.com")
     val supportedSearchTypes =
