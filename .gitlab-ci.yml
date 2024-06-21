@@ -17,7 +17,7 @@ buildTS3MusicBot:
 runTests:
   stage: test
   script:
-    - sh gradlew test
+    - sh gradlew test -i
 
 buildJar:
   stage: buildJar
