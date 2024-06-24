@@ -47,6 +47,20 @@ class BandcampTest {
     }
 
     @Test
+    fun testGettingTrack4() {
+        runBlocking(Dispatchers.IO) {
+            // Bandcamp link to track: Alan Walker, Ava Max - Alone, Pt. II
+            val testLink = Link("https://alanwalkermusic.bandcamp.com/track/alone-pt-ii")
+            val track = bandcamp.fetchTrack(testLink)
+            assert(
+                track.artists.artists.any {
+                    it.link.link == "https://alanwalkermusic.bandcamp.com"
+                },
+            )
+        }
+    }
+
+    @Test
     fun testGettingAlbum() {
         runBlocking(Dispatchers.IO) {
             // Bandcamp link to album: Echo Chamber (2023 Year End Mixtape)

@@ -148,6 +148,20 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                 val lines = request.data.data.lines()
                 val trackData =
                     JSONObject(lines[lines.indexOfFirst { it.contains("<script type=\"application/ld+json\">") } + 1])
+                val artistID =
+                    if (
+                        trackData.getJSONObject("byArtist").has("@id")
+                    ) {
+                        trackData.getJSONObject("byArtist").getString("@id")
+                    } else if (
+                        trackData.getJSONObject("inAlbum").has("byArtist") && 
+                        trackData.getJSONObject("inAlbum").getJSONObject("byArtist").has("@id")
+                    ) {
+                        trackData.getJSONObject("inAlbum").getJSONObject("byArtist").getString("@id")
+                    } else {
+                        trackData.getJSONObject("publisher").getString("@id")
+                    }
+
                 if ("$trackLink".contains("https://\\S+\\.bandcamp\\.com/album/\\S+#t[0-9]+$".toRegex())) {
                     val trackItem =
                         trackData.getJSONObject("track").getJSONArray("itemListElement")
@@ -162,7 +176,7 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                                 listOf(
                                     Artist(
                                         Name(trackData.getJSONObject("byArtist").getString("name")),
-                                        Link(trackData.getJSONObject("byArtist").getString("@id")),
+                                        Link(artistID),
                                     ),
                                 ),
                             ),
@@ -175,7 +189,7 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                             listOf(
                                 Artist(
                                     Name(trackData.getJSONObject("byArtist").getString("name")),
-                                    Link(trackData.getJSONObject("byArtist").getString("@id")),
+                                    Link(artistID),
                                 ),
                             ),
                         ),
@@ -197,7 +211,7 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                                                 trackData.getJSONObject("byArtist").getString("name")
                                             },
                                         ),
-                                        Link(trackData.getJSONObject("byArtist").getString("@id")),
+                                        Link(artistID),
                                     ),
                                 ),
                             ),
@@ -216,7 +230,7 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                                             trackData.getJSONObject("byArtist").getString("name")
                                         },
                                     ),
-                                    Link(trackData.getJSONObject("byArtist").getString("@id")),
+                                    Link(artistID),
                                 ),
                             ),
                         ),
