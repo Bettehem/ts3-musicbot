@@ -8,36 +8,36 @@ open class Client(open val botSettings: BotSettings) {
 
     protected fun encode(message: String): String {
         val distro =
-            commandRunner.runCommand("cat /etc/issue", printOutput = false).outputText
-        return when {
-            distro.lowercase().contains("(ubuntu|debian|droidian)".toRegex()) -> {
-                message.replace(" ", "\\s")
-                    .replace("\n", "\\\\\\n")
-                    .replace("/", "\\/")
-                    .replace("|", "\\\\p")
-                    .replace("'", "\\\\'")
-                    .replace("\"", "\\\"")
-                    .replace("&quot;", "\\\"")
-                    .replace("`", "\\`")
-                    .replace("$", "\\$")
-                    .replace("[", "\\\\\\\\\\[")
-                    .replace("]", "\\\\\\\\\\]")
+            commandRunner.runCommand("cat /etc/os-release", printOutput = false).outputText.lines()
+        return if (
+            distro.any {
+                it.lowercase().contains("id(_like)?=\"?debian\"?".toRegex())
             }
-
-            else -> {
-                message.replace(" ", "\\s")
-                    .replace("\n", "\\n")
-                    .replace("/", "\\/")
-                    .replace("|", "\\p")
-                    .replace("'", "\\'")
-                    .replace("\"", "\\\"")
-                    .replace("&quot;", "\\\"")
-                    .replace("`", "\\`")
-                    .replace("$", "\\$")
-                    .replace("[", "\\\\\\[")
-                    .replace("]", "\\\\\\]")
-            }
-        }
+        ) {
+            message.replace(" ", "\\s")
+                .replace("\n", "\\\\\\n")
+                .replace("/", "\\/")
+                .replace("|", "\\\\p")
+                .replace("'", "\\\\'")
+                .replace("\"", "\\\"")
+                .replace("&quot;", "\\\"")
+                .replace("`", "\\`")
+                .replace("$", "\\$")
+                .replace("[", "\\\\\\\\\\[")
+                .replace("]", "\\\\\\\\\\]")
+        } else {
+            message.replace(" ", "\\s")
+                .replace("\n", "\\n")
+                .replace("/", "\\/")
+                .replace("|", "\\p")
+                .replace("'", "\\'")
+                .replace("\"", "\\\"")
+                .replace("&quot;", "\\\"")
+                .replace("`", "\\`")
+                .replace("$", "\\$")
+                .replace("[", "\\\\\\[")
+                .replace("]", "\\\\\\]")
+         }
     }
 
     protected fun decode(message: String) =

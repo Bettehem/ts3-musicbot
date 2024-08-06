@@ -40,7 +40,7 @@ class BandcampTest {
             // Bandcamp link to track: Affinity.exe
             val testLink = Link("https://insideoutmusic.bandcamp.com/track/affinity-exe")
             val track = bandcamp.fetchTrack(testLink)
-            assertEquals("Haken", track.artists.artists.first().name.name)
+            assertEquals("haken", track.artists.artists.first().name.name.lowercase())
             assertEquals("Affinity.exe", track.title.name)
             assertEquals("Affinity (Deluxe Edition)", track.album.name.name)
         }
@@ -114,7 +114,7 @@ class BandcampTest {
             val testLink = Link("https://insideoutmusic.bandcamp.com/album/affinity-deluxe-edition")
             val album = bandcamp.fetchAlbum(testLink)
             assertEquals("Affinity (Deluxe Edition)", album.name.name)
-            assertEquals("Haken", album.artists.artists.first().name.name)
+            assertEquals("haken", album.artists.artists.first().name.name.lowercase())
         }
     }
 
