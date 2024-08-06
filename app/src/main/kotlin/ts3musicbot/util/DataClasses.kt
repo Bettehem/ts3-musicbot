@@ -639,7 +639,7 @@ data class Discover(
         if (useCustomName) {
             "$name"
         } else {
-            "${if (name.isEmpty()) Name() else name}\n"
+            "${if (name.isEmpty()) Name("Discover") else name}\n"
         } +
             "$name from ${link.serviceType()}\n" +
             "$name link:\t\t\t      $link\n" +

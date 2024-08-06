@@ -142,8 +142,17 @@ class BandcampTest {
     fun testGettingDiscover() {
         runBlocking {
             val testLink = Link("https://bandcamp.com/?g=metal&s=top&p=0&gn=0&f=digital&t=progressive-metal#discover")
-            val trackList = bandcamp.fetchDiscover(testLink)
-            assert(trackList.size > 0)
+            val discover = bandcamp.fetchDiscover(testLink)
+            assert(discover.size > 0)
+        }
+    }
+
+    @Test
+    fun testGettingDiscover2() {
+        runBlocking {
+            val testLink = Link("https://bandcamp.com/discover/metal+progressive-metal/digital")
+            val discover = bandcamp.fetchDiscover(testLink)
+            assert(discover.size > 0)
         }
     }
 }

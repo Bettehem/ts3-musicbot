@@ -8,12 +8,16 @@ import ts3musicbot.util.Artist
 import ts3musicbot.util.Artists
 import ts3musicbot.util.Discover
 import ts3musicbot.util.Discoveries
+import ts3musicbot.util.ExtraProperties
 import ts3musicbot.util.Genres
 import ts3musicbot.util.Link
 import ts3musicbot.util.LinkType
 import ts3musicbot.util.Name
 import ts3musicbot.util.Playability
+import ts3musicbot.util.PostData
 import ts3musicbot.util.ReleaseDate
+import ts3musicbot.util.RequestMethod
+import ts3musicbot.util.Response
 import ts3musicbot.util.SearchQuery
 import ts3musicbot.util.SearchResult
 import ts3musicbot.util.SearchResults
@@ -394,33 +398,106 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
     suspend fun fetchDiscover(discoverLink: Link): Discoveries {
         var format = "digital"
         var sorting = "top"
-        var genre = "all"
+        var country = 0
         var subGenre = ""
-        var page = 0
-        val linkBuilder = StringBuilder()
-        for (part in discoverLink.link.substringAfterLast('/').replace("#discover", "").split("[?&]".toRegex())) {
-            val value = part.substringAfter('=')
-            when (part.substringBefore('=')) {
-                "g" -> genre = value
-                "t" -> subGenre = value
-                "s" -> sorting = value
-                "p" -> page = value.toInt()
-                "f" -> format = value
+        lateinit var genres: List<String>
+        lateinit var response: Response
+        if ("$discoverLink".contains("bandcamp.com/discover/\\S+(/\\S+)?".toRegex())) {
+            val postJSON = JSONObject()
+            genres = "$discoverLink".substringAfter("discover/").substringBefore('/').split('+').ifEmpty { emptyList() }
+            country =
+                if ("$discoverLink".contains("loc=[0-9]+".toRegex())) {
+                    "$discoverLink".substringAfter("loc=").substringBefore('&').toInt()
+                } else {
+                    0
+                }
+            if ("$discoverLink".contains("s=\\w+".toRegex())) {
+                sorting = "$discoverLink".substringAfter("s=").substringBefore('&')
             }
+            format = "$discoverLink".substringAfter(genres.joinToString("+")).replace("/", "").substringBefore('?')
+            val formats =
+                mapOf(
+                    Pair("", 0),
+                    Pair("digital", 1),
+                    Pair("vinyl", 2),
+                    Pair("cd", 3),
+                    Pair("cassette", 4),
+                    Pair("tshirt", 5),
+                )
+            if (format != "digital") {
+                println("Non digital formats are unsupported! Changing to digital...")
+                format = "digital"
+            }
+            postJSON.put("category_id", formats[format])
+            postJSON.put("geoname_id", country)
+            postJSON.put("slice", sorting)
+            postJSON.put("tag_norm_names", genres)
+            postJSON.put("include_result_types", listOf("a"))
+            val link = Link("https://bandcamp.com/api/discover/1/discover_web")
+            val extraProperties = ExtraProperties(mapOf(Pair("Content-Type", "application/json")))
+            val postData = PostData(listOf(postJSON.toString()))
+            response = sendHttpRequest(link, RequestMethod.POST, extraProperties, postData)
+        } else {
+            val linkBuilder = StringBuilder()
+            genres = listOf("all")
+            var page = 0
+            for (part in discoverLink.link.replace("^.*/".toRegex(), "").replace("#?discover$?".toRegex(), "").split("[?&]".toRegex())) {
+                val value = part.substringAfter('=')
+                when (part.substringBefore('=')) {
+                    "g" -> genres = listOf(value.ifEmpty { "all" })
+                    "t" -> subGenre = value
+                    "s" -> sorting = value
+                    "p" -> page = value.toInt()
+                    "f" -> format = value
+                    "gn" -> country = value.toInt()
+                }
+            }
+            if (format != "digital") {
+                println("Non digital formats are unsupported! Changing to digital...")
+                format = "digital"
+            }
+            linkBuilder.append("https://bandcamp.com/api/discover/3/get_web?")
+            linkBuilder.append("f=$format")
+            linkBuilder.append("&g=" + genres.first())
+            if (subGenre.isNotEmpty()) linkBuilder.append("&t=$subGenre")
+            linkBuilder.append("&s=$sorting")
+            linkBuilder.append("&p=$page")
+            linkBuilder.append("&gn=$country")
+            response = sendHttpRequest(Link(linkBuilder.toString()))
         }
-        if (format != "digital") {
-            println("Non digital formats are unsupported! Changing to digital...")
-            format = "digital"
-        }
-        linkBuilder.append("https://bandcamp.com/api/discover/3/get_web?")
-        linkBuilder.append("f=$format")
-        linkBuilder.append("&g=$genre")
-        if (subGenre.isNotEmpty()) linkBuilder.append("&t=$subGenre")
-        linkBuilder.append("&s=$sorting")
-        linkBuilder.append("&p=$page")
-        val response = sendHttpRequest(Link(linkBuilder.toString()))
 
-        suspend fun parseItems(data: JSONArray): Discoveries {
+        suspend fun parseDiscoverItems(data: JSONArray): Discoveries {
+            val discoveries = ArrayList<Discover>()
+            val albums = ArrayList<Album>()
+            for (item in data) {
+                item as JSONObject
+                when (item.getString("result_type")) {
+                    "a" -> {
+                        val itemLink = Link(item.getString("item_url").substringBefore('?'))
+                        albums.add(fetchAlbum(itemLink))
+                    }
+                }
+            }
+            discoveries.add(
+                Discover(
+                    Name(
+                        "Discover" +
+                            when (genres.size) {
+                                0 -> ""
+                                1 -> " " + genres.first()
+                                2 -> " " + genres.first() + " and " + genres.last()
+                                else -> " " + genres.subList(0, genres.size - 2).joinToString(", ") + " and " + genres.last()
+                            },
+                    ),
+                    Albums(albums),
+                    link = discoverLink,
+                    useCustomName = true,
+                ),
+            )
+            return Discoveries(discoveries)
+        }
+
+        suspend fun parseDiscover3Items(data: JSONArray): Discoveries {
             val discoveries = ArrayList<Discover>()
             val albums = ArrayList<Album>()
             for (item in data) {
@@ -439,9 +516,10 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
             }
             discoveries.add(
                 Discover(
-                    Name("Discover $genre/$subGenre"),
+                    Name("Discover " + genres.first() + if (subGenre.isNotEmpty()) "/$subGenre" else ""),
                     Albums(albums),
                     link = discoverLink,
+                    useCustomName = true,
                 ),
             )
             return Discoveries(discoveries)
@@ -451,10 +529,13 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
             HttpURLConnection.HTTP_OK -> {
                 try {
                     val data = JSONObject(response.data.data)
-                    parseItems(data.getJSONArray("items"))
+                    when {
+                        data.has("results") -> parseDiscoverItems(data.getJSONArray("results"))
+                        data.has("items") -> parseDiscover3Items(data.getJSONArray("items"))
+                        else -> Discoveries()
+                    }
                 } catch (e: Exception) {
                     println("Failed JSON:\n${response.data}\n")
-                    println("Failed to get data from JSON, trying again...")
                     Discoveries()
                 }
             }

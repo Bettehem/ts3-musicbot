@@ -1957,6 +1957,8 @@ class ChatReader(
                                                     LinkType.TRACK -> bandcamp.fetchTrack(link)
                                                     LinkType.ALBUM -> bandcamp.fetchAlbum(link)
                                                     LinkType.ARTIST -> bandcamp.fetchArtist(link)
+                                                    LinkType.DISCOVER -> bandcamp.fetchDiscover(link)
+                                                    LinkType.SHOW -> bandcamp.fetchShow(link)
                                                     else -> null
                                                 }.also { if (it != null) output.add(it) }
 
