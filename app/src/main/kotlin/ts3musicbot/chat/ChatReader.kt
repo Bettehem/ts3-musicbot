@@ -749,7 +749,12 @@ class ChatReader(
                                 }
                                 return if (commandSuccessful.all { it.first }) {
                                     val msg =
-                                        commandSuccessful.filter { it.first }
+                                        if (shouldPlayNext) {
+                                            commandSuccessful.reversed()
+                                        } else {
+                                            commandSuccessful
+                                        }
+                                            .filter { it.first }
                                             .joinToString("\n") { it.second.first }
                                     if (msgBuilder.lines().size <= 1) {
                                         msgBuilder.append(msg)
