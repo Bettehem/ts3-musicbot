@@ -111,7 +111,11 @@ fun sendHttpRequest(
                 )
             Link(connection.url.toString())
         } else {
-            Link(connection.getHeaderField("Location"))
+            if (connection.headerFields.any { it.key == "Location" }) {
+                Link(connection.getHeaderField("Location"))
+            } else {
+                link
+            }
         }
     if (responseCode.code == 0) {
         responseCode = ResponseCode(connection.responseCode)
