@@ -10,9 +10,9 @@ enum class RequestMethod {
     GET,
 }
 
-data class DefaultProperties(val properties: List<String>)
+data class DefaultProperties(val properties: Map<String, String>)
 
-data class ExtraProperties(val properties: List<String>)
+data class ExtraProperties(val properties: Map<String, String>)
 
 data class PostData(val data: List<String>)
 
@@ -39,13 +39,13 @@ const val HTTP_TOO_MANY_REQUESTS = 429
 fun sendHttpRequest(
     link: Link,
     requestMethod: RequestMethod = RequestMethod.GET,
-    extraProperties: ExtraProperties = ExtraProperties(emptyList()),
+    extraProperties: ExtraProperties = ExtraProperties(emptyMap()),
     postData: PostData = PostData(emptyList()),
     defaultProperties: DefaultProperties =
         DefaultProperties(
-            listOf(
-                "Content-Type: application/x-www-form-urlencoded",
-                "User-Agent: Mozilla/5.0",
+            mapOf(
+                Pair("Content-Type", "application/x-www-form-urlencoded"),
+                Pair("User-Agent", "Mozilla/5.0"),
             ),
         ),
     followRedirects: Boolean = true,
@@ -57,13 +57,15 @@ fun sendHttpRequest(
     var responseCode = ResponseCode(0)
     val responseLink =
         if (followRedirects) {
+            val properties = mutableMapOf<String, String>()
             for (property in defaultProperties.properties) {
-                val p = property.split(": ".toRegex())
-                connection.setRequestProperty(p[0], p[1])
+                properties[property.key] = property.value
             }
             for (property in extraProperties.properties) {
-                val p = property.split(":".toRegex())
-                connection.setRequestProperty(p[0], p[1])
+                properties[property.key] = property.value
+            }
+            for (property in properties) {
+                connection.setRequestProperty(property.key, property.value)
             }
             if (connection.requestMethod == RequestMethod.POST.name) {
                 connection.doOutput = true

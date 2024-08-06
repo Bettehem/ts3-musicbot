@@ -76,7 +76,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
             return sendHttpRequest(
                 Link("https://accounts.spotify.com/api/token"),
                 RequestMethod.POST,
-                ExtraProperties(listOf("Authorization: Basic $auth")),
+                ExtraProperties(mapOf(Pair("Authorization", "Basic $auth"))),
                 PostData(listOf("grant_type=client_credentials")),
             )
         }
@@ -146,7 +146,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
             }
             return sendHttpRequest(
                 Link(linkBuilder.toString()),
-                extraProperties = ExtraProperties(listOf("Authorization: Bearer $accessToken")),
+                extraProperties = ExtraProperties(mapOf(Pair("Authorization", "Bearer $accessToken"))),
             )
         }
 
@@ -398,7 +398,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
         linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
         return sendHttpRequest(
             Link(linkBuilder.toString()),
-            extraProperties = ExtraProperties(listOf("Authorization: Bearer $accessToken")),
+            extraProperties = ExtraProperties(mapOf(Pair("Authorization", "Bearer $accessToken"))),
         )
     }
 
@@ -501,7 +501,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                     linkBuilder.append("&market=${market.ifEmpty { defaultMarket }}")
                     return sendHttpRequest(
                         Link(linkBuilder.toString()),
-                        extraProperties = ExtraProperties(listOf("Authorization: Bearer $accessToken")),
+                        extraProperties = ExtraProperties(mapOf(Pair("Authorization", "Bearer $accessToken"))),
                     )
                 }
 
@@ -762,7 +762,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
         linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
         return sendHttpRequest(
             Link(linkBuilder.toString()),
-            extraProperties = ExtraProperties(listOf("Authorization: Bearer $accessToken")),
+            extraProperties = ExtraProperties(mapOf(Pair("Authorization", "Bearer $accessToken"))),
         )
     }
 
@@ -946,7 +946,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                     }
                     return sendHttpRequest(
                         Link(linkBuilder.toString()),
-                        extraProperties = ExtraProperties(listOf("Authorization: Bearer $accessToken")),
+                        extraProperties = ExtraProperties(mapOf(Pair("Authorization", "Bearer $accessToken"))),
                     )
                 }
 
@@ -1083,7 +1083,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
             }
             return sendHttpRequest(
                 Link(linkBuilder.toString()),
-                extraProperties = ExtraProperties(listOf("Authorization: Bearer $accessToken")),
+                extraProperties = ExtraProperties(mapOf(Pair("Authorization", "Bearer $accessToken"))),
             )
         }
 
@@ -1311,7 +1311,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
             linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
                 Link(linkBuilder.toString()),
-                extraProperties = ExtraProperties(listOf("Authorization: Bearer $accessToken")),
+                extraProperties = ExtraProperties(mapOf(Pair("Authorization", "Bearer $accessToken"))),
             )
         }
 
@@ -1323,7 +1323,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
             linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
                 Link(linkBuilder.toString()),
-                extraProperties = ExtraProperties(listOf("Authorization: Bearer $accessToken")),
+                extraProperties = ExtraProperties(mapOf(Pair("Authorization", "Bearer $accessToken"))),
             )
         }
 
@@ -1338,7 +1338,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
             linkBuilder.append("&offset=$offset")
             return sendHttpRequest(
                 Link(linkBuilder.toString()),
-                extraProperties = ExtraProperties(listOf("Authorization: Bearer $accessToken")),
+                extraProperties = ExtraProperties(mapOf(Pair("Authorization", "Bearer $accessToken"))),
             )
         }
 
@@ -1350,7 +1350,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
             linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
                 Link(linkBuilder.toString()),
-                extraProperties = ExtraProperties(listOf("Authorization: Bearer $accessToken")),
+                extraProperties = ExtraProperties(mapOf(Pair("Authorization", "Bearer $accessToken"))),
             )
         }
 
@@ -1687,7 +1687,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
             linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
                 Link(linkBuilder.toString()),
-                extraProperties = ExtraProperties(listOf("Authorization: Bearer $accessToken")),
+                extraProperties = ExtraProperties(mapOf(Pair("Authorization", "Bearer $accessToken"))),
             )
         }
 
@@ -1697,7 +1697,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
             linkBuilder.append(if (market.isNotEmpty()) "?market=$market" else "?market=$defaultMarket")
             return sendHttpRequest(
                 Link(linkBuilder.toString()),
-                extraProperties = ExtraProperties(listOf("Authorization: Bearer $accessToken")),
+                extraProperties = ExtraProperties(mapOf(Pair("Authorization", "Bearer $accessToken"))),
             )
         }
 
@@ -1818,7 +1818,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
         linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
         return sendHttpRequest(
             Link(linkBuilder.toString()),
-            extraProperties = ExtraProperties(listOf("Authorization: Bearer $accessToken")),
+            extraProperties = ExtraProperties(mapOf(Pair("Authorization", "Bearer $accessToken"))),
         )
     }
 
@@ -1841,7 +1841,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                 linkBuilder.append("&offset=$offset")
                 return sendHttpRequest(
                     Link(linkBuilder.toString()),
-                    extraProperties = ExtraProperties(listOf("Authorization: Bearer $accessToken")),
+                    extraProperties = ExtraProperties(mapOf(Pair("Authorization", "Bearer $accessToken"))),
                 )
             }
 
@@ -1980,7 +1980,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                 Publisher(Name(showData.getString("publisher"))),
                 Description(showData.getString("description")),
                 episodes,
-                showLink,
+                link = showLink,
             )
         }
 
@@ -2043,7 +2043,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
             linkBuilder.append("?market=${market.ifEmpty { defaultMarket }}")
             return sendHttpRequest(
                 Link(linkBuilder.toString()),
-                extraProperties = ExtraProperties(listOf("Authorization: Bearer $accessToken")),
+                extraProperties = ExtraProperties(mapOf(Pair("Authorization", "Bearer $accessToken"))),
             )
         }
 
