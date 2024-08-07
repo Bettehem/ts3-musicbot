@@ -49,8 +49,17 @@ open class Service(val serviceType: ServiceType) {
 
     protected open fun decode(text: String) =
         runBlocking {
-            withContext(Dispatchers.IO) {
-                URLDecoder.decode(text, Charsets.UTF_8.toString())
+            try {
+                withContext(Dispatchers.IO) {
+                    URLDecoder.decode(text, Charsets.UTF_8.toString())
+                }
+            } catch (e: Exception) {
+                text.replace("&quot;", "\"")
+                    .replace("&amp;", "&")
+                    .replace("%3A", ":")
+                    .replace("%3D", "=")
+                    .replace("%3F", "?")
+                    .replace("%2F", "/")
             }
                 .replace("&#39;", "'")
                 .replace("&amp;", "&")

@@ -155,4 +155,13 @@ class BandcampTest {
             assert(discover.size > 0)
         }
     }
+
+    @Test
+    fun testGettingShow() {
+        runBlocking {
+            val testLink = Link("https://bandcamp.com/?show=765")
+            val show = bandcamp.fetchShow(testLink)
+            assert(show.isNotEmpty())
+        }
+    }
 }

@@ -585,25 +585,29 @@ class ChatReader(
                                                                 )
 
                                                             LinkType.SHOW -> {
-                                                                if (service is Spotify) {
-                                                                    TrackList(
+                                                                when (service) {
+                                                                    is Spotify -> {
                                                                         service.fetchShow(link).episodes.toTrackList()
-                                                                            .trackList.let { list ->
-                                                                                if (trackLimit != 0 && list.size > trackLimit) {
-                                                                                    list.subList(0, trackLimit)
-                                                                                } else {
-                                                                                    list
-                                                                                }
-                                                                            },
-                                                                    )
-                                                                } else {
-                                                                    TrackList()
+                                                                    }
+
+                                                                    is Bandcamp -> {
+                                                                        service.fetchShow(link).tracks
+                                                                    }
+
+                                                                    else -> TrackList()
                                                                 }
                                                             }
 
                                                             LinkType.ALBUM -> service.fetchAlbumTracks(link, trackLimit)
                                                             else -> TrackList()
-                                                        },
+                                                        }
+                                                            .trackList.let { list ->
+                                                                if (trackLimit != 0 && list.size > trackLimit) {
+                                                                    TrackList(list.subList(0, trackLimit))
+                                                                } else {
+                                                                    TrackList(list)
+                                                                }
+                                                            },
                                                         link,
                                                     )
                                                 println(

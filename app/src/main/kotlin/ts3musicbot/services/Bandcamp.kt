@@ -6,6 +6,7 @@ import ts3musicbot.util.Album
 import ts3musicbot.util.Albums
 import ts3musicbot.util.Artist
 import ts3musicbot.util.Artists
+import ts3musicbot.util.Description
 import ts3musicbot.util.Discover
 import ts3musicbot.util.Discoveries
 import ts3musicbot.util.ExtraProperties
@@ -22,6 +23,7 @@ import ts3musicbot.util.SearchQuery
 import ts3musicbot.util.SearchResult
 import ts3musicbot.util.SearchResults
 import ts3musicbot.util.SearchType
+import ts3musicbot.util.Show
 import ts3musicbot.util.Track
 import ts3musicbot.util.TrackList
 import ts3musicbot.util.sendHttpRequest
@@ -36,6 +38,7 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
             LinkType.TRACK,
             LinkType.ALBUM,
             LinkType.ARTIST,
+            LinkType.SHOW,
         )
 
     override suspend fun search(
@@ -153,12 +156,10 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                 val trackData =
                     JSONObject(lines[lines.indexOfFirst { it.contains("<script type=\"application/ld+json\">") } + 1])
                 val artistID =
-                    if (
-                        trackData.getJSONObject("byArtist").has("@id")
-                    ) {
+                    if (trackData.getJSONObject("byArtist").has("@id")) {
                         trackData.getJSONObject("byArtist").getString("@id")
                     } else if (
-                        trackData.getJSONObject("inAlbum").has("byArtist") && 
+                        trackData.getJSONObject("inAlbum").has("byArtist") &&
                         trackData.getJSONObject("inAlbum").getJSONObject("byArtist").has("@id")
                     ) {
                         trackData.getJSONObject("inAlbum").getJSONObject("byArtist").getString("@id")
@@ -581,6 +582,70 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
         }
     }
 
+    fun fetchShow(showLink: Link): Show {
+        val response = sendHttpRequest(showLink)
+
+        fun parseShowData(data: JSONObject): Show {
+            val showData = data.getJSONObject("bcw_data").getJSONObject("$showLink".substringAfter("show="))
+            val title = showData.getString("title")
+            val subtitle = if (!showData.isNull("subtitle")) showData.getString("subtitle") else ""
+            val tracksData = showData.getJSONArray("tracks")
+            return Show(
+                Name(title + if (subtitle.isNotEmpty()) " - ${showData.getString("subtitle")}" else ""),
+                description = Description(showData.getString("desc"), showData.getString("short_desc")),
+                episodeName = Name(showData.getString("audio_title")),
+                tracks =
+                    TrackList(
+                        tracksData.map { track ->
+                            track as JSONObject
+                            val trackLink = Link(track.getString("track_url"))
+                            val artists =
+                                Artists(
+                                    listOf(
+                                        Artist(
+                                            Name(track.getString("artist")),
+                                            Link("$trackLink".substringBefore("/track")),
+                                        ),
+                                    ),
+                                )
+                            Track(
+                                Album(
+                                    Name(track.getString("album_title")),
+                                    artists,
+                                    link = Link(track.getString("album_url")),
+                                ),
+                                artists,
+                                Name(track.getString("title")),
+                                trackLink,
+                                Playability(true),
+                            )
+                        },
+                    ),
+            )
+        }
+
+        return when (response.code.code) {
+            HttpURLConnection.HTTP_OK -> {
+                try {
+                    val lines = response.data.data.lines()
+                    val jsonData =
+                        JSONObject(
+                            decode(
+                                lines[lines.indexOfFirst { it.contains("<div id=\"pagedata\"") }]
+                                    .substringAfter("data-blob=\"").substringBefore("\">"),
+                            ),
+                        )
+                    parseShowData(jsonData)
+                } catch (e: Exception) {
+                    println("Failed JSON:\n${response.data}\n")
+                    Show()
+                }
+            }
+
+            else -> Show()
+        }
+    }
+
     override suspend fun resolveType(link: Link): LinkType {
         return when {
             "$link".contains("https?://\\S+\\.bandcamp\\.com/(track/\\S+|album/\\S+#t[0-9]+$)".toRegex()) -> LinkType.TRACK
@@ -588,6 +653,7 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
             "$link".contains("https?://bandcamp\\.com/recommended/\\S+".toRegex()) -> LinkType.RECOMMENDED
             "$link".contains("https?://\\S+\\.bandcamp\\.com(/(music|merch|community))?$".toRegex()) -> LinkType.ARTIST
             "$link".contains("https?://bandcamp\\.com/(discover\\S*|\\S*#discover$)".toRegex()) -> LinkType.DISCOVER
+            "$link".contains("https?://bandcamp\\.com/?\\?show=\\S+".toRegex()) -> LinkType.SHOW
             else -> LinkType.OTHER
         }
     }

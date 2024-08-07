@@ -294,8 +294,10 @@ data class Link(val link: String = "", val linkId: String = "", val linkedFrom: 
     fun ifNotEmpty(fn: (link: Link) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
-data class Description(val text: String = "") {
+data class Description(val text: String = "", val shortText: String = "") {
     override fun toString() = text
+
+    fun toShortString() = shortText
 
     fun lines() = text.lines()
 
@@ -334,6 +336,8 @@ data class Publisher(val name: Name = Name()) {
     fun isEmpty() = name.isEmpty()
 
     fun isNotEmpty() = name.isNotEmpty()
+
+    fun ifNotEmpty(fn: (publisher: Publisher) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
 data class Artists(val artists: List<Artist> = emptyList()) {
@@ -605,23 +609,47 @@ data class Playlists(val lists: List<Playlist> = emptyList()) {
     fun ifNotEmpty(fn: (lists: Playlists) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
+/**
+ * @param name The name of the show
+ * @param publisher The publisher of the show
+ * @param description Description of the show
+ * @param episodes List of episodes in the podcast
+ * @param episodeName Episode name if the podcast and tracks are separate
+ * @param tracks List of tracks played in the podcast episode
+ * @param link Link to the show
+ */
 data class Show(
     val name: Name = Name(),
     val publisher: Publisher = Publisher(),
     val description: Description = Description(),
     val episodes: EpisodeList = EpisodeList(),
+    val episodeName: Name = Name(),
+    val tracks: TrackList = TrackList(),
     val link: Link = Link(),
 ) {
     override fun toString() =
         "Show Name:  \t\t\t\t$name\n" +
-            "Publisher:    \t\t\t\t\t${publisher.name}\n" +
+            publisher.ifNotEmpty {
+                "Publisher:    \t\t\t\t\t$publisher\n"
+            } +
+            episodeName.ifNotEmpty {
+                "Episode:      \t\t\t\t\t\t$episodeName\n"
+            } +
             "Description:\n$description\n\n" +
-            "This podcast has ${episodes.size} episodes.\n" +
+            "This podcast " +
+            when (link.serviceType()) {
+                Service.ServiceType.BANDCAMP -> "plays ${tracks.size} track${if (tracks.size == 1) "s" else ""}.\n"
+                else -> "has ${episodes.size} episode${if (episodes.size == 1) "s" else ""}.\n"
+            } +
             episodes.ifNotEmpty {
                 "${if (it.size > 10) "First 10 " else ""} Episodes:\n" +
-                    "${EpisodeList(it.episodes.subList(0, if (it.size > 10) 10 else it.size - 1))}\n" +
-                    "Show Link:       \t\t\t\t\t$link"
-            }
+                    "${EpisodeList(it.episodes.subList(0, if (it.size > 10) 10 else it.size - 1))}\n"
+            } +
+            tracks.ifNotEmpty {
+                "${if (it.size > 10) "First 10 " else ""} Tracks:\n" +
+                    "${TrackList(it.trackList.subList(0, if (it.size > 10) 10 else it.size - 1))}\n"
+            } +
+            "Show Link:       \t\t\t\t\t$link"
 
     fun isEmpty() = name.isEmpty() && publisher.isEmpty() && description.isEmpty() && episodes.isEmpty() && link.isEmpty()
 
