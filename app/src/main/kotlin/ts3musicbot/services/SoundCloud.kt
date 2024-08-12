@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONException
@@ -407,59 +408,69 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         return sendHttpRequest(Link(linkBuilder.toString()))
     }
 
+    private suspend fun parsePlaylistData(
+        playlistData: JSONObject,
+        isSystemPlaylist: Boolean,
+        shouldFetchTracks: Boolean = playlistData.getJSONArray("tracks").isEmpty,
+    ): Playlist {
+        val listLink =
+            Link(
+                playlistData.getString("permalink_url"),
+                if (playlistData.get("id") is String) {
+                    playlistData.getString("id")
+                } else {
+                    playlistData.getInt("id").toString()
+                },
+            )
+        return Playlist(
+            Name(playlistData.getString("title")),
+            User(
+                Name(playlistData.getJSONObject("user").getString("username")),
+                Name(playlistData.getJSONObject("user").getString("permalink")),
+                link =
+                    Link(
+                        playlistData.getJSONObject("user").getString("permalink_url"),
+                        playlistData.getJSONObject("user").getInt("id").toString(),
+                    ),
+            ),
+            if (!playlistData.isNull("description")) {
+                Description(playlistData.getString("description"))
+            } else {
+                Description()
+            },
+            if (!playlistData.isNull("likes_count")) {
+                Followers(playlistData.getInt("likes_count"))
+            } else {
+                Followers()
+            },
+            Publicity(playlistData.getBoolean(if (isSystemPlaylist) "is_public" else "public")),
+            tracks =
+                if (shouldFetchTracks) {
+                    fetchPlaylistTracks(listLink)
+                } else {
+                    val tracks = playlistData.getJSONArray("tracks")
+                    if (!tracks.isEmpty) {
+                        tracks.map {
+                            it as JSONObject
+                            parseTrackData(it)
+                        }
+                    }
+                    if (isSystemPlaylist) {
+                        TrackList(List(playlistData.getJSONArray("tracks").length()) { Track() })
+                    } else {
+                        TrackList(List(playlistData.getInt("track_count")) { Track() })
+                    }
+                },
+            link = listLink,
+        )
+    }
+
     override suspend fun fetchPlaylist(
         playlistLink: Link,
         shouldFetchTracks: Boolean,
     ): Playlist {
         lateinit var playlist: Playlist
         val isSystemPlaylist = playlistLink.linkType(this) == LinkType.SYSTEM_PLAYLIST
-
-        suspend fun parsePlaylistData(playlistData: JSONObject): Playlist {
-            val listLink =
-                Link(
-                    playlistData.getString("permalink_url"),
-                    if (playlistData.get("id") is String) {
-                        playlistData.getString("id")
-                    } else {
-                        playlistData.getInt("id").toString()
-                    },
-                )
-            return Playlist(
-                Name(playlistData.getString("title")),
-                User(
-                    Name(playlistData.getJSONObject("user").getString("username")),
-                    Name(playlistData.getJSONObject("user").getString("permalink")),
-                    link =
-                        Link(
-                            playlistData.getJSONObject("user").getString("permalink_url"),
-                            playlistData.getJSONObject("user").getInt("id").toString(),
-                        ),
-                ),
-                if (!playlistData.isNull("description")) {
-                    Description(playlistData.getString("description"))
-                } else {
-                    Description()
-                },
-                if (!playlistData.isNull("likes_count")) {
-                    Followers(playlistData.getInt("likes_count"))
-                } else {
-                    Followers()
-                },
-                Publicity(playlistData.getBoolean(if (isSystemPlaylist) "is_public" else "public")),
-                tracks =
-                    if (shouldFetchTracks) {
-                        fetchPlaylistTracks(listLink)
-                    } else {
-                        if (isSystemPlaylist) {
-                            TrackList(List(playlistData.getJSONArray("tracks").length()) { Track() })
-                        } else {
-                            TrackList(List(playlistData.getInt("track_count")) { Track() })
-                        }
-                    },
-                link = listLink,
-            )
-        }
-
         val playlistJob = Job()
         withContext(IO + playlistJob) {
             while (true) {
@@ -468,7 +479,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
                             val playlistJSON = JSONObject(playlistData.data.data)
-                            playlist = parsePlaylistData(playlistJSON)
+                            playlist = parsePlaylistData(playlistJSON, isSystemPlaylist, shouldFetchTracks)
                             playlistJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
@@ -568,6 +579,107 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         return sendHttpRequest(Link(linkBuilder.toString()))
     }
 
+    private suspend fun parseAlbumData(
+        albumJSON: JSONObject,
+        shouldFetchTracks: Boolean = true,
+    ): Album {
+        val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
+        val releaseDate =
+            ReleaseDate(
+                if (albumJSON.has("release_date") || albumJSON.has("created_at")) {
+                    LocalDate.parse(
+                        if (albumJSON.has(
+                                "release_date",
+                            ) && !albumJSON.isNull("release_date")
+                        ) {
+                            albumJSON.getString("release_date")
+                        } else {
+                            albumJSON.getString("created_at")
+                        },
+                        formatter,
+                    )
+                } else {
+                    LocalDate.now()
+                },
+            )
+        return when (val kind = albumJSON.getString("kind")) {
+            "track" ->
+                Album(
+                    Name(
+                        if (
+                            albumJSON.has("publisher_metadata") &&
+                            !albumJSON.isNull("publisher_metadata") &&
+                            albumJSON.getJSONObject("publisher_metadata")
+                                .has("album_title") &&
+                            !albumJSON.getJSONObject("publisher_metadata")
+                                .isNull("album_title")
+                        ) {
+                            albumJSON.getJSONObject("publisher_metadata")
+                                .getString("album_title")
+                        } else {
+                            ""
+                        },
+                    ),
+                    releaseDate = releaseDate,
+                )
+
+            "playlist" -> {
+                val isAlbum = albumJSON.has("is_album") && albumJSON.has("is_album") && albumJSON.getBoolean("is_album")
+                if (isAlbum) {
+                    Album(
+                        if (albumJSON.has("title")) {
+                            Name(albumJSON.getString("title"))
+                        } else {
+                            Name()
+                        },
+                        Artists(
+                            if (albumJSON.has("user")) {
+                                listOf(
+                                    Artist(
+                                        Name(albumJSON.getJSONObject("user").getString("username")),
+                                        Link(
+                                            albumJSON.getJSONObject("user").getString("permalink_url"),
+                                            albumJSON.getJSONObject("user").getInt("id").toString(),
+                                        ),
+                                    ),
+                                )
+                            } else {
+                                emptyList()
+                            },
+                        ),
+                        releaseDate,
+                        if (shouldFetchTracks && albumJSON.has("tracks")) {
+                            if (
+                                !albumJSON.getJSONArray("tracks").all {
+                                    it as JSONObject
+                                    it.has("title")
+                                }
+                            ) {
+                                fetchAlbumTracks(Link(albumJSON.getString("permalink_url")))
+                            } else {
+                                TrackList(
+                                    albumJSON.getJSONArray("tracks").map {
+                                        it as JSONObject
+                                        parseTrackData(it)
+                                    },
+                                )
+                            }
+                        } else {
+                            TrackList()
+                        },
+                        Link(albumJSON.getString("permalink_url")),
+                    )
+                } else {
+                    Album()
+                }
+            }
+            else -> {
+                println("ERROR! Unsupported JSON type: $kind")
+                Album()
+            }
+        }
+    }
+
     override suspend fun fetchAlbum(albumLink: Link): Album {
         val id = resolveId(albumLink)
         val albumJob = Job()
@@ -579,28 +691,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
                             val albumJSON = JSONObject(albumData.data.data)
-                            album =
-                                Album(
-                                    Name(albumJSON.getString("title")),
-                                    Artists(
-                                        listOf(
-                                            Artist(
-                                                Name(albumJSON.getJSONObject("user").getString("username")),
-                                                Link(
-                                                    albumJSON.getJSONObject("user").getString("permalink_url"),
-                                                    albumJSON.getJSONObject("user").getInt("id").toString(),
-                                                ),
-                                            ),
-                                        ),
-                                    ),
-                                    ReleaseDate(
-                                        LocalDate.parse(
-                                            albumJSON.getString("release_date"),
-                                            DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z")),
-                                        ),
-                                    ),
-                                    fetchAlbumTracks(albumLink),
-                                )
+                            album = parseAlbumData(albumJSON)
                             break
                         } catch (e: JSONException) {
                             // JSON broken, try getting the data again
@@ -678,6 +769,40 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         }
     }
 
+    private suspend fun parseTrackData(trackData: JSONObject): Track {
+        return Track(
+            parseAlbumData(trackData, false),
+            Artists(
+                listOf(
+                    if (trackData.has("user")) {
+                        Artist(
+                            Name(trackData.getJSONObject("user").getString("username")),
+                            Link(trackData.getJSONObject("user").getString("permalink_url")),
+                        )
+                    } else {
+                        Artist()
+                    },
+                ),
+            ),
+            if (trackData.has("title")) {
+                Name(trackData.getString("title"))
+            } else {
+                Name()
+            },
+            Link(if (trackData.has("permalink_url")) trackData.getString("permalink_url") else "", trackData.getInt("id").toString()),
+            if (trackData.has("streamable")) {
+                Playability(trackData.getBoolean("streamable") && trackData.getString("policy") != "BLOCK")
+            } else {
+                Playability()
+            },
+            if (trackData.has("likes_count") && !trackData.isNull("likes_count")) {
+                Likes(trackData.getInt("likes_count"))
+            } else {
+                Likes()
+            },
+        )
+    }
+
     /**
      * Fetch a Track object for a given SoundCloud song link
      * @param trackLink link to the song
@@ -692,30 +817,6 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
             linkBuilder.append("$api2URI/tracks/$id")
             linkBuilder.append("?client_id=$clientId")
             return sendHttpRequest(Link(linkBuilder.toString()))
-        }
-
-        fun parseTrackData(trackData: JSONObject): Track {
-            val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
-            val releaseDate = ReleaseDate(LocalDate.parse(trackData.getString("created_at"), formatter))
-            return Track(
-                Album(releaseDate = releaseDate),
-                Artists(
-                    listOf(
-                        Artist(
-                            Name(trackData.getJSONObject("user").getString("username")),
-                            Link(trackData.getJSONObject("user").getString("permalink_url")),
-                        ),
-                    ),
-                ),
-                Name(trackData.getString("title")),
-                Link(trackData.getString("permalink_url"), trackData.getInt("id").toString()),
-                Playability(trackData.getBoolean("streamable") && trackData.getString("policy") != "BLOCK"),
-                if (!trackData.isNull("likes_count")) {
-                    Likes(trackData.getInt("likes_count"))
-                } else {
-                    Likes()
-                },
-            )
         }
 
         val trackJob = Job()
@@ -776,48 +877,6 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
             return sendHttpRequest(Link(linkBuilder.toString()))
         }
 
-        fun parseTracksData(tracksData: JSONArray): TrackList {
-            val trackList = ArrayList<Track>()
-            for (trackData in tracksData) {
-                trackData as JSONObject
-                val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
-                val releaseDate = ReleaseDate(LocalDate.parse(trackData.getString("created_at"), formatter))
-                trackList.add(
-                    Track(
-                        Album(
-                            Name(
-                                if (
-                                    !trackData.isNull("publisher_metadata") &&
-                                    trackData.getJSONObject("publisher_metadata")
-                                        .has("album_title") &&
-                                    !trackData.getJSONObject("publisher_metadata")
-                                        .isNull("album_title")
-                                ) {
-                                    trackData.getJSONObject("publisher_metadata")
-                                        .getString("album_title")
-                                } else {
-                                    ""
-                                },
-                            ),
-                            releaseDate = releaseDate,
-                        ),
-                        Artists(
-                            listOf(
-                                Artist(
-                                    Name(trackData.getJSONObject("user").getString("username")),
-                                    Link(trackData.getJSONObject("user").getString("permalink_url")),
-                                ),
-                            ),
-                        ),
-                        Name(trackData.getString("title")),
-                        Link(trackData.getString("permalink_url"), trackData.getInt("id").toString()),
-                        Playability(trackData.getBoolean("streamable") && trackData.getString("policy") != "BLOCK"),
-                    ),
-                )
-            }
-            return TrackList(trackList)
-        }
-
         val tracksJob = Job()
         val tracks =
             CoroutineScope(IO + tracksJob).async {
@@ -847,7 +906,14 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                         try {
                                             val data = JSONArray(tracksData.data.data)
                                             synchronized(trackList) {
-                                                trackList.addAll(parseTracksData(data).trackList)
+                                                trackList.addAll(
+                                                    data.map {
+                                                        it as JSONObject
+                                                        runBlocking {
+                                                            parseTrackData(it)
+                                                        }
+                                                    },
+                                                )
                                             }
                                             return@launch
                                         } catch (e: JSONException) {
@@ -901,38 +967,14 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                     HttpURLConnection.HTTP_OK -> {
                         try {
                             val data = JSONObject(playlistsData.data.data)
-                            playlists.addAll(
-                                data.getJSONArray("collection").map {
-                                    it as JSONObject
-                                    Playlist(
-                                        Name(it.getString("title")),
-                                        description =
-                                            Description(
-                                                if (!it.isNull("description")) it.getString("description") else "",
-                                            ),
-                                        followers =
-                                            if (!it.isNull("likes_count")) {
-                                                Followers(it.getInt("likes_count"))
-                                            } else {
-                                                Followers()
-                                            },
-                                        publicity = Publicity(it.getBoolean("public")),
-                                        tracks =
-                                            TrackList(
-                                                List(it.getInt("track_count")) { Track() },
-                                            ),
-                                        link =
-                                            Link(
-                                                it.getString("permalink_url"),
-                                                if (it.get("id") is Int) {
-                                                    it.getInt("id").toString()
-                                                } else {
-                                                    it.getString("id")
-                                                },
-                                            ),
-                                    )
-                                },
-                            )
+                            data.getJSONArray("collection").map {
+                                it as JSONObject
+                                val isSystemPlaylist =
+                                    Link(
+                                        it.getString("permalink_url"),
+                                    ).linkType(this@SoundCloud) == LinkType.SYSTEM_PLAYLIST
+                                playlists.add(parsePlaylistData(it, isSystemPlaylist))
+                            }
                             playlistsJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
@@ -984,73 +1026,16 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                         if (!playlistsOnly) {
                                             it.getJSONObject("track").let { track ->
                                                 try {
-                                                    fun parseTrack(): Track =
-                                                        Track(
-                                                            Album(
-                                                                Name(
-                                                                    if (
-                                                                        !track.isNull("publisher_metadata") &&
-                                                                        track.getJSONObject("publisher_metadata")
-                                                                            .has("album_title") &&
-                                                                        !track.getJSONObject("publisher_metadata")
-                                                                            .isNull("album_title")
-                                                                    ) {
-                                                                        track.getJSONObject("publisher_metadata")
-                                                                            .getString("album_title")
-                                                                    } else {
-                                                                        ""
-                                                                    },
-                                                                ),
-                                                                releaseDate =
-                                                                    ReleaseDate(
-                                                                        LocalDate.parse(
-                                                                            track.getString("created_at"),
-                                                                            DateTimeFormatter.ISO_INSTANT.withZone(
-                                                                                ZoneId.of("Z"),
-                                                                            ),
-                                                                        ),
-                                                                    ),
-                                                            ),
-                                                            Artists(
-                                                                listOf(
-                                                                    track.getJSONObject("user").let { user ->
-                                                                        Artist(
-                                                                            Name(user.getString("username")),
-                                                                            Link(
-                                                                                user.getString("permalink_url"),
-                                                                                user.getInt("id").toString(),
-                                                                            ),
-                                                                        )
-                                                                    },
-                                                                ),
-                                                            ),
-                                                            Name(track.getString("title")),
-                                                            Link(
-                                                                track.getString("permalink_url"),
-                                                                track.getInt("id").toString(),
-                                                            ),
-                                                            Playability(
-                                                                track.getBoolean("streamable") &&
-                                                                    track.getString("policy") != "BLOCK",
-                                                            ),
-                                                            Likes(
-                                                                if (!track.isNull("likes_count")) {
-                                                                    track.getInt("likes_count")
-                                                                } else {
-                                                                    0
-                                                                },
-                                                            ),
-                                                        )
                                                     if (limit != 0) {
                                                         if (likes.size < limit) {
-                                                            likes.add(parseTrack())
+                                                            likes.add(parseTrackData(track))
                                                         } else {
                                                             println("Limit reached!")
                                                             likesJob.complete()
                                                             return@withContext
                                                         }
                                                     } else {
-                                                        likes.add(parseTrack())
+                                                        likes.add(parseTrackData(track))
                                                     }
                                                 } catch (e: JSONException) {
                                                     // JSON broken, try getting the data again
@@ -1152,74 +1137,16 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                         if (!playlistsOnly) {
                                             it.getJSONObject("track").let { track ->
                                                 try {
-                                                    fun parseTrack() =
-                                                        Track(
-                                                            Album(
-                                                                Name(
-                                                                    if (
-                                                                        !track.isNull("publisher_metadata") &&
-                                                                        track.getJSONObject("publisher_metadata")
-                                                                            .has("album_title") &&
-                                                                        !track.getJSONObject("publisher_metadata")
-                                                                            .isNull("album_title")
-                                                                    ) {
-                                                                        track.getJSONObject("publisher_metadata")
-                                                                            .getString("album_title")
-                                                                    } else {
-                                                                        ""
-                                                                    },
-                                                                ),
-                                                                releaseDate =
-                                                                    ReleaseDate(
-                                                                        LocalDate.parse(
-                                                                            track.getString("created_at"),
-                                                                            DateTimeFormatter.ISO_INSTANT.withZone(
-                                                                                ZoneId.of("Z"),
-                                                                            ),
-                                                                        ),
-                                                                    ),
-                                                            ),
-                                                            Artists(
-                                                                listOf(
-                                                                    track.getJSONObject("user").let { user ->
-                                                                        Artist(
-                                                                            Name(user.getString("username")),
-                                                                            Link(
-                                                                                user.getString("permalink_url"),
-                                                                                user.getInt("id").toString(),
-                                                                            ),
-                                                                        )
-                                                                    },
-                                                                ),
-                                                            ),
-                                                            Name(track.getString("title")),
-                                                            Link(
-                                                                track.getString("permalink_url"),
-                                                                track.getInt("id").toString(),
-                                                            ),
-                                                            Playability(
-                                                                track.getBoolean("streamable") && track.getString(
-                                                                    "policy",
-                                                                ) != "BLOCK",
-                                                            ),
-                                                            Likes(
-                                                                if (!track.isNull("likes_count")) {
-                                                                    track.getInt("likes_count")
-                                                                } else {
-                                                                    0
-                                                                },
-                                                            ),
-                                                        )
                                                     if (limit != 0) {
                                                         if (reposts.size < limit) {
-                                                            reposts.add(parseTrack())
+                                                            reposts.add(parseTrackData(track))
                                                         } else {
                                                             println("Limit reached!")
                                                             repostsJob.complete()
                                                             return@withContext
                                                         }
                                                     } else {
-                                                        reposts.add(parseTrack())
+                                                        reposts.add(parseTrackData(track))
                                                     }
                                                 } catch (e: JSONException) {
                                                     // JSON broken, try getting the data again
@@ -1323,47 +1250,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                     trackList.addAll(
                                         data.getJSONArray("collection").map {
                                             it as JSONObject
-                                            Track(
-                                                Album(
-                                                    Name(
-                                                        if (
-                                                            !it.isNull("publisher_metadata") &&
-                                                            it.getJSONObject("publisher_metadata").has("album_title") &&
-                                                            !it.getJSONObject("publisher_metadata").isNull("album_title")
-                                                        ) {
-                                                            it.getJSONObject("publisher_metadata").getString("album_title")
-                                                        } else {
-                                                            ""
-                                                        },
-                                                    ),
-                                                    releaseDate =
-                                                        ReleaseDate(
-                                                            LocalDate.parse(
-                                                                it.getString("created_at"),
-                                                                DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z")),
-                                                            ),
-                                                        ),
-                                                ),
-                                                Artists(
-                                                    listOf(
-                                                        Artist(
-                                                            Name(it.getJSONObject("user").getString("username")),
-                                                            Link(
-                                                                it.getJSONObject("user").getString("permalink_url"),
-                                                                it.getJSONObject("user").getInt("id").toString(),
-                                                            ),
-                                                        ),
-                                                    ),
-                                                ),
-                                                Name(it.getString("title")),
-                                                Link(it.getString("permalink_url"), it.getInt("id").toString()),
-                                                Playability(it.getBoolean("streamable") && it.getString("policy") != "BLOCK"),
-                                                if (!it.isNull("likes_count")) {
-                                                    Likes(it.getInt("likes_count"))
-                                                } else {
-                                                    Likes()
-                                                },
-                                            )
+                                            parseTrackData(it)
                                         },
                                     )
                                     tracksJob.complete()
