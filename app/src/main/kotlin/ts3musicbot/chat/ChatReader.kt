@@ -968,8 +968,10 @@ class ChatReader(
                                     val links =
                                         when {
                                             commandString.contains(
+                                                (
                                                 "^${cmdList.commandList["queue-delete"]}(\\s+-+($validOptions)+)*\\s+" +
-                                                    "((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+-+($validOptions)+)*".toRegex(),
+                                                    "((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+-+($validOptions)+)*"
+                                                ).toRegex(),
                                             ) -> {
                                                 commandString.split("(\\s+|,\\s+|,)".toRegex()).filter {
                                                     it.contains("(\\[URL])?https?://\\S+,?(\\[/URL])?".toRegex())
