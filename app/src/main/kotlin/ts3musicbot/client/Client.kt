@@ -37,7 +37,7 @@ open class Client(open val botSettings: BotSettings) {
                 .replace("$", "\\$")
                 .replace("[", "\\\\\\[")
                 .replace("]", "\\\\\\]")
-         }
+        }
     }
 
     protected fun decode(message: String) =

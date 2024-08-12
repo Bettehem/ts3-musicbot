@@ -969,8 +969,8 @@ class ChatReader(
                                         when {
                                             commandString.contains(
                                                 (
-                                                "^${cmdList.commandList["queue-delete"]}(\\s+-+($validOptions)+)*\\s+" +
-                                                    "((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+-+($validOptions)+)*"
+                                                    "^${cmdList.commandList["queue-delete"]}(\\s+-+($validOptions)+)*\\s+" +
+                                                        "((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+-+($validOptions)+)*"
                                                 ).toRegex(),
                                             ) -> {
                                                 commandString.split("(\\s+|,\\s+|,)".toRegex()).filter {
