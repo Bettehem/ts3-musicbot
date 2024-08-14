@@ -2,8 +2,6 @@ image: "ubuntu:22.04"
 
 stages:
   - build
-  - test
-  - buildJar
 
 before_script:
   - apt update
@@ -13,15 +11,7 @@ buildTS3MusicBot:
   stage: build
   script:
     - sh gradlew assemble
-
-runTests:
-  stage: test
-  script:
     - sh gradlew test -i
-
-buildJar:
-  stage: buildJar
-  script:
     - sh build.sh
   artifacts:
     paths:

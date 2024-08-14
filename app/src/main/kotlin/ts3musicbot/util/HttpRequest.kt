@@ -101,12 +101,23 @@ fun sendHttpRequest(
 
                         // Code 429 stands for TOO_MANY_REQUESTS
                         HTTP_TOO_MANY_REQUESTS -> {
-                            connection.getHeaderField("Retry-After")
+                            if (connection.headerFields.any { it.key?.lowercase() == "retry-after" }) {
+                                val retryAfterKey = connection.headerFields.keys.first { it?.lowercase() == "retry-after" }
+                                val field = connection.getHeaderField(retryAfterKey)
+                                println("Got Header Field: $retryAfterKey : $field")
+                                field
+                            } else {
+                                println("Retry-After not found! Got the following header fields:\n" + connection.headerFields)
+                                val time = 10
+                                println("Defaulting to $time seconds")
+                                "$time"
+                            }
                         }
                         else -> {
                             println("\n\n\nHTTP $requestMethod request to $link")
                             println("Response Code: ${connection.responseCode}")
-                            println("Response message: ${connection.responseMessage}")
+                            println("Response Header Fields: ${connection.headerFields}")
+                            println("Response Message: ${connection.responseMessage}")
                             ""
                         }
                     },
