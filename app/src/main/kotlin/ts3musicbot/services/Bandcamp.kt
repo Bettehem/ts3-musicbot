@@ -1,5 +1,9 @@
 package ts3musicbot.services
 
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import ts3musicbot.util.Album
@@ -11,6 +15,7 @@ import ts3musicbot.util.Discover
 import ts3musicbot.util.Discoveries
 import ts3musicbot.util.ExtraProperties
 import ts3musicbot.util.Genres
+import ts3musicbot.util.HTTP_TOO_MANY_REQUESTS
 import ts3musicbot.util.Link
 import ts3musicbot.util.LinkType
 import ts3musicbot.util.Name
@@ -150,104 +155,125 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
 
     override suspend fun fetchTrack(trackLink: Link): Track {
         val request = sendHttpRequest(trackLink)
-        return when (request.code.code) {
-            HttpURLConnection.HTTP_OK -> {
-                val lines = request.data.data.lines()
-                val trackData =
-                    JSONObject(lines[lines.indexOfFirst { it.contains("<script type=\"application/ld+json\">") } + 1])
-                val artistID =
-                    if (trackData.getJSONObject("byArtist").has("@id")) {
-                        trackData.getJSONObject("byArtist").getString("@id")
-                    } else if (
-                        trackData.getJSONObject("inAlbum").has("byArtist") &&
-                        trackData.getJSONObject("inAlbum").getJSONObject("byArtist").has("@id")
-                    ) {
-                        trackData.getJSONObject("inAlbum").getJSONObject("byArtist").getString("@id")
-                    } else {
-                        trackData.getJSONObject("publisher").getString("@id")
+        lateinit var track: Track
+        val trackJob = Job()
+        withContext(IO + trackJob) {
+            while (true) {
+                when (request.code.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        val lines = request.data.data.lines()
+                        val trackData =
+                            JSONObject(lines[lines.indexOfFirst { it.contains("<script type=\"application/ld+json\">") } + 1])
+                        val artistID =
+                            if (trackData.getJSONObject("byArtist").has("@id")) {
+                                trackData.getJSONObject("byArtist").getString("@id")
+                            } else if (
+                                trackData.getJSONObject("inAlbum").has("byArtist") &&
+                                trackData.getJSONObject("inAlbum").getJSONObject("byArtist").has("@id")
+                            ) {
+                                trackData.getJSONObject("inAlbum").getJSONObject("byArtist").getString("@id")
+                            } else {
+                                trackData.getJSONObject("publisher").getString("@id")
+                            }
+
+                        track =
+                            if ("$trackLink".contains("https://\\S+\\.bandcamp\\.com/album/\\S+#t[0-9]+$".toRegex())) {
+                                val trackItem =
+                                    trackData.getJSONObject("track").getJSONArray("itemListElement")
+                                        .first {
+                                            it as JSONObject
+                                            it.getInt("position") == "$trackLink".substringAfter("#t").toInt()
+                                        }.let { it as JSONObject }.getJSONObject("item")
+                                Track(
+                                    Album(
+                                        Name(trackData.getString("name")),
+                                        Artists(
+                                            listOf(
+                                                Artist(
+                                                    Name(trackData.getJSONObject("byArtist").getString("name")),
+                                                    Link(artistID),
+                                                ),
+                                            ),
+                                        ),
+                                        ReleaseDate(LocalDate.parse(trackData.getString("datePublished"), formatter)),
+                                        TrackList(),
+                                        Link(trackData.getString("@id")),
+                                        Genres(trackData.getJSONArray("keywords").map { it as String }),
+                                    ),
+                                    Artists(
+                                        listOf(
+                                            Artist(
+                                                Name(trackData.getJSONObject("byArtist").getString("name")),
+                                                Link(artistID),
+                                            ),
+                                        ),
+                                    ),
+                                    Name(trackItem.getString("name")),
+                                    Link(trackItem.getString("@id")),
+                                    Playability(trackItem.has("duration")),
+                                )
+                            } else {
+                                Track(
+                                    Album(
+                                        Name(trackData.getJSONObject("inAlbum").getString("name")),
+                                        Artists(
+                                            listOf(
+                                                Artist(
+                                                    Name(
+                                                        if (trackData.getJSONObject("inAlbum").has("byArtist")) {
+                                                            trackData.getJSONObject("inAlbum").getJSONObject("byArtist").getString("name")
+                                                        } else {
+                                                            trackData.getJSONObject("byArtist").getString("name")
+                                                        },
+                                                    ),
+                                                    Link(artistID),
+                                                ),
+                                            ),
+                                        ),
+                                        ReleaseDate(LocalDate.parse(trackData.getString("datePublished"), formatter)),
+                                        TrackList(),
+                                        Link(trackData.getJSONObject("inAlbum").getString("@id")),
+                                        Genres(trackData.getJSONArray("keywords").map { it as String }),
+                                    ),
+                                    Artists(
+                                        listOf(
+                                            Artist(
+                                                Name(
+                                                    if (trackData.getJSONObject("inAlbum").has("byArtist")) {
+                                                        trackData.getJSONObject("inAlbum").getJSONObject("byArtist").getString("name")
+                                                    } else {
+                                                        trackData.getJSONObject("byArtist").getString("name")
+                                                    },
+                                                ),
+                                                Link(artistID),
+                                            ),
+                                        ),
+                                    ),
+                                    Name(trackData.getString("name")),
+                                    Link(trackData.getString("@id")),
+                                    Playability(trackData.has("duration")),
+                                )
+                            }
+                        trackJob.complete()
+                        return@withContext
                     }
 
-                if ("$trackLink".contains("https://\\S+\\.bandcamp\\.com/album/\\S+#t[0-9]+$".toRegex())) {
-                    val trackItem =
-                        trackData.getJSONObject("track").getJSONArray("itemListElement")
-                            .first {
-                                it as JSONObject
-                                it.getInt("position") == "$trackLink".substringAfter("#t").toInt()
-                            }.let { it as JSONObject }.getJSONObject("item")
-                    Track(
-                        Album(
-                            Name(trackData.getString("name")),
-                            Artists(
-                                listOf(
-                                    Artist(
-                                        Name(trackData.getJSONObject("byArtist").getString("name")),
-                                        Link(artistID),
-                                    ),
-                                ),
-                            ),
-                            ReleaseDate(LocalDate.parse(trackData.getString("datePublished"), formatter)),
-                            TrackList(),
-                            Link(trackData.getString("@id")),
-                            Genres(trackData.getJSONArray("keywords").map { it as String }),
-                        ),
-                        Artists(
-                            listOf(
-                                Artist(
-                                    Name(trackData.getJSONObject("byArtist").getString("name")),
-                                    Link(artistID),
-                                ),
-                            ),
-                        ),
-                        Name(trackItem.getString("name")),
-                        Link(trackItem.getString("@id")),
-                        Playability(trackItem.has("duration")),
-                    )
-                } else {
-                    Track(
-                        Album(
-                            Name(trackData.getJSONObject("inAlbum").getString("name")),
-                            Artists(
-                                listOf(
-                                    Artist(
-                                        Name(
-                                            if (trackData.getJSONObject("inAlbum").has("byArtist")) {
-                                                trackData.getJSONObject("inAlbum").getJSONObject("byArtist").getString("name")
-                                            } else {
-                                                trackData.getJSONObject("byArtist").getString("name")
-                                            },
-                                        ),
-                                        Link(artistID),
-                                    ),
-                                ),
-                            ),
-                            ReleaseDate(LocalDate.parse(trackData.getString("datePublished"), formatter)),
-                            TrackList(),
-                            Link(trackData.getJSONObject("inAlbum").getString("@id")),
-                            Genres(trackData.getJSONArray("keywords").map { it as String }),
-                        ),
-                        Artists(
-                            listOf(
-                                Artist(
-                                    Name(
-                                        if (trackData.getJSONObject("inAlbum").has("byArtist")) {
-                                            trackData.getJSONObject("inAlbum").getJSONObject("byArtist").getString("name")
-                                        } else {
-                                            trackData.getJSONObject("byArtist").getString("name")
-                                        },
-                                    ),
-                                    Link(artistID),
-                                ),
-                            ),
-                        ),
-                        Name(trackData.getString("name")),
-                        Link(trackData.getString("@id")),
-                        Playability(trackData.has("duration")),
-                    )
+                    HTTP_TOO_MANY_REQUESTS -> {
+                        println("Too many requests! Waiting for ${request.data} seconds.")
+                        // wait for given time before next request.
+                        delay(request.data.data.toLong() * 1000)
+                    }
+
+                    else -> {
+                        println("HTTP ERROR! CODE: ${request.code}")
+                        track = Track()
+                        trackJob.complete()
+                        return@withContext
+                    }
                 }
             }
-
-            else -> Track()
         }
+        return track
     }
 
     override suspend fun fetchAlbum(albumLink: Link): Album {
