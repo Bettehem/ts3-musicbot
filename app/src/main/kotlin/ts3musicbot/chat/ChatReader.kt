@@ -67,8 +67,8 @@ class ChatReader(
      * @param text The text to remove url tags from
      * @return Return parsed text or original if parsing is unsuccessful
      */
-    private fun removeTags(text: String): String {
-        return when (client) {
+    private fun removeTags(text: String): String =
+        when (client) {
             is OfficialTSClient -> {
                 when (client.channelFile.extension) {
                     "txt" -> {
@@ -90,7 +90,6 @@ class ChatReader(
                 text
             }
         }
-    }
 
     /**
      * Starts reading the chat
@@ -218,10 +217,12 @@ class ChatReader(
                         }
                     }
                     // wait for the spotify player to start.
-                    while (commandRunner.runCommand(
-                            "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${botSettings.spotifyPlayer}(\\s+\\S+)?$\" | grep -v \"grep\"",
-                            printOutput = false,
-                        ).outputText.isEmpty()
+                    while (commandRunner
+                            .runCommand(
+                                "ps aux | grep -E \"[0-9]+:[0-9]+ (\\S+)?${botSettings.spotifyPlayer}(\\s+\\S+)?$\" | grep -v \"grep\"",
+                                printOutput = false,
+                            ).outputText
+                            .isEmpty()
                     ) {
                         // do nothing
                         println("Waiting for ${botSettings.spotifyPlayer} to start")
@@ -270,13 +271,21 @@ class ChatReader(
                                         printToChat(
                                             listOf(
                                                 cmdList.helpMessages[
-                                                    cmdList.commandList.filterValues { it == args }.keys.first(),
+                                                    cmdList.commandList
+                                                        .filterValues { it == args }
+                                                        .keys
+                                                        .first(),
                                                 ].orEmpty(),
                                             ),
                                         )
                                         commandListener.onCommandExecuted(
                                             commandString,
-                                            cmdList.helpMessages[cmdList.commandList.filterValues { it == args }.keys.first()].orEmpty(),
+                                            cmdList.helpMessages[
+                                                cmdList.commandList
+                                                    .filterValues { it == args }
+                                                    .keys
+                                                    .first(),
+                                            ].orEmpty(),
                                             args,
                                         )
                                         commandJob.complete()
@@ -367,70 +376,88 @@ class ChatReader(
                                 ) {
                                     when {
                                         commandString.contains("\\s+(sp|spotify)\\s+".toRegex()) ->
-                                            spotify.search(
-                                                SearchType(
-                                                    commandString.split("\\s+(sp|spotify)\\s+".toRegex()).last()
-                                                        .substringBefore(" "),
-                                                ),
-                                                SearchQuery(
-                                                    commandString.split("\\s+(sp|spotify)\\s+\\w+\\s+".toRegex()).last(),
-                                                ),
-                                                1,
-                                            ).results.let {
-                                                if (it.isNotEmpty()) {
-                                                    links.add(it.first().link)
+                                            spotify
+                                                .search(
+                                                    SearchType(
+                                                        commandString
+                                                            .split("\\s+(sp|spotify)\\s+".toRegex())
+                                                            .last()
+                                                            .substringBefore(" "),
+                                                    ),
+                                                    SearchQuery(
+                                                        commandString.split("\\s+(sp|spotify)\\s+\\w+\\s+".toRegex()).last(),
+                                                    ),
+                                                    1,
+                                                ).results
+                                                .let {
+                                                    if (it.isNotEmpty()) {
+                                                        links.add(it.first().link)
+                                                    }
                                                 }
-                                            }
 
                                         commandString.contains("\\s+(yt|youtube)\\s+".toRegex()) ->
-                                            youTube.search(
-                                                SearchType(
-                                                    commandString.split("\\s+(yt|youtube)\\s+".toRegex()).last()
-                                                        .substringBefore(" "),
-                                                ),
-                                                SearchQuery(
-                                                    commandString.split("\\s+(yt|youtube)\\s+\\w+\\s+".toRegex()).last(),
-                                                ),
-                                                1,
-                                            ).results.let {
-                                                if (it.isNotEmpty()) {
-                                                    links.add(it.first().link)
+                                            youTube
+                                                .search(
+                                                    SearchType(
+                                                        commandString
+                                                            .split("\\s+(yt|youtube)\\s+".toRegex())
+                                                            .last()
+                                                            .substringBefore(" "),
+                                                    ),
+                                                    SearchQuery(
+                                                        commandString.split("\\s+(yt|youtube)\\s+\\w+\\s+".toRegex()).last(),
+                                                    ),
+                                                    1,
+                                                ).results
+                                                .let {
+                                                    if (it.isNotEmpty()) {
+                                                        links.add(it.first().link)
+                                                    }
                                                 }
-                                            }
 
                                         commandString.contains("\\s+(sc|soundcloud)\\s+".toRegex()) ->
-                                            soundCloud.search(
-                                                SearchType(
-                                                    commandString.split("\\s+(sc|soundcloud)\\s+".toRegex()).last()
-                                                        .substringBefore(" "),
-                                                ),
-                                                SearchQuery(
-                                                    commandString.split("\\s+(sc|soundcloud)\\s+\\w+\\s+".toRegex())
-                                                        .last(),
-                                                ),
-                                                1,
-                                            ).results.let {
-                                                if (it.isNotEmpty()) {
-                                                    links.add(it.first().link)
+                                            soundCloud
+                                                .search(
+                                                    SearchType(
+                                                        commandString
+                                                            .split("\\s+(sc|soundcloud)\\s+".toRegex())
+                                                            .last()
+                                                            .substringBefore(" "),
+                                                    ),
+                                                    SearchQuery(
+                                                        commandString
+                                                            .split("\\s+(sc|soundcloud)\\s+\\w+\\s+".toRegex())
+                                                            .last(),
+                                                    ),
+                                                    1,
+                                                ).results
+                                                .let {
+                                                    if (it.isNotEmpty()) {
+                                                        links.add(it.first().link)
+                                                    }
                                                 }
-                                            }
 
                                         commandString.contains("\\s+(bc|bandcamp)\\s+".toRegex()) ->
-                                            bandcamp.search(
-                                                SearchType(
-                                                    commandString.split("\\s+(bc|bandcamp)\\s+".toRegex()).last()
-                                                        .substringBefore(" "),
-                                                ),
-                                                SearchQuery(
-                                                    commandString.split("\\s+(bc|bandcamp)\\s+\\w+\\s+".toRegex())
-                                                        .last(),
-                                                ),
-                                                1,
-                                            ).results.let {
-                                                if (it.isNotEmpty()) {
-                                                    links.add(it.first().link)
+                                            bandcamp
+                                                .search(
+                                                    SearchType(
+                                                        commandString
+                                                            .split("\\s+(bc|bandcamp)\\s+".toRegex())
+                                                            .last()
+                                                            .substringBefore(" "),
+                                                    ),
+                                                    SearchQuery(
+                                                        commandString
+                                                            .split("\\s+(bc|bandcamp)\\s+\\w+\\s+".toRegex())
+                                                            .last(),
+                                                    ),
+                                                    1,
+                                                ).results
+                                                .let {
+                                                    if (it.isNotEmpty()) {
+                                                        links.add(it.first().link)
+                                                    }
                                                 }
-                                            }
                                     }
                                 }
                                 // get arguments in command
@@ -536,7 +563,8 @@ class ChatReader(
                                     } else {
                                         when (
                                             val type =
-                                                link.linkType(service)
+                                                link
+                                                    .linkType(service)
                                                     .let { type ->
                                                         println("Link type: $type\nLink id: ${id.ifEmpty { "N/A" }}")
                                                         type
@@ -600,8 +628,8 @@ class ChatReader(
 
                                                             LinkType.ALBUM -> service.fetchAlbumTracks(link, trackLimit)
                                                             else -> TrackList()
-                                                        }
-                                                            .trackList.let { list ->
+                                                        }.trackList
+                                                            .let { list ->
                                                                 if (trackLimit != 0 && list.size > trackLimit) {
                                                                     TrackList(list.subList(0, trackLimit))
                                                                 } else {
@@ -675,7 +703,8 @@ class ChatReader(
                                                 val topTracks =
                                                     TrackList(
                                                         filterList(service.fetchArtist(link).topTracks, link)
-                                                            .trackList.let { list ->
+                                                            .trackList
+                                                            .let { list ->
                                                                 if (trackLimit != 0 && list.size > trackLimit) {
                                                                     list.subList(0, trackLimit)
                                                                 } else {
@@ -707,8 +736,7 @@ class ChatReader(
                                                                 filterList(
                                                                     service.fetchDiscover(link).getTrackList(),
                                                                     link,
-                                                                ).trackList.let {
-                                                                        list ->
+                                                                ).trackList.let { list ->
                                                                     if (trackLimit != 0 && list.size > trackLimit) {
                                                                         list.subList(0, trackLimit)
                                                                     } else {
@@ -721,8 +749,7 @@ class ChatReader(
                                                                 filterList(
                                                                     service.fetchDiscover(link).getTrackList(),
                                                                     link,
-                                                                ).trackList.let {
-                                                                        list ->
+                                                                ).trackList.let { list ->
                                                                     if (trackLimit != 0 && list.size > trackLimit) {
                                                                         list.subList(0, trackLimit)
                                                                     } else {
@@ -757,8 +784,7 @@ class ChatReader(
                                             commandSuccessful.reversed()
                                         } else {
                                             commandSuccessful
-                                        }
-                                            .filter { it.first }
+                                        }.filter { it.first }
                                             .joinToString("\n") { it.second.first }
                                     if (msgBuilder.lines().size <= 1) {
                                         msgBuilder.append(msg)
@@ -778,13 +804,14 @@ class ChatReader(
                                     msgBuilder.appendLine(
                                         "${unPlayableTracks.size} track${if (unPlayableTracks.size > 1) "s" else ""} could not be added :/",
                                     )
-                                    for (unplayable in unPlayableTracks)
+                                    for (unplayable in unPlayableTracks) {
                                         msgBuilder.appendLine(
                                             listOf(
                                                 unplayable.second.first,
                                                 unplayable.second.second.toString(),
                                             ).joinToString("\n"),
                                         )
+                                    }
                                     printToChat(listOf(msgBuilder.toString()))
                                     commandListener.onCommandExecuted(
                                         commandString,
@@ -864,8 +891,8 @@ class ChatReader(
                                         )
 
                                     else -> {
-                                        fun formatLines(queue: List<Track>): List<String> {
-                                            return queue.mapIndexed { index, track ->
+                                        fun formatLines(queue: List<Track>): List<String> =
+                                            queue.mapIndexed { index, track ->
                                                 val strBuilder = StringBuilder()
                                                 strBuilder.append("${if (index < 10) "$index: " else "$index:"} ")
                                                 if (track.link.serviceType() != Service.ServiceType.YOUTUBE) {
@@ -880,7 +907,6 @@ class ChatReader(
                                                         ""
                                                     } + ": ${track.link.link}".substringBeforeLast(",")
                                             }
-                                        }
 
                                         val msg = StringBuilder()
                                         if (currentQueue.size <= 15) {
@@ -897,12 +923,15 @@ class ChatReader(
 
                                                         "-l", "--limit" -> {
                                                             val limit =
-                                                                commandArgs.split("\\s+".toRegex())
-                                                                    .first { it.contains("[0-9]+".toRegex()) }.toInt()
+                                                                commandArgs
+                                                                    .split("\\s+".toRegex())
+                                                                    .first { it.contains("[0-9]+".toRegex()) }
+                                                                    .toInt()
                                                             if (currentQueue.size <= limit) {
                                                                 formatLines(currentQueue).forEach { msg.appendLine(it) }
                                                             } else {
-                                                                formatLines(currentQueue).subList(0, limit)
+                                                                formatLines(currentQueue)
+                                                                    .subList(0, limit)
                                                                     .forEach { msg.appendLine(it) }
                                                             }
                                                         }
@@ -973,9 +1002,11 @@ class ChatReader(
                                                         "((\\[URL])?https?://\\S+,?(\\s+)?)+(\\s+-+($validOptions)+)*"
                                                 ).toRegex(),
                                             ) -> {
-                                                commandString.split("(\\s+|,\\s+|,)".toRegex()).filter {
-                                                    it.contains("(\\[URL])?https?://\\S+,?(\\[/URL])?".toRegex())
-                                                }.map { Link(removeTags(it.replace(",\\[/URL]".toRegex(), "[/URL]"))) }
+                                                commandString
+                                                    .split("(\\s+|,\\s+|,)".toRegex())
+                                                    .filter {
+                                                        it.contains("(\\[URL])?https?://\\S+,?(\\[/URL])?".toRegex())
+                                                    }.map { Link(removeTags(it.replace(",\\[/URL]".toRegex(), "[/URL]"))) }
                                             }
 
                                             commandString.contains(
@@ -1008,9 +1039,12 @@ class ChatReader(
                                     // get positions from message
                                     val positions =
                                         if (commandString.contains("([0-9]+(,(\\s+)?)?)+".toRegex())) {
-                                            commandString.split("(\\s+|,\\s+|,)".toRegex()).filter {
-                                                it.contains("^[0-9]+$".toRegex())
-                                            }.map { it.toInt() }.sortedDescending()
+                                            commandString
+                                                .split("(\\s+|,\\s+|,)".toRegex())
+                                                .filter {
+                                                    it.contains("^[0-9]+$".toRegex())
+                                                }.map { it.toInt() }
+                                                .sortedDescending()
                                         } else {
                                             emptyList()
                                         }
@@ -1039,8 +1073,7 @@ class ChatReader(
                                                             trackCache.first { it.first == link }.second.trackList
                                                         } else {
                                                             service.fetchPlaylistTracks(link).trackList
-                                                        }
-                                                            .map { track -> track.link },
+                                                        }.map { track -> track.link },
                                                     )
                                                 }
 
@@ -1053,8 +1086,7 @@ class ChatReader(
                                                             trackCache.first { it.first == link }.second.trackList
                                                         } else {
                                                             service.fetchAlbumTracks(link).trackList
-                                                        }
-                                                            .map { track -> track.link },
+                                                        }.map { track -> track.link },
                                                     )
                                                 }
 
@@ -1075,8 +1107,7 @@ class ChatReader(
                                                                 trackCache.first { it.first == link }.second.trackList
                                                             } else {
                                                                 service.fetchArtist(link).topTracks.trackList
-                                                            }
-                                                                .map { track -> track.link },
+                                                            }.map { track -> track.link },
                                                         )
                                                     }
                                                 }
@@ -1096,8 +1127,7 @@ class ChatReader(
                                                                 trackCache.first { it.first == link }.second.trackList
                                                             } else {
                                                                 service.fetchPlaylistTracks(playlist.link).trackList
-                                                            }
-                                                                .map { track -> track.link },
+                                                            }.map { track -> track.link },
                                                         )
                                                     }
                                                 }
@@ -1112,8 +1142,7 @@ class ChatReader(
                                                                 trackCache.first { it.first == link }.second.trackList
                                                             } else {
                                                                 service.fetchUserLikes(link).trackList
-                                                            }
-                                                                .map { track -> track.link },
+                                                            }.map { track -> track.link },
                                                         )
                                                     }
                                                 }
@@ -1128,8 +1157,7 @@ class ChatReader(
                                                                 trackCache.first { it.first == link }.second.trackList
                                                             } else {
                                                                 service.fetchUserReposts(link).trackList
-                                                            }
-                                                                .map { track -> track.link },
+                                                            }.map { track -> track.link },
                                                         )
                                                     }
                                                 }
@@ -1143,7 +1171,11 @@ class ChatReader(
                                                                 println("Tracks found in cache!")
                                                                 trackCache.first { it.first == link }.second.trackList
                                                             } else {
-                                                                service.fetchShow(link).episodes.toTrackList().trackList
+                                                                service
+                                                                    .fetchShow(link)
+                                                                    .episodes
+                                                                    .toTrackList()
+                                                                    .trackList
                                                             }.map { episode -> episode.link },
                                                         )
                                                     }
@@ -1162,8 +1194,10 @@ class ChatReader(
                                                                 println("Tracks found in cache!")
                                                                 trackCache.first { it.first == link }.second.trackList
                                                             } else {
-                                                                service.fetchRecommendedAlbums(link)
-                                                                    .getTrackList().trackList
+                                                                service
+                                                                    .fetchRecommendedAlbums(link)
+                                                                    .getTrackList()
+                                                                    .trackList
                                                             }.map { it.link },
                                                         )
                                                     }
@@ -1202,17 +1236,20 @@ class ChatReader(
                                             )
                                         }
 
-                                        currentList.asFlow().filter { track ->
-                                            links.any { link ->
-                                                if (allArtistTracks) {
-                                                    link == track.link || track.artists.artists.any { artist -> artist.link == link }
-                                                } else {
-                                                    link == track.link
+                                        currentList
+                                            .asFlow()
+                                            .filter { track ->
+                                                links.any { link ->
+                                                    if (allArtistTracks) {
+                                                        link == track.link || track.artists.artists.any { artist -> artist.link == link }
+                                                    } else {
+                                                        link == track.link
+                                                    }
                                                 }
+                                            }.flowOn(Default)
+                                            .collect { track ->
+                                                tracksToDelete.add(track)
                                             }
-                                        }.flowOn(Default).collect { track ->
-                                            tracksToDelete.add(track)
-                                        }
                                         if (tracksToDelete.isNotEmpty()) {
                                             val trackAmount = tracksToDelete.distinct().size
                                             printToChat(listOf("$trackAmount track${if (trackAmount != 1) "s" else ""} found."))
@@ -1236,23 +1273,24 @@ class ChatReader(
                                                         val duplicates = ArrayList<Int>()
                                                         msg.appendLine(
                                                             "There are multiple instances of this track:\n" +
-                                                                currentList.mapIndexed { i, t ->
-                                                                    if (t.link == track.link) {
-                                                                        "$i: ${t.toShortString()}".also {
-                                                                            duplicates.add(i)
+                                                                currentList
+                                                                    .mapIndexed { i, t ->
+                                                                        if (t.link == track.link) {
+                                                                            "$i: ${t.toShortString()}".also {
+                                                                                duplicates.add(i)
+                                                                            }
+                                                                        } else {
+                                                                            ""
                                                                         }
-                                                                    } else {
-                                                                        ""
-                                                                    }
-                                                                }.let {
-                                                                    val sb = StringBuilder()
-                                                                    for (item in it) {
-                                                                        if (item.isNotEmpty()) {
-                                                                            sb.appendLine(item)
+                                                                    }.let {
+                                                                        val sb = StringBuilder()
+                                                                        for (item in it) {
+                                                                            if (item.isNotEmpty()) {
+                                                                                sb.appendLine(item)
+                                                                            }
                                                                         }
-                                                                    }
-                                                                    sb.toString()
-                                                                },
+                                                                        sb.toString()
+                                                                    },
                                                         )
                                                         if (firstMatchOnly) {
                                                             msg.appendLine(
@@ -1273,7 +1311,8 @@ class ChatReader(
                                                                                 for (pos in trackPositions) {
                                                                                     positionsText.append("$pos, ")
                                                                                 }
-                                                                                positionsText.toString()
+                                                                                positionsText
+                                                                                    .toString()
                                                                                     .substringBeforeLast(",")
                                                                             }
                                                                     }\n\n" +
@@ -1458,8 +1497,10 @@ class ChatReader(
                                         if (args.any { it.contains("(-p|--position)".toRegex()) }) {
                                             val posIndex = args.indexOfFirst { it.contains("(-p|--position)".toRegex()) }
                                             if (args[posIndex].contains("[0-9]+".toRegex())) {
-                                                args[posIndex].replace("(-p|--position)".toRegex(), "")
-                                                    .ifEmpty { "0" }.toInt()
+                                                args[posIndex]
+                                                    .replace("(-p|--position)".toRegex(), "")
+                                                    .ifEmpty { "0" }
+                                                    .toInt()
                                             } else {
                                                 args[posIndex + 1].ifEmpty { "0" }.toInt()
                                             }
@@ -1479,9 +1520,11 @@ class ChatReader(
                                             })?)".toRegex(),
                                         )
                                     ) {
-                                        commandString.split("(\\s+|,\\s*)".toRegex()).filter {
-                                            it.contains("(\\[URL])?https?://\\S+,?(\\[/URL])?".toRegex())
-                                        }.map { Link(removeTags(it)).clean() }
+                                        commandString
+                                            .split("(\\s+|,\\s*)".toRegex())
+                                            .filter {
+                                                it.contains("(\\[URL])?https?://\\S+,?(\\[/URL])?".toRegex())
+                                            }.map { Link(removeTags(it)).clean() }
                                     } else {
                                         emptyList()
                                     }
@@ -1552,23 +1595,24 @@ class ChatReader(
                                                     printToChat(
                                                         listOf(
                                                             "There are multiple instances of these tracks:\n" +
-                                                                currentList.mapIndexed { i, t ->
-                                                                    if (links.any { it == t.link }) {
-                                                                        "$i: ${t.toShortString()}".also {
-                                                                            duplicates.add(i)
+                                                                currentList
+                                                                    .mapIndexed { i, t ->
+                                                                        if (links.any { it == t.link }) {
+                                                                            "$i: ${t.toShortString()}".also {
+                                                                                duplicates.add(i)
+                                                                            }
+                                                                        } else {
+                                                                            ""
                                                                         }
-                                                                    } else {
-                                                                        ""
-                                                                    }
-                                                                }.let {
-                                                                    val sb = StringBuilder()
-                                                                    for (item in it) {
-                                                                        if (item.isNotEmpty()) {
-                                                                            sb.appendLine(item)
+                                                                    }.let {
+                                                                        val sb = StringBuilder()
+                                                                        for (item in it) {
+                                                                            if (item.isNotEmpty()) {
+                                                                                sb.appendLine(item)
+                                                                            }
                                                                         }
-                                                                    }
-                                                                    sb.toString()
-                                                                },
+                                                                        sb.toString()
+                                                                    },
                                                         ),
                                                     )
                                                     printToChat(
@@ -1644,7 +1688,8 @@ class ChatReader(
                                         val newList = songQueue.getQueue()
                                         return Pair(
                                             if (
-                                                currentList.filterIndexed { index, _ -> positions.any { it == index } }
+                                                currentList
+                                                    .filterIndexed { index, _ -> positions.any { it == index } }
                                                     .let { tracks ->
                                                         if (newPosIsOffset) {
                                                             if (newPosition == 0) {
@@ -1697,15 +1742,18 @@ class ChatReader(
                                 val state = songQueue.getState()
                                 when (state) {
                                     SongQueue.State.QUEUE_PLAYING ->
-                                        statusMessage.appendLine("Playing")
+                                        statusMessage
+                                            .appendLine("Playing")
                                             .also { stateKnown = true }
 
                                     SongQueue.State.QUEUE_PAUSED ->
-                                        statusMessage.appendLine("Paused")
+                                        statusMessage
+                                            .appendLine("Paused")
                                             .also { stateKnown = true }
 
                                     SongQueue.State.QUEUE_STOPPED ->
-                                        statusMessage.appendLine("Stopped")
+                                        statusMessage
+                                            .appendLine("Stopped")
                                             .also { stateKnown = true }
                                 }
                                 val trackLength = songQueue.getTrackLength()
@@ -1724,10 +1772,14 @@ class ChatReader(
                                 if (currentTrack.title.name.isNotEmpty()) {
                                     val messageLines = StringBuilder()
                                     messageLines.appendLine("Now playing:")
-                                    if (currentTrack.album.name.name.isNotEmpty()) {
+                                    if (currentTrack.album.name.name
+                                            .isNotEmpty()
+                                    ) {
                                         messageLines.appendLine("Album Name:  \t${currentTrack.album.name}")
                                     }
-                                    if (currentTrack.album.link.link.isNotEmpty()) {
+                                    if (currentTrack.album.link.link
+                                            .isNotEmpty()
+                                    ) {
                                         messageLines.appendLine("Album Link:  \t\t${currentTrack.album.link}")
                                     }
                                     if (currentTrack.link.link.contains("(youtu\\.?be|soundcloud)".toRegex())) {
@@ -1770,10 +1822,11 @@ class ChatReader(
                             ) -> {
                                 val amount =
                                     if (commandString.contains("(-a|--amount=?)\\s*[0-9]+".toRegex())) {
-                                        commandString.replace(
-                                            "^${cmdList.commandList["queue-repeat"]}\\s*(-a|--amount=?)\\s*".toRegex(),
-                                            "",
-                                        ).toInt()
+                                        commandString
+                                            .replace(
+                                                "^${cmdList.commandList["queue-repeat"]}\\s*(-a|--amount=?)\\s*".toRegex(),
+                                                "",
+                                            ).toInt()
                                     } else {
                                         1
                                     }
@@ -1784,7 +1837,8 @@ class ChatReader(
                             commandString.contains("^${cmdList.commandList["search"]}\\s+".toRegex()) -> {
                                 val searchCommand = cmdList.commandList["search"]
                                 val serviceText =
-                                    commandString.replace("^$searchCommand\\s+".toRegex(), "")
+                                    commandString
+                                        .replace("^$searchCommand\\s+".toRegex(), "")
                                         .replace("\\s+.*$".toRegex(), "")
                                 val service =
                                     when (serviceText) {
@@ -1796,7 +1850,8 @@ class ChatReader(
                                     }
                                 val searchType =
                                     SearchType(
-                                        commandString.replace("^$searchCommand\\s+$serviceText\\s+".toRegex(), "")
+                                        commandString
+                                            .replace("^$searchCommand\\s+$serviceText\\s+".toRegex(), "")
                                             .replace("\\s+.*$".toRegex(), ""),
                                     )
                                 if (
@@ -1818,19 +1873,22 @@ class ChatReader(
                                 ) {
                                     val limit =
                                         if (commandString.contains("(-l|--limit)\\s+[0-9]+".toRegex())) {
-                                            commandString.split("\\s+(-l|--limit)\\s+".toRegex()).last()
-                                                .replace("\\s+.*$".toRegex(), "").toInt()
+                                            commandString
+                                                .split("\\s+(-l|--limit)\\s+".toRegex())
+                                                .last()
+                                                .replace("\\s+.*$".toRegex(), "")
+                                                .toInt()
                                         } else {
                                             10
                                         }
 
                                     val searchQuery =
                                         SearchQuery(
-                                            commandString.replace(
-                                                "^$searchCommand\\s+$serviceText\\s+$searchType\\s+".toRegex(),
-                                                "",
-                                            )
-                                                .replace("(-l|--limit)\\s+[0-9]+".toRegex(), ""),
+                                            commandString
+                                                .replace(
+                                                    "^$searchCommand\\s+$serviceText\\s+$searchType\\s+".toRegex(),
+                                                    "",
+                                                ).replace("(-l|--limit)\\s+[0-9]+".toRegex(), ""),
                                         )
                                     printToChat(listOf("Searching, please wait..."))
                                     val results =
@@ -1908,8 +1966,7 @@ class ChatReader(
                                             "${cmdList.commandList["search"]}${commandString.substringAfter(
                                                 "${cmdList.commandList["info"]}",
                                             )}",
-                                        ).second.let {
-                                                results ->
+                                        ).second.let { results ->
                                             latestMsgUsername = ""
                                             if (results is SearchResults) {
                                                 listOf(results.results.first().link)
@@ -2003,7 +2060,8 @@ class ChatReader(
                                         ""
                                     }.replace("(^\"|\"$)".toRegex(), "")
                                 val channelToJoin =
-                                    commandString.replace("^${cmdList.commandList["goto"]}\\s+".toRegex(), "")
+                                    commandString
+                                        .replace("^${cmdList.commandList["goto"]}\\s+".toRegex(), "")
                                         .replace("\\s*-p\\s*\"?.*\"?(\\s+|$)".toRegex(), "")
                                         .replace("(^\"|\"$)".toRegex(), "")
                                 client.joinChannel(channelToJoin, password)
@@ -2068,7 +2126,8 @@ class ChatReader(
                             // sp-playsong command
                             // Play Spotify song based on link or URI
                             commandString.contains("^${cmdList.commandList["sp-playsong"]}\\s+".toRegex()) -> {
-                                if (message.substringAfter("${cmdList.commandList["sp-playsong"]}")
+                                if (message
+                                        .substringAfter("${cmdList.commandList["sp-playsong"]}")
                                         .isNotEmpty()
                                 ) {
                                     startSpotifyPlayer()
@@ -2087,7 +2146,8 @@ class ChatReader(
                                                     .substringAfterLast("/")
                                                     .substringBefore("?")
                                             } else {
-                                                message.split(" ".toRegex())[1]
+                                                message
+                                                    .split(" ".toRegex())[1]
                                                     .split("track:".toRegex())[1]
                                             },
                                     )
@@ -2149,14 +2209,16 @@ class ChatReader(
                                 lines.appendLine("Now playing on Spotify:")
                                 val nowPlaying =
                                     playerctl(botSettings.spotifyPlayer, "metadata")
-                                        .outputText.lines()
+                                        .outputText
+                                        .lines()
                                 for (line in nowPlaying) {
                                     when (line.substringAfter("xesam:").split("\\s+".toRegex())[0]) {
                                         "album" ->
                                             lines.appendLine(
                                                 "Album:\t${
                                                     line.substringAfter(
-                                                        line.substringAfter("xesam:")
+                                                        line
+                                                            .substringAfter("xesam:")
                                                             .split("\\s+".toRegex())[0],
                                                     )
                                                 }",
@@ -2166,7 +2228,8 @@ class ChatReader(
                                             lines.appendLine(
                                                 "Artist:   \t${
                                                     line.substringAfter(
-                                                        line.substringAfter("xesam:")
+                                                        line
+                                                            .substringAfter("xesam:")
                                                             .split("\\s+".toRegex())[0],
                                                     )
                                                 }",
@@ -2176,7 +2239,8 @@ class ChatReader(
                                             lines.appendLine(
                                                 "Title:    \t${
                                                     line.substringAfter(
-                                                        line.substringAfter("xesam:")
+                                                        line
+                                                            .substringAfter("xesam:")
                                                             .split("\\s+".toRegex())[0],
                                                     )
                                                 }",
@@ -2186,7 +2250,8 @@ class ChatReader(
                                             lines.appendLine(
                                                 "Link:  \t${
                                                     line.substringAfter(
-                                                        line.substringAfter("xesam:")
+                                                        line
+                                                            .substringAfter("xesam:")
                                                             .split("\\s+".toRegex())[0],
                                                     )
                                                 }",
@@ -2248,7 +2313,8 @@ class ChatReader(
                                     val nowPlaying =
                                         youTube.fetchVideo(
                                             Link(
-                                                metadata.outputText.lines()
+                                                metadata.outputText
+                                                    .lines()
                                                     .first { it.contains("xesam:url") }
                                                     .replace("(^.+\\s+\"?|\"?$)".toRegex(), ""),
                                             ),
@@ -2310,7 +2376,8 @@ class ChatReader(
                                     val nowPlaying =
                                         youTube.fetchVideo(
                                             Link(
-                                                metadata.outputText.lines()
+                                                metadata.outputText
+                                                    .lines()
                                                     .first { it.contains("xesam:url") }
                                                     .replace("(^.+\\s+\"?|\"?$)".toRegex(), ""),
                                             ),
@@ -2464,7 +2531,10 @@ class ChatReader(
     }
 }
 
-class ChatUpdate(val userName: String, val message: String)
+class ChatUpdate(
+    val userName: String,
+    val message: String,
+)
 
 interface ChatUpdateListener {
     fun onChatUpdated(update: ChatUpdate)

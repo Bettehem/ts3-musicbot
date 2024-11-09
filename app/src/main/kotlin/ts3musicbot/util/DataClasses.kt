@@ -77,7 +77,9 @@ data class Episode(
     fun isNotEmpty() = name.isNotEmpty() || description.isNotEmpty() || link.isNotEmpty()
 }
 
-data class SearchType(val type: String) {
+data class SearchType(
+    val type: String,
+) {
     fun getType() =
         try {
             LinkType.valueOf(type.uppercase())
@@ -92,7 +94,9 @@ data class SearchType(val type: String) {
     fun isNotEmpty() = type.isNotEmpty()
 }
 
-data class SearchQuery(val query: String) {
+data class SearchQuery(
+    val query: String,
+) {
     override fun toString() = query
 
     fun isEmpty() = query.isEmpty()
@@ -100,11 +104,16 @@ data class SearchQuery(val query: String) {
     fun isNotEmpty() = query.isNotEmpty()
 }
 
-data class SearchResult(val resultText: String, val link: Link) {
+data class SearchResult(
+    val resultText: String,
+    val link: Link,
+) {
     override fun toString() = resultText
 }
 
-data class SearchResults(val results: List<SearchResult>) {
+data class SearchResults(
+    val results: List<SearchResult>,
+) {
     override fun toString(): String {
         val strBuilder = StringBuilder()
         results.forEach { strBuilder.appendLine(it) }
@@ -116,7 +125,9 @@ data class SearchResults(val results: List<SearchResult>) {
     fun isNotEmpty() = results.isNotEmpty()
 }
 
-data class Name(val name: String = "") {
+data class Name(
+    val name: String = "",
+) {
     override fun toString() = name
 
     fun isEmpty() = name.isEmpty()
@@ -126,7 +137,11 @@ data class Name(val name: String = "") {
     fun ifNotEmpty(fn: (name: Name) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
-data class Link(val link: String = "", val linkId: String = "", val linkedFrom: String = "") {
+data class Link(
+    val link: String = "",
+    val linkId: String = "",
+    val linkedFrom: String = "",
+) {
     fun serviceType() =
         when {
             link.contains("\\S+soundcloud\\S+".toRegex()) -> Service.ServiceType.SOUNDCLOUD
@@ -197,7 +212,9 @@ data class Link(val link: String = "", val linkId: String = "", val linkedFrom: 
                             Spotify().resolveId(this@Link)
                         }
                     } else {
-                        link.substringAfterLast(":").substringBefore("?")
+                        link
+                            .substringAfterLast(":")
+                            .substringBefore("?")
                             .substringAfterLast("/")
                     }
                 }
@@ -222,7 +239,8 @@ data class Link(val link: String = "", val linkId: String = "", val linkedFrom: 
                                     LinkType.PLAYLIST -> "(list)"
                                     else -> "".also { println("Cannot get id from this link: $link") }
                                 }
-                            link.substringAfterLast("/")
+                            link
+                                .substringAfterLast("/")
                                 .replace("(\\w*\\?\\S*$idFrom=)?".toRegex(), "")
                                 .replace("[&?]\\S+".toRegex(), "")
                         }
@@ -270,7 +288,9 @@ data class Link(val link: String = "", val linkId: String = "", val linkedFrom: 
                                 val query = this@Link.link.substringAfter("search_query=").substringBefore('&')
                                 val results = service.search(SearchType(linkType.name.lowercase()), SearchQuery(query), 1, false)
                                 if (results.isNotEmpty()) {
-                                    results.results.first().link.link
+                                    results.results
+                                        .first()
+                                        .link.link
                                 } else {
                                     link
                                 }
@@ -294,7 +314,10 @@ data class Link(val link: String = "", val linkId: String = "", val linkedFrom: 
     fun ifNotEmpty(fn: (link: Link) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
-data class Description(val text: String = "", val shortText: String = "") {
+data class Description(
+    val text: String = "",
+    val shortText: String = "",
+) {
     override fun toString() = text
 
     fun toShortString() = shortText
@@ -308,13 +331,21 @@ data class Description(val text: String = "", val shortText: String = "") {
     fun ifNotEmpty(fn: (description: Description) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
-data class Publicity(val isPublic: Boolean? = false)
+data class Publicity(
+    val isPublic: Boolean? = false,
+)
 
-data class Collaboration(val isCollaborative: Boolean = false)
+data class Collaboration(
+    val isCollaborative: Boolean = false,
+)
 
-data class Playability(val isPlayable: Boolean = false)
+data class Playability(
+    val isPlayable: Boolean = false,
+)
 
-data class Followers(val amount: Int = -1) {
+data class Followers(
+    val amount: Int = -1,
+) {
     override fun toString() = amount.toString()
 
     fun isEmpty() = amount == -1
@@ -322,7 +353,9 @@ data class Followers(val amount: Int = -1) {
     fun isNotEmpty() = amount != -1
 }
 
-data class Likes(val amount: Int = -1) {
+data class Likes(
+    val amount: Int = -1,
+) {
     override fun toString() = amount.toString()
 
     fun isEmpty() = amount == -1
@@ -330,7 +363,9 @@ data class Likes(val amount: Int = -1) {
     fun isNotEmpty() = amount != -1
 }
 
-data class Publisher(val name: Name = Name()) {
+data class Publisher(
+    val name: Name = Name(),
+) {
     override fun toString() = name.name
 
     fun isEmpty() = name.isEmpty()
@@ -340,7 +375,9 @@ data class Publisher(val name: Name = Name()) {
     fun ifNotEmpty(fn: (publisher: Publisher) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
-data class Artists(val artists: List<Artist> = emptyList()) {
+data class Artists(
+    val artists: List<Artist> = emptyList(),
+) {
     override fun toString(): String {
         val strBuilder = StringBuilder()
         artists.forEach { "${strBuilder.appendLine(it)}" }
@@ -360,7 +397,9 @@ data class Artists(val artists: List<Artist> = emptyList()) {
     fun ifNotEmpty(fn: (artists: Artists) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
-data class Albums(val albums: List<Album> = emptyList()) {
+data class Albums(
+    val albums: List<Album> = emptyList(),
+) {
     override fun toString(): String {
         val strBuilder = StringBuilder()
         albums.forEach { "${strBuilder.appendLine(it)}" }
@@ -374,7 +413,9 @@ data class Albums(val albums: List<Album> = emptyList()) {
     fun isNotEmpty() = albums.isNotEmpty()
 }
 
-data class TrackList(val trackList: List<Track> = emptyList()) {
+data class TrackList(
+    val trackList: List<Track> = emptyList(),
+) {
     val size = trackList.size
 
     override fun toString(): String {
@@ -405,7 +446,9 @@ data class TrackList(val trackList: List<Track> = emptyList()) {
     fun ifNotEmpty(fn: (tracks: TrackList) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
-data class EpisodeList(val episodes: List<Episode> = emptyList()) {
+data class EpisodeList(
+    val episodes: List<Episode> = emptyList(),
+) {
     val size = episodes.size
 
     fun toTrackList() =
@@ -436,9 +479,13 @@ data class EpisodeList(val episodes: List<Episode> = emptyList()) {
     fun ifNotEmpty(fn: (episodes: EpisodeList) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
-data class ReleaseDate(val date: LocalDate = LocalDate.now())
+data class ReleaseDate(
+    val date: LocalDate = LocalDate.now(),
+)
 
-data class Genres(val genres: List<String> = emptyList()) {
+data class Genres(
+    val genres: List<String> = emptyList(),
+) {
     override fun toString(): String {
         val strBuilder = StringBuilder()
         genres.forEach { strBuilder.append("$it, ") }
@@ -597,7 +644,9 @@ data class Playlist(
     fun isNotEmpty() = name.isNotEmpty() || owner.isNotEmpty() || description.isNotEmpty() || followers.isNotEmpty() || link.isNotEmpty()
 }
 
-data class Playlists(val lists: List<Playlist> = emptyList()) {
+data class Playlists(
+    val lists: List<Playlist> = emptyList(),
+) {
     val size = lists.size
 
     fun getTrackList() = TrackList(lists.flatMap { it.tracks.trackList })
@@ -681,7 +730,9 @@ data class Discover(
     fun isNotEmpty() = name.isNotEmpty() || albums.isNotEmpty() || playlists.isNotEmpty() || link.isNotEmpty()
 }
 
-data class Discoveries(val discoveries: List<Discover> = emptyList()) {
+data class Discoveries(
+    val discoveries: List<Discover> = emptyList(),
+) {
     val size = discoveries.size
 
     fun getTrackList() = TrackList(discoveries.flatMap { it.getTrackList().trackList })

@@ -45,7 +45,11 @@ private lateinit var teamSpeak: TeamSpeak
 private lateinit var officialTSClient: OfficialTSClient
 private lateinit var chatReader: ChatReader
 
-class Main : Application(), EventHandler<ActionEvent>, ChatUpdateListener, CommandListener {
+class Main :
+    Application(),
+    EventHandler<ActionEvent>,
+    ChatUpdateListener,
+    CommandListener {
     private lateinit var scene: Scene
 
     private var layout: VBox = VBox()
