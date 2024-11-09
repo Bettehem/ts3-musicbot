@@ -215,9 +215,7 @@ class SongQueue(
 
     fun getQueue(): ArrayList<Track> = synchronized(songQueue) { songQueue }.toMutableList() as ArrayList<Track>
 
-    fun nowPlaying(): Track {
-        return getCurrent()
-    }
+    fun nowPlaying(): Track = getCurrent()
 
     fun shuffleQueue() {
         synchronized(songQueue) {
@@ -281,13 +279,17 @@ class SongQueue(
                     Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD, Service.ServiceType.BANDCAMP -> {
                         // check if youtube-dl is able to download the track
                         var attempts = 0
-                        while (songQueue.isNotEmpty() && CommandRunner().runCommand(
-                                "youtube-dl --extract-audio --audio-format best --audio-quality 0 " +
-                                    "--cookies youtube-dl.cookies --force-ipv4 --age-limit 21 " +
-                                    "--geo-bypass -s \"${firstTrack.link}\"; echo $?",
-                                printOutput = false,
-                                printErrors = false,
-                            ).outputText.lines().last() != "0"
+                        while (songQueue.isNotEmpty() &&
+                            CommandRunner()
+                                .runCommand(
+                                    "youtube-dl --extract-audio --audio-format best --audio-quality 0 " +
+                                        "--cookies youtube-dl.cookies --force-ipv4 --age-limit 21 " +
+                                        "--geo-bypass -s \"${firstTrack.link}\"; echo $?",
+                                    printOutput = false,
+                                    printErrors = false,
+                                ).outputText
+                                .lines()
+                                .last() != "0"
                         ) {
                             if (attempts < 5) {
                                 println("Error downloading track! Trying again...")
@@ -407,8 +409,10 @@ class SongQueue(
         fun currentUrl(): String {
             val metadata = playerctl(getPlayer(), "metadata")
             return if (metadata.errorText.isEmpty()) {
-                metadata.outputText.lines()
-                    .first { it.contains("xesam:url") }.replace("(^.+\\s+\"?|\"?$)".toRegex(), "")
+                metadata.outputText
+                    .lines()
+                    .first { it.contains("xesam:url") }
+                    .replace("(^.+\\s+\"?|\"?$)".toRegex(), "")
             } else {
                 ""
             }
@@ -421,8 +425,12 @@ class SongQueue(
         fun getTrackLength(): Long {
             val lengthMicroseconds: Long =
                 try {
-                    playerctl(getPlayer(), "metadata").outputText.lines()
-                        .first { it.contains("mpris:length") }.replace("^.+\\s+".toRegex(), "").toLong()
+                    playerctl(getPlayer(), "metadata")
+                        .outputText
+                        .lines()
+                        .first { it.contains("mpris:length") }
+                        .replace("^.+\\s+".toRegex(), "")
+                        .toLong()
                 } catch (e: Exception) {
                     // track hasn't started
                     0L
@@ -436,8 +444,10 @@ class SongQueue(
         fun refreshPulseAudio() {
             // if using pulseaudio, refresh it using pasuspender
             if (
-                commandRunner.runCommand("command -v pasuspender", printOutput = false, printErrors = false)
-                    .outputText.isNotEmpty()
+                commandRunner
+                    .runCommand("command -v pasuspender", printOutput = false, printErrors = false)
+                    .outputText
+                    .isNotEmpty()
             ) {
                 commandRunner.runCommand("pasuspender true", printOutput = false, printErrors = false)
             }
@@ -472,10 +482,12 @@ class SongQueue(
          * @return returns true if the process is running
          */
         fun processRunning(player: String = getPlayer()) =
-            commandRunner.runCommand(
-                "ps aux | grep $player | grep -v grep",
-                printOutput = false,
-            ).outputText.isNotEmpty() ||
+            commandRunner
+                .runCommand(
+                    "ps aux | grep $player | grep -v grep",
+                    printOutput = false,
+                ).outputText
+                .isNotEmpty() ||
                 if (player == "ncspot") {
                     commandRunner.runCommand("tmux ls | grep player").outputText.isNotEmpty()
                 } else {
@@ -1041,8 +1053,9 @@ class SongQueue(
             trackJob.cancel()
             val player = getPlayer()
             // try stopping playback twice because sometimes once doesn't seem to be enough
-            while (playerStatus().outputText == "Playing")
+            while (playerStatus().outputText == "Playing") {
                 playerctl(player, if (player == "spotify") "pause" else "stop")
+            }
             // if mpv is in use, kill the process
             if (player == "mpv") {
                 killPlayer(player)
@@ -1053,8 +1066,9 @@ class SongQueue(
         fun skipTrack() {
             trackJob.cancel()
             val player = getPlayer()
-            while (playerStatus().outputText == "Playing")
+            while (playerStatus().outputText == "Playing") {
                 playerctl(player, if (player == "spotify") "pause" else "stop")
+            }
             if (player == "mpv") {
                 killPlayer(player)
             }

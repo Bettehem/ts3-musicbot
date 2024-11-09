@@ -68,17 +68,21 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
     fun updateClientId(): String {
         println("Updating SoundCloud ClientId")
         val lines =
-            sendHttpRequest(Link("https://soundcloud.com")).data.data.lines()
+            sendHttpRequest(Link("https://soundcloud.com"))
+                .data.data
+                .lines()
                 .filter { it.contains("^<script crossorigin src=\"https://\\S+\\.js\"></script>".toRegex()) }
-        for (line in lines)
+        for (line in lines) {
             sendHttpRequest(Link(line.substringAfter('"').substringBefore('"')))
-                .data.data.let { data ->
+                .data.data
+                .let { data ->
                     if (data.contains("client_id=[0-9A-z-_]+\"".toRegex())) {
                         val idLine = data.lines().first { it.contains("client_id=[0-9A-z-_]+\"".toRegex()) }
                         val id = idLine.replace("^.*client_id=".toRegex(), "").replace("(&|\"?\\),).*$".toRegex(), "")
                         synchronized(clientId) { clientId = id }
                     }
                 }
+        }
         return clientId
     }
 
@@ -374,7 +378,8 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                 searchData(
                                     link =
                                         Link(
-                                            result.link.toString()
+                                            result.link
+                                                .toString()
                                                 .replace("client_id=[a-zA-Z0-9]+".toRegex(), "client_id=$clientId"),
                                         ),
                                 )
@@ -590,7 +595,8 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                     LocalDate.parse(
                         if (albumJSON.has(
                                 "release_date",
-                            ) && !albumJSON.isNull("release_date")
+                            ) &&
+                            !albumJSON.isNull("release_date")
                         ) {
                             albumJSON.getString("release_date")
                         } else {
@@ -609,12 +615,15 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                         if (
                             albumJSON.has("publisher_metadata") &&
                             !albumJSON.isNull("publisher_metadata") &&
-                            albumJSON.getJSONObject("publisher_metadata")
+                            albumJSON
+                                .getJSONObject("publisher_metadata")
                                 .has("album_title") &&
-                            !albumJSON.getJSONObject("publisher_metadata")
+                            !albumJSON
+                                .getJSONObject("publisher_metadata")
                                 .isNull("album_title")
                         ) {
-                            albumJSON.getJSONObject("publisher_metadata")
+                            albumJSON
+                                .getJSONObject("publisher_metadata")
                                 .getString("album_title")
                         } else {
                             ""
@@ -769,8 +778,8 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         }
     }
 
-    private suspend fun parseTrackData(trackData: JSONObject): Track {
-        return Track(
+    private suspend fun parseTrackData(trackData: JSONObject): Track =
+        Track(
             parseAlbumData(trackData, false),
             Artists(
                 listOf(
@@ -801,7 +810,6 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                 Likes()
             },
         )
-    }
 
     /**
      * Fetch a Track object for a given SoundCloud song link
@@ -1288,8 +1296,8 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         lateinit var user: User
         val id = resolveId(userLink)
 
-        suspend fun parseUserData(userData: JSONObject): User {
-            return User(
+        suspend fun parseUserData(userData: JSONObject): User =
+            User(
                 Name(userData.getString("username")),
                 Name(userData.getString("permalink")),
                 Description(if (!userData.isNull("description")) userData.getString("description") else ""),
@@ -1297,7 +1305,6 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                 fetchUserPlaylists(Link("$apiURI/users/$id")),
                 Link(userData.getString("permalink_url")),
             )
-        }
 
         val userJob = Job()
         withContext(IO + userJob) {
@@ -1348,15 +1355,16 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
 
             val artistsTracks = fetchUserTracks(id, artistData.getInt("track_count"))
             val topTracks = ArrayList<Track>()
-            artistsTracks.trackList.sortedByDescending {
-                it.likes.amount
-            }.forEach {
-                // get top 10 tracks
-                val topTracksAmount = 10
-                if (topTracks.size < topTracksAmount) {
-                    topTracks.add(it)
+            artistsTracks.trackList
+                .sortedByDescending {
+                    it.likes.amount
+                }.forEach {
+                    // get top 10 tracks
+                    val topTracksAmount = 10
+                    if (topTracks.size < topTracksAmount) {
+                        topTracks.add(it)
+                    }
                 }
-            }
             val relatedArtistsJob = Job()
             val relatedArtists =
                 withContext(IO + relatedArtistsJob) {
@@ -1539,7 +1547,8 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                         while (true) {
                             if ("$linkToSolve".contains("^(https?://)?on\\.soundcloud\\.com/\\S+$".toRegex())) {
                                 linkToSolve =
-                                    sendHttpRequest(linkToSolve, followRedirects = false).link
+                                    sendHttpRequest(linkToSolve, followRedirects = false)
+                                        .link
                                         .clean(this@SoundCloud)
                             }
                             val typeData = fetchResolvedData(linkToSolve)

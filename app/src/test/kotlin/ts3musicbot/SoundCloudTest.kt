@@ -26,7 +26,8 @@ class SoundCloudTest {
             // SoundCloud link to track: i am leeya - something worth dreaming of (leeyas mashup)
             val testLink = Link("https://soundcloud.com/iamleeya/something-worth-dreaming-of")
             val result =
-                soundCloud.search(SearchType("track"), SearchQuery("leeya something worth dreaming of"))
+                soundCloud
+                    .search(SearchType("track"), SearchQuery("leeya something worth dreaming of"))
                     .toString()
             assert(result.contains("Track Link:    \t\t$testLink"))
         }
@@ -47,7 +48,11 @@ class SoundCloudTest {
             // SoundCloud link to track: i am leeya - something worth dreaming of (leeyas mashup)
             val testLink = Link("https://soundcloud.com/iamleeya/something-worth-dreaming-of")
             val track = soundCloud.fetchTrack(testLink)
-            assertEquals("ajnabiyeh", track.artists.artists[0].name.name)
+            assertEquals(
+                "ajnabiyeh",
+                track.artists.artists[0]
+                    .name.name,
+            )
             assertEquals("something worth dreaming of (leeyas mashup)", track.title.name)
         }
     }
@@ -69,7 +74,12 @@ class SoundCloudTest {
             // SoundCloud link to playlist: jeesjees
             val testLink = Link("https://soundcloud.com/bettehem/sets/jeesjees")
             val playlist = soundCloud.fetchPlaylistTracks(testLink)
-            assertEquals("Louis The Child", playlist.trackList[1].artists.artists[0].name.name)
+            assertEquals(
+                "Louis The Child",
+                playlist.trackList[1]
+                    .artists.artists[0]
+                    .name.name,
+            )
             assertEquals("Zella Day - Compass (Louis The Child Remix)", playlist.trackList[1].title.name)
         }
     }
@@ -101,8 +111,18 @@ class SoundCloudTest {
             val testLink = Link("https://soundcloud.com/the-algorithm/sets/brute-force-1")
             val album = soundCloud.fetchAlbum(testLink)
             assertEquals("Brute Force", album.name.name)
-            assertEquals("boot", album.tracks.trackList.first().title.name)
-            assertEquals("trojans (hard mode)", album.tracks.trackList.last().title.name)
+            assertEquals(
+                "boot",
+                album.tracks.trackList
+                    .first()
+                    .title.name,
+            )
+            assertEquals(
+                "trojans (hard mode)",
+                album.tracks.trackList
+                    .last()
+                    .title.name,
+            )
         }
     }
 
