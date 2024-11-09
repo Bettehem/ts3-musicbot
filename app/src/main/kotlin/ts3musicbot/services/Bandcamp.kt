@@ -74,15 +74,17 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                         .substringBefore("</ul>")
                         .split("(.*<li class=\"searchresult data-search\"\n\\s+data-search=\".+\">|</li>)".toRegex())
                         .map { item ->
-                            item.substringAfter("<div class=\"result-info\">").substringBeforeLast("</div>")
-                                .split("(<div|</div>)".toRegex()).associate {
+                            item
+                                .substringAfter("<div class=\"result-info\">")
+                                .substringBeforeLast("</div>")
+                                .split("(<div|</div>)".toRegex())
+                                .associate {
                                     Pair(
                                         it.substringAfter("class=\"").substringBefore("\">"),
                                         it.substringAfter("\">").trim(),
                                     )
                                 }.filterNot { it.key.contains("^(\\s+|\n+)+$".toRegex()) }
-                        }
-                        .map { data ->
+                        }.map { data ->
                             val resultType = data["itemtype"]?.let { SearchType(it).getType() }
                             if (resultType == searchType.getType()) {
                                 when (resultType) {
@@ -116,7 +118,9 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
 
                                     LinkType.TRACK -> {
                                         val artistName =
-                                            data["subhead"]!!.substringAfter("by ").trim()
+                                            data["subhead"]!!
+                                                .substringAfter("by ")
+                                                .trim()
                                                 .substringAfter("by ")
                                         val trackName = data["heading"]!!.substringAfter("\">").substringBefore("</a>").trim()
                                         val trackLink = data["itemurl"]!!.substringAfter("\">").substringBefore("</a>")
@@ -124,7 +128,8 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                                             "Artist: \t\t$artistName\n" +
                                                 if (data["subhead"]!!.contains("^.*from .+".toRegex())) {
                                                     "Album:  \t" +
-                                                        data["subhead"]!!.substringAfter("from ")
+                                                        data["subhead"]!!
+                                                            .substringAfter("from ")
                                                             .substringBefore("\n") + "\n"
                                                 } else {
                                                     ""
@@ -179,11 +184,14 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                         track =
                             if ("$trackLink".contains("https://\\S+\\.bandcamp\\.com/album/\\S+#t[0-9]+$".toRegex())) {
                                 val trackItem =
-                                    trackData.getJSONObject("track").getJSONArray("itemListElement")
+                                    trackData
+                                        .getJSONObject("track")
+                                        .getJSONArray("itemListElement")
                                         .first {
                                             it as JSONObject
                                             it.getInt("position") == "$trackLink".substringAfter("#t").toInt()
-                                        }.let { it as JSONObject }.getJSONObject("item")
+                                        }.let { it as JSONObject }
+                                        .getJSONObject("item")
                                 Track(
                                     Album(
                                         Name(trackData.getString("name")),
@@ -315,12 +323,26 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                 val albumData =
                     JSONObject(lines[lines.indexOfFirst { it.contains("<script type=\"application/ld+json\">") } + 1])
                 TrackList(
-                    albumData.getJSONObject("track").getJSONArray("itemListElement").map {
-                        it as JSONObject
-                        val trackData = it.getJSONObject("item")
-                        Track(
-                            Album(
-                                Name(albumData.getString("name")),
+                    albumData
+                        .getJSONObject("track")
+                        .getJSONArray("itemListElement")
+                        .map {
+                            it as JSONObject
+                            val trackData = it.getJSONObject("item")
+                            Track(
+                                Album(
+                                    Name(albumData.getString("name")),
+                                    Artists(
+                                        listOf(
+                                            Artist(
+                                                Name(albumData.getJSONObject("byArtist").getString("name")),
+                                                Link(albumData.getString("@id").substringBefore("/album")),
+                                            ),
+                                        ),
+                                    ),
+                                    ReleaseDate(LocalDate.parse(albumData.getString("datePublished"), formatter)),
+                                    link = Link(albumData.getString("@id")),
+                                ),
                                 Artists(
                                     listOf(
                                         Artist(
@@ -329,28 +351,17 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                                         ),
                                     ),
                                 ),
-                                ReleaseDate(LocalDate.parse(albumData.getString("datePublished"), formatter)),
-                                link = Link(albumData.getString("@id")),
-                            ),
-                            Artists(
-                                listOf(
-                                    Artist(
-                                        Name(albumData.getJSONObject("byArtist").getString("name")),
-                                        Link(albumData.getString("@id").substringBefore("/album")),
-                                    ),
-                                ),
-                            ),
-                            Name(trackData.getString("name")),
-                            Link(trackData.getString("@id")),
-                            Playability(trackData.has("duration")),
-                        )
-                    }.let { list ->
-                        if (limit != 0 && list.size > limit) {
-                            list.subList(0, limit)
-                        } else {
-                            list
-                        }
-                    },
+                                Name(trackData.getString("name")),
+                                Link(trackData.getString("@id")),
+                                Playability(trackData.has("duration")),
+                            )
+                        }.let { list ->
+                            if (limit != 0 && list.size > limit) {
+                                list.subList(0, limit)
+                            } else {
+                                list
+                            }
+                        },
                 )
             }
 
@@ -468,7 +479,10 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
             val linkBuilder = StringBuilder()
             genres = listOf("all")
             var page = 0
-            for (part in discoverLink.link.replace("^.*/".toRegex(), "").replace("#?discover$?".toRegex(), "").split("[?&]".toRegex())) {
+            for (part in discoverLink.link
+                .replace("^.*/".toRegex(), "")
+                .replace("#?discover$?".toRegex(), "")
+                .split("[?&]".toRegex())) {
                 val value = part.substringAfter('=')
                 when (part.substringBefore('=')) {
                     "g" -> genres = listOf(value.ifEmpty { "all" })
@@ -581,10 +595,12 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
         return when (response.code.code) {
             HttpURLConnection.HTTP_OK -> {
                 Artists(
-                    response.data.data.lines()
+                    response.data.data
+                        .lines()
                         .filter { it.contains("href=\"https://\\S+\\.bandcamp\\.com/album/\\S+".toRegex()) }
                         .map { Link("https://" + it.substringAfter("href=\"https://").substringBefore('/')) }
-                        .distinct().map { fetchArtist(it, false) },
+                        .distinct()
+                        .map { fetchArtist(it, false) },
                 )
             }
 
@@ -598,7 +614,8 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
         return when (response.code.code) {
             HttpURLConnection.HTTP_OK -> {
                 Albums(
-                    response.data.data.lines()
+                    response.data.data
+                        .lines()
                         .filter { it.contains("href=\"https://\\S+\\.bandcamp\\.com/album/\\S+".toRegex()) }
                         .map { fetchAlbum(Link(it.substringAfter("href=\"").substringBefore('?'))) },
                 )
@@ -658,7 +675,8 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                         JSONObject(
                             decode(
                                 lines[lines.indexOfFirst { it.contains("<div id=\"pagedata\"") }]
-                                    .substringAfter("data-blob=\"").substringBefore("\">"),
+                                    .substringAfter("data-blob=\"")
+                                    .substringBefore("\">"),
                             ),
                         )
                     parseShowData(jsonData)
@@ -672,8 +690,8 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
         }
     }
 
-    override suspend fun resolveType(link: Link): LinkType {
-        return when {
+    override suspend fun resolveType(link: Link): LinkType =
+        when {
             "$link".contains("https?://\\S+\\.bandcamp\\.com/(track/\\S+|album/\\S+#t[0-9]+$)".toRegex()) -> LinkType.TRACK
             "$link".contains("https?://\\S+\\.bandcamp\\.com/album/\\S+".toRegex()) -> LinkType.ALBUM
             "$link".contains("https?://bandcamp\\.com/recommended/\\S+".toRegex()) -> LinkType.RECOMMENDED
@@ -682,5 +700,4 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
             "$link".contains("https?://bandcamp\\.com/?\\?show=\\S+".toRegex()) -> LinkType.SHOW
             else -> LinkType.OTHER
         }
-    }
 }

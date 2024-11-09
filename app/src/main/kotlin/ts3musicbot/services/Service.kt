@@ -17,7 +17,9 @@ import ts3musicbot.util.User
 import java.net.URLDecoder
 import java.net.URLEncoder
 
-open class Service(val serviceType: ServiceType) {
+open class Service(
+    val serviceType: ServiceType,
+) {
     enum class ServiceType {
         SOUNDCLOUD,
         SPOTIFY,
@@ -26,23 +28,21 @@ open class Service(val serviceType: ServiceType) {
         OTHER,
         ;
 
-        override fun toString(): String {
-            return when (this) {
+        override fun toString(): String =
+            when (this) {
                 SOUNDCLOUD -> "SoundCloud"
                 SPOTIFY -> "Spotify"
                 YOUTUBE -> "YouTube"
                 BANDCAMP -> "Bandcamp"
                 else -> super.toString()
             }
-        }
     }
 
     protected open fun encode(text: String) =
         runBlocking {
             withContext(Dispatchers.IO) {
                 URLEncoder.encode(text, Charsets.UTF_8.toString())
-            }
-                .replace("'", "&#39;")
+            }.replace("'", "&#39;")
                 .replace("&", "&amp;")
                 .replace("/", "&#x2F;")
         }
