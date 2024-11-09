@@ -1095,14 +1095,16 @@ class Main :
             stopBotButton -> {
                 chatReader.stopReading()
                 if (settings.useOfficialTsClient) {
-                    commandRunner.runCommand("wmctrl -c TeamSpeak; sleep 2; wmctrl -c TeamSpeak", ignoreOutput = true)
-                    commandRunner.runCommand(
-                        "pkill mpv; pkill ncspot; tmux kill-session -t ncspot",
-                        ignoreOutput = true,
-                    )
+                    runBlocking {
+                        officialTSClient.stopTeamSpeak()
+                    }
                 } else {
                     teamSpeak.disconnect()
                 }
+                commandRunner.runCommand(
+                    "pkill mpv; pkill ncspot; tmux kill-session -t ncspot",
+                    ignoreOutput = true,
+                )
                 statusTextView.text = "Status: Bot not active."
                 startBotButton.isManaged = true
                 startBotButton.isVisible = true
