@@ -35,6 +35,7 @@ import ts3musicbot.util.SearchQuery
 import ts3musicbot.util.SearchResult
 import ts3musicbot.util.SearchResults
 import ts3musicbot.util.SearchType
+import ts3musicbot.util.TagOrGenre
 import ts3musicbot.util.Track
 import ts3musicbot.util.TrackList
 import ts3musicbot.util.User
@@ -59,6 +60,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
             LinkType.USER,
             LinkType.ARTIST,
             LinkType.DISCOVER,
+            LinkType.TAG_OR_GENRE,
         )
 
     /**
@@ -1522,6 +1524,88 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         return Discoveries(discoveries)
     }
 
+    suspend fun fetchTagOrGenre(
+        link: Link,
+        limit: Int = 50,
+        offset: Int = 0,
+    ): TagOrGenre {
+        val tracks = ArrayList<Track>()
+        val lists = ArrayList<Playlist>()
+        var tagOrGenre = ""
+
+        fun fetchTagOrGenreData(
+            resultLimit: Int = limit,
+            resultOffset: Int = offset,
+        ): Response {
+            val linkBuilder = StringBuilder()
+            linkBuilder.append("$api2URI/")
+            if ("$link".substringAfter("tags/").contains('/')) {
+                linkBuilder.append("search/")
+                val last = "$link".substringAfterLast('/')
+                when (last) {
+                    "popular-tracks" -> linkBuilder.append("tracks")
+                    "playlists" -> linkBuilder.append(last)
+                    else -> println("Unsupported link variant: $link")
+                }
+                tagOrGenre = "$link".substringAfter("tags/").substringBefore('/')
+                linkBuilder.append("?q=*&filter.genre_or_tag=$tagOrGenre&")
+                if (last == "popular-tracks") {
+                    linkBuilder.append("sort=popular&")
+                }
+            } else {
+                linkBuilder.append("recent-tracks/")
+                tagOrGenre = "$link".substringAfterLast('/')
+                linkBuilder.append("$tagOrGenre?")
+            }
+            linkBuilder.append("limit=$resultLimit")
+            linkBuilder.append("&offset=$resultOffset")
+            linkBuilder.append("&client_id=$clientId")
+            return sendHttpRequest(Link(linkBuilder.toString()))
+        }
+
+        suspend fun parseTagOrGenreData(data: JSONObject) {
+            for (item in data.getJSONArray("collection")) {
+                item as JSONObject
+                when (item.getString("kind")) {
+                    "track" -> tracks.add(parseTrackData(item))
+                    "playlist" -> lists.add(parsePlaylistData(item, false))
+                }
+            }
+        }
+        val tagOrGenreJob = Job()
+        withContext(IO + tagOrGenreJob) {
+            while (true) {
+                val tagOrGenreData = fetchTagOrGenreData()
+                when (tagOrGenreData.code.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            val data = JSONObject(tagOrGenreData.data.data)
+                            parseTagOrGenreData(data)
+                            tagOrGenreJob.complete()
+                            return@withContext
+                        } catch (e: Exception) {
+                            // JSON broken, try getting the data again
+                            println("Failed JSON:\n${tagOrGenreData.data}\n")
+                            println("Failed to get data from JSON, trying again...")
+                        }
+                    }
+
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        updateClientId()
+                    }
+
+                    else -> println("HTTP ERROR! CODE: ${tagOrGenreData.code}")
+                }
+            }
+        }
+        return TagOrGenre(
+            Name(tagOrGenre),
+            TrackList(tracks),
+            Playlists(lists),
+            link,
+        )
+    }
+
     private fun fetchResolvedData(link: Link): Response {
         val linkBuilder = StringBuilder()
         linkBuilder.append("$api2URI/resolve?")
@@ -1537,11 +1621,14 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         val deferredType =
             CoroutineScope(IO + resolveJob).async {
                 when {
-                    "$linkToSolve".contains("$urlStart/(?!playlists?)[a-z0-9-_]+/(?!sets|likes|reposts)\\S+".toRegex()) -> LinkType.TRACK
+                    "$linkToSolve".contains(
+                        "$urlStart/(?!(playlist|tag)s?)[a-z0-9-_]+/(?!sets|likes|reposts)\\S+".toRegex(),
+                    ) -> LinkType.TRACK
                     "$linkToSolve".contains("$urlStart/[a-z0-9-_]+/likes".toRegex()) -> LinkType.LIKES
                     "$linkToSolve".contains("$urlStart/[a-z0-9-_]+/reposts".toRegex()) -> LinkType.REPOSTS
                     "$linkToSolve".contains("$urlStart/discover/sets".toRegex()) -> LinkType.SYSTEM_PLAYLIST
                     "$linkToSolve".contains("$urlStart/discover$".toRegex()) -> LinkType.DISCOVER
+                    "$linkToSolve".contains("$urlStart/tags".toRegex()) -> LinkType.TAG_OR_GENRE
                     else -> {
                         lateinit var type: LinkType
                         while (true) {

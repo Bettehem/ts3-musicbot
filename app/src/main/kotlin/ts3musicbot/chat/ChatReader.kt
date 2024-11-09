@@ -602,7 +602,9 @@ class ChatReader(
                                                 commandSuccessful.add(Pair(trackAdded, Pair(msg, track)))
                                             }
 
-                                            LinkType.PLAYLIST, LinkType.SYSTEM_PLAYLIST, LinkType.SHOW, LinkType.ALBUM -> {
+                                            LinkType.PLAYLIST, LinkType.SYSTEM_PLAYLIST, LinkType.SHOW,
+                                            LinkType.ALBUM, LinkType.TAG_OR_GENRE,
+                                            -> {
                                                 val tracks =
                                                     filterList(
                                                         when (type) {
@@ -627,6 +629,12 @@ class ChatReader(
                                                             }
 
                                                             LinkType.ALBUM -> service.fetchAlbumTracks(link, trackLimit)
+
+                                                            LinkType.TAG_OR_GENRE ->
+                                                                when (service) {
+                                                                    is SoundCloud -> service.fetchTagOrGenre(link).getTrackList()
+                                                                    else -> TrackList()
+                                                                }
                                                             else -> TrackList()
                                                         }.trackList
                                                             .let { list ->
@@ -1219,6 +1227,21 @@ class ChatReader(
                                                     )
                                                 }
 
+                                                LinkType.TAG_OR_GENRE -> {
+                                                    links.remove(rawLink)
+                                                    links.addAll(
+                                                        if (trackCache.any { it.first == link }) {
+                                                            println("Tracks found in cache!")
+                                                            trackCache.first { it.first == link }.second.trackList
+                                                        } else {
+                                                            when (service) {
+                                                                is SoundCloud -> service.fetchTagOrGenre(link).getTrackList().trackList
+                                                                else -> emptyList()
+                                                            }
+                                                        }.map { it.link },
+                                                    )
+                                                }
+
                                                 LinkType.VIDEO, LinkType.EPISODE, LinkType.TRACK, LinkType.OTHER -> {}
                                             }
                                         }
@@ -1649,9 +1672,11 @@ class ChatReader(
                                     }
                                 val positions: ArrayList<Int> =
                                     if (noArgsCommand.contains("([0-9]+(,\\s*)?)+".toRegex())) {
-                                        noArgsCommand.split("(\\s+|,\\s*)".toRegex()).filter {
-                                            it.contains("^[0-9]+$".toRegex())
-                                        }.map { it.toInt() } as ArrayList<Int>
+                                        noArgsCommand
+                                            .split("(\\s+|,\\s*)".toRegex())
+                                            .filter {
+                                                it.contains("^[0-9]+$".toRegex())
+                                            }.map { it.toInt() } as ArrayList<Int>
                                     } else {
                                         ArrayList()
                                     }

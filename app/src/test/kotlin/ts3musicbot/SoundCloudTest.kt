@@ -148,4 +148,22 @@ class SoundCloudTest {
             assertEquals(id, id2)
         }
     }
+
+    @Test
+    fun testGettingTagOrGenre() {
+        runBlocking(IO) {
+            // SoundCloud links to tag: Rock
+            val recentTracks = Link("https://soundcloud.com/tags/rock")
+            val popularTracks = Link("https://soundcloud.com/tags/rock/popular-tracks")
+            val playlists = Link("https://soundcloud.com/tags/rock/playlists")
+
+            val recent = soundCloud.fetchTagOrGenre(recentTracks)
+            val popular = soundCloud.fetchTagOrGenre(popularTracks)
+            val lists = soundCloud.fetchTagOrGenre(playlists)
+
+            assert(recent.isNotEmpty())
+            assert(popular.isNotEmpty())
+            assert(lists.isNotEmpty())
+        }
+    }
 }

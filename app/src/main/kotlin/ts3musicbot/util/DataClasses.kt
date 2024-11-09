@@ -25,6 +25,7 @@ enum class LinkType {
     QUERY,
     RECOMMENDED,
     DISCOVER,
+    TAG_OR_GENRE,
     OTHER,
 }
 
@@ -742,4 +743,28 @@ data class Discoveries(
     fun isNotEmpty() = discoveries.isNotEmpty()
 
     fun ifNotEmpty(fn: (discoveries: Discoveries) -> Any) = if (isNotEmpty()) fn(this) else this
+}
+
+data class TagOrGenre(
+    val name: Name = Name(),
+    val tracks: TrackList = TrackList(),
+    val playlists: Playlists = Playlists(),
+    val link: Link = Link(),
+) {
+    override fun toString() =
+        "Genre/Tag:\t\t\t    $name\n" +
+            "Link:\t\t\t\t        $link\n" +
+            (if (tracks.isNotEmpty()) "Albums:\n$tracks\n" else "") +
+            (if (playlists.isNotEmpty()) "Playlists:\n$playlists\n" else "")
+
+    fun getTrackList(): TrackList {
+        val list = ArrayList<Track>()
+        list.addAll(tracks.trackList)
+        list.addAll(playlists.lists.flatMap { it.tracks.trackList })
+        return TrackList(list)
+    }
+
+    fun isEmpty() = name.isEmpty() && tracks.isEmpty() && playlists.isEmpty() && link.isEmpty()
+
+    fun isNotEmpty() = name.isNotEmpty() || tracks.isNotEmpty() || playlists.isNotEmpty() || link.isNotEmpty()
 }
