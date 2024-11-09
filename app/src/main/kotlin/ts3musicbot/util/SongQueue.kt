@@ -507,25 +507,18 @@ class SongQueue(
             suspend fun startSpotifyPlayer(shouldSetPrefs: Boolean = true) {
                 fun startCommand() =
                     when (botSettings.spotifyPlayer) {
-                        "spotify" -> {
-                            if (botSettings.spotifyUsername.isEmpty() || botSettings.spotifyPassword.isEmpty()) {
-                                val msg = "Error! Missing Spotify username and/or password in the musicbot's config file!"
-                                println(msg)
-                                Output(errorText = msg)
-                            } else {
-                                commandRunner.runCommand(
-                                    "xvfb-run -a spotify --no-zygote --disable-gpu" +
-                                        if (botSettings.spotifyUsername.isNotEmpty() && botSettings.spotifyPassword.isNotEmpty()) {
-                                            " --username=${botSettings.spotifyUsername} --password=${botSettings.spotifyPassword}"
-                                        } else {
-                                            ""
-                                        } + " &",
-                                    ignoreOutput = true,
-                                    printCommand = true,
-                                    inheritIO = true,
-                                )
-                            }
-                        }
+                        "spotify" ->
+                            commandRunner.runCommand(
+                                "xvfb-run -a spotify --no-zygote --disable-gpu" +
+                                    if (botSettings.spotifyUsername.isNotEmpty() && botSettings.spotifyPassword.isNotEmpty()) {
+                                        " --username=${botSettings.spotifyUsername} --password=${botSettings.spotifyPassword}"
+                                    } else {
+                                        ""
+                                    } + " &",
+                                ignoreOutput = true,
+                                printCommand = true,
+                                inheritIO = true,
+                            )
 
                         "ncspot" ->
                             commandRunner.runCommand(
@@ -683,11 +676,6 @@ class SongQueue(
                                 newConfig.appendLine("repeat = false")
                                 newConfig.appendLine("shuffle = false")
                                 newConfig.appendLine()
-                                newConfig.appendLine("# Set the credentials to log in with")
-                                newConfig.appendLine("[credentials]")
-                                newConfig.appendLine("username_cmd = \"echo '${botSettings.spotifyUsername}'\"")
-                                newConfig.appendLine("password_cmd = \"echo '${botSettings.spotifyPassword}'\"")
-
                                 if (configFile.exists()) {
                                     configFile.delete()
                                 }
