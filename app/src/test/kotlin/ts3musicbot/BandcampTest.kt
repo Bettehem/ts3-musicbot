@@ -55,12 +55,12 @@ class BandcampTest {
     @Test
     fun testGettingTrack4() {
         runBlocking(Dispatchers.IO) {
-            // Bandcamp link to track: Alan Walker, Ava Max - Alone, Pt. II
-            val testLink = Link("https://alanwalkermusic.bandcamp.com/track/alone-pt-ii")
+            // Bandcamp link to track: Cosmowave -Bling Bang Bang Born (Hardbass)
+            val testLink = Link("https://cosmowave.bandcamp.com/track/bling-bang-bang-born-hardbass")
             val track = bandcamp.fetchTrack(testLink)
             assert(
                 track.artists.artists.any {
-                    it.link.link == "https://alanwalkermusic.bandcamp.com"
+                    it.link.link == "https://cosmowave.bandcamp.com"
                 },
             )
         }
