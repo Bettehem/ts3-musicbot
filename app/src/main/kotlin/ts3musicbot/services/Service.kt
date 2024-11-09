@@ -54,13 +54,13 @@ open class Service(
                     URLDecoder.decode(text, Charsets.UTF_8.toString())
                 }
             } catch (e: Exception) {
-                text.replace("&quot;", "\"")
+                text
                     .replace("&amp;", "&")
                     .replace("%3A", ":")
                     .replace("%3D", "=")
                     .replace("%3F", "?")
                     .replace("%2F", "/")
-            }
+            }.replace("&quot;", "\"")
                 .replace("&#39;", "'")
                 .replace("&amp;", "&")
                 .replace("&#x2F;", "/")
