@@ -417,7 +417,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
 
     private suspend fun parsePlaylistData(
         playlistData: JSONObject,
-        isSystemPlaylist: Boolean,
+        isSystemPlaylist: Boolean = false,
         shouldFetchTracks: Boolean = playlistData.getJSONArray("tracks").isEmpty,
     ): Playlist {
         val listLink =
@@ -1568,7 +1568,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                 item as JSONObject
                 when (item.getString("kind")) {
                     "track" -> tracks.add(parseTrackData(item))
-                    "playlist" -> lists.add(parsePlaylistData(item, false))
+                    "playlist" -> lists.add(parsePlaylistData(item, shouldFetchTracks = true))
                 }
             }
         }
