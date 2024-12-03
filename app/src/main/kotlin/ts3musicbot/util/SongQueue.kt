@@ -465,17 +465,21 @@ class SongQueue(
             }
         }
 
-        fun killPlayer(player: String) =
-            when (player) {
-                "spotify", "mpv" -> commandRunner.runCommand("pkill -9 $player", ignoreOutput = true)
-                "ncspot" -> {
-                    playerctl(player, "stop")
-                    commandRunner.runCommand("tmux kill-session -t ncspot", ignoreOutput = true)
-                }
+        fun killPlayer(player: String) {
+            while (commandRunner.runCommand("ps aux | grep $player | grep -v grep", printOutput = false).outputText.isNotEmpty()) {
+                when (player) {
+                    "spotify", "mpv" -> commandRunner.runCommand("pkill -9 $player", ignoreOutput = true)
+                    "ncspot" -> {
+                        playerctl(player, "stop")
+                        commandRunner.runCommand("pkill -9 ncspot")
+                        commandRunner.runCommand("tmux kill-session -t ncspot", ignoreOutput = true)
+                    }
 
-                "spotifyd" -> commandRunner.runCommand("echo \"$player isn't well supported yet, please kill it manually.\"")
-                else -> commandRunner.runCommand("echo \"$player is not a supported player!\" > /dev/stderr; return 2")
+                    "spotifyd" -> commandRunner.runCommand("echo \"$player isn't well supported yet, please kill it manually.\"")
+                    else -> commandRunner.runCommand("echo \"$player is not a supported player!\" > /dev/stderr; return 2")
+                }
             }
+        }
 
         /**
          * Check if the player's process for the current track is running
@@ -543,7 +547,7 @@ class SongQueue(
                     println()
                     var attempts = 0
                     while (!processRunning()) {
-                        if (attempts < 10) {
+                        if (attempts < 20) {
                             print("\rWaiting for ${getPlayer()} to start${".".repeat(attempts / 2)}")
                             delay(1000)
                             attempts++
@@ -556,6 +560,7 @@ class SongQueue(
                             delay(2000)
                         }
                     }
+                    println()
                 }
 
                 // restarts the player
@@ -734,11 +739,10 @@ class SongQueue(
                 }
 
                 // try to play the track
+                val player = getPlayer()
                 when (val type = track.serviceType) {
                     Service.ServiceType.SPOTIFY -> {
                         // check active processes and wait for the spotify player to start
-                        val player = getPlayer()
-
                         if (!processRunning()) {
                             startSpotifyPlayer()
                         }
@@ -753,9 +757,26 @@ class SongQueue(
                                 delay(1000)
                             }
                         }
-                        println("Trying to play track \"${track.link}\" using $player as the player.")
                         var attempts = 0
                         var playingAttempts = 0
+                        var dots = 0
+                        // This check should probably be included into the processRunning function (and maybe it needs to be renamed too)
+                        while (!playerctl(command = "list").outputText.contains(player)) {
+                            print("\rWaiting for the player to get ready for playback" + ".".repeat(dots))
+                            if (dots < 120) {
+                                dots++
+                                delay(1000)
+                            } else {
+                                // TODO: Figure out something sensible to do here
+                                print("\nThe player really seems to be stuck, but proceeding anyway...")
+                                break
+                            }
+                        }
+                        println()
+                        println("Trying to play track \"${track.link}\" using $player as the player.")
+                        if (track.link.linkedFrom.isNotEmpty()) {
+                            println("This track is also linked to " + track.link.linkedFrom)
+                        }
                         while (!playerStatus().outputText.contains("Playing")) {
                             if (playingAttempts < 5) {
                                 if (attempts < 5) {
