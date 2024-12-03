@@ -93,7 +93,7 @@ class Console(
                         } else {
                             ""
                         }
-                    val cmd = userCommand.replace("^\\w+\\s+(-p\\s*\\S+\\s+)?".toRegex(), "")
+                    val cmd = userCommand.replace("-l", "list").replace("^\\w+\\s+(-p\\s*\\S+\\s+)?".toRegex(), "")
                     println(
                         if (player.isNotEmpty()) {
                             playerctl(player, cmd)
