@@ -191,7 +191,7 @@ fun playerctl(
         }
 
         "list" -> {
-            Output("${listPlayers()}")
+            Output("${listPlayers()}".replace("(^\\[|\\]$)".toRegex(), ""))
         }
 
         "position" -> {

@@ -647,7 +647,11 @@ class ChatReader(
                                                         link,
                                                     )
                                                 println(
-                                                    "The ${type.name.lowercase()} has a total of ${tracks.size} tracks.\n" +
+                                                    "The " +
+                                                        type.name
+                                                            .lowercase()
+                                                            .replace("_", " ") +
+                                                        " has a total of ${tracks.size} tracks.\n" +
                                                         "Adding to queue...",
                                                 )
                                                 // add tracks to queue
