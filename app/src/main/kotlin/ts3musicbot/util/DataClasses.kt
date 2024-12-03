@@ -501,9 +501,9 @@ data class Genres(
 data class Artist(
     val name: Name = Name(),
     val link: Link = Link(),
-    val topTracks: TrackList = TrackList(emptyList()),
-    val relatedArtists: Artists = Artists(ArrayList()),
-    val genres: Genres = Genres(emptyList()),
+    val topTracks: TrackList = TrackList(),
+    val relatedArtists: Artists = Artists(),
+    val genres: Genres = Genres(),
     val followers: Followers = Followers(),
     val description: Description = Description(),
     val albums: Albums = Albums(),
