@@ -1371,7 +1371,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
             artistData: JSONObject,
             topTracksData: JSONObject,
             albumsData: JSONObject,
-            relatedArtists: JSONObject,
+            // relatedArtists: JSONObject,
         ): Artist {
             val name = Name(artistData.getString("name"))
             val topTracks = ArrayList<Track>()
@@ -1534,13 +1534,13 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                     break
                 }
             }
-            val related = ArrayList<Artist>()
-            for (artist in relatedArtists.getJSONArray("artists")) {
-                artist as JSONObject
-                val artistName = Name(artist.getString("name"))
-                val link = Link(artist.getJSONObject("external_urls").getString("spotify"))
-                related.add(Artist(artistName, link))
-            }
+            // val related = ArrayList<Artist>()
+            // for (artist in relatedArtists.getJSONArray("artists")) {
+            //     artist as JSONObject
+            //     val artistName = Name(artist.getString("name"))
+            //     val link = Link(artist.getJSONObject("external_urls").getString("spotify"))
+            //     related.add(Artist(artistName, link))
+            // }
             val genres: List<String> =
                 artistData.getJSONArray("genres").map {
                     if (it is String) it else ""
@@ -1550,7 +1550,8 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                 name,
                 artistLink,
                 TrackList(topTracks),
-                Artists(related),
+                // Artists(related),
+                Artists(),
                 Genres(genres),
                 followers,
                 Description(), // Maybe some day...
@@ -1622,37 +1623,39 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                                     else -> println("HTTP ERROR! CODE: ${albumsData.code}")
                                 }
                             }
-                            lateinit var relatedArtists: JSONObject
-                            relatedArtists@ while (true) {
-                                val relatedArtistsData = fetchRelatedArtists()
-                                when (relatedArtistsData.code.code) {
-                                    HttpURLConnection.HTTP_OK -> {
-                                        try {
-                                            withContext(Default) {
-                                                relatedArtists = JSONObject(relatedArtistsData.data.data)
-                                            }
-                                            break@relatedArtists
-                                        } catch (e: JSONException) {
-                                            // JSON broken, try getting the data again
-                                            println("Failed JSON:\n${relatedArtistsData.data}\n")
-                                            println("Failed to get data from JSON, trying again...")
-                                        }
-                                    }
+                            // SPOTIFY WHY REMOVE API ENDPOINTS? MAKES NO SENSE
+                            // lateinit var relatedArtists: JSONObject
+                            // relatedArtists@ while (true) {
+                            //     val relatedArtistsData = fetchRelatedArtists()
+                            //     when (relatedArtistsData.code.code) {
+                            //         HttpURLConnection.HTTP_OK -> {
+                            //             try {
+                            //                 withContext(Default) {
+                            //                     relatedArtists = JSONObject(relatedArtistsData.data.data)
+                            //                 }
+                            //                 break@relatedArtists
+                            //             } catch (e: JSONException) {
+                            //                 // JSON broken, try getting the data again
+                            //                 println("Failed JSON:\n${relatedArtistsData.data}\n")
+                            //                 println("Failed to get data from JSON, trying again...")
+                            //             }
+                            //         }
 
-                                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                                        updateToken()
-                                    }
+                            //         HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                            //             updateToken()
+                            //         }
 
-                                    HTTP_TOO_MANY_REQUESTS -> {
-                                        println("Too many requests! Waiting for ${relatedArtistsData.data} seconds.")
-                                        // wait for given time before next request.
-                                        delay(relatedArtistsData.data.data.toLong() * 1000)
-                                    }
+                            //         HTTP_TOO_MANY_REQUESTS -> {
+                            //             println("Too many requests! Waiting for ${relatedArtistsData.data} seconds.")
+                            //             // wait for given time before next request.
+                            //             delay(relatedArtistsData.data.data.toLong() * 1000)
+                            //         }
 
-                                    else -> println("HTTP ERROR! CODE: ${relatedArtistsData.code}")
-                                }
-                            }
-                            artist = parseData(JSONObject(artistData.data.data), topTracks, albums, relatedArtists)
+                            //         else -> println("HTTP ERROR! CODE: ${relatedArtistsData.code}")
+                            //     }
+                            // }
+                            // artist = parseData(JSONObject(artistData.data.data), topTracks, albums, relatedArtists)
+                            artist = parseData(JSONObject(artistData.data.data), topTracks, albums)
                             artistJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
