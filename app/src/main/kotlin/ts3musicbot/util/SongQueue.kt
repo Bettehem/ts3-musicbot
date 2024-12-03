@@ -486,17 +486,8 @@ class SongQueue(
          * @return returns true if the process is running
          */
         fun processRunning(player: String = getPlayer()) =
-            commandRunner
-                .runCommand(
-                    "ps aux | grep $player | grep -v grep",
-                    printOutput = false,
-                ).outputText
-                .isNotEmpty() ||
-                if (player == "ncspot") {
-                    commandRunner.runCommand("tmux ls | grep player").outputText.isNotEmpty()
-                } else {
-                    false
-                }
+            commandRunner.runCommand("ps aux | grep $player | grep -v grep", printOutput = false)
+                .outputText.isNotEmpty()
 
         fun startTrack() {
             synchronized(this) {
@@ -761,7 +752,9 @@ class SongQueue(
                         var playingAttempts = 0
                         var dots = 0
                         // This check should probably be included into the processRunning function (and maybe it needs to be renamed too)
+                        var shouldDelay = false
                         while (!playerctl(command = "list").outputText.contains(player)) {
+                            shouldDelay = true
                             print("\rWaiting for the player to get ready for playback" + ".".repeat(dots))
                             if (dots < 120) {
                                 dots++
@@ -771,6 +764,9 @@ class SongQueue(
                                 print("\nThe player really seems to be stuck, but proceeding anyway...")
                                 break
                             }
+                        }
+                        if (shouldDelay) {
+                            delay(3000)
                         }
                         println()
                         println("Trying to play track \"${track.link}\" using $player as the player.")
