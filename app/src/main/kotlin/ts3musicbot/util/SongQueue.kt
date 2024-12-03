@@ -896,7 +896,11 @@ class SongQueue(
                 loop@ while (trackJob.isActive) {
                     delay(995)
                     val status = playerStatus()
-                    if (currentUrl() == track.link.link || currentUrl().startsWith("https://open.spotify.com/ad/")) {
+                    val url = currentUrl()
+                    if (url == track.link.link ||
+                        (track.link.linkedFrom.isNotEmpty() && url == track.link.linkedFrom) ||
+                        url.startsWith("https://open.spotify.com/ad/")
+                    ) {
                         when (status.outputText) {
                             "Playing" -> {
                                 while (currentUrl().startsWith("https://open.spotify.com/ad/")) {

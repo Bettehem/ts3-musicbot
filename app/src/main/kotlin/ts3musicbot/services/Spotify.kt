@@ -172,8 +172,14 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                             }
 
                         val songName = decode(trackData.getString("name"))
-
-                        val songLink = trackData.getJSONObject("external_urls").getString("spotify")
+                        val songId = trackData.getString("id")
+                        val songLink = "https://open.spotify.com/track/$songId"
+                        val linkedFrom =
+                            if (trackData.has("linked_from")) {
+                                trackData.getJSONObject("linked_from").getJSONObject("external_urls").getString("spotify")
+                            } else {
+                                ""
+                            }
 
                         searchResults.add(
                             SearchResult(
@@ -181,7 +187,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                                     "Album:  \t$albumName\n" +
                                     "Title:  \t\t$songName\n" +
                                     "Link:   \t\t$songLink\n",
-                                Link(songLink),
+                                Link(songLink, songId, linkedFrom),
                             ),
                         )
                     }
@@ -612,11 +618,15 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                                                         ),
                                                     )
                                                 val title = Name(item.getJSONObject("track").getString("name"))
-                                                val link =
-                                                    Link(
-                                                        item.getJSONObject("track").getJSONObject("external_urls")
-                                                            .getString("spotify"),
-                                                    )
+                                                val trackId = item.getJSONObject("track").getString("id")
+                                                val linkedFrom =
+                                                    if (item.getJSONObject("track").has("linked_from")) {
+                                                        item.getJSONObject("track").getJSONObject("linked_from")
+                                                            .getJSONObject("external_urls").getString("spotify")
+                                                    } else {
+                                                        ""
+                                                    }
+                                                val link = Link("https://open.spotify.com/track/$trackId", trackId, linkedFrom)
                                                 val isPlayable =
                                                     if (item.getJSONObject("track").getBoolean("is_playable")) {
                                                         true
@@ -967,7 +977,14 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                                 },
                             )
                         val title = Name(item.getString("name"))
-                        val link = Link(item.getJSONObject("external_urls").getString("spotify"))
+                        val trackId = item.getString("id")
+                        val linkedFrom =
+                            if (item.has("linked_from")) {
+                                item.getJSONObject("linked_from").getJSONObject("external_urls").getString("spotify")
+                            } else {
+                                ""
+                            }
+                        val link = Link("https://open.spotify.com/track/$trackId", trackId, linkedFrom)
                         val isPlayable =
                             if (market.isNotEmpty()) {
                                 item.getBoolean("is_playable")
@@ -1166,18 +1183,14 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
                     },
                 )
             val title = Name(trackData.getString("name"))
-            val link =
+            val trackId = trackData.getString("id")
+            val linkedFrom =
                 if (trackData.has("linked_from")) {
-                    val linkedFrom =
-                        trackData.getJSONObject("linked_from")
-                            .getJSONObject("external_urls").getString("spotify")
-                    Link(
-                        trackData.getJSONObject("external_urls").getString("spotify"),
-                        linkedFrom = linkedFrom,
-                    )
+                    trackData.getJSONObject("linked_from").getJSONObject("external_urls").getString("spotify")
                 } else {
-                    trackLink
+                    ""
                 }
+            val link = Link("https://open.spotify.com/track/$trackId", trackId, linkedFrom)
             println("Checking playability...")
             val isPlayable =
                 if (trackData.getBoolean("is_playable")) {
