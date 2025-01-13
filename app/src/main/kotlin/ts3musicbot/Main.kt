@@ -137,6 +137,7 @@ class Main :
                 var ytVolume = defaultSettings.ytVolume
                 var bcVolume = defaultSettings.bcVolume
                 var useOfficialTsClient = true
+                var acceptTsLicense = false
 
                 val helpMessage =
                     "\n" +
@@ -309,6 +310,7 @@ class Main :
                             spotifyUsername,
                             spotifyPassword,
                             useOfficialTsClient,
+                            acceptTsLicense,
                             scVolume,
                             ytVolume,
                             bcVolume,
@@ -1143,6 +1145,7 @@ class Main :
             spUsernameEditText.text,
             spPasswordEditText.text,
             tsClientRadioGroup.selectedToggle == tsClientOfficialRadioButton,
+            false,
             scVolumeEditText.text.ifEmpty { "${BotSettings().scVolume}" }.toInt(),
             ytVolumeEditText.text.ifEmpty { "${BotSettings().ytVolume}" }.toInt(),
             bcVolumeEditText.text.ifEmpty { "${BotSettings().bcVolume}" }.toInt(),
