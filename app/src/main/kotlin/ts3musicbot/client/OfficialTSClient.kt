@@ -348,23 +348,25 @@ class OfficialTSClient(botSettings: BotSettings) : Client(botSettings) {
             "By continuing to use the Official TeamSpeak Client,\n" +
                 "you must accept the license located at $tsClientDirPath/cache/license_5_en.html\n",
         )
-        var licenseAccepted by Delegates.notNull<Boolean>()
-        while (true) {
-            when (System.console().readLine("Do you accept the license? [y/n]: ").lowercase()) {
-                "y", "yes" -> {
-                    licenseAccepted = true
-                    break
-                }
+        if (!botSettings.acceptTsLicense) {
+            var licenseAccepted by Delegates.notNull<Boolean>()
+            while (true) {
+                when (System.console().readLine("Do you accept the license? [y/n]: ").lowercase()) {
+                    "y", "yes" -> {
+                        licenseAccepted = true
+                        break
+                    }
 
-                "n", "no" -> {
-                    licenseAccepted = false
-                    break
+                    "n", "no" -> {
+                        licenseAccepted = false
+                        break
+                    }
                 }
             }
-        }
-        if (!licenseAccepted) {
-            println("License not Accepted! Exiting.")
-            exitProcess(1)
+            if (!licenseAccepted) {
+                println("License not Accepted! Exiting.")
+                exitProcess(1)
+            }
         }
 
         exportFile("addons.ini")

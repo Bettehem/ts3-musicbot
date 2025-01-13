@@ -159,6 +159,8 @@ class Main :
                         "--config                 Provide a config file where to read the bot's settings from\n" +
                         "--command-config         Provide a config file where to read custom commands from\n" +
                         "--use-internal-tsclient  Use the internal TeamSpeak client instead of the official one.(WIP!)\n" +
+                        "--accept-ts-license      If you have already read and accepted the TeamSpeak License,\n" +
+                        "                         you can use this flag to accept it automatically.\n" +
                         "--sc-volume <volume>     Set the volume for MPV media player when playing SoundCloud content.\n" +
                         "--yt-volume <volume>     Set the volume for MPV media player when playing YouTube content.\n" +
                         "--bc-volume <volume>     Set the volume for MPV media player when playing Bandcamp content.\n"
@@ -260,6 +262,12 @@ class Main :
                         "--use-internal-tsclient" -> {
                             if (args.size >= argPos + 1) {
                                 useOfficialTsClient = false
+                            }
+                        }
+
+                        "--accept-ts-license" -> {
+                            if (args.size >= argPos + 1) {
+                                acceptTsLicense = true
                             }
                         }
 
