@@ -45,7 +45,7 @@ class ChatReader(
     private var shouldRead = false
     private val commandRunner = CommandRunner()
     private val spotify = Spotify(botSettings.market)
-    private val youTube = YouTube()
+    private val youTube = YouTube(botSettings.ytApiKey)
     private val soundCloud = SoundCloud()
     private val bandcamp = Bandcamp()
     private val voteSkipUsers = ArrayList<Pair<String, Boolean>>()

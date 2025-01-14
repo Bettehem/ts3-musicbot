@@ -34,7 +34,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Base64
 
-class YouTube : Service(ServiceType.YOUTUBE) {
+class YouTube(customApiKey: String = "") : Service(ServiceType.YOUTUBE) {
     private val apiUrl = "https://www.googleapis.com/youtube/v3"
     private val keys =
         (
@@ -45,7 +45,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
             String(decoder.decode(keys)).split('|')
                 .map { String(decoder.decode(it.reversed().trim())).trim() }
         }
-    private val apiKey1 = keys[0]
+    private val apiKey1 = if (customApiKey.isNotEmpty()) customApiKey else keys[0]
     private val apiKey2 = keys[1]
 
     val supportedSearchTypes =
@@ -73,7 +73,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
         ): Response {
             val linkBuilder = StringBuilder()
             linkBuilder.append("$apiUrl/videos?")
-            linkBuilder.append("id=${videoLink.getId()}")
+            linkBuilder.append("id=${videoLink.getId(this)}")
             linkBuilder.append("&part=${part.replace(",", "%2C")}")
             linkBuilder.append("&key=$key")
             return sendHttpRequest(Link(linkBuilder.toString()))
@@ -174,7 +174,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
             val linkBuilder = StringBuilder()
             linkBuilder.append("$apiUrl/playlists")
             linkBuilder.append("?part=snippet%2Cstatus%2CcontentDetails")
-            linkBuilder.append("&id=${playlistLink.getId()}")
+            linkBuilder.append("&id=${playlistLink.getId(this)}")
             linkBuilder.append("&key=$apiKey")
             return sendHttpRequest(Link(linkBuilder.toString()))
         }
@@ -262,7 +262,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
         ): Response {
             val linkBuilder = StringBuilder()
             linkBuilder.append("$apiUrl/playlistItems?")
-            linkBuilder.append("playlistId=${playlistLink.getId()}")
+            linkBuilder.append("playlistId=${playlistLink.getId(this)}")
             linkBuilder.append("&part=${part.replace(",", "%2C")}")
             linkBuilder.append("&key=$apiKey")
             linkBuilder.append("&maxResults=" + if (limit != 0 && limit < maxResults) limit else maxResults)
@@ -530,7 +530,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
         ): Response {
             val linkBuilder = StringBuilder()
             linkBuilder.append("$apiUrl/playlists")
-            linkBuilder.append("?channelId=${channelLink.getId()}")
+            linkBuilder.append("?channelId=${channelLink.getId(this)}")
             linkBuilder.append("&part=snippet%2Cstatus&maxResults=50")
             linkBuilder.append("&key=$apiKey")
             if (pageToken.isNotEmpty()) {
@@ -650,7 +650,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
         fun fetchChannelData(apiKey: String = apiKey1): Response {
             val linkBuilder = StringBuilder()
             linkBuilder.append("$apiUrl/channels")
-            linkBuilder.append("?id=${link.getId()}")
+            linkBuilder.append("?id=${link.getId(this)}")
             linkBuilder.append("&part=snippet%2Cstatistics")
             linkBuilder.append("&key=$apiKey")
             return sendHttpRequest(Link(linkBuilder.toString()))
@@ -904,7 +904,7 @@ class YouTube : Service(ServiceType.YOUTUBE) {
                                                 itemData as JSONObject
                                                 itemData.getJSONObject("id").getString("kind").substringAfter("#").let {
                                                     itemData.getJSONObject("id").getString("${it}Id")
-                                                } == link.getId()
+                                                } == link.getId(this@YouTube)
                                             }.let { itemData ->
                                                 itemData as JSONObject
                                                 LinkType.valueOf(

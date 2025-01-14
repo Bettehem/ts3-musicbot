@@ -16,6 +16,7 @@ import ts3musicbot.util.CommandList
 import ts3musicbot.util.Link
 import ts3musicbot.util.Track
 import ts3musicbot.util.TrackList
+import java.util.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -33,7 +34,12 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
 
     // TODO: figure out why trying to fetch the data for this track results in error 429 when running the tests in ci but not locally
     // private val bandcampLink = Link("https://visceraandvapor.bandcamp.com/track/side-b-3")
-    private val botSettings = BotSettings(market = spotifyMarket)
+    val key = "gCBlkehNVeC9lRwpEVZZVT1FlMJ9FR4FWakhVVkdje0EVLTNWT2ZTW"
+    private val botSettings =
+        BotSettings(
+            market = spotifyMarket,
+            ytApiKey = String(Base64.getDecoder().decode("${"=".repeat(2)}$key".reversed().trim())).reversed().trim(),
+        )
     private val chatReader = ChatReader(Client(botSettings), botSettings, this, this, commandList)
     private var commandCompleted = Pair("", false)
 
@@ -82,16 +88,18 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
             val helpUser = "test"
             runCommand(chatReader, "%help", helpUser)
             while (commandCompleted.first != "help" && !commandCompleted.second) {
-                println("Waiting for command to complete")
+                print("Waiting for command to complete\r")
                 delay(10)
             }
+            println()
             commandList.commandList.forEach {
                 commandCompleted = Pair("", false)
                 runCommand(chatReader, "%help ${it.key}", helpUser)
                 while (commandCompleted.first != "%help ${it.key}" && !commandCompleted.second) {
-                    println("Waiting for command to complete")
+                    print("Waiting for command to complete\r")
                     delay(10)
                 }
+                println()
             }
         }
     }
@@ -129,9 +137,10 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
                         },
                 )
                 while (commandCompleted.first != "%queue-add" && !commandCompleted.second) {
-                    println("Waiting for command to complete.")
+                    print("Waiting for command to complete.\r")
                     delay(500)
                 }
+                println()
                 assertEquals(link.link, track.link.link)
             }
         }
@@ -191,9 +200,10 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
             spotify.updateToken()
             list = TrackList(spotify.fetchAlbumTracks(spotifyAlbumLink).trackList.filter { it.playability.isPlayable })
             while (commandCompleted.first != "%queue-list $spotifyAlbumLink" && !commandCompleted.second) {
-                println("Waiting for command to complete.")
+                print("Waiting for command to complete.\r")
                 Thread.sleep(500)
             }
+            println()
             assertEquals(list.toString(), extraList.toString())
         }
     }
@@ -252,9 +262,10 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
             spotify.updateToken()
             list = spotify.fetchPlaylistTracks(spotifyPlaylistLink).trackList.filter { it.playability.isPlayable }
             while (commandCompleted.first != "%queue-list $spotifyPlaylistLink" && !commandCompleted.second) {
-                println("Waiting fo command to complete")
+                print("Waiting fo command to complete\r")
                 Thread.sleep(500)
             }
+            println()
             assertEquals(list, extraList.trackList)
         }
     }
@@ -309,12 +320,13 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
                         ) {}
                     },
             )
-            val youTube = YouTube()
+            val youTube = YouTube(botSettings.ytApiKey)
             list = youTube.fetchPlaylistTracks(youTubePlaylistLink).trackList.filter { it.playability.isPlayable }
             while (commandCompleted.first != "%queue-list $youTubePlaylistLink" && !commandCompleted.second) {
-                println("Waiting for command to complete.")
+                print("Waiting for command to complete.\r")
                 Thread.sleep(500)
             }
+            println()
             assertEquals(list, extraList.trackList)
         }
     }
@@ -372,9 +384,10 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
             val soundCloud = SoundCloud()
             list = soundCloud.fetchPlaylistTracks(soundCloudPlaylistLink).trackList.filter { it.playability.isPlayable }
             while (commandCompleted.first != "%queue-list $soundCloudPlaylistLink" && !commandCompleted.second) {
-                println("Waiting for command to complete.")
+                print("Waiting for command to complete.\r")
                 Thread.sleep(500)
             }
+            println()
             assertEquals(list, extraList.trackList)
         }
     }

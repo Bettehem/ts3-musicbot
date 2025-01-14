@@ -4,12 +4,14 @@ import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.runBlocking
 import ts3musicbot.services.YouTube
 import ts3musicbot.util.Link
+import java.util.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class YouTubeTest {
-    private val youTube = YouTube()
+    val key = "gCBlkehNVeC9lRwpEVZZVT1FlMJ9FR4FWakhVVkdje0EVLTNWT2ZTW"
+    private val youTube = YouTube(String(Base64.getDecoder().decode("${"=".repeat(2)}$key".reversed().trim())).reversed().trim())
 
     @Test
     fun testGettingYouTubeTrackTitle() {
@@ -62,7 +64,7 @@ class YouTubeTest {
             val testYtLink = Link("https://www.youtube.com/c/SLVSH")
             val channel = youTube.fetchChannel(testYtLink)
             assertEquals("SLVSH", channel.name.name)
-            assertEquals(testYtLink.getId(), channel.userName.name)
+            assertEquals(testYtLink.getId(youTube), channel.userName.name)
         }
     }
 }

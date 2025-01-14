@@ -138,6 +138,7 @@ class Main :
                 var bcVolume = defaultSettings.bcVolume
                 var useOfficialTsClient = true
                 var acceptTsLicense = false
+                var ytApiKey = ""
 
                 val helpMessage =
                     "\n" +
@@ -164,7 +165,8 @@ class Main :
                         "                         you can use this flag to accept it automatically.\n" +
                         "--sc-volume <volume>     Set the volume for MPV media player when playing SoundCloud content.\n" +
                         "--yt-volume <volume>     Set the volume for MPV media player when playing YouTube content.\n" +
-                        "--bc-volume <volume>     Set the volume for MPV media player when playing Bandcamp content.\n"
+                        "--bc-volume <volume>     Set the volume for MPV media player when playing Bandcamp content.\n" +
+                        "--yt-api-key <API_KEY>   Set a custom YouTube API Key for the bot to use. Useful if you get 403 errors.\n"
 
                 // go through given arguments and save them
                 for (argPos in args.indices) {
@@ -289,6 +291,12 @@ class Main :
                                 bcVolume = args[argPos + 1].toInt()
                             }
                         }
+
+                        "--yt-api-key" -> {
+                            if (args.size >= argPos + 1) {
+                                ytApiKey = args[argPos + 1]
+                            }
+                        }
                     }
                 }
 
@@ -314,6 +322,7 @@ class Main :
                             scVolume,
                             ytVolume,
                             bcVolume,
+                            ytApiKey,
                         )
                     }
 
@@ -512,6 +521,7 @@ class Main :
                         "SC_VOLUME" -> settings.scVolume = line.substringAfter("=").replace(" ", "").toInt()
                         "YT_VOLUME" -> settings.ytVolume = line.substringAfter("=").replace(" ", "").toInt()
                         "BC_VOLUME" -> settings.bcVolume = line.substringAfter("=").replace(" ", "").toInt()
+                        "YT_API_KEY" -> settings.ytApiKey = line.substringAfter("=").replace(" ", "")
                     }
                 }
             }
@@ -1149,6 +1159,7 @@ class Main :
             scVolumeEditText.text.ifEmpty { "${BotSettings().scVolume}" }.toInt(),
             ytVolumeEditText.text.ifEmpty { "${BotSettings().ytVolume}" }.toInt(),
             bcVolumeEditText.text.ifEmpty { "${BotSettings().bcVolume}" }.toInt(),
+            "",
         )
 
     override fun onChatUpdated(update: ChatUpdate) {
