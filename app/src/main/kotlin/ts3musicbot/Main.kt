@@ -263,15 +263,11 @@ class Main :
                         }
 
                         "--use-internal-tsclient" -> {
-                            if (args.size >= argPos + 1) {
-                                useOfficialTsClient = false
-                            }
+                            useOfficialTsClient = false
                         }
 
                         "--accept-ts-license" -> {
-                            if (args.size >= argPos + 1) {
-                                acceptTsLicense = true
-                            }
+                            acceptTsLicense = true
                         }
 
                         "--sc-volume" -> {
