@@ -158,7 +158,9 @@ class Main :
                         "--spotify <client>       Specify a spotify client to use. Can be spotify, ncspot or spotifyd.\n" +
                         "--sp-user <username>     Specify the username to use in the official spotify client.\n" +
                         "--sp-pass <password>     Specify the password to use in the official spotify client.\n" +
-                        "--config                 Provide a config file where to read the bot's settings from\n" +
+                        "--config                 Provide a config file where to read the bot's settings from.\n" +
+                        "                         Note: If you use the --config flag,\n" +
+                        "                               all other flags (except --command-config and --use-internal-tsclient) will be ignored.\n" +
                         "--command-config         Provide a config file where to read custom commands from\n" +
                         "--use-internal-tsclient  Use the internal TeamSpeak client instead of the official one.(WIP!)\n" +
                         "--accept-ts-license      If you have already read and accepted the TeamSpeak License,\n" +
@@ -514,6 +516,7 @@ class Main :
                             settings.useOfficialTsClient =
                                 line.substringAfter("=").replace(" ", "").toBoolean()
 
+                        "ACCEPT_TS_LICENSE" -> settings.acceptTsLicense = line.substringAfter("=").replace(" ", "").toBoolean()
                         "SC_VOLUME" -> settings.scVolume = line.substringAfter("=").replace(" ", "").toInt()
                         "YT_VOLUME" -> settings.ytVolume = line.substringAfter("=").replace(" ", "").toInt()
                         "BC_VOLUME" -> settings.bcVolume = line.substringAfter("=").replace(" ", "").toInt()
