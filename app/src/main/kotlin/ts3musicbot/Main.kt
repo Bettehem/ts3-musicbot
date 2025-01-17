@@ -139,36 +139,43 @@ class Main :
                 var useOfficialTsClient = true
                 var acceptTsLicense = false
                 var ytApiKey = ""
+                var spApiKey = ""
+                var spClientId = ""
+                var spClientSecret = ""
 
                 val helpMessage =
                     "\n" +
                         "TS3 Music Bot help message\n" +
                         "Available options:\n" +
-                        "-h, --help               Show this help message\n" +
-                        "-a, --apikey             ClientQuery api key\n" +
-                        "-s, --serveraddress      Server address to connect to\n" +
-                        "-p, --serverport         Server's port. Usually 9987\n" +
-                        "-P, --serverpassword     Server's password\n" +
-                        "-c, --channelname        The channel's name the bot should connect to after connecting to the server.\n" +
-                        "--channelpassword        The channel's password the bot should connect to.\n" +
-                        "-C, --channelfile        Provide a path to a channel.txt file. " +
-                        "You also need to provide the channel name with -c option.\n" +
-                        "-n, --nickname           The nickname of the bot.\n" +
-                        "-m, --market             Specify a market/country for Spotify.\n" +
-                        "--spotify <client>       Specify a spotify client to use. Can be spotify, ncspot or spotifyd.\n" +
-                        "--sp-user <username>     Specify the username to use in the official spotify client.\n" +
-                        "--sp-pass <password>     Specify the password to use in the official spotify client.\n" +
-                        "--config                 Provide a config file where to read the bot's settings from.\n" +
-                        "                         Note: If you use the --config flag,\n" +
-                        "                               all other flags (except --command-config and --use-internal-tsclient) will be ignored.\n" +
-                        "--command-config         Provide a config file where to read custom commands from\n" +
-                        "--use-internal-tsclient  Use the internal TeamSpeak client instead of the official one.(WIP!)\n" +
-                        "--accept-ts-license      If you have already read and accepted the TeamSpeak License,\n" +
-                        "                         you can use this flag to accept it automatically.\n" +
-                        "--sc-volume <volume>     Set the volume for MPV media player when playing SoundCloud content.\n" +
-                        "--yt-volume <volume>     Set the volume for MPV media player when playing YouTube content.\n" +
-                        "--bc-volume <volume>     Set the volume for MPV media player when playing Bandcamp content.\n" +
-                        "--yt-api-key <API_KEY>   Set a custom YouTube API Key for the bot to use. Useful if you get 403 errors.\n"
+                        "-h, --help                  Show this help message\n" +
+                        "-a, --apikey                ClientQuery api key\n" +
+                        "-s, --serveraddress         Server address to connect to\n" +
+                        "-p, --serverport            Server's port. Usually 9987\n" +
+                        "-P, --serverpassword        Server's password\n" +
+                        "-c, --channelname           The channel's name the bot should connect to after connecting to the server.\n" +
+                        "--channelpassword           The channel's password the bot should connect to.\n" +
+                        "-C, --channelfile           Provide a path to a channel.txt file. " +
+                        "You also need to provide    the channel name with -c option.\n" +
+                        "-n, --nickname              The nickname of the bot.\n" +
+                        "-m, --market                Specify a market/country for Spotify.\n" +
+                        "--spotify <client>          Specify a spotify client to use. Can be spotify, ncspot or spotifyd.\n" +
+                        "--sp-user <username>        Specify the username to use in the official spotify client.\n" +
+                        "--sp-pass <password>        Specify the password to use in the official spotify client.\n" +
+                        "--config                    Provide a config file where to read the bot's settings from.\n" +
+                        "                            Note: If you use the --config flag,\n" +
+                        "                                  all other flags (except --command-config and --use-internal-tsclient) will be ignored.\n" +
+                        "--command-config            Provide a config file where to read custom commands from\n" +
+                        "--use-internal-tsclient     Use the internal TeamSpeak client instead of the official one.(WIP!)\n" +
+                        "--accept-ts-license         If you have already read and accepted the TeamSpeak License,\n" +
+                        "                            you can use this flag to accept it automatically.\n" +
+                        "--sc-volume <volume>        Set the volume for MPV media player when playing SoundCloud content.\n" +
+                        "--yt-volume <volume>        Set the volume for MPV media player when playing YouTube content.\n" +
+                        "--bc-volume <volume>        Set the volume for MPV media player when playing Bandcamp content.\n" +
+                        "--yt-api-key <API_KEY>      Set a custom YouTube API Key for the bot to use. Useful if you get 403 errors.\n" +
+                        "--sp-api-key <API_KEY>      Set a custom Spotify API Key for the bot to use. Expects a Base64 encoded clientid:clientsecret.\n" +
+                        "                            See https://developer.spotify.com/documentation/web-api/tutorials/client-credentials-flow for more info\n" +
+                        "--sp-client-id <id>         Set a custom Spotify client id to generate a Spotify API Key. Needs to be used with --sp-client-secret.\n" +
+                        "--sp-client-secret <secret> Set a custom Spotify client secret to generate a Spotify API Key. Needs to be used with --sp-client-id\n"
 
                 // go through given arguments and save them
                 for (argPos in args.indices) {
@@ -295,6 +302,24 @@ class Main :
                                 ytApiKey = args[argPos + 1]
                             }
                         }
+
+                        "--sp-api-key" -> {
+                            if (args.size >= argPos + 1) {
+                                spApiKey = args[argPos + 1]
+                            }
+                        }
+
+                        "--sp-client-id" -> {
+                            if (args.size >= argPos + 1) {
+                                spClientId = args[argPos + 1]
+                            }
+                        }
+
+                        "--sp-client-secret" -> {
+                            if (args.size >= argPos + 1) {
+                                spClientSecret = args[argPos + 1]
+                            }
+                        }
                     }
                 }
 
@@ -321,6 +346,9 @@ class Main :
                             ytVolume,
                             bcVolume,
                             ytApiKey,
+                            spApiKey,
+                            spClientId,
+                            spClientSecret,
                         )
                     }
 
@@ -476,9 +504,14 @@ class Main :
                 fileWriter.println("SPOTIFY_USERNAME=${botSettings.spotifyUsername}")
                 fileWriter.println("SPOTIFY_PASSWORD=${botSettings.spotifyPassword}")
                 fileWriter.println("USE_OFFICIAL_TSCLIENT=${botSettings.useOfficialTsClient}")
+                fileWriter.println("ACCEPT_TS_LICENSE=${botSettings.acceptTsLicense}")
                 fileWriter.println("SC_VOLUME=${botSettings.scVolume}")
                 fileWriter.println("YT_VOLUME=${botSettings.ytVolume}")
                 fileWriter.println("BC_VOLUME=${botSettings.bcVolume}")
+                fileWriter.println("YT_API_KEY=${botSettings.ytApiKey}")
+                fileWriter.println("SP_API_KEY=${botSettings.spApiKey}")
+                fileWriter.println("SP_CLIENT_ID=${botSettings.spClientId}")
+                fileWriter.println("SP_CLIENT_SECRET=${botSettings.spClientSecret}")
                 fileWriter.println()
                 fileWriter.close()
             }
@@ -521,6 +554,9 @@ class Main :
                         "YT_VOLUME" -> settings.ytVolume = line.substringAfter("=").replace(" ", "").toInt()
                         "BC_VOLUME" -> settings.bcVolume = line.substringAfter("=").replace(" ", "").toInt()
                         "YT_API_KEY" -> settings.ytApiKey = line.substringAfter("=").replace(" ", "")
+                        "SP_API_KEY" -> settings.spApiKey = line.substringAfter("=").replace(" ", "")
+                        "SP_CLIENT_ID" -> settings.spClientId = line.substringAfter("=").replace(" ", "")
+                        "SP_CLIENT_SECRET" -> settings.spClientSecret = line.substringAfter("=").replace(" ", "")
                     }
                 }
             }
@@ -1158,6 +1194,9 @@ class Main :
             scVolumeEditText.text.ifEmpty { "${BotSettings().scVolume}" }.toInt(),
             ytVolumeEditText.text.ifEmpty { "${BotSettings().ytVolume}" }.toInt(),
             bcVolumeEditText.text.ifEmpty { "${BotSettings().bcVolume}" }.toInt(),
+            "",
+            "",
+            "",
             "",
         )
 

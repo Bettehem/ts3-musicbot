@@ -3,15 +3,29 @@ package ts3musicbot
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.runBlocking
 import ts3musicbot.services.Spotify
+import ts3musicbot.util.BotSettings
 import ts3musicbot.util.Link
 import ts3musicbot.util.Name
+import java.util.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class SpotifyTest {
     // Set to your own country
     private val spotifyMarket = "US"
-    private val spotify = Spotify(spotifyMarket).also { runBlocking(IO) { it.updateToken() } }
+    val key =
+        String(
+            Base64.getEncoder().encode(
+                (
+                    "KIDO0ETZkZjY0UTY4QGM4gjY2MDNkdTN2EWZzADNkBDZ" + ":" +
+                        "KUGMwUWYyADZhdTYmRmMjFWOwgDN1IjMwUWN1M2YyQTZ"
+                ).split(":").reversed().joinToString(":") {
+                    String(Base64.getDecoder().decode(it.reversed())).trim()
+                }.toByteArray(),
+            ),
+        )
+    val botSettings = BotSettings(market = spotifyMarket, spApiKey = key)
+    private val spotify = Spotify(botSettings).also { runBlocking(IO) { it.updateToken() } }
 
     @Test
     fun testGettingTrack() {

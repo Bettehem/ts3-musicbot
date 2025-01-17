@@ -34,11 +34,22 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
 
     // TODO: figure out why trying to fetch the data for this track results in error 429 when running the tests in ci but not locally
     // private val bandcampLink = Link("https://visceraandvapor.bandcamp.com/track/side-b-3")
-    val key = "gCBlkehNVeC9lRwpEVZZVT1FlMJ9FR4FWakhVVkdje0EVLTNWT2ZTW"
+    val ytKey = "gCBlkehNVeC9lRwpEVZZVT1FlMJ9FR4FWakhVVkdje0EVLTNWT2ZTW"
     private val botSettings =
         BotSettings(
             market = spotifyMarket,
-            ytApiKey = String(Base64.getDecoder().decode("${"=".repeat(2)}$key".reversed().trim())).reversed().trim(),
+            ytApiKey = String(Base64.getDecoder().decode("${"=".repeat(2)}$ytKey".reversed().trim())).reversed().trim(),
+            spApiKey =
+                String(
+                    Base64.getEncoder().encode(
+                        (
+                            "KIDO0ETZkZjY0UTY4QGM4gjY2MDNkdTN2EWZzADNkBDZ" + ":" +
+                                "KUGMwUWYyADZhdTYmRmMjFWOwgDN1IjMwUWN1M2YyQTZ"
+                        ).split(":").reversed().joinToString(":") {
+                            String(Base64.getDecoder().decode(it.reversed())).trim()
+                        }.toByteArray(),
+                    ),
+                ),
         )
     private val chatReader = ChatReader(Client(botSettings), botSettings, this, this, commandList)
     private var commandCompleted = Pair("", false)
@@ -196,7 +207,7 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
                         ) {}
                     },
             )
-            val spotify = Spotify(spotifyMarket)
+            val spotify = Spotify(botSettings)
             spotify.updateToken()
             list = TrackList(spotify.fetchAlbumTracks(spotifyAlbumLink).trackList.filter { it.playability.isPlayable })
             while (commandCompleted.first != "%queue-list $spotifyAlbumLink" && !commandCompleted.second) {
@@ -258,7 +269,7 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
                         ) {}
                     },
             )
-            val spotify = Spotify(spotifyMarket)
+            val spotify = Spotify(botSettings)
             spotify.updateToken()
             list = spotify.fetchPlaylistTracks(spotifyPlaylistLink).trackList.filter { it.playability.isPlayable }
             while (commandCompleted.first != "%queue-list $spotifyPlaylistLink" && !commandCompleted.second) {

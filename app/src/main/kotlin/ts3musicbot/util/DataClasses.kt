@@ -174,7 +174,7 @@ data class Link(
                     if (service is Spotify) {
                         service.resolveType(this@Link)
                     } else {
-                        Spotify().resolveType(this@Link)
+                        Spotify(BotSettings()).resolveType(this@Link)
                     }
                 }
             }
@@ -210,7 +210,7 @@ data class Link(
                         if (service is Spotify) {
                             service.resolveId(this@Link)
                         } else {
-                            Spotify().resolveId(this@Link)
+                            Spotify(BotSettings()).resolveId(this@Link)
                         }
                     } else {
                         link

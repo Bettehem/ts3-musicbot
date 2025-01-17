@@ -12,6 +12,7 @@ import ts3musicbot.util.Album
 import ts3musicbot.util.Albums
 import ts3musicbot.util.Artist
 import ts3musicbot.util.Artists
+import ts3musicbot.util.BotSettings
 import ts3musicbot.util.Collaboration
 import ts3musicbot.util.Description
 import ts3musicbot.util.Episode
@@ -48,9 +49,28 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatterBuilder
 import java.time.temporal.ChronoField
+import java.util.Base64
 
-class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
+class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIFY) {
     private val defaultMarket = "US"
+    private val market = botSettings.market
+    private val apiKey =
+        botSettings.spApiKey.ifEmpty {
+            if (botSettings.spClientId.isEmpty() || botSettings.spClientSecret.isEmpty()) {
+                String(
+                    Base64.getEncoder().encode(
+                        (
+                            "KQGZyQmZ0UjY5MTMzUTNygTNxQDNlFmMhVGMxQ2MxITO" + ":" +
+                                "KImYwEWMxcjMyYWY0YjYjFGNkRGN3ETZxUGNlFGZzUGZ"
+                        ).split(":").reversed().joinToString(":") {
+                            String(Base64.getDecoder().decode(it.reversed())).trim()
+                        }.toByteArray(),
+                    ),
+                )
+            } else {
+                String(Base64.getEncoder().encode((botSettings.spClientId + ":" + botSettings.spClientSecret).toByteArray()))
+            }
+        }
     private val apiURI = URI("https://api.spotify.com/v1")
     private var accessToken = ""
     val supportedSearchTypes =
@@ -72,7 +92,7 @@ class Spotify(private val market: String = "") : Service(ServiceType.SPOTIFY) {
 
     private suspend fun fetchSpotifyToken(): String {
         fun getData(): Response {
-            val auth = "ZGUzZGFlNGUxZTE3NGRkNGFjYjY0YWYyMjcxMWEwYmI6ODk5OGQxMmJjZDBlNDAzM2E2Mzg2ZTg4Y2ZjZTk2NDg="
+            val auth = apiKey
             return sendHttpRequest(
                 Link("https://accounts.spotify.com/api/token"),
                 RequestMethod.POST,

@@ -19,4 +19,7 @@ class BotSettings(
     var ytVolume: Int = 89,
     var bcVolume: Int = 90,
     var ytApiKey: String = "",
+    var spApiKey: String = "",
+    var spClientId: String = "",
+    var spClientSecret: String = "",
 )
