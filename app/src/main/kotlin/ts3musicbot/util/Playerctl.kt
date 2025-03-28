@@ -31,13 +31,20 @@ fun playerctl(
             printErrors = false,
         )
 
+    /**
+     * Runs a dbus-send command to the desired player with the specified method.
+     * @param method specify a method to use. For example Stop, Play, Open
+     * @param data any extra data to accompany the given method. Has to be properly formatted according to the MPRIS Specification.
+     * For example, if your data is a string e.g. "hello", you need to prepend it accordingly with the string: tag, so the string you pass
+     * in to data would be "string:'hello'".
+     */
     fun dbusSend(
         method: String,
         data: String = "",
     ) = commandRunner.runCommand(
         "dbus-send --print-reply --dest=org.mpris.MediaPlayer2.$mediaPlayer /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.$method" +
             if (data.isNotEmpty()) {
-                " string:'$data'"
+                " $data"
             } else {
                 ""
             },
@@ -53,55 +60,51 @@ fun playerctl(
         var key = ""
         for (line in metadata.lines()) {
             if (line.startsWith("method return time")) continue
-            when {
-                line.contains("^\\s+dict entry\\(".toRegex()) -> {
-                    inEntry = true
-                }
+            if (line.contains("^\\s+dict entry\\(".toRegex())) {
+                inEntry = true
+                continue
+            }
+            if (line.contains("^\\s+string \"".toRegex()) && !inSubArray) {
+                key = line.substringAfter('"').substringBeforeLast('"')
+                continue
+            }
+            if (line.contains("^\\s+(variant\\s+)?\\S+\\s+\\S+".toRegex())) {
+                when (val variant = line.replace("^\\s+(variant\\s+)?".toRegex(), "").substringBefore(' ')) {
+                    "array" -> if (inEntry) inSubArray = true
 
-                line.contains("^\\s+string \"".toRegex()) -> {
-                    key = line.substringAfter('"').substringBeforeLast('"')
-                }
+                    "string" -> {
+                        val str = line.substringAfter('"').substringBeforeLast('"')
+                        if (inSubArray) {
+                            subArray.add(str)
+                        } else {
+                            metadataMap[key] = str
+                        }
+                    }
 
-                line.contains("^\\s+variant\\s+\\S+".toRegex()) -> {
-                    when (val variant = line.replace("^\\s+variant\\s+".toRegex(), "").substringBefore(' ')) {
-                        "array" -> if (inEntry) inSubArray = true
-
-                        "string" -> {
-                            val str = line.substringAfter('"').substringBeforeLast('"')
-                            if (inSubArray) {
-                                subArray.add(str)
-                            } else {
-                                metadataMap[key] = str
-                            }
+                    "object" ->
+                        if (line.substringAfter("$variant ").startsWith("path")) {
+                            metadataMap[key] = line.replace("(^.+\\s+\"|\"$)".toRegex(), "'")
                         }
 
-                        "object" ->
-                            if (line.substringAfter("$variant ").startsWith("path")) {
-                                metadataMap[key] = line.replace("(^.+\\s+\"|\"$)".toRegex(), "'")
-                            }
+                    "uint64", "int64" -> metadataMap[key] = line.substringAfter("$variant ").toLong()
+                    "double" -> metadataMap[key] = line.substringAfter("$variant ").toFloat()
+                    "int32" -> metadataMap[key] = line.substringAfter("$variant ").toInt()
 
-                        "uint64", "int64" -> metadataMap[key] = line.substringAfter("$variant ").toLong()
-                        "double" -> metadataMap[key] = line.substringAfter("$variant ").toFloat()
-                        "int32" -> metadataMap[key] = line.substringAfter("$variant ").toInt()
-
-                        else ->
-                            println(
-                                "Encountered unknown variant \"$variant\" when parsing MPRIS metadata!\n" +
-                                    "Metadata:\n$metadata",
-                            )
-                    }
+                    else ->
+                        println(
+                            "Encountered unknown variant \"$variant\" when parsing MPRIS metadata!\n" +
+                                "Metadata:\n$metadata",
+                        )
                 }
-
-                line.contains("^\\s+]$".toRegex()) -> {
-                    if (inEntry) {
-                        inSubArray = false
-                        metadataMap[key] = subArray
-                        subArray.clear()
-                    }
-                }
-
-                line.contains("^\\s+\\)$".toRegex()) -> inEntry = false
+                continue
             }
+            if (line.contains("^\\s+]$".toRegex()) && inEntry) {
+                inSubArray = false
+                metadataMap[key] = subArray.toArray()
+                subArray.clear()
+                continue
+            }
+            if (line.contains("^\\s+\\)$".toRegex())) inEntry = false
         }
         return metadataMap
     }
@@ -126,47 +129,37 @@ fun playerctl(
             val title = "xesam:title"
             val trackNum = "xesam:trackNumber"
             val url = "xesam:url"
-            if (parsedOutput.contains(trackId)) {
-                formattedMetadata.appendLine("$mediaPlayer $trackId\t\t${parsedOutput[trackId]}")
+
+            /**
+             * Formats a line of given metadata
+             * @param tag The tag to be used
+             * @param tabs The amount of tabs that should be in between the tag and data
+             */
+            fun fmtMetadata(
+                tag: String,
+                tabs: Int = 2,
+            ) {
+                fun fmt(data: Any?) = formattedMetadata.appendLine("$mediaPlayer $tag" + "\t".repeat(tabs) + data)
+                if (parsedOutput.contains(tag)) {
+                    val data = parsedOutput[tag]
+                    if (data is Array<*>) {
+                        data.forEach { fmt(it) }
+                    } else {
+                        fmt(data)
+                    }
+                }
             }
-            if (parsedOutput.contains(length)) {
-                formattedMetadata.appendLine("$mediaPlayer $length\t\t\t${parsedOutput[length]}")
-            }
-            if (parsedOutput.contains(artUrl)) {
-                formattedMetadata.appendLine("$mediaPlayer $artUrl\t\t\t${parsedOutput[artUrl]}")
-            }
-            if (parsedOutput.contains(album)) {
-                formattedMetadata.appendLine("$mediaPlayer $album\t\t\t${parsedOutput[album]}")
-            }
-            if (parsedOutput.contains(albumArtist)) {
-                formattedMetadata.appendLine(
-                    "$mediaPlayer $albumArtist\t${
-                        parsedOutput[albumArtist].let { if (it is List<*>) it.joinToString() else "" }
-                    }",
-                )
-            }
-            if (parsedOutput.contains(artist)) {
-                formattedMetadata.appendLine(
-                    "$mediaPlayer $artist\t\t${
-                        parsedOutput[artist].let { if (it is List<*>) it.joinToString() else "" }
-                    }",
-                )
-            }
-            if (parsedOutput.contains(rating)) {
-                formattedMetadata.appendLine("$mediaPlayer $rating\t\t${parsedOutput[rating]}")
-            }
-            if (parsedOutput.contains(discNum)) {
-                formattedMetadata.appendLine("$mediaPlayer $discNum\t\t${parsedOutput[discNum]}")
-            }
-            if (parsedOutput.contains(title)) {
-                formattedMetadata.appendLine("$mediaPlayer $title\t\t\t${parsedOutput[title]}")
-            }
-            if (parsedOutput.contains(trackNum)) {
-                formattedMetadata.appendLine("$mediaPlayer $trackNum\t${parsedOutput[trackNum]}")
-            }
-            if (parsedOutput.contains(url)) {
-                formattedMetadata.appendLine("$mediaPlayer $url\t\t\t${parsedOutput[url]}")
-            }
+            fmtMetadata(trackId)
+            fmtMetadata(length)
+            fmtMetadata(artUrl)
+            fmtMetadata(album)
+            fmtMetadata(albumArtist, 1)
+            fmtMetadata(artist)
+            fmtMetadata(rating)
+            fmtMetadata(discNum)
+            fmtMetadata(title)
+            fmtMetadata(trackNum, 1)
+            fmtMetadata(url)
             Output(formattedMetadata.toString(), metadata.errorText)
         }
 
@@ -183,7 +176,7 @@ fun playerctl(
         }
 
         "open" -> {
-            dbusSend("OpenUri", extra)
+            dbusSend("OpenUri", "string:'$extra'")
         }
 
         "next" -> {
@@ -195,8 +188,15 @@ fun playerctl(
         }
 
         "position" -> {
-            val positionData = dbusGet("Position").outputText.substringAfter("int64").trim().ifEmpty { "0" }
-            Output(positionData)
+            if (extra.isEmpty()) {
+                val positionData = dbusGet("Position").outputText.substringAfter("int64").trim().ifEmpty { "0" }
+                Output(positionData)
+            } else {
+                val trackId =
+                    playerctl(player, "metadata").outputText.lines().first { it.contains("mpris:trackid") }
+                        .replace("\\S+\\s+mpris:trackid\\s+".toRegex(), "")
+                dbusSend("SetPosition", "objpath:$trackId int64:" + extra.toLong() * 1000000)
+            }
         }
 
         else -> Output()
