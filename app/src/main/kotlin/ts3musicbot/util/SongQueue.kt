@@ -390,6 +390,13 @@ class SongQueue(
         var trackPositionJob = Job()
 
         var trackPosition = 0L
+        var startPosition = 0L
+        var wasPaused = false
+
+        // shouldPause is checked when playback status is set to "Playing" after the track wasPaused.
+        // If shouldPause, the track is then paused again. This really only happens if the media player in question decides to crap itself
+        // for whatever reason
+        var shouldPause = true
 
         var track = Track()
         private val commandRunner = CommandRunner()
@@ -489,10 +496,15 @@ class SongQueue(
             commandRunner.runCommand("ps aux | grep $player | grep -v grep", printOutput = false)
                 .outputText.isNotEmpty()
 
-        fun startTrack() {
+        /**
+         * Starts the appropriate media player if not already started and then starts playing the track
+         * @param startAt start the track at a specific position (in seconds)
+         */
+        fun startTrack(startAt: Long = 0L) {
             synchronized(this) {
                 trackPositionJob.cancel()
                 trackPosition = 0
+                startPosition = startAt
                 trackJob.cancel()
                 trackJob = Job()
                 refreshPulseAudio()
@@ -694,7 +706,6 @@ class SongQueue(
             // starts playing the track
             suspend fun openTrack() {
                 var trackLength = getTrackLength()
-                var wasPaused = false
 
                 suspend fun startCountingTrackPosition(job: Job) {
                     trackLength = getTrackLength()
@@ -775,7 +786,7 @@ class SongQueue(
                         }
                         while (!playerStatus().outputText.contains("Playing")) {
                             if (playingAttempts < 5) {
-                                if (attempts < 5) {
+                                if (attempts < 10) {
                                     playerctl(
                                         getPlayer(),
                                         "open",
@@ -853,8 +864,8 @@ class SongQueue(
                                 while (job.isActive && !processRunning()) {
                                     if (playingAttempts < 5) {
                                         println("Waiting for ${getPlayer()} to start.")
-                                        // if playback hasn't started after ten seconds, try starting playback again.
-                                        if (attempts < 10) {
+                                        // if playback hasn't started after twenty seconds, try starting playback again.
+                                        if (attempts < 20) {
                                             delay(1000)
                                             attempts++
                                         } else {
@@ -911,7 +922,6 @@ class SongQueue(
                 }
 
                 loop@ while (trackJob.isActive) {
-                    delay(995)
                     val status = playerStatus()
                     val url = currentUrl()
                     if (url == track.link.link ||
@@ -931,16 +941,28 @@ class SongQueue(
                                     }
                                 }
                                 if (wasPaused) {
+                                    if (startAt != 0L) {
+                                        println("Moving to position $startPosition.")
+                                        playerctl(getPlayer(), "position", "$startPosition")
+                                        wasPaused = false
+                                    }
                                     CoroutineScope(trackJob + IO).launch {
                                         trackPositionJob.cancel()
                                         trackPositionJob = Job()
                                         startCountingTrackPosition(trackPositionJob)
                                     }
-                                    listener.onTrackResumed(getPlayer(), track)
-                                    wasPaused = false
+                                    if (shouldPause) {
+                                        pauseTrack()
+                                    } else {
+                                        listener.onTrackResumed(getPlayer(), track)
+                                    }
                                 }
                                 if (trackPosition == 0L) {
                                     CoroutineScope(trackJob + IO).launch {
+                                        if (startAt != 0L) {
+                                            println("Starting playback at position $startPosition.")
+                                            playerctl(getPlayer(), "position", "$startPosition")
+                                        }
                                         trackPositionJob.cancel()
                                         trackPositionJob = Job()
                                         startCountingTrackPosition(trackPositionJob)
@@ -981,7 +1003,11 @@ class SongQueue(
                                     // wait a bit to see if track is actually stopped
                                     delay(3000)
                                     if (playerStatus().outputText.contains("Stopped")) {
-                                        stopTrack()
+                                        println("\nThe current track seems to be stopped even though it hasn't played to the end.")
+                                        // This probably means the user didn't manually stop the player and instead some player-related error
+                                        // happened instead, causing playback to stop.
+                                        // Start playback again and seek to the previous position
+                                        startTrack(trackPosition)
                                         break@loop
                                     }
                                 }
@@ -1014,6 +1040,7 @@ class SongQueue(
                             break@loop
                         }
                     }
+                    delay(995)
                 }
             }
 
@@ -1045,12 +1072,14 @@ class SongQueue(
 
         fun pauseTrack() {
             if (track.isNotEmpty()) {
+                shouldPause = true
                 playerctl(getPlayer(), "pause")
             }
         }
 
         fun resumeTrack() {
             if (track.isNotEmpty()) {
+                shouldPause = false
                 refreshPulseAudio()
                 checkTeamSpeakAudio(trackJob)
                 playerctl(getPlayer(), "play")
@@ -1061,7 +1090,7 @@ class SongQueue(
             trackPositionJob.cancel()
             trackJob.cancel()
             val player = getPlayer()
-            // try stopping playback twice because sometimes once doesn't seem to be enough
+            // try stopping playback in a loop because sometimes just once doesn't seem to be enough
             while (playerStatus().outputText == "Playing") {
                 playerctl(player, if (player == "spotify") "pause" else "stop")
             }
