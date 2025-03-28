@@ -13,7 +13,7 @@ import kotlin.test.assertEquals
 class SpotifyTest {
     // Set to your own country
     private val spotifyMarket = "US"
-    val key =
+    private val key =
         String(
             Base64.getEncoder().encode(
                 (
@@ -24,7 +24,7 @@ class SpotifyTest {
                 }.toByteArray(),
             ),
         )
-    val botSettings = BotSettings(market = spotifyMarket, spApiKey = key)
+    private val botSettings = BotSettings(market = spotifyMarket, spApiKey = key)
     private val spotify = Spotify(botSettings).also { runBlocking(IO) { it.updateToken() } }
 
     @Test

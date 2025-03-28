@@ -34,7 +34,7 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
 
     // TODO: figure out why trying to fetch the data for this track results in error 429 when running the tests in ci but not locally
     // private val bandcampLink = Link("https://visceraandvapor.bandcamp.com/track/side-b-3")
-    val ytKey = "gCBlkehNVeC9lRwpEVZZVT1FlMJ9FR4FWakhVVkdje0EVLTNWT2ZTW"
+    private val ytKey = "gCBlkehNVeC9lRwpEVZZVT1FlMJ9FR4FWakhVVkdje0EVLTNWT2ZTW"
     private val botSettings =
         BotSettings(
             market = spotifyMarket,

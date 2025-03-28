@@ -39,7 +39,7 @@ class Console(
                             "playerctl -p <player> <args>\t\t\tRun playerctl-like commands.\n",
                     )
 
-                "say" -> client.sendMsgToChannel(userCommand.replace("^\\s+".toRegex(), ""))
+                "say" -> client.sendMsgToChannel(userCommand.replace("^say\\s+".toRegex(), ""))
                 "save-settings" -> consoleUpdateListener.onCommandIssued(command)
                 "clear" -> print("\u001b[H\u001b[2J")
                 "exit" -> exit(command)

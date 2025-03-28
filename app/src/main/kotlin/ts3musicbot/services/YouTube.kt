@@ -45,7 +45,7 @@ class YouTube(customApiKey: String = "") : Service(ServiceType.YOUTUBE) {
             String(decoder.decode(keys)).split('|')
                 .map { String(decoder.decode(it.reversed().trim())).trim() }
         }
-    private val apiKey1 = if (customApiKey.isNotEmpty()) customApiKey else keys[0]
+    private val apiKey1 = customApiKey.ifEmpty { keys[0] }
     private val apiKey2 = keys[1]
 
     val supportedSearchTypes =

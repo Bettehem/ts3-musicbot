@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class YouTubeTest {
-    val key = "gCBlkehNVeC9lRwpEVZZVT1FlMJ9FR4FWakhVVkdje0EVLTNWT2ZTW"
+    private val key = "gCBlkehNVeC9lRwpEVZZVT1FlMJ9FR4FWakhVVkdje0EVLTNWT2ZTW"
     private val youTube = YouTube(String(Base64.getDecoder().decode("${"=".repeat(2)}$key".reversed().trim())).reversed().trim())
 
     @Test
