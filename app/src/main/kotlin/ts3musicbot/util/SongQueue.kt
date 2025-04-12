@@ -1059,7 +1059,9 @@ class SongQueue(
                     // Although this shouldn't be needed, at least in the case of the official spotify client,
                     // sometimes it won't respect the disabled autoplay setting, and will continue playing something else
                     // after the desired track has finished.
-                    killPlayer(botSettings.spotifyPlayer)
+                    if (botSettings.spotifyPlayer != "ncspot") {
+                        killPlayer(botSettings.spotifyPlayer)
+                    }
                     CoroutineScope(IO + synchronized(trackJob) { trackJob }).launch {
                         openTrack()
                     }
