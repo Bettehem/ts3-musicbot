@@ -416,10 +416,11 @@ class SongQueue(
         fun currentUrl(): String {
             val metadata = playerctl(getPlayer(), "metadata")
             return if (metadata.errorText.isEmpty()) {
-                metadata.outputText
-                    .lines()
-                    .first { it.contains("xesam:url") }
-                    .replace("(^.+\\s+\"?|\"?$)".toRegex(), "")
+                metadata.ifOutputTextNotEmpty {
+                    it.lines()
+                        .first { it.contains("xesam:url") }
+                        .replace("(^.+\\s+\"?|\"?$)".toRegex(), "")
+                }
             } else {
                 ""
             }
