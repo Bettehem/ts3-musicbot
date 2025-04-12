@@ -954,6 +954,7 @@ class SongQueue(
                                     if (shouldPause) {
                                         pauseTrack()
                                     } else {
+                                        wasPaused = false
                                         listener.onTrackResumed(getPlayer(), track)
                                     }
                                 }
