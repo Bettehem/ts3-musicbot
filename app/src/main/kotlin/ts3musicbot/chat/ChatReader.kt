@@ -666,25 +666,31 @@ class ChatReader(
                                                 commandSuccessful.add(Pair(tracksAdded, Pair(msg, trackList)))
                                             }
 
-                                            LinkType.LIKES, LinkType.REPOSTS -> {
-                                                // fetch likes/reposts
+                                            LinkType.LIKES, LinkType.REPOSTS, LinkType.TRACKS -> {
+                                                // fetch likes/reposts/tracks (uploaded by the user)
                                                 if (service is SoundCloud) {
                                                     val likes =
                                                         filterList(
-                                                            if (type == LinkType.LIKES) {
-                                                                service.fetchUserLikes(
-                                                                    link,
-                                                                    trackLimit,
-                                                                    tracksOnly,
-                                                                    playlistsOnly,
-                                                                )
-                                                            } else {
-                                                                service.fetchUserReposts(
-                                                                    link,
-                                                                    trackLimit,
-                                                                    tracksOnly,
-                                                                    playlistsOnly,
-                                                                )
+                                                            when (type) {
+                                                                LinkType.LIKES ->
+                                                                    service.fetchUserLikes(
+                                                                        link,
+                                                                        trackLimit,
+                                                                        tracksOnly,
+                                                                        playlistsOnly,
+                                                                    )
+                                                                LinkType.REPOSTS ->
+                                                                    service.fetchUserReposts(
+                                                                        link,
+                                                                        trackLimit,
+                                                                        tracksOnly,
+                                                                        playlistsOnly,
+                                                                    )
+                                                                else ->
+                                                                    service.fetchUserTracks(
+                                                                        link,
+                                                                        trackLimit,
+                                                                    )
                                                             },
                                                             link,
                                                         )
@@ -1169,6 +1175,21 @@ class ChatReader(
                                                                 trackCache.first { it.first == link }.second.trackList
                                                             } else {
                                                                 service.fetchUserReposts(link).trackList
+                                                            }.map { track -> track.link },
+                                                        )
+                                                    }
+                                                }
+
+                                                LinkType.TRACKS -> {
+                                                    links.remove(link)
+                                                    if (service is SoundCloud) {
+                                                        printToChat(listOf("Please wait, fetching artist's tracks"))
+                                                        links.addAll(
+                                                            if (trackCache.any { it.first == link }) {
+                                                                println("Tracks found in cache!")
+                                                                trackCache.first { it.first == link }.second.trackList
+                                                            } else {
+                                                                service.fetchUserTracks(link).trackList
                                                             }.map { track -> track.link },
                                                         )
                                                     }

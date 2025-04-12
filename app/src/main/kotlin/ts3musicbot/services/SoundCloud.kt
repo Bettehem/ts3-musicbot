@@ -1228,6 +1228,41 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
         return TrackList(reposts)
     }
 
+    suspend fun fetchUserTracks(
+        link: Link,
+        tracksAmount: Int = 0,
+    ): TrackList {
+        val userId = Link("$link".substringBefore("/tracks")).getId(this)
+        // get a max of 500 tracks by default in case we can't get a number from the json
+        var amount = 500
+
+        fun getTrackAmount(data: Response) = JSONObject(data.data.data).getInt("track_count")
+        val userJob = Job()
+        withContext(IO + userJob) {
+            while (true) {
+                val userData = fetchUserData(userId)
+                when (userData.code.code) {
+                    HttpURLConnection.HTTP_OK -> {
+                        try {
+                            amount = getTrackAmount(userData)
+                        } catch (e: JSONException) {
+                            println("Failed JSON:\n${userData.data}\n")
+                        }
+                        userJob.complete()
+                        return@withContext
+                    }
+
+                    HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                        updateClientId()
+                    }
+
+                    else -> println("HTTP ERROR! CODE: ${userData.code}")
+                }
+            }
+        }
+        return fetchUserTracks(userId, if (tracksAmount > 0) tracksAmount else amount)
+    }
+
     /**
      * Fetch a SoundCloud user's uploaded tracks.
      * @param userId user's id.
@@ -1622,10 +1657,11 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
             CoroutineScope(IO + resolveJob).async {
                 when {
                     "$linkToSolve".contains(
-                        "$urlStart/(?!(playlist|tag)s?)[a-z0-9-_]+/(?!sets|likes|reposts)\\S+".toRegex(),
+                        "$urlStart/(?!(playlist|tag)s?)[a-z0-9-_]+/?!(sets|likes|reposts|tracks)\\S+".toRegex(),
                     ) -> LinkType.TRACK
                     "$linkToSolve".contains("$urlStart/[a-z0-9-_]+/likes".toRegex()) -> LinkType.LIKES
                     "$linkToSolve".contains("$urlStart/[a-z0-9-_]+/reposts".toRegex()) -> LinkType.REPOSTS
+                    "$linkToSolve".contains("$urlStart/[a-z0-9-_]+/tracks".toRegex()) -> LinkType.TRACKS
                     "$linkToSolve".contains("$urlStart/discover/sets".toRegex()) -> LinkType.SYSTEM_PLAYLIST
                     "$linkToSolve".contains("$urlStart/discover$".toRegex()) -> LinkType.DISCOVER
                     "$linkToSolve".contains("$urlStart/tags".toRegex()) -> LinkType.TAG_OR_GENRE
@@ -1709,7 +1745,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                 if ("$linkToSolve".contains("^($apiURI|$api2URI)/\\S+".toRegex())) {
                     id =
                         when (resolveType(link)) {
-                            LinkType.LIKES, LinkType.REPOSTS ->
+                            LinkType.LIKES, LinkType.REPOSTS, LinkType.TRACKS ->
                                 if ("$linkToSolve".contains("^$api2URI/(stream/)?users/".toRegex())) {
                                     "$linkToSolve".substringBeforeLast('/').substringAfterLast('/')
                                 } else {
@@ -1718,9 +1754,9 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                             else -> "$linkToSolve".substringAfterLast('/')
                         }
                 } else {
-                    if ("$link".contains("/(reposts|likes)$".toRegex())) {
-                        // As it turns out, neither likes nor reposts have an id.
-                        // However, when trying to resolve a likes link, the user is returned, whereas
+                    if ("$link".contains("/(reposts|likes|tracks)$".toRegex())) {
+                        // As it turns out, user likes, reposts nor tracks links have an id.
+                        // However, when trying to resolve a likes or tracks link, the user is returned, whereas
                         // trying to resolve a reposts link just gives a 404 error.
                         // So instead of trying to resolve reposts/likes, just return an empty id.
                         println("$link doesn't have an id!")

@@ -26,6 +26,7 @@ enum class LinkType {
     RECOMMENDED,
     DISCOVER,
     TAG_OR_GENRE,
+    TRACKS,
     OTHER,
 }
 
