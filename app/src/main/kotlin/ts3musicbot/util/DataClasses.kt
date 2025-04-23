@@ -6,6 +6,7 @@ import ts3musicbot.services.Service
 import ts3musicbot.services.SoundCloud
 import ts3musicbot.services.Spotify
 import ts3musicbot.services.YouTube
+import ts3musicbot.services.SongLink
 import ts3musicbot.services.ServiceType
 import java.lang.IllegalArgumentException
 import java.time.LocalDate
@@ -214,7 +215,13 @@ fun serviceType() =
             }
 
             ServiceType.SONGLINK -> {
-                LinkType.OTHER
+                runBlocking {
+                    if (service is SongLink) {
+                        service.resolveType(this@Link)
+                    } else {
+                        SongLink(Spotify(BotSettings()), SoundCloud(), YouTube()).resolveType(this@Link)
+                    }
+                }
             }
 
             else -> LinkType.OTHER

@@ -17,9 +17,11 @@ import ts3musicbot.client.OfficialTSClient
 import ts3musicbot.client.TeamSpeak
 import ts3musicbot.services.Bandcamp
 import ts3musicbot.services.Service
+import ts3musicbot.services.SongLink
 import ts3musicbot.services.SoundCloud
 import ts3musicbot.services.Spotify
 import ts3musicbot.services.YouTube
+import ts3musicbot.services.SERVICE_PRIORITY
 import ts3musicbot.services.ServiceType
 import ts3musicbot.util.BotSettings
 import ts3musicbot.util.CommandList
@@ -49,6 +51,7 @@ class ChatReader(
     private val youTube = YouTube(botSettings.ytApiKey)
     private val soundCloud = SoundCloud()
     private val bandcamp = Bandcamp()
+    private val songLink = SongLink(spotify, soundCloud, youTube)
     private val voteSkipUsers = ArrayList<Pair<String, Boolean>>()
     private val trackCache = ArrayList<Pair<Link, TrackList>>()
     var latestMsgUsername = ""
@@ -503,6 +506,7 @@ class ChatReader(
                                                 "((\\[URL])?((https?://)?" +
                                                     "(spotify\\.link|link\\.tospotify\\.com|open\\.spotify\\.com|" +
                                                     "soundcloud\\.com|((m|www)\\.)?youtu\\.?be(\\.com)?|\\S*\\.?bandcamp\\.com\\S*))" +
+                                                    "|song\\.link/.+" +
                                                     ".+(\\[/URL])?)|(spotify:(track|album|playlist|show|episode|artist):.+)"
                                             ).toRegex(),
                                         )
@@ -534,6 +538,7 @@ class ChatReader(
                                             ServiceType.SPOTIFY -> spotify
                                             ServiceType.YOUTUBE -> youTube
                                             ServiceType.BANDCAMP -> bandcamp
+                                            ServiceType.SONGLINK -> songLink
                                             ServiceType.OTHER -> Service()
                                         }
 
@@ -581,7 +586,26 @@ class ChatReader(
 
                                                 val trackAdded =
                                                     if (track.playability.isPlayable) {
-                                                        songQueue.addToQueue(track, customPosition)
+                                                        if (service is SongLink) {
+                                                            //fetch track according to priority and add it to the queue
+                                                            var added = false
+                                                            for (srv in SERVICE_PRIORITY) {
+                                                                var shouldBreak = false
+                                                                for (lnk in track.link.alternativeLinks) {
+                                                                    if (srv == lnk.serviceType()) {
+                                                                        added = songQueue.addToQueue(track, customPosition)
+                                                                        shouldBreak = true
+                                                                        break
+                                                                    }
+                                                                }
+                                                                if (shouldBreak) {
+                                                                    break
+                                                                }
+                                                            }
+                                                            added
+                                                        } else {
+                                                            songQueue.addToQueue(track, customPosition)
+                                                        }
                                                     } else {
                                                         false
                                                     }
@@ -597,6 +621,14 @@ class ChatReader(
                                                         if (trackAdded) trackAddedMsg else trackNotPlayableMsg
                                                     }
                                                 if (trackAdded) {
+                                                    if (service is SongLink) {
+                                                        trackCache.add(Pair(track.link, TrackList(track.link.alternativeLinks.map {
+                                                            when (val linkService = it.getService()) {
+                                                                is Spotify, is Bandcamp, is SoundCloud, is YouTube -> linkService.fetchTrack(it)
+                                                                else -> Track(link = it)
+                                                            }
+                                                        })))
+                                                    }
                                                     trackCache.add(Pair(track.link, TrackList(listOf(track))))
                                                 }
                                                 commandListener.onCommandProgress(commandString, msg, track)
@@ -990,6 +1022,7 @@ class ChatReader(
                                         ServiceType.SOUNDCLOUD -> soundCloud
                                         ServiceType.YOUTUBE -> youTube
                                         ServiceType.BANDCAMP -> bandcamp
+                                        ServiceType.SONGLINK -> songLink
                                         else -> Service()
                                     }
                                 if (songQueue.getQueue().isNotEmpty()) {
@@ -1268,7 +1301,27 @@ class ChatReader(
                                                     )
                                                 }
 
-                                                LinkType.VIDEO, LinkType.EPISODE, LinkType.TRACK, LinkType.OTHER -> {}
+                                                LinkType.TRACK -> {
+                                                    links.remove(rawLink)
+                                                    links.add(link)
+                                                    links.addAll(
+                                                        if (trackCache.any { it.first == link || it.second.trackList.any { track -> track.link == link } }) {
+                                                            println("Track found in cache!")
+                                                            if (trackCache.any { it.first != link }) {
+                                                                trackCache.first { it.second.trackList.any { track -> track.link == link } }.second.trackList.map { it.link }
+                                                            } else {
+                                                                emptyList()
+                                                            }
+                                                        } else {
+                                                            when (service) {
+                                                                is SongLink -> service.fetchTrack(link).link.alternativeLinks
+                                                                else -> emptyList()
+                                                            }
+                                                        }
+                                                    )
+                                                }
+
+                                                LinkType.VIDEO, LinkType.EPISODE, LinkType.OTHER -> {}
                                             }
                                         }
                                         val currentList = songQueue.getQueue()
@@ -1292,7 +1345,8 @@ class ChatReader(
                                                     if (allArtistTracks) {
                                                         link == track.link || track.artists.artists.any { artist -> artist.link == link }
                                                     } else {
-                                                        link == track.link
+                                                        link == track.link || track.link.alternativeLinks.any { it == link } ||
+                                                        link.alternativeLinks.any { altLink -> altLink == track.link || track.link.alternativeLinks.any { it == altLink } }
                                                     }
                                                 }
                                             }.flowOn(Default)
@@ -2076,13 +2130,19 @@ class ChatReader(
                                                     else -> null
                                                 }.also { if (it != null) output.add(it) }
 
+                                            ServiceType.SONGLINK ->
+                                                when (link.linkType()) {
+                                                    LinkType.TRACK -> songLink.fetchTrack(link)
+                                                    else -> null
+                                                }.also { if (it != null) output.add(it) }
+
                                             else -> {
                                                 printToChat(listOf("Link type not supported for this link: $link"))
                                                     .also { output.add(it) }
                                                 null
                                             }
                                         }
-                                    success =
+                                        success =
                                         if (data != null) {
                                             printToChat(listOf("\n$data"))
                                             true
