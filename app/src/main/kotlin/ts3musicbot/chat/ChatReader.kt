@@ -20,6 +20,7 @@ import ts3musicbot.services.Service
 import ts3musicbot.services.SoundCloud
 import ts3musicbot.services.Spotify
 import ts3musicbot.services.YouTube
+import ts3musicbot.services.ServiceType
 import ts3musicbot.util.BotSettings
 import ts3musicbot.util.CommandList
 import ts3musicbot.util.CommandRunner
@@ -529,11 +530,11 @@ class ChatReader(
 
                                     fun Link.getService() =
                                         when (this.serviceType()) {
-                                            Service.ServiceType.SOUNDCLOUD -> soundCloud
-                                            Service.ServiceType.SPOTIFY -> spotify
-                                            Service.ServiceType.YOUTUBE -> youTube
-                                            Service.ServiceType.BANDCAMP -> bandcamp
-                                            Service.ServiceType.OTHER -> Service(Service.ServiceType.OTHER)
+                                            ServiceType.SOUNDCLOUD -> soundCloud
+                                            ServiceType.SPOTIFY -> spotify
+                                            ServiceType.YOUTUBE -> youTube
+                                            ServiceType.BANDCAMP -> bandcamp
+                                            ServiceType.OTHER -> Service()
                                         }
 
                                     val service = rawLink.getService()
@@ -889,7 +890,7 @@ class ChatReader(
                                     }
                                     printToChat(
                                         listOf(
-                                            if (track.serviceType == Service.ServiceType.YOUTUBE) {
+                                            if (track.serviceType == ServiceType.YOUTUBE) {
                                                 "Currently playing:\n${track.title} : ${track.link.link}"
                                             } else {
                                                 "Currently playing:\n${
@@ -913,13 +914,13 @@ class ChatReader(
                                             queue.mapIndexed { index, track ->
                                                 val strBuilder = StringBuilder()
                                                 strBuilder.append("${if (index < 10) "$index: " else "$index:"} ")
-                                                if (track.link.serviceType() != Service.ServiceType.YOUTUBE) {
+                                                if (track.link.serviceType() != ServiceType.YOUTUBE) {
                                                     track.artists.artists.forEach { strBuilder.append("${it.name}, ") }
                                                 } else {
                                                     strBuilder.append("${track.title},")
                                                 }
                                                 "${strBuilder.toString().substringBeforeLast(",")} " +
-                                                    if (track.link.serviceType() != Service.ServiceType.YOUTUBE) {
+                                                    if (track.link.serviceType() != ServiceType.YOUTUBE) {
                                                         "- ${track.title} "
                                                     } else {
                                                         ""
@@ -985,11 +986,11 @@ class ChatReader(
                             ) -> {
                                 fun getService(link: Link): Service =
                                     when (link.serviceType()) {
-                                        Service.ServiceType.SPOTIFY -> spotify
-                                        Service.ServiceType.SOUNDCLOUD -> soundCloud
-                                        Service.ServiceType.YOUTUBE -> youTube
-                                        Service.ServiceType.BANDCAMP -> bandcamp
-                                        else -> Service(Service.ServiceType.OTHER)
+                                        ServiceType.SPOTIFY -> spotify
+                                        ServiceType.SOUNDCLOUD -> soundCloud
+                                        ServiceType.YOUTUBE -> youTube
+                                        ServiceType.BANDCAMP -> bandcamp
+                                        else -> Service()
                                     }
                                 if (songQueue.getQueue().isNotEmpty()) {
                                     var allTracks = false
@@ -1892,11 +1893,11 @@ class ChatReader(
                                         .replace("\\s+.*$".toRegex(), "")
                                 val service =
                                     when (serviceText) {
-                                        "sc", "soundcloud" -> Service.ServiceType.SOUNDCLOUD
-                                        "sp", "spotify" -> Service.ServiceType.SPOTIFY
-                                        "yt", "youtube" -> Service.ServiceType.YOUTUBE
-                                        "bc", "bandcamp" -> Service.ServiceType.BANDCAMP
-                                        else -> Service.ServiceType.OTHER
+                                        "sc", "soundcloud" -> ServiceType.SOUNDCLOUD
+                                        "sp", "spotify" -> ServiceType.SPOTIFY
+                                        "yt", "youtube" -> ServiceType.YOUTUBE
+                                        "bc", "bandcamp" -> ServiceType.BANDCAMP
+                                        else -> ServiceType.OTHER
                                     }
                                 val searchType =
                                     SearchType(
@@ -1906,14 +1907,14 @@ class ChatReader(
                                     )
                                 if (
                                     when (service) {
-                                        Service.ServiceType.SPOTIFY -> spotify.supportedSearchTypes.contains(searchType.getType())
-                                        Service.ServiceType.YOUTUBE -> youTube.supportedSearchTypes.contains(searchType.getType())
-                                        Service.ServiceType.SOUNDCLOUD ->
+                                        ServiceType.SPOTIFY -> spotify.supportedSearchTypes.contains(searchType.getType())
+                                        ServiceType.YOUTUBE -> youTube.supportedSearchTypes.contains(searchType.getType())
+                                        ServiceType.SOUNDCLOUD ->
                                             soundCloud.supportedSearchTypes.contains(
                                                 searchType.getType(),
                                             )
 
-                                        Service.ServiceType.BANDCAMP ->
+                                        ServiceType.BANDCAMP ->
                                             bandcamp.supportedSearchTypes.contains(
                                                 searchType.getType(),
                                             )
@@ -1943,28 +1944,28 @@ class ChatReader(
                                     printToChat(listOf("Searching, please wait..."))
                                     val results =
                                         when (service) {
-                                            Service.ServiceType.SOUNDCLOUD ->
+                                            ServiceType.SOUNDCLOUD ->
                                                 soundCloud.search(
                                                     searchType,
                                                     searchQuery,
                                                     limit,
                                                 )
 
-                                            Service.ServiceType.SPOTIFY ->
+                                            ServiceType.SPOTIFY ->
                                                 spotify.search(
                                                     searchType,
                                                     searchQuery,
                                                     limit,
                                                 )
 
-                                            Service.ServiceType.YOUTUBE ->
+                                            ServiceType.YOUTUBE ->
                                                 youTube.search(
                                                     searchType,
                                                     searchQuery,
                                                     limit,
                                                 )
 
-                                            Service.ServiceType.BANDCAMP ->
+                                            ServiceType.BANDCAMP ->
                                                 bandcamp.search(
                                                     searchType,
                                                     searchQuery,
@@ -2035,7 +2036,7 @@ class ChatReader(
                                     @Suppress("IMPLICIT_CAST_TO_ANY")
                                     val data: Any? =
                                         when (link.serviceType()) {
-                                            Service.ServiceType.SPOTIFY ->
+                                            ServiceType.SPOTIFY ->
                                                 when (link.linkType()) {
                                                     LinkType.TRACK -> spotify.fetchTrack(link)
                                                     LinkType.ALBUM -> spotify.fetchAlbum(link)
@@ -2047,7 +2048,7 @@ class ChatReader(
                                                     else -> null
                                                 }.also { if (it != null) output.add(it) }
 
-                                            Service.ServiceType.YOUTUBE ->
+                                            ServiceType.YOUTUBE ->
                                                 when (link.linkType()) {
                                                     LinkType.VIDEO -> youTube.fetchVideo(link)
                                                     LinkType.PLAYLIST -> youTube.fetchPlaylist(link)
@@ -2055,7 +2056,7 @@ class ChatReader(
                                                     else -> null
                                                 }.also { if (it != null) output.add(it) }
 
-                                            Service.ServiceType.SOUNDCLOUD ->
+                                            ServiceType.SOUNDCLOUD ->
                                                 when (link.linkType()) {
                                                     LinkType.TRACK -> soundCloud.fetchTrack(link)
                                                     LinkType.ALBUM -> soundCloud.fetchAlbum(link)
@@ -2065,7 +2066,7 @@ class ChatReader(
                                                     else -> null
                                                 }.also { if (it != null) output.add(it) }
 
-                                            Service.ServiceType.BANDCAMP ->
+                                            ServiceType.BANDCAMP ->
                                                 when (link.linkType()) {
                                                     LinkType.TRACK -> bandcamp.fetchTrack(link)
                                                     LinkType.ALBUM -> bandcamp.fetchAlbum(link)

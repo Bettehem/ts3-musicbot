@@ -6,6 +6,7 @@ import ts3musicbot.services.Service
 import ts3musicbot.services.SoundCloud
 import ts3musicbot.services.Spotify
 import ts3musicbot.services.YouTube
+import ts3musicbot.services.ServiceType
 import java.lang.IllegalArgumentException
 import java.time.LocalDate
 
@@ -37,7 +38,7 @@ data class Track(
     val link: Link = Link(),
     val playability: Playability = Playability(),
     val likes: Likes = Likes(),
-    val serviceType: Service.ServiceType = link.serviceType(),
+    val serviceType: ServiceType = link.serviceType(),
     val description: Description = Description(),
 ) {
     override fun toString() =
@@ -155,13 +156,14 @@ data class Link(
     val linkId: String = "",
     val alternativeLinks: List<Link> = emptyList(),
 ) {
-    fun serviceType() =
-        when {
-            link.contains("\\S+soundcloud\\S+".toRegex()) -> Service.ServiceType.SOUNDCLOUD
-            link.contains("spotify") -> Service.ServiceType.SPOTIFY
-            link.contains("\\S+youtu\\.?be\\S+".toRegex()) -> Service.ServiceType.YOUTUBE
-            link.contains("\\S*bandcamp\\.com\\S*".toRegex()) -> Service.ServiceType.BANDCAMP
-            else -> Service.ServiceType.OTHER
+fun serviceType() =
+    when {
+        link.contains("\\S+soundcloud\\S+".toRegex()) -> ServiceType.SOUNDCLOUD
+            link.contains("spotify") -> ServiceType.SPOTIFY
+            link.contains("\\S+youtu\\.?be\\S+".toRegex()) -> ServiceType.YOUTUBE
+            link.contains("\\S*bandcamp\\.com\\S*".toRegex()) -> ServiceType.BANDCAMP
+            link.contains("\\S+song\\.link.+".toRegex()) -> ServiceType.SONGLINK
+            else -> ServiceType.OTHER
         }
 
     /** Get the link's LinkType.
@@ -171,7 +173,7 @@ data class Link(
      */
     fun linkType(service: Service = Service(serviceType())) =
         when (service.serviceType) {
-            Service.ServiceType.SOUNDCLOUD -> {
+            ServiceType.SOUNDCLOUD -> {
                 runBlocking {
                     if (service is SoundCloud) {
                         service.resolveType(this@Link)
@@ -181,7 +183,7 @@ data class Link(
                 }
             }
 
-            Service.ServiceType.SPOTIFY -> {
+            ServiceType.SPOTIFY -> {
                 runBlocking {
                     if (service is Spotify) {
                         service.resolveType(this@Link)
@@ -191,7 +193,7 @@ data class Link(
                 }
             }
 
-            Service.ServiceType.YOUTUBE -> {
+            ServiceType.YOUTUBE -> {
                 runBlocking {
                     if (service is YouTube) {
                         service.resolveType(this@Link)
@@ -201,7 +203,7 @@ data class Link(
                 }
             }
 
-            Service.ServiceType.BANDCAMP -> {
+            ServiceType.BANDCAMP -> {
                 runBlocking {
                     if (service is Bandcamp) {
                         service.resolveType(this@Link)
@@ -211,13 +213,17 @@ data class Link(
                 }
             }
 
+            ServiceType.SONGLINK -> {
+                LinkType.OTHER
+            }
+
             else -> LinkType.OTHER
         }
 
     fun getId(service: Service = Service(serviceType())): String =
         linkId.ifEmpty {
             when (service.serviceType) {
-                Service.ServiceType.SPOTIFY -> {
+                ServiceType.SPOTIFY -> {
                     if (link.contains("(https?://)?spotify(\\.app)?\\.link/\\S+".toRegex())) {
                         if (service is Spotify) {
                             service.resolveId(this@Link)
@@ -232,7 +238,7 @@ data class Link(
                     }
                 }
 
-                Service.ServiceType.YOUTUBE -> {
+                ServiceType.YOUTUBE -> {
                     val linkType = linkType(service)
                     if (linkType == LinkType.CHANNEL) {
                         runBlocking {
@@ -260,7 +266,7 @@ data class Link(
                     }
                 }
 
-                Service.ServiceType.SOUNDCLOUD -> {
+                ServiceType.SOUNDCLOUD -> {
                     runBlocking {
                         val soundCloud = if (service is SoundCloud) service else SoundCloud()
                         if (link.startsWith("${soundCloud.apiURI}/")) {
@@ -271,11 +277,15 @@ data class Link(
                     }
                 }
 
-                Service.ServiceType.BANDCAMP -> {
+                ServiceType.BANDCAMP -> {
                     this@Link.link
                 }
 
-                Service.ServiceType.OTHER -> ""
+                ServiceType.SONGLINK -> {
+                    this@Link.link
+                }
+
+                ServiceType.OTHER -> ""
             }
         }
 
@@ -285,12 +295,12 @@ data class Link(
      */
     fun clean(service: Service = Service(serviceType())): Link =
         when (service.serviceType) {
-            Service.ServiceType.SPOTIFY ->
+            ServiceType.SPOTIFY ->
                 Link(
                     "https://open.spotify.com/" + linkType(service).name.lowercase() + "/" + getId(service),
                 )
 
-            Service.ServiceType.YOUTUBE ->
+            ServiceType.YOUTUBE ->
                 Link(
                     when (val linkType = linkType(service)) {
                         LinkType.VIDEO -> "https://youtu.be/" + getId(service)
@@ -312,9 +322,13 @@ data class Link(
                         else -> link
                     },
                 )
-            Service.ServiceType.SOUNDCLOUD -> Link(link.substringBefore("?"))
+            ServiceType.SOUNDCLOUD -> Link(link.substringBefore("?"))
 
-            Service.ServiceType.BANDCAMP -> Link(link.replace("from=\\S+&".toRegex(), ""))
+            ServiceType.SONGLINK -> Link(
+                if (link.contains("?")) link.substringBefore("?") else link
+            )
+
+            ServiceType.BANDCAMP -> Link(link.replace("from=\\S+&".toRegex(), ""))
             else -> this
         }
 
@@ -521,7 +535,7 @@ data class Artist(
     val albums: Albums = Albums(),
 ) {
     override fun toString() =
-        "${if (link.serviceType() == Service.ServiceType.YOUTUBE) "Uploader:" else "Artist:\t\t"}     \t\t$name\n" +
+        "${if (link.serviceType() == ServiceType.YOUTUBE) "Uploader:" else "Artist:\t\t"}     \t\t$name\n" +
             "Link:        \t\t\t\t$link\n" +
             if (description.isNotEmpty()) {
                 "Description:\n$description\n"
@@ -565,8 +579,8 @@ data class Album(
         "" +
             name.ifNotEmpty { "Album Name:  \t${name.name}\n" } +
             when (link.serviceType()) {
-                Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD -> "Upload Date:  \t\t${releaseDate.date}\n"
-                Service.ServiceType.SPOTIFY -> "Release:    \t\t\t${releaseDate.date}\n"
+                ServiceType.YOUTUBE, ServiceType.SOUNDCLOUD -> "Upload Date:  \t\t${releaseDate.date}\n"
+                ServiceType.SPOTIFY -> "Release:    \t\t\t${releaseDate.date}\n"
                 else -> "Date:      \t\t\t\t${releaseDate.date}\n"
             } +
             link.ifNotEmpty { "Album Link:  \t\t$link\n" } +
@@ -594,12 +608,12 @@ data class User(
             } else {
                 ""
             } +
-            if (link.serviceType() == Service.ServiceType.YOUTUBE) {
+            if (link.serviceType() == ServiceType.YOUTUBE) {
                 "Subscribers: \t\t    ${followers.amount}\n"
             } else {
                 "Followers: \t\t${followers.amount}\n"
             } +
-            if (link.serviceType() == Service.ServiceType.YOUTUBE) {
+            if (link.serviceType() == ServiceType.YOUTUBE) {
                 "Channel Link: \t\t  ${link.link}\n"
             } else {
                 "Link: \t\t\t\t\t\t${link.link}"
@@ -638,13 +652,13 @@ data class Playlist(
             description.ifNotEmpty {
                 "Description:\n${description.text}\n"
             } +
-            if (link.serviceType() == Service.ServiceType.YOUTUBE) {
+            if (link.serviceType() == ServiceType.YOUTUBE) {
                 ""
             } else {
                 "Followers:\t\t\t\t${followers.amount}\n"
             } +
             "Is Public:   \t\t\t\t ${publicity.isPublic}\n" +
-            if (link.serviceType() == Service.ServiceType.YOUTUBE) {
+            if (link.serviceType() == ServiceType.YOUTUBE) {
                 ""
             } else {
                 "Is Collaborative: \t${collaboration.isCollaborative}\n"
@@ -700,7 +714,7 @@ data class Show(
             "Description:\n$description\n\n" +
             "This podcast " +
             when (link.serviceType()) {
-                Service.ServiceType.BANDCAMP -> "plays ${tracks.size} track${if (tracks.size == 1) "s" else ""}.\n"
+                ServiceType.BANDCAMP -> "plays ${tracks.size} track${if (tracks.size == 1) "s" else ""}.\n"
                 else -> "has ${episodes.size} episode${if (episodes.size == 1) "s" else ""}.\n"
             } +
             episodes.ifNotEmpty {
