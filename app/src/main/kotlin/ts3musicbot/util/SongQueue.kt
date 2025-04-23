@@ -782,8 +782,8 @@ class SongQueue(
                         }
                         println()
                         println("Trying to play track \"${track.link}\" using $player as the player.")
-                        if (track.link.linkedFrom.isNotEmpty()) {
-                            println("This track is also linked to " + track.link.linkedFrom)
+                        if (track.link.alternativeLinks.isNotEmpty()) {
+                            println("This track is also linked to:\n" + track.link.alternativeLinks.joinToString(", "))
                         }
                         while (!playerStatus().outputText.contains("Playing")) {
                             if (playingAttempts < 5) {
@@ -925,8 +925,9 @@ class SongQueue(
                 loop@ while (trackJob.isActive) {
                     val status = playerStatus()
                     val url = currentUrl()
+
                     if (url == track.link.link ||
-                        (track.link.linkedFrom.isNotEmpty() && url == track.link.linkedFrom) ||
+                        track.link.alternativeLinks.any { it.link == url } ||
                         url.startsWith("https://open.spotify.com/ad/")
                     ) {
                         when (status.outputText) {

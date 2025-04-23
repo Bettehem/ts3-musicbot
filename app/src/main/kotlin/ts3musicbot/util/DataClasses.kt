@@ -45,8 +45,19 @@ data class Track(
             artists.ifNotEmpty { "Track Artists:\n$it\n" } +
             "Title:      \t\t\t\t$title\n" +
             "Link:       \t\t\t\t$link\n" +
+            if (link.alternativeLinks.isNotEmpty()) {
+                val strings = link.alternativeLinks.filter { it.isNotEmpty() }
+                    .map { ". Platform: ${it.serviceType()} \nLink: $it" }
+                val strBuilder = StringBuilder()
+                strBuilder.appendLine("\nAlternative links:")
+                strings.forEachIndexed { i, v ->
+                    strBuilder.appendLine("${i+1}$v")
+                }
+                strBuilder.toString()
+            } else {
+                ""
+            } +
             description.ifNotEmpty { "Description:\n$it\n" }
-
     fun toShortString() = "${artists.toShortString()} - $title : $link"
 
     fun isEmpty() = album.isEmpty() && artists.isEmpty() && title.isEmpty() && link.isEmpty()
@@ -142,7 +153,7 @@ data class Name(
 data class Link(
     val link: String = "",
     val linkId: String = "",
-    val linkedFrom: String = "",
+    val alternativeLinks: List<Link> = emptyList(),
 ) {
     fun serviceType() =
         when {

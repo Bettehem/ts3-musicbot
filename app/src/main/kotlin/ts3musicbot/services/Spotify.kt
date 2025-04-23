@@ -207,7 +207,7 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                                     "Album:  \t$albumName\n" +
                                     "Title:  \t\t$songName\n" +
                                     "Link:   \t\t$songLink\n",
-                                Link(songLink, songId, linkedFrom),
+                                Link(songLink, songId, listOf(Link(linkedFrom))),
                             ),
                         )
                     }
@@ -646,7 +646,7 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                                                     } else {
                                                         ""
                                                     }
-                                                val link = Link("https://open.spotify.com/track/$trackId", trackId, linkedFrom)
+                                                val link = Link("https://open.spotify.com/track/$trackId", trackId, listOf(Link(linkedFrom)))
                                                 val isPlayable =
                                                     if (item.getJSONObject("track").getBoolean("is_playable")) {
                                                         true
@@ -1004,7 +1004,7 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                             } else {
                                 ""
                             }
-                        val link = Link("https://open.spotify.com/track/$trackId", trackId, linkedFrom)
+                        val link = Link("https://open.spotify.com/track/$trackId", trackId, listOf(Link(linkedFrom)))
                         val isPlayable =
                             if (market.isNotEmpty()) {
                                 item.getBoolean("is_playable")
@@ -1210,7 +1210,7 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                 } else {
                     ""
                 }
-            val link = Link("https://open.spotify.com/track/$trackId", trackId, linkedFrom)
+            val link = Link("https://open.spotify.com/track/$trackId", trackId, listOf(Link(linkedFrom)))
             println("Checking playability...")
             val isPlayable =
                 if (trackData.getBoolean("is_playable")) {
