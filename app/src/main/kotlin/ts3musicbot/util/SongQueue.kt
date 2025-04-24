@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
 import ts3musicbot.client.OfficialTSClient
 import ts3musicbot.services.Bandcamp
 import ts3musicbot.services.Service
+import ts3musicbot.services.ServiceType
 import ts3musicbot.services.SoundCloud
 import ts3musicbot.services.Spotify
 import ts3musicbot.services.YouTube
@@ -276,7 +277,7 @@ class SongQueue(
             if (songQueue.isNotEmpty()) {
                 var firstTrack = songQueue.first()
                 when (firstTrack.serviceType) {
-                    Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD, Service.ServiceType.BANDCAMP -> {
+                    ServiceType.YOUTUBE, ServiceType.SOUNDCLOUD, ServiceType.BANDCAMP -> {
                         // check if youtube-dl is able to download the track
                         var attempts = 0
                         while (songQueue.isNotEmpty() &&
@@ -406,8 +407,8 @@ class SongQueue(
          */
         fun getPlayer() =
             when (track.serviceType) {
-                Service.ServiceType.SPOTIFY -> botSettings.spotifyPlayer
-                Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD, Service.ServiceType.BANDCAMP -> "mpv"
+                ServiceType.SPOTIFY -> botSettings.spotifyPlayer
+                ServiceType.YOUTUBE, ServiceType.SOUNDCLOUD, ServiceType.BANDCAMP -> "mpv"
                 else -> ""
             }
 
@@ -744,7 +745,7 @@ class SongQueue(
                 // try to play the track
                 val player = getPlayer()
                 when (val type = track.serviceType) {
-                    Service.ServiceType.SPOTIFY -> {
+                    ServiceType.SPOTIFY -> {
                         // check active processes and wait for the spotify player to start
                         if (!processRunning()) {
                             startSpotifyPlayer()
@@ -782,8 +783,8 @@ class SongQueue(
                         }
                         println()
                         println("Trying to play track \"${track.link}\" using $player as the player.")
-                        if (track.link.linkedFrom.isNotEmpty()) {
-                            println("This track is also linked to " + track.link.linkedFrom)
+                        if (track.link.alternativeLinks.isNotEmpty()) {
+                            println("This track is also linked to:\n" + track.link.alternativeLinks.joinToString(", "))
                         }
                         while (!playerStatus().outputText.contains("Playing")) {
                             if (playingAttempts < 5) {
@@ -822,20 +823,20 @@ class SongQueue(
                         }
                     }
 
-                    Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD, Service.ServiceType.BANDCAMP -> {
+                    ServiceType.YOUTUBE, ServiceType.SOUNDCLOUD, ServiceType.BANDCAMP -> {
                         suspend fun startMPV(job: Job) {
                             val volume: Int
-                            var service = Service(Service.ServiceType.OTHER)
+                            var service = Service()
                             when (type) {
-                                Service.ServiceType.SOUNDCLOUD -> {
+                                ServiceType.SOUNDCLOUD -> {
                                     volume = botSettings.scVolume
                                     service = soundCloud
                                 }
-                                Service.ServiceType.YOUTUBE -> {
+                                ServiceType.YOUTUBE -> {
                                     volume = botSettings.ytVolume
                                     service = youTube
                                 }
-                                Service.ServiceType.BANDCAMP -> {
+                                ServiceType.BANDCAMP -> {
                                     volume = botSettings.bcVolume
                                     service = bandcamp
                                 }
@@ -847,7 +848,7 @@ class SongQueue(
                                     commandRunner.runCommand(
                                         "mpv --terminal=no --no-video" +
                                             " --ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0" +
-                                            if (track.serviceType == Service.ServiceType.YOUTUBE) {
+                                            if (track.serviceType == ServiceType.YOUTUBE) {
                                                 ",cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass="
                                             } else {
                                                 ""
@@ -925,8 +926,9 @@ class SongQueue(
                 loop@ while (trackJob.isActive) {
                     val status = playerStatus()
                     val url = currentUrl()
+
                     if (url == track.link.link ||
-                        (track.link.linkedFrom.isNotEmpty() && url == track.link.linkedFrom) ||
+                        track.link.alternativeLinks.any { it.link == url } ||
                         url.startsWith("https://open.spotify.com/ad/")
                     ) {
                         when (status.outputText) {
@@ -1047,7 +1049,7 @@ class SongQueue(
             }
 
             when (track.link.serviceType()) {
-                Service.ServiceType.SPOTIFY -> {
+                ServiceType.SPOTIFY -> {
                     // first kill mpv in case its running
                     killPlayer("mpv")
                     CoroutineScope(IO + synchronized(trackJob) { trackJob }).launch {
@@ -1055,7 +1057,7 @@ class SongQueue(
                     }
                 }
 
-                Service.ServiceType.YOUTUBE, Service.ServiceType.SOUNDCLOUD, Service.ServiceType.BANDCAMP -> {
+                ServiceType.YOUTUBE, ServiceType.SOUNDCLOUD, ServiceType.BANDCAMP -> {
                     // First kill the spotify player in case its running.
                     // Although this shouldn't be needed, at least in the case of the official spotify client,
                     // sometimes it won't respect the disabled autoplay setting, and will continue playing something else

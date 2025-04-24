@@ -17,27 +17,33 @@ import ts3musicbot.util.User
 import java.net.URLDecoder
 import java.net.URLEncoder
 
-open class Service(
-    val serviceType: ServiceType,
-) {
-    enum class ServiceType {
-        SOUNDCLOUD,
-        SPOTIFY,
-        YOUTUBE,
-        BANDCAMP,
-        OTHER,
-        ;
+enum class ServiceType {
+    SOUNDCLOUD,
+    SPOTIFY,
+    YOUTUBE,
+    BANDCAMP,
+    SONGLINK,
+    OTHER,
+    ;
 
-        override fun toString(): String =
-            when (this) {
-                SOUNDCLOUD -> "SoundCloud"
-                SPOTIFY -> "Spotify"
-                YOUTUBE -> "YouTube"
-                BANDCAMP -> "Bandcamp"
-                else -> super.toString()
-            }
+    override fun toString(): String =
+    when (this) {
+        SOUNDCLOUD -> "SoundCloud"
+        SPOTIFY -> "Spotify"
+        YOUTUBE -> "YouTube"
+        BANDCAMP -> "Bandcamp"
+        SONGLINK -> "SongLink"
+        else -> super.toString()
     }
+}
 
+val SERVICE_PRIORITY: List<ServiceType> = listOf(
+    ServiceType.SPOTIFY, ServiceType.BANDCAMP,
+    ServiceType.SOUNDCLOUD, ServiceType.YOUTUBE
+)
+open class Service(
+    val serviceType: ServiceType = ServiceType.OTHER
+) {
     protected open fun encode(text: String) =
         runBlocking {
             withContext(Dispatchers.IO) {
