@@ -1,10 +1,5 @@
 out
-.idea/workspace.xml
-.idea/misc.xml
-.idea/dictionaries
-.idea/inspectionProfiles
-.idea/compiler.xml
-.idea/libraries
+.idea/
 tags
 build
 *.iml
