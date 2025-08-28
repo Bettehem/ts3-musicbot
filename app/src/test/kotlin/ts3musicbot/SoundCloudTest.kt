@@ -25,11 +25,10 @@ class SoundCloudTest {
         runBlocking(IO) {
             // SoundCloud link to track: i am leeya - something worth dreaming of (leeyas mashup)
             val testLink = Link("https://soundcloud.com/iamleeya/something-worth-dreaming-of")
-            val result =
+            val results =
                 soundCloud
                     .search(SearchType("track"), SearchQuery("leeya something worth dreaming of"))
-                    .toString()
-            assert(result.contains("Track Link:    \t\t$testLink"))
+            assert(results.results.any { it.link.link == testLink.link })
         }
     }
 
@@ -37,8 +36,8 @@ class SoundCloudTest {
     fun testSearchingPlaylist() {
         runBlocking(IO) {
             val testLink = Link("https://soundcloud.com/bettehem/sets/jeesjees")
-            val result = soundCloud.search(SearchType("playlist"), SearchQuery("jeesjees")).toString()
-            assert(result.contains("Link:     \t\t$testLink"))
+            val results = soundCloud.search(SearchType("playlist"), SearchQuery("jeesjees"))
+            assert(results.results.any { it.link.link == testLink.link })
         }
     }
 
