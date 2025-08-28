@@ -138,10 +138,27 @@ data class SearchQuery(
 }
 
 data class SearchResult(
-    val resultText: String,
+    val result: Playable,
     val link: Link,
 ) {
-    override fun toString() = resultText
+    override fun toString(): String {
+        val searchResult = result
+        searchResult.description =
+            Description(
+                if (result.description.shortText.isNotEmpty()) {
+                    result.description.shortText
+                } else {
+                    if (result.description.text.lines().size <= 5) {
+                        result.description.text
+                    } else {
+                        "WARNING! Very long description! Showing only the first 5 lines:\n" +
+                            result.description.text.lines().subList(0, 5).joinToString("\n")
+                    }
+                },
+            )
+        searchResult.link = link
+        return "$searchResult"
+    }
 }
 
 data class SearchResults(
