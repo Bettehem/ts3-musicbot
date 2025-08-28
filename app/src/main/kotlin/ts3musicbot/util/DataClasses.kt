@@ -741,6 +741,7 @@ data class Playlists(
 data class Show(
     override val name: Name = Name(),
     val publisher: Publisher = Publisher(),
+    override val releaseDate: ReleaseDate = ReleaseDate(),
     override var description: Description = Description(),
     val episodes: EpisodeList = EpisodeList(),
     val episodeName: Name = Name(),
@@ -755,6 +756,7 @@ data class Show(
             episodeName.ifNotEmpty {
                 "Episode:      \t\t\t\t\t\t$episodeName\n"
             } +
+            "Release:    \t\t\t$releaseDate\n" +
             "Description:\n$description\n\n" +
             "This podcast " +
             when (link.serviceType()) {
