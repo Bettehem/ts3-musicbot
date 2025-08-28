@@ -413,13 +413,13 @@ data class Playability(
 )
 
 data class Followers(
-    val amount: Int = -1,
+    val amount: Long = -1,
 ) {
     override fun toString() = amount.toString()
 
-    fun isEmpty() = amount == -1
+    fun isEmpty() = amount == -1L
 
-    fun isNotEmpty() = amount != -1
+    fun isNotEmpty() = amount != -1L
 }
 
 data class Likes(
