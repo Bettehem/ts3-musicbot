@@ -78,6 +78,7 @@ data class Track(
 
 data class Episode(
     override val name: Name = Name(),
+    val showName: Name = Name(),
     override var description: Description = Description(),
     override val releaseDate: ReleaseDate = ReleaseDate(),
     override var link: Link = Link(),
@@ -91,9 +92,17 @@ data class Episode(
         )
 
     override fun toString() =
-        "Episode Name: \t$name\n" +
+        "Podcast Name: \t$showName\n" +
+            "Episode Name: \t$name\n" +
             "Release Date: \t\t${releaseDate.date}\n" +
             "Description:\n$description\n" +
+            "Link:         \t\t$link"
+
+    fun toShortString() =
+        "Podcast Name: \t$showName\n" +
+            "Episode Name: \t$name\n" +
+            "Release Date: \t\t${releaseDate.date}\n" +
+            "Description:\n${description.toShortString()}\n" +
             "Link:         \t\t$link"
 
     fun isEmpty() = name.isEmpty() && description.isEmpty() && link.isEmpty()
