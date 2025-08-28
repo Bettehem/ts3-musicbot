@@ -22,19 +22,21 @@ enum class ServiceType {
     SPOTIFY,
     YOUTUBE,
     BANDCAMP,
+    APPLE_MUSIC,
     SONGLINK,
     OTHER,
     ;
 
     override fun toString(): String =
-    when (this) {
-        SOUNDCLOUD -> "SoundCloud"
-        SPOTIFY -> "Spotify"
-        YOUTUBE -> "YouTube"
-        BANDCAMP -> "Bandcamp"
-        SONGLINK -> "SongLink"
-        else -> super.toString()
-    }
+        when (this) {
+            SOUNDCLOUD -> "SoundCloud"
+            SPOTIFY -> "Spotify"
+            YOUTUBE -> "YouTube"
+            BANDCAMP -> "Bandcamp"
+            APPLE_MUSIC -> "Apple Music"
+            SONGLINK -> "SongLink"
+            else -> super.toString()
+        }
 }
 
 val SERVICE_PRIORITY: List<ServiceType> =

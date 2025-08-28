@@ -359,15 +359,17 @@ data class CommandList(
                     "sc, soundcloud \t\tDo a SoundCloud search.\n" +
                     "yt, youtube    \t\tDo a YouTube search.\n" +
                     "bc, bandcamp   \t\tDo a Bandcamp search.\n" +
+                    "sl, songlink   \t\tDo a SongLink search.\n" +
+                    "am, applemusic   \t\tDo an Apple Music search.\n" +
                     "After that, specify what type of search you are doing.\n" +
                     "Available search types:\n" +
-                    "track    \t\tSearch for a track. (Spotify, YouTube, SoundCloud, Bandcamp)\n" +
+                    "track    \t\tSearch for a track. (Spotify, YouTube, SoundCloud, Bandcamp, SongLink, Apple Music)\n" +
                     "playlist    \tSearch for a playlist. (Spotify, YouTube, SoundCloud)\n" +
                     "user      \t\tSearch for a user. (SoundCloud)\n" +
-                    "album   \t\tSearch for an album. (Spotify, SoundCloud, Bandcamp)\n" +
+                    "album   \t\tSearch for an album. (Spotify, SoundCloud, Bandcamp, SongLink, Apple Music)\n" +
                     "artist   \t\tSearch for an artist. (Spotify, SoundCloud, Bandcamp)\n" +
-                    "podcast  \t\tSearch for a podcast. (Spotify)\n" +
-                    "show     \t\tSame as podcast. (Spotify)\n" +
+                    "podcast  \t\tSearch for a podcast. (Spotify, SongLink, Apple Music)\n" +
+                    "show     \t\tSame as podcast. (Spotify, SongLink, Apple Music)\n" +
                     "episode  \t\tSearch for a podcast episode. (Spotify)\n" +
                     "video    \t\tSearch for a video. Same as track. (YouTube)\n" +
                     "channel   \tSearch for a channel. (YouTube)\n" +

@@ -1,6 +1,7 @@
 package ts3musicbot.util
 
 import kotlinx.coroutines.runBlocking
+import ts3musicbot.services.AppleMusic
 import ts3musicbot.services.Bandcamp
 import ts3musicbot.services.Service
 import ts3musicbot.services.ServiceType
@@ -192,12 +193,13 @@ data class Link(
     val linkId: String = "",
     val alternativeLinks: List<Link> = emptyList(),
 ) {
-fun serviceType() =
-    when {
-        link.contains("\\S+soundcloud\\S+".toRegex()) -> ServiceType.SOUNDCLOUD
+    fun serviceType() =
+        when {
+            link.contains("\\S+soundcloud\\S+".toRegex()) -> ServiceType.SOUNDCLOUD
             link.contains("spotify") -> ServiceType.SPOTIFY
             link.contains("\\S+youtu\\.?be\\S+".toRegex()) -> ServiceType.YOUTUBE
             link.contains("\\S*bandcamp\\.com\\S*".toRegex()) -> ServiceType.BANDCAMP
+            link.contains("\\S*(itunes|music)\\.apple\\.com\\S*".toRegex()) -> ServiceType.APPLE_MUSIC
             link.contains("\\S+song\\.link.+".toRegex()) -> ServiceType.SONGLINK
             else -> ServiceType.OTHER
         }
@@ -249,12 +251,29 @@ fun serviceType() =
                 }
             }
 
+            ServiceType.APPLE_MUSIC -> {
+                runBlocking {
+                    if (service is AppleMusic) {
+                        service.resolveType(this@Link)
+                    } else {
+                        AppleMusic(BotSettings()).resolveType(this@Link)
+                    }
+                }
+            }
+
             ServiceType.SONGLINK -> {
                 runBlocking {
                     if (service is SongLink) {
                         service.resolveType(this@Link)
                     } else {
-                        SongLink(Spotify(BotSettings()), SoundCloud(), YouTube()).resolveType(this@Link)
+                        SongLink(
+                            Spotify(BotSettings()),
+                            SoundCloud(),
+                            YouTube(),
+                            Bandcamp(),
+                            AppleMusic(BotSettings()),
+                            BotSettings(),
+                        ).resolveType(this@Link)
                     }
                 }
             }
@@ -323,6 +342,13 @@ fun serviceType() =
                     this@Link.link
                 }
 
+                ServiceType.APPLE_MUSIC -> {
+                    val appleMusic = if (service is AppleMusic) service else AppleMusic(BotSettings())
+                    runBlocking {
+                        appleMusic.resolveId(this@Link)
+                    }
+                }
+
                 ServiceType.SONGLINK -> {
                     this@Link.link
                 }
@@ -366,9 +392,15 @@ fun serviceType() =
                 )
             ServiceType.SOUNDCLOUD -> Link(link.substringBefore("?"))
 
-            ServiceType.SONGLINK -> Link(
-                if (link.contains("?")) link.substringBefore("?") else link
-            )
+            ServiceType.SONGLINK ->
+                Link(
+                    if (link.contains("?")) link.substringBefore("?") else link,
+                )
+
+            ServiceType.APPLE_MUSIC ->
+                Link(
+                    if (link.contains("\\S+album/\\S+?i=\\S+&.*".toRegex())) link.substringBefore("&") else link,
+                )
 
             ServiceType.BANDCAMP -> Link(link.replace("from=\\S+&".toRegex(), ""))
             else -> this
