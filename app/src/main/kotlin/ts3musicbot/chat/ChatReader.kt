@@ -943,7 +943,7 @@ class ChatReader(
                                     }
                                     printToChat(
                                         listOf(
-                                            if (track.serviceType == ServiceType.YOUTUBE) {
+                                            if (track.link.serviceType() == ServiceType.YOUTUBE) {
                                                 "Currently playing:\n${track.title} : ${track.link.link}"
                                             } else {
                                                 "Currently playing:\n${

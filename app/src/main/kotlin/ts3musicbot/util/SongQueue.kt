@@ -276,7 +276,7 @@ class SongQueue(
         synchronized(songQueue) {
             if (songQueue.isNotEmpty()) {
                 var firstTrack = songQueue.first()
-                when (firstTrack.serviceType) {
+                when (firstTrack.link.serviceType()) {
                     ServiceType.YOUTUBE, ServiceType.SOUNDCLOUD, ServiceType.BANDCAMP -> {
                         // check if youtube-dl is able to download the track
                         var attempts = 0
@@ -406,7 +406,7 @@ class SongQueue(
          * get the player suitable for playing the current track
          */
         fun getPlayer() =
-            when (track.serviceType) {
+            when (track.link.serviceType()) {
                 ServiceType.SPOTIFY -> botSettings.spotifyPlayer
                 ServiceType.YOUTUBE, ServiceType.SOUNDCLOUD, ServiceType.BANDCAMP -> "mpv"
                 else -> ""
@@ -744,7 +744,7 @@ class SongQueue(
 
                 // try to play the track
                 val player = getPlayer()
-                when (val type = track.serviceType) {
+                when (val type = track.link.serviceType()) {
                     ServiceType.SPOTIFY -> {
                         // check active processes and wait for the spotify player to start
                         if (!processRunning()) {
@@ -848,7 +848,7 @@ class SongQueue(
                                     commandRunner.runCommand(
                                         "mpv --terminal=no --no-video" +
                                             " --ytdl-raw-options=extract-audio=,audio-format=best,audio-quality=0" +
-                                            if (track.serviceType == ServiceType.YOUTUBE) {
+                                            if (track.link.serviceType() == ServiceType.YOUTUBE) {
                                                 ",cookies=youtube-dl.cookies,force-ipv4=,age-limit=21,geo-bypass="
                                             } else {
                                                 ""

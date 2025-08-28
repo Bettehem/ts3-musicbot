@@ -47,7 +47,6 @@ data class Track(
     override var link: Link = Link(),
     val playability: Playability = Playability(),
     val likes: Likes = Likes(),
-    val serviceType: ServiceType = link.serviceType(),
     override var description: Description = Description(),
 ) : Playable(title, album.releaseDate) {
     override fun toString() =

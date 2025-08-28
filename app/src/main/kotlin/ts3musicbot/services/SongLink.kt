@@ -165,7 +165,6 @@ class SongLink(
                                 Name(metadata.getString("title")),
                                 Link(trackLink.link, trackLink.getId(this@SongLink), links),
                                 Playability(isPlayable),
-                                serviceType = ServiceType.SONGLINK,
                                 description = Description(metadata.getString("description")),
                             )
 
