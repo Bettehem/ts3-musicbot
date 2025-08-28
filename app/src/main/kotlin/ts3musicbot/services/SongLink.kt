@@ -42,15 +42,24 @@ class SongLink(
         resultLimit: Int,
         encodeQuery: Boolean,
     ): SearchResults {
-        // the song.link website uses apple music's search for its search feature, so let's use that here too
-        val appleMusicResults = appleMusic.search(searchType, searchQuery, resultLimit, encodeQuery)
         val songLinkResults = ArrayList<SearchResult>()
-        for (result in appleMusicResults.results) {
-            val songLink = fetchLink(result.link)
-            songLinkResults.add(
-                SearchResult(result.result, songLink),
-            )
+
+        // in case the user provides a link as the search term, call fetchLink instead of doing a regular search
+        if (searchQuery.query.contains("^https?://\\S+".toRegex())) {
+            val link = fetchLink(Link(searchQuery.query))
+            songLinkResults.add(SearchResult(fetchTrack(link), link))
+        } else {
+            // do a regular search
+            // the song.link website uses apple music's search for its search feature, so let's use that here too
+            val appleMusicResults = appleMusic.search(searchType, searchQuery, resultLimit, encodeQuery)
+            for (result in appleMusicResults.results) {
+                val songLink = fetchLink(result.link)
+                songLinkResults.add(
+                    SearchResult(result.result, songLink),
+                )
+            }
         }
+
         return SearchResults(songLinkResults)
     }
 

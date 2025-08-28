@@ -2015,11 +2015,13 @@ class ChatReader(
 
                                     val searchQuery =
                                         SearchQuery(
-                                            commandString
-                                                .replace(
-                                                    "^$searchCommand\\s+$serviceText\\s+$searchType\\s+".toRegex(),
-                                                    "",
-                                                ).replace("(-l|--limit)\\s+[0-9]+".toRegex(), ""),
+                                            removeTags(
+                                                commandString
+                                                    .replace(
+                                                        "^$searchCommand\\s+$serviceText\\s+$searchType\\s+".toRegex(),
+                                                        "",
+                                                    ).replace("(-l|--limit)\\s+[0-9]+".toRegex(), ""),
+                                            ),
                                         )
                                     printToChat(listOf("Searching, please wait..."))
                                     val results = service.search(searchType, searchQuery, limit)
