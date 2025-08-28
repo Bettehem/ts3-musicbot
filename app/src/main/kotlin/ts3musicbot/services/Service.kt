@@ -76,6 +76,8 @@ open class Service(
                 .replace("&#39;", "'")
                 .replace("&amp;", "&")
                 .replace("&#x2F;", "/")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
         }
 
     open suspend fun fetchAlbum(albumLink: Link): Album {
