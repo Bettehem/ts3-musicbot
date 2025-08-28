@@ -22,6 +22,7 @@ import ts3musicbot.util.Name
 import ts3musicbot.util.Playability
 import ts3musicbot.util.Playable
 import ts3musicbot.util.PostData
+import ts3musicbot.util.Publisher
 import ts3musicbot.util.ReleaseDate
 import ts3musicbot.util.RequestMethod
 import ts3musicbot.util.Response
@@ -634,69 +635,130 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
         }
     }
 
-    fun fetchShow(showLink: Link): Show {
-        val response = sendHttpRequest(showLink)
+    suspend fun fetchShow(showLink: Link): Show {
+        val showId = "$showLink".substringAfter("show=").substringBefore("&").toInt()
 
-        fun parseShowData(data: JSONObject): Show {
-            val showData = data.getJSONObject("bcw_data").getJSONObject("$showLink".substringAfter("show="))
-            val title = showData.getString("title")
-            val subtitle = if (!showData.isNull("subtitle")) showData.getString("subtitle") else ""
-            val tracksData = showData.getJSONArray("tracks")
-            return Show(
-                Name(title + if (subtitle.isNotEmpty()) " - ${showData.getString("subtitle")}" else ""),
-                description = Description(showData.getString("desc"), showData.getString("short_desc")),
-                episodeName = Name(showData.getString("audio_title")),
-                tracks =
-                    TrackList(
-                        tracksData.map { track ->
-                            track as JSONObject
-                            val trackLink = Link(track.getString("track_url"))
-                            val artists =
-                                Artists(
-                                    listOf(
-                                        Artist(
-                                            Name(track.getString("artist")),
-                                            Link("$trackLink".substringBefore("/track")),
-                                        ),
-                                    ),
-                                )
-                            Track(
-                                Album(
-                                    Name(track.getString("album_title")),
-                                    artists,
-                                    link = Link(track.getString("album_url")),
-                                ),
-                                artists,
-                                Name(track.getString("title")),
-                                trackLink,
-                                Playability(true),
-                            )
-                        },
-                    ),
+        fun fetchShowData(): Response {
+            val link = Link("https://bandcamp.com/api/bcradio_api/1/get_show")
+            val extraProperties = ExtraProperties(mapOf(Pair("Content-Type", "application/json")))
+            val postJSON = JSONObject()
+            postJSON.put("id", showId)
+            return sendHttpRequest(
+                link,
+                RequestMethod.POST,
+                extraProperties,
+                PostData(listOf(postJSON.toString())),
             )
         }
+        val websiteResponse = sendHttpRequest(showLink)
+        val apiResponse = fetchShowData()
 
-        return when (response.code.code) {
-            HttpURLConnection.HTTP_OK -> {
-                try {
-                    val lines = response.data.data.lines()
-                    val jsonData =
-                        JSONObject(
-                            decode(
-                                lines[lines.indexOfFirst { it.contains("<div id=\"pagedata\"") }]
-                                    .substringAfter("data-blob=\"")
-                                    .substringBefore("\">"),
-                            ),
-                        )
-                    parseShowData(jsonData)
-                } catch (e: Exception) {
-                    println("Failed JSON:\n${response.data}\n")
-                    Show()
+        fun parseShowData(
+            websiteJSON: JSONObject?,
+            apiJSON: JSONObject?,
+        ): Show {
+            return if (websiteJSON != null && apiJSON != null) {
+                val apiShowData = apiJSON.getJSONObject("radioShowAudio")
+                val websiteShowData =
+                    websiteJSON.getJSONObject("appData").getJSONArray("shows").first {
+                        it as JSONObject
+                        it.getInt("showId") == showId
+                    } as JSONObject
+                val title = apiShowData.getString("title")
+                val imageCaption = websiteShowData.getString("imageCaption")
+                val publisher =
+                    Publisher(
+                        Name(imageCaption.substringAfter(">").substringBefore("<")),
+                        Link(imageCaption.substringAfter("href=\\\"").substringBefore("\\\"")),
+                    )
+                val tracksData = apiJSON.getJSONArray("tracklist")
+                Show(
+                    Name(title),
+                    publisher,
+                    // TODO: get release date
+                    description = Description(websiteShowData.getString("desc"), websiteShowData.getString("shortDesc")),
+                    episodeName = Name(apiShowData.getString("title")),
+                    tracks =
+                        TrackList(
+                            tracksData.map { track ->
+                                track as JSONObject
+                                val trackLink = Link(track.getString("url"))
+                                val artists =
+                                    Artists(
+                                        listOf(
+                                            Artist(
+                                                Name(track.getString("artistName")),
+                                                Link(track.getString("bandUrl")),
+                                            ),
+                                        ),
+                                    )
+                                val albumData = track.getJSONObject("album")
+                                Track(
+                                    Album(
+                                        Name(albumData.getString("title")),
+                                        artists,
+                                        link = Link(albumData.getString("url")),
+                                    ),
+                                    artists,
+                                    Name(track.getString("title")),
+                                    trackLink,
+                                    Playability(websiteShowData.getBoolean("isPublished")),
+                                )
+                            },
+                        ),
+                )
+            } else {
+                Show()
+            }
+        }
+
+        val showJob = Job()
+        var websiteJSON: JSONObject? = null
+        var apiJSON: JSONObject? = null
+        withContext(IO + showJob) {
+            when (websiteResponse.code.code) {
+                HttpURLConnection.HTTP_OK -> {
+                    try {
+                        val html = websiteResponse.data.data
+                        websiteJSON =
+                            JSONObject(
+                                decode(
+                                    html.substringAfter("data-blob=\"")
+                                        .substringBefore("\">"),
+                                ),
+                            )
+                    } catch (e: Exception) {
+                        println(e)
+                        println("Failed JSON:\n${websiteResponse.data}\n")
+                        showJob.cancel()
+                        return@withContext
+                    }
+                }
+
+                else -> {
+                    showJob.cancel()
+                    return@withContext
                 }
             }
+            when (apiResponse.code.code) {
+                HttpURLConnection.HTTP_OK -> {
+                    try {
+                        apiJSON = JSONObject(apiResponse.data.data)
+                    } catch (e: Exception) {
+                        println(e)
+                        println("Failed JSON:\n${apiResponse.data}\n")
+                        showJob.cancel()
+                        return@withContext
+                    }
+                }
 
-            else -> Show()
+                else -> {
+                    showJob.cancel()
+                    return@withContext
+                }
+            }
         }
+        return parseShowData(websiteJSON, apiJSON)
     }
 
     override suspend fun resolveType(link: Link): LinkType =
