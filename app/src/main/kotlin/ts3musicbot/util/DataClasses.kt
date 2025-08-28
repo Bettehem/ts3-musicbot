@@ -466,12 +466,15 @@ data class Likes(
 
 data class Publisher(
     val name: Name = Name(),
+    val link: Link = Link(),
 ) {
-    override fun toString() = name.name
+    override fun toString() =
+        "Publisher:   \t\tname.name\n" +
+            link.ifNotEmpty { "Publisher Link: \t$it" }
 
-    fun isEmpty() = name.isEmpty()
+    fun isEmpty() = name.isEmpty() && link.isEmpty()
 
-    fun isNotEmpty() = name.isNotEmpty()
+    fun isNotEmpty() = name.isNotEmpty() && link.isNotEmpty()
 
     fun ifNotEmpty(fn: (publisher: Publisher) -> Any) = if (isNotEmpty()) fn(this) else this
 }
@@ -783,7 +786,7 @@ data class Show(
     override fun toString() =
         "Show Name:  \t\t\t\t$name\n" +
             publisher.ifNotEmpty {
-                "Publisher:    \t\t\t\t\t$publisher\n"
+                "$publisher\n"
             } +
             episodeName.ifNotEmpty {
                 "Episode:      \t\t\t\t\t\t$episodeName\n"
