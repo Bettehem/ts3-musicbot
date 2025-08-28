@@ -3,11 +3,11 @@ package ts3musicbot.util
 import kotlinx.coroutines.runBlocking
 import ts3musicbot.services.Bandcamp
 import ts3musicbot.services.Service
+import ts3musicbot.services.ServiceType
+import ts3musicbot.services.SongLink
 import ts3musicbot.services.SoundCloud
 import ts3musicbot.services.Spotify
 import ts3musicbot.services.YouTube
-import ts3musicbot.services.SongLink
-import ts3musicbot.services.ServiceType
 import java.lang.IllegalArgumentException
 import java.time.LocalDate
 
@@ -32,34 +32,43 @@ enum class LinkType {
     OTHER,
 }
 
+open class Playable(
+    open val name: Name = Name(),
+    open val releaseDate: ReleaseDate = ReleaseDate(),
+    open var description: Description = Description(),
+    open var link: Link = Link(),
+)
+
 data class Track(
     val album: Album = Album(),
     val artists: Artists = Artists(),
     val title: Name = Name(),
-    val link: Link = Link(),
+    override var link: Link = Link(),
     val playability: Playability = Playability(),
     val likes: Likes = Likes(),
     val serviceType: ServiceType = link.serviceType(),
-    val description: Description = Description(),
-) {
+    override var description: Description = Description(),
+) : Playable(title, album.releaseDate) {
     override fun toString() =
         "$album\n" +
             artists.ifNotEmpty { "Track Artists:\n$it\n" } +
             "Title:      \t\t\t\t$title\n" +
             "Link:       \t\t\t\t$link\n" +
             if (link.alternativeLinks.isNotEmpty()) {
-                val strings = link.alternativeLinks.filter { it.isNotEmpty() }
-                    .map { ". Platform: ${it.serviceType()} \nLink: $it" }
+                val strings =
+                    link.alternativeLinks.filter { it.isNotEmpty() }
+                        .map { ". Platform: ${it.serviceType()} \nLink: $it" }
                 val strBuilder = StringBuilder()
                 strBuilder.appendLine("\nAlternative links:")
                 strings.forEachIndexed { i, v ->
-                    strBuilder.appendLine("${i+1}$v")
+                    strBuilder.appendLine("${i + 1}$v")
                 }
                 strBuilder.toString()
             } else {
                 ""
             } +
             description.ifNotEmpty { "Description:\n$it\n" }
+
     fun toShortString() = "${artists.toShortString()} - $title : $link"
 
     fun isEmpty() = album.isEmpty() && artists.isEmpty() && title.isEmpty() && link.isEmpty()
@@ -68,12 +77,12 @@ data class Track(
 }
 
 data class Episode(
-    val name: Name = Name(),
-    val description: Description = Description(),
-    val releaseDate: ReleaseDate = ReleaseDate(),
-    val link: Link = Link(),
+    override val name: Name = Name(),
+    override var description: Description = Description(),
+    override val releaseDate: ReleaseDate = ReleaseDate(),
+    override var link: Link = Link(),
     val playability: Playability = Playability(),
-) {
+) : Playable() {
     fun toTrack() =
         Track(
             title = name,
@@ -532,15 +541,15 @@ data class Genres(
 }
 
 data class Artist(
-    val name: Name = Name(),
-    val link: Link = Link(),
+    override val name: Name = Name(),
+    override var link: Link = Link(),
     val topTracks: TrackList = TrackList(),
     val relatedArtists: Artists = Artists(),
     val genres: Genres = Genres(),
     val followers: Followers = Followers(),
-    val description: Description = Description(),
+    override var description: Description = Description(),
     val albums: Albums = Albums(),
-) {
+) : Playable() {
     override fun toString() =
         "${if (link.serviceType() == ServiceType.YOUTUBE) "Uploader:" else "Artist:\t\t"}     \t\t$name\n" +
             "Link:        \t\t\t\t$link\n" +
@@ -575,13 +584,13 @@ data class Artist(
 }
 
 data class Album(
-    val name: Name = Name(),
+    override val name: Name = Name(),
     val artists: Artists = Artists(),
-    val releaseDate: ReleaseDate = ReleaseDate(),
+    override val releaseDate: ReleaseDate = ReleaseDate(),
     val tracks: TrackList = TrackList(),
-    val link: Link = Link(),
+    override var link: Link = Link(),
     val genres: Genres = Genres(),
-) {
+) : Playable() {
     override fun toString() =
         "" +
             name.ifNotEmpty { "Album Name:  \t${name.name}\n" } +
@@ -600,13 +609,13 @@ data class Album(
 }
 
 data class User(
-    val name: Name = Name(),
+    override val name: Name = Name(),
     val userName: Name = Name(),
-    val description: Description = Description(),
+    override var description: Description = Description(),
     val followers: Followers = Followers(),
     val playlists: Playlists = Playlists(),
-    val link: Link = Link(),
-) {
+    override var link: Link = Link(),
+) : Playable() {
     override fun toString() =
         "Name: \t\t\t\t\t\t${name.name}\n" +
             "Username: \t\t\t    ${userName.name}\n" +
@@ -644,15 +653,15 @@ data class User(
 }
 
 data class Playlist(
-    val name: Name = Name(),
+    override val name: Name = Name(),
     val owner: User = User(),
-    val description: Description = Description(),
+    override var description: Description = Description(),
     val followers: Followers = Followers(),
     val publicity: Publicity = Publicity(),
     val collaboration: Collaboration = Collaboration(),
     val tracks: TrackList = TrackList(),
-    val link: Link = Link(),
-) {
+    override var link: Link = Link(),
+) : Playable() {
     override fun toString() =
         "Playlist Name: \t\t${name.name}\n" +
             "Owner:       \t\t\t\t${owner.name}\n" +
@@ -702,14 +711,14 @@ data class Playlists(
  * @param link Link to the show
  */
 data class Show(
-    val name: Name = Name(),
+    override val name: Name = Name(),
     val publisher: Publisher = Publisher(),
-    val description: Description = Description(),
+    override var description: Description = Description(),
     val episodes: EpisodeList = EpisodeList(),
     val episodeName: Name = Name(),
     val tracks: TrackList = TrackList(),
-    val link: Link = Link(),
-) {
+    override var link: Link = Link(),
+) : Playable() {
     override fun toString() =
         "Show Name:  \t\t\t\t$name\n" +
             publisher.ifNotEmpty {
@@ -740,12 +749,12 @@ data class Show(
 }
 
 data class Discover(
-    val name: Name = Name(),
+    override val name: Name = Name(),
     val albums: Albums = Albums(),
     val playlists: Playlists = Playlists(),
-    val link: Link = Link(),
+    override var link: Link = Link(),
     val useCustomName: Boolean = false,
-) {
+) : Playable() {
     override fun toString() =
         if (useCustomName) {
             "$name"
@@ -779,11 +788,11 @@ data class Discoveries(
 }
 
 data class TagOrGenre(
-    val name: Name = Name(),
+    override val name: Name = Name(),
     val tracks: TrackList = TrackList(),
     val playlists: Playlists = Playlists(),
-    val link: Link = Link(),
-) {
+    override var link: Link = Link(),
+) : Playable() {
     override fun toString() =
         "Genre/Tag:\t\t\t    $name\n" +
             "Link:\t\t\t\t        $link\n" +
