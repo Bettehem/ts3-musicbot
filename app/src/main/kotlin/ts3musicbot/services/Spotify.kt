@@ -233,13 +233,15 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
 
                         val songName = decode(trackData.getString("name"))
                         val songId = trackData.getString("id")
-                        val songLink = Link("https://open.spotify.com/track/$songId")
                         val linkedFrom =
                             if (trackData.has("linked_from")) {
-                                trackData.getJSONObject("linked_from").getJSONObject("external_urls").getString("spotify")
+                                listOf(
+                                    Link(trackData.getJSONObject("linked_from").getJSONObject("external_urls").getString("spotify")),
+                                )
                             } else {
-                                ""
+                                emptyList()
                             }
+                        val songLink = Link("https://open.spotify.com/track/$songId", songId, linkedFrom)
 
                         searchResults.add(
                             SearchResult(
