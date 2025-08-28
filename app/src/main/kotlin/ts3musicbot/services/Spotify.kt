@@ -73,7 +73,8 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
         }
     private val apiURI = URI("https://api.spotify.com/v1")
     private var accessToken = ""
-    val supportedSearchTypes =
+
+    override fun getSupportedSearchTypes() =
         listOf(
             LinkType.TRACK,
             LinkType.PLAYLIST,
@@ -138,6 +139,39 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
         return token
     }
 
+    fun getReleaseDate(
+        release_date_precision: String,
+        releaseDateString: String,
+    ): ReleaseDate {
+        val formatter =
+            when (release_date_precision) {
+                "day" -> {
+                    DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                }
+
+                "month" -> {
+                    DateTimeFormatterBuilder().appendPattern("yyyy-MM")
+                        .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                        .toFormatter()
+                }
+
+                else -> {
+                    DateTimeFormatterBuilder().appendPattern("yyyy")
+                        .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+                        .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+                        .toFormatter()
+                }
+            }
+        return ReleaseDate(
+            if (releaseDateString != "0000") {
+                // wtf spotify? https://open.spotify.com/album/1gw4BOiDZIZnskP7vHnPCc
+                LocalDate.parse(releaseDateString, formatter)
+            } else {
+                LocalDate.now()
+            },
+        )
+    }
+
     override suspend fun search(
         searchType: SearchType,
         searchQuery: SearchQuery,
@@ -177,23 +211,29 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                     for (trackData in trackList) {
                         trackData as JSONObject
 
-                        val artists = StringBuilder()
-                        artists.append("Artist: \t\t")
+                        val artists = ArrayList<Artist>()
                         for (artistData in trackData.getJSONArray("artists")) {
-                            val artist = artistData as JSONObject
-                            artists.append("${decode(artist.getString("name"))}, ")
+                            artistData as JSONObject
+                            val artist =
+                                Artist(
+                                    Name(artistData.getString("name")),
+                                    Link(artistData.getJSONObject("external_urls").getString("spotify")),
+                                )
+                            artists.add(artist)
                         }
 
                         val albumName =
-                            if (trackData.getJSONObject("album").getString("album_type") == "single") {
-                                "${decode(trackData.getJSONObject("album").getString("name"))} (Single)"
-                            } else {
-                                decode(trackData.getJSONObject("album").getString("name"))
-                            }
+                            Name(
+                                if (trackData.getJSONObject("album").getString("album_type") == "single") {
+                                    "${decode(trackData.getJSONObject("album").getString("name"))} (Single)"
+                                } else {
+                                    decode(trackData.getJSONObject("album").getString("name"))
+                                },
+                            )
 
                         val songName = decode(trackData.getString("name"))
                         val songId = trackData.getString("id")
-                        val songLink = "https://open.spotify.com/track/$songId"
+                        val songLink = Link("https://open.spotify.com/track/$songId")
                         val linkedFrom =
                             if (trackData.has("linked_from")) {
                                 trackData.getJSONObject("linked_from").getJSONObject("external_urls").getString("spotify")
@@ -203,11 +243,13 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
 
                         searchResults.add(
                             SearchResult(
-                                "${artists.toString().substringBeforeLast(",")}\n" +
-                                    "Album:  \t$albumName\n" +
-                                    "Title:  \t\t$songName\n" +
-                                    "Link:   \t\t$songLink\n",
-                                Link(songLink, songId, listOf(Link(linkedFrom))),
+                                Track(
+                                    Album(albumName),
+                                    Artists(artists),
+                                    Name(songName),
+                                    songLink,
+                                ),
+                                songLink,
                             ),
                         )
                     }
@@ -218,12 +260,6 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                     for (album in albums) {
                         album as JSONObject
 
-                        val artists = StringBuilder()
-                        artists.append("Artist: \t\t")
-                        for (artistData in album.getJSONArray("artists")) {
-                            val artist = artistData as JSONObject
-                            artists.append("${decode(artist.getString("name"))}, ")
-                        }
                         val albumName =
                             if (album.getString("album_type") == "single") {
                                 "${decode(album.getString("name"))} (Single)"
@@ -231,14 +267,27 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                                 decode(album.getString("name"))
                             }
 
-                        val albumLink = album.getJSONObject("external_urls").getString("spotify")
-
+                        val albumLink = Link(album.getJSONObject("external_urls").getString("spotify"))
+                        val artists =
+                            album.getJSONArray("artists").map {
+                                it as JSONObject
+                                Artist(
+                                    Name(it.getString("name")),
+                                    Link(it.getJSONObject("external_urls").getString("spotify")),
+                                )
+                            }
                         searchResults.add(
                             SearchResult(
-                                "${artists.toString().substringBeforeLast(",")}\n" +
-                                    "Album:  \t$albumName\n" +
-                                    "Link:   \t\t$albumLink\n",
-                                Link(albumLink),
+                                Album(
+                                    Name(albumName),
+                                    Artists(artists),
+                                    getReleaseDate(
+                                        album.getString("release_date_precision"),
+                                        album.getString("release_date"),
+                                    ),
+                                    link = albumLink,
+                                ),
+                                albumLink,
                             ),
                         )
                     }
@@ -251,22 +300,32 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
 
                         val listName = decode(listData.getString("name"))
                         val listOwner =
-                            if (listData.getJSONObject("owner").get("display_name") != null) {
-                                decode(listData.getJSONObject("owner").getString("display_name"))
-                            } else {
-                                "N/A"
-                            }
+                            User(
+                                Name(
+                                    if (listData.getJSONObject("owner").get("display_name") != null) {
+                                        decode(listData.getJSONObject("owner").getString("display_name"))
+                                    } else {
+                                        "N/A"
+                                    },
+                                ),
+                                link = Link(listData.getJSONObject("owner").getJSONObject("external_urls").getString("spotify")),
+                            )
 
                         val trackAmount = listData.getJSONObject("tracks").getInt("total")
-                        val listLink = listData.getJSONObject("external_urls").getString("spotify")
+                        val listLink = Link(listData.getJSONObject("external_urls").getString("spotify"))
 
                         searchResults.add(
                             SearchResult(
-                                "Playlist:  \t$listName\n" +
-                                    "Owner:    \t$listOwner\n" +
-                                    "Tracks:   \t$trackAmount\n" +
-                                    "Link:     \t\t$listLink\n",
-                                Link(listLink),
+                                Playlist(
+                                    Name(listName),
+                                    listOwner,
+                                    Description(listData.getString("description")),
+                                    publicity = Publicity(listData.getBoolean("public")),
+                                    collaboration = Collaboration(listData.getBoolean("collaborative")),
+                                    tracks = TrackList(List(trackAmount) { Track() }),
+                                    link = listLink,
+                                ),
+                                listLink,
                             ),
                         )
                     }
@@ -279,22 +338,21 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
 
                         val artistName = decode(artistData.getString("name"))
                         val followers = artistData.getJSONObject("followers").getLong("total")
-                        var genres = ""
-                        artistData.getJSONArray("genres").forEach { genres += "$it, " }
-                        genres = genres.substringBeforeLast(",")
-                        val artistLink = artistData.getJSONObject("external_urls").getString("spotify")
-
+                        var genres =
+                            artistData.getJSONArray("genres").map {
+                                it as String
+                                it
+                            }
+                        val artistLink = Link(artistData.getJSONObject("external_urls").getString("spotify"))
                         searchResults.add(
                             SearchResult(
-                                "Artist:    \t\t\t$artistName\n" +
-                                    "Followers:  \t$followers\n" +
-                                    if (genres.isNotEmpty()) {
-                                        "Genres:    \t\t$genres\n"
-                                    } else {
-                                        ""
-                                    } +
-                                    "Link:      \t\t\t$artistLink\n",
-                                Link(artistLink),
+                                Artist(
+                                    Name(artistName),
+                                    artistLink,
+                                    genres = Genres(genres),
+                                    followers = Followers(followers),
+                                ),
+                                artistLink,
                             ),
                         )
                     }
@@ -309,16 +367,18 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                         val publisher = decode(showData.getString("publisher"))
                         val episodes = showData.getInt("total_episodes")
                         val description = decode(showData.getString("description"))
-                        val showLink = showData.getJSONObject("external_urls").getString("spotify")
+                        val showLink = Link(showData.getJSONObject("external_urls").getString("spotify"))
 
                         searchResults.add(
                             SearchResult(
-                                "Show:     \t\t$showName\n" +
-                                    "Publisher: \t$publisher\n" +
-                                    "Episodes:  \t$episodes\n" +
-                                    "Description:\n$description\n" +
-                                    "Link:      \t\t$showLink\n",
-                                Link(showLink),
+                                Show(
+                                    Name(showName),
+                                    Publisher(Name(publisher)),
+                                    description = Description(description),
+                                    episodes = EpisodeList(List(episodes) { Episode() }),
+                                    link = showLink,
+                                ),
+                                showLink,
                             ),
                         )
                     }
@@ -331,14 +391,22 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
 
                         val episodeName = decode(episodeData.getString("name"))
                         val description = decode(episodeData.getString("description"))
-                        val episodeLink = episodeData.getJSONObject("external_urls").getString("spotify")
+                        val episodeLink = Link(episodeData.getJSONObject("external_urls").getString("spotify"))
 
                         searchResults.add(
                             SearchResult(
-                                "Episode Name: \t$episodeName\n" +
-                                    "Description:\n$description\n" +
-                                    "Link          \t\t\t\t$episodeLink\n",
-                                Link(episodeLink),
+                                Episode(
+                                    Name(episodeName),
+                                    description = Description(description),
+                                    releaseDate =
+                                        getReleaseDate(
+                                            episodeData.getString("release_date_precision"),
+                                            episodeData.getString("release_date"),
+                                        ),
+                                    link = episodeLink,
+                                    playability = Playability(episodeData.getBoolean("is_playable")),
+                                ),
+                                episodeLink,
                             ),
                         )
                     }
@@ -439,7 +507,7 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                 Name(decode(data.getString("name"))),
                 fetchUser(Link(data.getJSONObject("owner").getJSONObject("external_urls").getString("spotify"))),
                 Description(decode(data.getString("description"))),
-                Followers(data.getJSONObject("followers").getInt("total")),
+                Followers(data.getJSONObject("followers").getLong("total")),
                 Publicity(data.getBoolean("public")),
                 Collaboration(data.getBoolean("collaborative")),
                 if (shouldFetchTracks) {
@@ -579,58 +647,12 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                                                     Album(
                                                         albumName,
                                                         artists,
-                                                        when (
-                                                            item.getJSONObject("track").getJSONObject("album")
-                                                                .getString("release_date_precision")
-                                                        ) {
-                                                            "day" -> {
-                                                                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                                                                ReleaseDate(
-                                                                    LocalDate.parse(
-                                                                        item.getJSONObject("track").getJSONObject("album")
-                                                                            .getString("release_date"),
-                                                                        formatter,
-                                                                    ),
-                                                                )
-                                                            }
-
-                                                            "month" -> {
-                                                                val formatter =
-                                                                    DateTimeFormatterBuilder().appendPattern("yyyy-MM")
-                                                                        .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                                                        .toFormatter()
-                                                                ReleaseDate(
-                                                                    LocalDate.parse(
-                                                                        item.getJSONObject("track").getJSONObject("album")
-                                                                            .getString("release_date"),
-                                                                        formatter,
-                                                                    ),
-                                                                )
-                                                            }
-
-                                                            else -> {
-                                                                val formatter =
-                                                                    DateTimeFormatterBuilder().appendPattern("yyyy")
-                                                                        .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
-                                                                        .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                                                        .toFormatter()
-                                                                ReleaseDate(
-                                                                    if (item.getJSONObject("track").getJSONObject("album")
-                                                                            .getString("release_date") != "0000"
-                                                                    ) {
-                                                                        // wtf spotify? https://open.spotify.com/album/1gw4BOiDZIZnskP7vHnPCc
-                                                                        LocalDate.parse(
-                                                                            item.getJSONObject("track")
-                                                                                .getJSONObject("album")
-                                                                                .getString("release_date"),
-                                                                            formatter,
-                                                                        )
-                                                                    } else {
-                                                                        LocalDate.now()
-                                                                    },
-                                                                )
-                                                            }
-                                                        },
+                                                        getReleaseDate(
+                                                            item.getJSONObject(
+                                                                "track",
+                                                            ).getJSONObject("album").getString("release_date_precision"),
+                                                            item.getJSONObject("track").getJSONObject("album").getString("release_date"),
+                                                        ),
                                                         TrackList(emptyList()),
                                                         Link(
                                                             item.getJSONObject("track").getJSONObject("album")
@@ -646,7 +668,8 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                                                     } else {
                                                         ""
                                                     }
-                                                val link = Link("https://open.spotify.com/track/$trackId", trackId, listOf(Link(linkedFrom)))
+                                                val link =
+                                                    Link("https://open.spotify.com/track/$trackId", trackId, listOf(Link(linkedFrom)))
                                                 val isPlayable =
                                                     if (item.getJSONObject("track").getBoolean("is_playable")) {
                                                         true
@@ -810,35 +833,7 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                         Artist(artistName, link)
                     },
                 ),
-                when (data.getString("release_date_precision")) {
-                    "day" -> {
-                        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                        ReleaseDate(LocalDate.parse(data.getString("release_date"), formatter))
-                    }
-
-                    "month" -> {
-                        val formatter =
-                            DateTimeFormatterBuilder().appendPattern("yyyy-MM")
-                                .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                .toFormatter()
-                        ReleaseDate(LocalDate.parse(data.getString("release_date"), formatter))
-                    }
-
-                    else -> {
-                        val formatter =
-                            DateTimeFormatterBuilder().appendPattern("yyyy")
-                                .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
-                                .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                .toFormatter()
-                        ReleaseDate(
-                            if (data.getString("release_date") != "0000") {
-                                LocalDate.parse(data.getString("release_date"), formatter)
-                            } else {
-                                LocalDate.now()
-                            },
-                        )
-                    }
-                },
+                getReleaseDate(data.getString("release_date_precision"), data.getString("release_date")),
                 fetchAlbumTracks(albumLink),
                 albumLink,
                 Genres(
@@ -918,36 +913,7 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                     Name(albumData.getString("name"))
                 }
 
-            val releaseDate =
-                when (albumData.getString("release_date_precision")) {
-                    "day" -> {
-                        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                        ReleaseDate(LocalDate.parse(albumData.getString("release_date"), formatter))
-                    }
-
-                    "month" -> {
-                        val formatter =
-                            DateTimeFormatterBuilder().appendPattern("yyyy-MM")
-                                .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                .toFormatter()
-                        ReleaseDate(LocalDate.parse(albumData.getString("release_date"), formatter))
-                    }
-
-                    else -> {
-                        val formatter =
-                            DateTimeFormatterBuilder().appendPattern("yyyy")
-                                .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
-                                .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                .toFormatter()
-                        ReleaseDate(
-                            if (albumData.getString("release_date") != "0000") {
-                                LocalDate.parse(albumData.getString("release_date"), formatter)
-                            } else {
-                                LocalDate.now()
-                            },
-                        )
-                    }
-                }
+            val releaseDate = getReleaseDate(albumData.getString("release_date_precision"), albumData.getString("release_date"))
             val albumArtists =
                 Artists(
                     albumData.getJSONArray("artists").map {
@@ -1146,48 +1112,10 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                 Album(
                     albumName,
                     albumArtists,
-                    when (trackData.getJSONObject("album").getString("release_date_precision")) {
-                        "day" -> {
-                            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                            ReleaseDate(
-                                LocalDate.parse(
-                                    trackData.getJSONObject("album").getString("release_date"),
-                                    formatter,
-                                ),
-                            )
-                        }
-
-                        "month" -> {
-                            val formatter =
-                                DateTimeFormatterBuilder().appendPattern("yyyy-MM")
-                                    .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                    .toFormatter()
-                            ReleaseDate(
-                                LocalDate.parse(
-                                    trackData.getJSONObject("album").getString("release_date"),
-                                    formatter,
-                                ),
-                            )
-                        }
-
-                        else -> {
-                            val formatter =
-                                DateTimeFormatterBuilder().appendPattern("yyyy")
-                                    .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
-                                    .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                    .toFormatter()
-                            ReleaseDate(
-                                if (trackData.getJSONObject("album").getString("release_date") != "0000") {
-                                    LocalDate.parse(
-                                        trackData.getJSONObject("album").getString("release_date"),
-                                        formatter,
-                                    )
-                                } else {
-                                    LocalDate.now()
-                                },
-                            )
-                        }
-                    },
+                    getReleaseDate(
+                        trackData.getJSONObject("album").getString("release_date_precision"),
+                        trackData.getJSONObject("album").getString("release_date"),
+                    ),
                     TrackList(emptyList()),
                     Link(trackData.getJSONObject("album").getJSONObject("external_urls").getString("spotify")),
                 )
@@ -1413,36 +1341,9 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                     Album(
                         Name(track.getJSONObject("album").getString("name")),
                         artists,
-                        ReleaseDate(
-                            when (track.getJSONObject("album").getString("release_date_precision")) {
-                                "day" -> {
-                                    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                                    LocalDate.parse(track.getJSONObject("album").getString("release_date"), formatter)
-                                }
-
-                                "month" -> {
-                                    val formatter =
-                                        DateTimeFormatterBuilder()
-                                            .appendPattern("yyyy-MM")
-                                            .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                            .toFormatter()
-                                    LocalDate.parse(track.getJSONObject("album").getString("release_date"), formatter)
-                                }
-
-                                else -> {
-                                    val formatter =
-                                        DateTimeFormatterBuilder()
-                                            .appendPattern("yyyy")
-                                            .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
-                                            .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                            .toFormatter()
-                                    if (track.getJSONObject("album").getString("release_date") != "0000") {
-                                        LocalDate.parse(track.getJSONObject("album").getString("release_date"), formatter)
-                                    } else {
-                                        LocalDate.now()
-                                    }
-                                }
-                            },
+                        getReleaseDate(
+                            track.getJSONObject("album").getString("release_date_precision"),
+                            track.getJSONObject("album").getString("release_date"),
                         ),
                         fetchAlbumTracks(Link(track.getJSONObject("album").getString("uri"))),
                         artistLink,
@@ -1475,48 +1376,7 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                                     Artist(artistName, link)
                                 },
                             ),
-                            when (data.getString("release_date_precision")) {
-                                "day" -> {
-                                    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                                    ReleaseDate(
-                                        LocalDate.parse(
-                                            data.getString("release_date"),
-                                            formatter,
-                                        ),
-                                    )
-                                }
-
-                                "month" -> {
-                                    val formatter =
-                                        DateTimeFormatterBuilder().appendPattern("yyyy-MM")
-                                            .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                            .toFormatter()
-                                    ReleaseDate(
-                                        LocalDate.parse(
-                                            data.getString("release_date"),
-                                            formatter,
-                                        ),
-                                    )
-                                }
-
-                                else -> {
-                                    val formatter =
-                                        DateTimeFormatterBuilder().appendPattern("yyyy")
-                                            .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
-                                            .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                            .toFormatter()
-                                    ReleaseDate(
-                                        if (data.getString("release_date") != "0000") {
-                                            LocalDate.parse(
-                                                data.getString("release_date"),
-                                                formatter,
-                                            )
-                                        } else {
-                                            LocalDate.now()
-                                        },
-                                    )
-                                }
-                            },
+                            getReleaseDate(data.getString("release_date_precision"), data.getString("release_date")),
                             TrackList(),
                             Link(data.getJSONObject("external_urls").getString("spotify")),
                         )
@@ -1565,7 +1425,7 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                 artistData.getJSONArray("genres").map {
                     if (it is String) it else ""
                 }
-            val followers = Followers(artistData.getJSONObject("followers").getInt("total"))
+            val followers = Followers(artistData.getJSONObject("followers").getLong("total"))
             return Artist(
                 name,
                 artistLink,
@@ -1800,7 +1660,7 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                 Name(userData.getString("display_name")),
                 Name(userData.getString("id")),
                 Description(),
-                Followers(userData.getJSONObject("followers").getInt("total")),
+                Followers(userData.getJSONObject("followers").getLong("total")),
                 Playlists(playlists),
                 Link(userData.getJSONObject("external_urls").getString("spotify")),
             )
@@ -1891,35 +1751,9 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                         episodes.add(
                             Episode(
                                 Name(item.getString("name")),
+                                Name(item.getJSONObject("show").getString("name")),
                                 Description(item.getString("description")),
-                                ReleaseDate(
-                                    when (item.getString("release_date_precision")) {
-                                        "day" -> {
-                                            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                                            LocalDate.parse(item.getString("release_date"), formatter)
-                                        }
-
-                                        "month" -> {
-                                            val formatter =
-                                                DateTimeFormatterBuilder()
-                                                    .appendPattern("yyyy-MM")
-                                                    .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                                    .toFormatter()
-                                            LocalDate.parse(item.getString("release_date"), formatter)
-                                        }
-
-                                        else -> {
-                                            val formatter =
-                                                DateTimeFormatterBuilder()
-                                                    .appendPattern("yyyy")
-                                                    .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
-                                                    .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                                    .toFormatter()
-                                            LocalDate.now().withYear(2)
-                                            LocalDate.parse(item.getString("release_date"), formatter)
-                                        }
-                                    },
-                                ),
+                                getReleaseDate(item.getString("release_date_precision"), item.getString("release_date")),
                                 Link(item.getJSONObject("external_urls").getString("spotify")),
                                 Playability(item.getBoolean("is_playable")),
                             ),
@@ -2014,6 +1848,7 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
             return Show(
                 Name(showData.getString("name")),
                 Publisher(Name(showData.getString("publisher"))),
+                getReleaseDate(showData.getString("release_date_precision"), showData.getString("release_date")),
                 Description(showData.getString("description")),
                 episodes,
                 link = showLink,
@@ -2086,38 +1921,9 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
         fun parseEpisodeData(episodeData: JSONObject): Episode {
             return Episode(
                 Name(episodeData.getString("name")),
+                Name(episodeData.getJSONObject("show").getString("name")),
                 Description(episodeData.getString("description")),
-                ReleaseDate(
-                    when (episodeData.getString("release_date_precision")) {
-                        "day" -> {
-                            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                            LocalDate.parse(episodeData.getString("release_date"), formatter)
-                        }
-
-                        "month" -> {
-                            val formatter =
-                                DateTimeFormatterBuilder()
-                                    .appendPattern("yyyy-MM")
-                                    .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                    .toFormatter()
-                            LocalDate.parse(episodeData.getString("release_date"), formatter)
-                        }
-
-                        else -> {
-                            val formatter =
-                                DateTimeFormatterBuilder()
-                                    .appendPattern("yyyy")
-                                    .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
-                                    .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-                                    .toFormatter()
-                            if (episodeData.getString("release_date") != "0000") {
-                                LocalDate.parse(episodeData.getString("release_date"), formatter)
-                            } else {
-                                LocalDate.now()
-                            }
-                        }
-                    },
-                ),
+                getReleaseDate(episodeData.getString("release_date_precision"), episodeData.getString("release_date")),
                 Link(episodeData.getJSONObject("external_urls").getString("spotify")),
                 Playability(episodeData.getBoolean("is_playable")),
             )

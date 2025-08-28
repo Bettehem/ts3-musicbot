@@ -51,7 +51,8 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
     var clientId = "H8sYVN4CJ2E8Ij83bJZ1OtB9w4kzyyvy"
     private val api2URI = URI("https://api-v2.soundcloud.com")
     val apiURI = URI("https://api.soundcloud.com")
-    val supportedSearchTypes =
+
+    override fun getSupportedSearchTypes() =
         listOf(
             LinkType.TRACK,
             LinkType.PLAYLIST,
@@ -141,10 +142,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                             )
                         searchResults.add(
                             SearchResult(
-                                "Upload Date:   \t${track.album.releaseDate.date}\n" +
-                                    "Uploader: \t\t\t${track.artists.toShortString()}\n" +
-                                    "Track Title:   \t\t${track.title}\n" +
-                                    "Track Link:    \t\t${track.link}\n",
+                                track,
                                 track.link,
                             ),
                         )
@@ -169,12 +167,19 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                             ""
                                         },
                                     ),
-                                    Followers(playlistData.getJSONObject("user").getInt("followers_count")),
+                                    Followers(playlistData.getJSONObject("user").getInt("followers_count").toLong()),
                                     link = Link(playlistData.getJSONObject("user").getString("permalink_url")),
                                 ),
                                 Description(if (!playlistData.isNull("description")) playlistData.getString("description") else ""),
                                 Followers(
-                                    if (!playlistData.isNull("likes_count")) playlistData.getInt("likes_count") else Followers().amount,
+                                    if (!playlistData.isNull(
+                                            "likes_count",
+                                        )
+                                    ) {
+                                        playlistData.getInt("likes_count").toLong()
+                                    } else {
+                                        Followers().amount.toLong()
+                                    },
                                 ),
                                 Publicity(playlistData.getString("sharing") == "public"),
                                 Collaboration(false),
@@ -182,13 +187,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                 Link(playlistData.getString("permalink_url")),
                             )
                         searchResults.add(
-                            SearchResult(
-                                "Playlist:   \t${playlist.name}\n" +
-                                    "Owner:    \t${playlist.owner.name}\n" +
-                                    "Tracks:    \t${playlist.tracks.size}\n" +
-                                    "Link:     \t\t${playlist.link}\n",
-                                playlist.link,
-                            ),
+                            SearchResult(playlist, playlist.link),
                         )
                     }
                 }
@@ -233,13 +232,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                             )
 
                         searchResults.add(
-                            SearchResult(
-                                "Album:   \t${album.name}\n" +
-                                    "Artist:     \t${album.artists.toShortString()}\n" +
-                                    "Tracks:    \t${album.tracks.trackList.size}\n" +
-                                    "Link:     \t\t${album.link}\n",
-                                album.link,
-                            ),
+                            SearchResult(album, album.link),
                         )
                     }
                 }
@@ -254,31 +247,12 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                 Name(userData.getString("username")),
                                 Name(userData.getString("permalink")),
                                 Description(if (!userData.isNull("description")) userData.getString("description") else ""),
-                                Followers(userData.getInt("followers_count")),
+                                Followers(userData.getInt("followers_count").toLong()),
                                 fetchUserPlaylists(Link("$apiURI/users/${userData.getInt("id")}")),
                                 Link(userData.getString("permalink_url")),
                             )
                         searchResults.add(
-                            SearchResult(
-                                "\n" +
-                                    "Name:   \t\t\t${user.name}\n" +
-                                    "Username:   \t${user.userName}\n" +
-                                    "Description:\n${
-                                        user.description.ifNotEmpty {
-                                            if (it.lines().size <= 5) {
-                                                it
-                                            } else {
-                                                Description(
-                                                    "WARNING! Very long description! Showing only the first 5 lines:\n" +
-                                                        it.lines().subList(0, 5).joinToString("\n"),
-                                                )
-                                            }
-                                        }
-                                    }\n" +
-                                    "Followers:  \t${user.followers}\n" +
-                                    "Link:      \t\t\t${user.link}\n",
-                                user.link,
-                            ),
+                            SearchResult(user, user.link),
                         )
                     }
                 }
@@ -296,7 +270,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                             Artist(
                                 Name(artistData.getString("username")),
                                 Link(artistData.getString("permalink_url")),
-                                followers = Followers(artistData.getInt("followers_count")),
+                                followers = Followers(artistData.getInt("followers_count").toLong()),
                                 description =
                                     Description(
                                         if (!artistData.isNull("description")) {
@@ -308,24 +282,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                             )
 
                         searchResults.add(
-                            SearchResult(
-                                "Artist:    \t\t\t${artist.name}\n" +
-                                    "Description:\n${
-                                        artist.description.ifNotEmpty {
-                                            if (it.lines().size <= 5) {
-                                                it
-                                            } else {
-                                                Description(
-                                                    "WARNING! Very long description! Showing only first 5 lines\n" +
-                                                        it.lines().subList(0, 5).joinToString("\n"),
-                                                )
-                                            }
-                                        }
-                                    }\n" +
-                                    "Followers:  \t${artist.followers}\n" +
-                                    "Link:      \t\t\t${artist.link}\n",
-                                artist.link,
-                            ),
+                            SearchResult(artist, artist.link),
                         )
                     }
                 }
@@ -446,7 +403,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                 Description()
             },
             if (!playlistData.isNull("likes_count")) {
-                Followers(playlistData.getInt("likes_count"))
+                Followers(playlistData.getInt("likes_count").toLong())
             } else {
                 Followers()
             },
@@ -1338,7 +1295,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                 Name(userData.getString("username")),
                 Name(userData.getString("permalink")),
                 Description(if (!userData.isNull("description")) userData.getString("description") else ""),
-                Followers(userData.getInt("followers_count")),
+                Followers(userData.getInt("followers_count").toLong()),
                 fetchUserPlaylists(Link("$apiURI/users/$id")),
                 Link(userData.getString("permalink_url")),
             )
@@ -1445,7 +1402,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                     Link(artistData.getString("permalink_url"), artistData.getInt("id").toString()),
                     TrackList(topTracks),
                     Artists(relatedArtists),
-                    followers = Followers(artistData.getInt("followers_count")),
+                    followers = Followers(artistData.getInt("followers_count").toLong()),
                     description =
                         Description(
                             if (!artistData.isNull("description")) {

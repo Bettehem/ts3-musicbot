@@ -20,6 +20,7 @@ import ts3musicbot.util.Link
 import ts3musicbot.util.LinkType
 import ts3musicbot.util.Name
 import ts3musicbot.util.Playability
+import ts3musicbot.util.Playable
 import ts3musicbot.util.PostData
 import ts3musicbot.util.ReleaseDate
 import ts3musicbot.util.RequestMethod
@@ -38,7 +39,8 @@ import java.time.format.DateTimeFormatter
 
 class Bandcamp : Service(ServiceType.BANDCAMP) {
     private val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss z")
-    val supportedSearchTypes =
+
+    override fun getSupportedSearchTypes() =
         listOf(
             LinkType.TRACK,
             LinkType.ALBUM,
@@ -91,58 +93,65 @@ class Bandcamp : Service(ServiceType.BANDCAMP) {
                                     LinkType.ARTIST -> {
                                         val artistName = data["heading"]!!.substringAfter("\">").substringBefore("</a>").trim()
                                         val genres = data["genre"]!!.substringAfter("genre: ")
-                                        val artistLink = data["itemurl"]!!.substringAfter("\">").substringBefore("</a>")
-                                        SearchResult(
-                                            "Artist:    \t\t\t$artistName\n" +
-                                                if (genres.isNotEmpty()) {
-                                                    "Genres:    \t\t$genres\n"
-                                                } else {
-                                                    ""
-                                                } +
-                                                "Link:      \t\t\t$artistLink\n",
-                                            Link(artistLink),
-                                        )
+                                        val artistLink = Link(data["itemurl"]!!.substringAfter("\">").substringBefore("</a>"))
+                                        val artist =
+                                            Artist(
+                                                Name(artistName),
+                                                artistLink,
+                                                genres = Genres(listOf(genres)),
+                                            )
+                                        SearchResult(artist, artist.link)
                                     }
 
                                     LinkType.ALBUM -> {
-                                        val artistName = data["subhead"]!!.substringAfter("by ").trim()
+                                        val artist =
+                                            Artist(
+                                                Name(data["subhead"]!!.substringAfter("by ").trim()),
+                                            )
                                         val albumName = data["heading"]!!.substringAfter("\">").substringBefore("</a>").trim()
-                                        val albumLink = data["itemurl"]!!.substringAfter("\">").substringBefore("</a>")
-                                        SearchResult(
-                                            "Artist: \t\t$artistName\n" +
-                                                "Album:  \t$albumName\n" +
-                                                "Link:   \t\t$albumLink\n",
-                                            Link(albumLink),
-                                        )
+                                        val albumLink = Link(data["itemurl"]!!.substringAfter("\">").substringBefore("</a>"))
+                                        val album =
+                                            Album(
+                                                Name(albumName),
+                                                Artists(listOf(artist)),
+                                                link = albumLink,
+                                            )
+                                        SearchResult(album, album.link)
                                     }
 
                                     LinkType.TRACK -> {
-                                        val artistName =
-                                            data["subhead"]!!
-                                                .substringAfter("by ")
-                                                .trim()
-                                                .substringAfter("by ")
+                                        val album =
+                                            Album(
+                                                Name(
+                                                    data["subhead"]!!
+                                                        .substringAfter("from ")
+                                                        .substringBefore("\n") + "\n",
+                                                ),
+                                            )
+                                        val artist =
+                                            Artist(
+                                                Name(
+                                                    data["subhead"]!!
+                                                        .substringAfter("by ")
+                                                        .trim()
+                                                        .substringAfter("by "),
+                                                ),
+                                            )
                                         val trackName = data["heading"]!!.substringAfter("\">").substringBefore("</a>").trim()
                                         val trackLink = data["itemurl"]!!.substringAfter("\">").substringBefore("</a>")
-                                        SearchResult(
-                                            "Artist: \t\t$artistName\n" +
-                                                if (data["subhead"]!!.contains("^.*from .+".toRegex())) {
-                                                    "Album:  \t" +
-                                                        data["subhead"]!!
-                                                            .substringAfter("from ")
-                                                            .substringBefore("\n") + "\n"
-                                                } else {
-                                                    ""
-                                                } +
-                                                "Title:  \t\t$trackName\n" +
-                                                "Link:   \t\t$trackLink\n",
-                                            Link(trackLink),
-                                        )
+                                        val track =
+                                            Track(
+                                                album,
+                                                Artists(listOf(artist)),
+                                                Name(trackName),
+                                                Link(trackLink),
+                                            )
+                                        SearchResult(track, track.link)
                                     }
-                                    else -> SearchResult("", Link())
+                                    else -> SearchResult(Playable(), Link())
                                 }
                             } else {
-                                SearchResult("", Link())
+                                SearchResult(Playable(), Link())
                             }
                         }
                 SearchResults(

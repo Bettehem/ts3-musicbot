@@ -48,7 +48,7 @@ class YouTube(customApiKey: String = "") : Service(ServiceType.YOUTUBE) {
     private val apiKey1 = customApiKey.ifEmpty { keys[0] }
     private val apiKey2 = keys[1]
 
-    val supportedSearchTypes =
+    override fun getSupportedSearchTypes() =
         listOf(
             LinkType.TRACK,
             LinkType.VIDEO,
@@ -672,7 +672,7 @@ class YouTube(customApiKey: String = "") : Service(ServiceType.YOUTUBE) {
                                     Name(channelJSON.getJSONObject("snippet").getString("title")),
                                     Name(channelJSON.getString("id")),
                                     Description(channelJSON.getJSONObject("snippet").getString("description")),
-                                    Followers(channelJSON.getJSONObject("statistics").getInt("subscriberCount")),
+                                    Followers(channelJSON.getJSONObject("statistics").getLong("subscriberCount")),
                                     fetchChannelPlaylists(link),
                                     link,
                                 )
@@ -769,15 +769,20 @@ class YouTube(customApiKey: String = "") : Service(ServiceType.YOUTUBE) {
                                             decode(resultData.getJSONObject("snippet").getString("channelTitle"))
                                         val videoTitle = decode(resultData.getJSONObject("snippet").getString("title"))
                                         val videoId = resultData.getJSONObject("id").getString("videoId")
-                                        val videoLink = "https://youtu.be/$videoId"
+                                        val videoLink = Link("https://youtu.be/$videoId")
 
                                         if (searchType.type.contains("query|track|$type".toRegex())) {
                                             searchResults.add(
                                                 SearchResult(
-                                                    "Uploader: $videoUploader\n" +
-                                                        "Title:    $videoTitle\n" +
-                                                        "Link:     $videoLink\n",
-                                                    Link(videoLink),
+                                                    Track(
+                                                        artists =
+                                                            Artists(
+                                                                listOf(Artist(Name(videoUploader))),
+                                                            ),
+                                                        title = Name(videoTitle),
+                                                        link = videoLink,
+                                                    ),
+                                                    videoLink,
                                                 ),
                                             )
                                         }
@@ -785,20 +790,33 @@ class YouTube(customApiKey: String = "") : Service(ServiceType.YOUTUBE) {
 
                                     "playlist" -> {
                                         val listTitle = decode(resultData.getJSONObject("snippet").getString("title"))
-                                        val listCreator = resultData.getJSONObject("snippet").getString("channelTitle")
-                                        val listLink =
-                                            "https://www.youtube.com/playlist?list=${
-                                                resultData.getJSONObject("id")
-                                                    .getString("playlistId")
-                                            }"
+                                        val channelId = resultData.getJSONObject("snippet").getString("channelId")
+                                        val channelLink = Link("https://www.youtube.com/channel/$channelId")
+                                        val listCreator =
+                                            User(
+                                                Name(resultData.getJSONObject("snippet").getString("channelTitle")),
+                                                userName = Name(channelId),
+                                                link = channelLink,
+                                            )
 
+                                        val listLink =
+                                            Link(
+                                                "https://www.youtube.com/playlist?list=${
+                                                    resultData.getJSONObject("id")
+                                                        .getString("playlistId")
+                                                }",
+                                            )
+                                        val listDescription = Description(resultData.getJSONObject("snippet").getString("description"))
                                         if (searchType.type == type) {
                                             searchResults.add(
                                                 SearchResult(
-                                                    "Playlist: $listTitle\n" +
-                                                        "Creator:    $listCreator\n" +
-                                                        "Link:     $listLink\n",
-                                                    Link(listLink),
+                                                    Playlist(
+                                                        Name(listTitle),
+                                                        listCreator,
+                                                        listDescription,
+                                                        link = listLink,
+                                                    ),
+                                                    listLink,
                                                 ),
                                             )
                                         }
@@ -807,17 +825,19 @@ class YouTube(customApiKey: String = "") : Service(ServiceType.YOUTUBE) {
                                     "channel" -> {
                                         val channelTitle =
                                             decode(resultData.getJSONObject("snippet").getString("title"))
-                                        val channelLink =
-                                            "https://www.youtube.com/channel/${
-                                                resultData.getJSONObject("id").getString("channelId")
-                                            }"
-
+                                        val channelId = resultData.getJSONObject("snippet").getString("channelId")
+                                        val channelLink = Link("https://www.youtube.com/channel/$channelId")
+                                        val channelDescription = Description(resultData.getJSONObject("snippet").getString("description"))
                                         if (searchType.type == type) {
                                             searchResults.add(
                                                 SearchResult(
-                                                    "Channel: $channelTitle\n" +
-                                                        "Link:    $channelLink\n",
-                                                    Link(channelLink),
+                                                    User(
+                                                        Name(channelTitle),
+                                                        Name(channelId),
+                                                        channelDescription,
+                                                        link = channelLink,
+                                                    ),
+                                                    channelLink,
                                                 ),
                                             )
                                         }

@@ -37,12 +37,16 @@ enum class ServiceType {
     }
 }
 
-val SERVICE_PRIORITY: List<ServiceType> = listOf(
-    ServiceType.SPOTIFY, ServiceType.BANDCAMP,
-    ServiceType.SOUNDCLOUD, ServiceType.YOUTUBE
-)
+val SERVICE_PRIORITY: List<ServiceType> =
+    listOf(
+        ServiceType.SPOTIFY,
+        ServiceType.BANDCAMP,
+        ServiceType.SOUNDCLOUD,
+        ServiceType.YOUTUBE,
+    )
+
 open class Service(
-    val serviceType: ServiceType = ServiceType.OTHER
+    val serviceType: ServiceType = ServiceType.OTHER,
 ) {
     protected open fun encode(text: String) =
         runBlocking {
@@ -72,40 +76,67 @@ open class Service(
                 .replace("&#x2F;", "/")
         }
 
-    open suspend fun fetchAlbum(albumLink: Link) = Album()
+    open suspend fun fetchAlbum(albumLink: Link): Album {
+        println("fetchAlbum is not implemented for " + albumLink.serviceType())
+        return Album()
+    }
 
     open suspend fun fetchAlbumTracks(
         albumLink: Link,
         limit: Int = 0,
-    ) = TrackList()
+    ): TrackList {
+        println("fetchAlbumTracks is not implemented for " + albumLink.serviceType())
+        return TrackList()
+    }
 
     open suspend fun fetchArtist(
         artistLink: Link,
         fetchRecommendations: Boolean = true,
-    ) = Artist()
+    ): Artist {
+        println("fetchArtist is not implemented for " + artistLink.serviceType())
+        return Artist()
+    }
 
     open suspend fun fetchPlaylist(
         playlistLink: Link,
         shouldFetchTracks: Boolean = false,
-    ) = Playlist()
+    ): Playlist {
+        println("fetchPlaylist is not implemented for " + playlistLink.serviceType())
+        return Playlist()
+    }
 
     open suspend fun fetchPlaylistTracks(
         playlistLink: Link,
         limit: Int = 0,
-    ) = TrackList()
+    ): TrackList {
+        println("fetchPlaylistTracks is not implemented for " + playlistLink.serviceType())
+        return TrackList()
+    }
 
-    open suspend fun fetchTrack(trackLink: Link) = Track()
+    open suspend fun fetchTrack(trackLink: Link): Track {
+        println("fetchTrack is not implemented for " + trackLink.serviceType())
+        return Track()
+    }
 
-    open suspend fun fetchUser(userLink: Link) = User()
+    open suspend fun fetchUser(userLink: Link): User {
+        println("fetchUser is not implemented for " + userLink.serviceType())
+        return User()
+    }
 
-    open suspend fun resolveType(link: Link) = LinkType.OTHER
+    open suspend fun resolveType(link: Link): LinkType {
+        println("resolveType is not implemented for " + link.serviceType())
+        return LinkType.OTHER
+    }
 
     open suspend fun search(
         searchType: SearchType,
         searchQuery: SearchQuery,
         resultLimit: Int = 10,
         encodeQuery: Boolean = true,
-    ) = SearchResults(
-        emptyList(),
-    )
+    ): SearchResults {
+        println("search is not implemented for " + serviceType)
+        return SearchResults(emptyList())
+    }
+
+    open fun getSupportedSearchTypes() = emptyList<LinkType>()
 }
