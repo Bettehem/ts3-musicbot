@@ -594,16 +594,18 @@ class ChatReader(
 
                                                 val trackAdded =
                                                     if (track.playability.isPlayable) {
-                                                        println("service used for " + track.link + ": $service")
+                                                        println("Service used for " + track.link + ": $service")
                                                         if (service is SongLink || service is AppleMusic) {
-                                                            // fetch track according to priority and add it to the queue
+                                                            // get the track link according to priority and add it to the queue
                                                             var added = false
                                                             for (srv in SERVICE_PRIORITY) {
+                                                                println("Checking if the track is also available on $srv.")
                                                                 var shouldBreak = false
                                                                 for (lnk in track.link.alternativeLinks) {
                                                                     if (srv == lnk.serviceType()) {
-                                                                        val newTrack = track
-                                                                        newTrack.link = lnk
+                                                                        println("Link found: $lnk")
+                                                                        val newTrack = lnk.getService().fetchTrack(lnk)
+                                                                        println("Adding track to queue:\n$newTrack")
                                                                         added = songQueue.addToQueue(newTrack, customPosition)
                                                                         shouldBreak = true
                                                                         break
