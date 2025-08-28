@@ -1751,11 +1751,10 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                         episodes.add(
                             Episode(
                                 Name(item.getString("name")),
-                                Name(item.getJSONObject("show").getString("name")),
-                                Description(item.getString("description")),
-                                getReleaseDate(item.getString("release_date_precision"), item.getString("release_date")),
-                                Link(item.getJSONObject("external_urls").getString("spotify")),
-                                Playability(item.getBoolean("is_playable")),
+                                description = Description(item.getString("description")),
+                                releaseDate = getReleaseDate(item.getString("release_date_precision"), item.getString("release_date")),
+                                link = Link(item.getJSONObject("external_urls").getString("spotify")),
+                                playability = Playability(item.getBoolean("is_playable")),
                             ),
                         )
                     }
@@ -1774,8 +1773,10 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                                             return@withContext
                                         } catch (e: JSONException) {
                                             // JSON broken, try getting the data again
+                                            println(e)
                                             println("Failed JSON:\n${data.data}\n")
-                                            println("Failed to get data from JSON, trying again...")
+                                            println("Failed to get data from JSON")
+                                            return@withContext
                                         }
                                     }
 
@@ -1815,9 +1816,10 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                                 episodeJob.complete()
                                 return@withContext
                             } catch (e: JSONException) {
-                                // JSON broken, try getting the data again
+                                println(e)
                                 println("Failed JSON:\n${episodesData.data}\n")
-                                println("Failed to get data from JSON, trying again...")
+                                println("Failed to get data from JSON")
+                                return@withContext
                             }
                         }
 
@@ -1848,7 +1850,7 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
             return Show(
                 Name(showData.getString("name")),
                 Publisher(Name(showData.getString("publisher"))),
-                getReleaseDate(showData.getString("release_date_precision"), showData.getString("release_date")),
+                episodes.episodes.first().releaseDate,
                 Description(showData.getString("description")),
                 episodes,
                 link = showLink,
@@ -1867,9 +1869,10 @@ class Spotify(private val botSettings: BotSettings) : Service(ServiceType.SPOTIF
                             showJob.complete()
                             return@withContext
                         } catch (e: JSONException) {
-                            // JSON broken, try getting the data again
+                            println(e)
                             println("Failed JSON:\n${showData.data}\n")
-                            println("Failed to get data from JSON, trying again...")
+                            println("Failed to get data from JSON")
+                            return@withContext
                         }
                     }
 
