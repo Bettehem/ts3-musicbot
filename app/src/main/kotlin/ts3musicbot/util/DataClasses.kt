@@ -550,7 +550,9 @@ data class EpisodeList(
 
 data class ReleaseDate(
     val date: LocalDate = LocalDate.now(),
-)
+) {
+    override fun toString() = date.toString()
+}
 
 data class Genres(
     val genres: List<String> = emptyList(),
