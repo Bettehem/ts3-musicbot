@@ -419,7 +419,7 @@ class SongQueue(
             return if (metadata.errorText.isEmpty()) {
                 metadata.ifOutputTextNotEmpty {
                     it.lines()
-                        .first { it.contains("xesam:url") }
+                        .first { it.contains("xesam:url") }.orEmpty()
                         .replace("(^.+\\s+\"?|\"?$)".toRegex(), "")
                 }
             } else {
@@ -949,10 +949,12 @@ class SongQueue(
                                         playerctl(getPlayer(), "position", "$startPosition")
                                         wasPaused = false
                                     }
-                                    CoroutineScope(trackJob + IO).launch {
-                                        trackPositionJob.cancel()
-                                        trackPositionJob = Job()
-                                        startCountingTrackPosition(trackPositionJob)
+                                    synchronized(this) {
+                                        CoroutineScope(trackJob + IO).launch {
+                                            trackPositionJob.cancel()
+                                            trackPositionJob = Job()
+                                            startCountingTrackPosition(trackPositionJob)
+                                        }
                                     }
                                     if (shouldPause) {
                                         pauseTrack()
@@ -962,14 +964,16 @@ class SongQueue(
                                     }
                                 }
                                 if (trackPosition == 0L) {
-                                    CoroutineScope(trackJob + IO).launch {
-                                        if (startAt != 0L) {
-                                            println("Starting playback at position $startPosition.")
-                                            playerctl(getPlayer(), "position", "$startPosition")
+                                    synchronized(this) {
+                                        CoroutineScope(trackJob + IO).launch {
+                                            if (startAt != 0L) {
+                                                println("Starting playback at position $startPosition.")
+                                                playerctl(getPlayer(), "position", "$startPosition")
+                                            }
+                                            trackPositionJob.cancel()
+                                            trackPositionJob = Job()
+                                            startCountingTrackPosition(trackPositionJob)
                                         }
-                                        trackPositionJob.cancel()
-                                        trackPositionJob = Job()
-                                        startCountingTrackPosition(trackPositionJob)
                                     }
                                     listener.onTrackStarted(getPlayer(), track)
                                     delay(2000)
@@ -986,13 +990,17 @@ class SongQueue(
                                         skipTrack()
                                         break@loop
                                     } else if (!wasPaused) {
-                                        trackPositionJob.cancel()
+                                        synchronized(this) {
+                                            trackPositionJob.cancel()
+                                        }
                                         wasPaused = true
                                         listener.onTrackPaused(getPlayer(), track)
                                     }
                                 } else {
                                     if (!wasPaused) {
-                                        trackPositionJob.cancel()
+                                        synchronized(this) {
+                                            trackPositionJob.cancel()
+                                        }
                                         wasPaused = true
                                         listener.onTrackPaused(getPlayer(), track)
                                     }
@@ -1024,7 +1032,9 @@ class SongQueue(
                                     println("Player has stopped")
                                     skipTrack()
                                 } else {
-                                    trackPositionJob.cancel()
+                                    synchronized(this) {
+                                        trackPositionJob.cancel()
+                                    }
                                     val msg = "Unhandled Player Status: ${playerStatus().errorText}"
                                     trackJob.completeExceptionally(Throwable(msg))
                                     println(msg)
@@ -1093,8 +1103,10 @@ class SongQueue(
         }
 
         fun stopTrack() {
-            trackPositionJob.cancel()
-            trackJob.cancel()
+            synchronized(this) {
+                trackPositionJob.cancel()
+                trackJob.cancel()
+            }
             val player = getPlayer()
             // try stopping playback in a loop because sometimes just once doesn't seem to be enough
             while (playerStatus().outputText == "Playing") {
@@ -1108,7 +1120,10 @@ class SongQueue(
         }
 
         fun skipTrack() {
-            trackJob.cancel()
+            synchronized(this) {
+                trackPositionJob.cancel()
+                trackJob.cancel()
+            }
             val player = getPlayer()
             while (playerStatus().outputText == "Playing") {
                 playerctl(player, if (player == "spotify") "pause" else "stop")
