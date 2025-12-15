@@ -1732,6 +1732,7 @@ class SoundCloud : Service(ServiceType.SOUNDCLOUD) {
                                         when (data.get("id")) {
                                             is String -> id = data.getString("id")
                                             is Int -> id = data.getInt("id").toString()
+                                            is Long -> id = data.getLong("id").toString()
                                         }
                                         break
                                     } catch (e: JSONException) {
