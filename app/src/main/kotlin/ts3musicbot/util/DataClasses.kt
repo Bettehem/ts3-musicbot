@@ -142,22 +142,27 @@ data class SearchResult(
     val link: Link,
 ) {
     override fun toString(): String {
-        val searchResult = result
-        searchResult.description =
-            Description(
-                if (result.description.shortText.isNotEmpty()) {
-                    result.description.shortText
-                } else {
-                    if (result.description.text.lines().size <= 5) {
-                        result.description.text
-                    } else {
-                        "WARNING! Very long description! Showing only the first 5 lines:\n" +
-                            result.description.text.lines().subList(0, 5).joinToString("\n")
-                    }
-                },
-            )
-        searchResult.link = link
-        return "$searchResult"
+        return when (result) {
+            is Album -> result.toShortString()
+            else -> {
+                val searchResult = result
+                searchResult.description =
+                    Description(
+                        if (result.description.shortText.isNotEmpty()) {
+                            result.description.shortText
+                        } else {
+                            if (result.description.text.lines().size <= 5) {
+                                result.description.text
+                            } else {
+                                "WARNING! Very long description! Showing only the first 5 lines:\n" +
+                                    result.description.text.lines().subList(0, 5).joinToString("\n")
+                            }
+                        },
+                    )
+                searchResult.link = link
+                "$searchResult"
+            }
+        }
     }
 }
 
@@ -514,6 +519,8 @@ data class Albums(
     fun isEmpty() = albums.isEmpty()
 
     fun isNotEmpty() = albums.isNotEmpty()
+
+    fun ifNotEmpty(fn: (albums: Albums) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
 data class TrackList(
@@ -600,6 +607,8 @@ data class Genres(
     fun isEmpty() = genres.isEmpty()
 
     fun isNotEmpty() = genres.isNotEmpty()
+
+    fun ifNotEmpty(fn: (genres: Genres) -> Any) = if (isNotEmpty()) fn(this) else this
 }
 
 data class Artist(
@@ -614,35 +623,21 @@ data class Artist(
 ) : Playable() {
     override fun toString() =
         "${if (link.serviceType() == ServiceType.YOUTUBE) "Uploader:" else "Artist:\t\t"}     \t\t$name\n" +
-            "Link:        \t\t\t\t$link\n" +
-            if (description.isNotEmpty()) {
-                "Description:\n$description\n"
-            } else {
-                ""
-            } +
-            if (genres.genres.isNotEmpty()) {
-                "Genres:  \t\t\t\t$genres\n"
-            } else {
-                ""
-            } +
-            if (topTracks.trackList.isNotEmpty()) {
-                "Top tracks:\n$topTracks\n"
-            } else {
-                ""
-            } +
-            if (albums.isNotEmpty()) {
+            link.ifNotEmpty { "Link:        \t\t\t\t$it\n" } +
+            description.ifNotEmpty { "Description:\n$it\n" } +
+            genres.ifNotEmpty { "Genres:  \t\t\t\t$it\n" } +
+            topTracks.ifNotEmpty { "Top tracks:\n$it\n" } +
+            albums.ifNotEmpty {
                 "Albums:\n${
                     Albums(
-                        albums.albums.subList(
+                        it.albums.subList(
                             0,
-                            if (albums.albums.size >= 10) 9 else albums.albums.lastIndex,
+                            if (it.albums.size >= 10) 9 else it.albums.lastIndex,
                         ),
                     )
                 }\n"
-            } else {
-                ""
             } +
-            if (relatedArtists.artists.isNotEmpty()) "Related artists:\n$relatedArtists" else ""
+            relatedArtists.ifNotEmpty { "Related artists:\n$relatedArtists" }
 }
 
 data class Album(
@@ -655,15 +650,26 @@ data class Album(
 ) : Playable() {
     override fun toString() =
         "" +
-            name.ifNotEmpty { "Album Name:  \t${name.name}\n" } +
+            name.ifNotEmpty { "Album Name:   \t${name.name}\n" } +
             when (link.serviceType()) {
                 ServiceType.YOUTUBE, ServiceType.SOUNDCLOUD -> "Upload Date:  \t\t${releaseDate.date}\n"
                 ServiceType.SPOTIFY -> "Release:    \t\t\t${releaseDate.date}\n"
                 else -> "Date:      \t\t\t\t${releaseDate.date}\n"
             } +
-            link.ifNotEmpty { "Album Link:  \t\t$link\n" } +
+            link.ifNotEmpty { "Album Link:   \t\t$link\n" } +
             artists.ifNotEmpty { "Album Artists:\n$artists" } +
             tracks.ifNotEmpty { "Tracks:\n$tracks" }
+
+    fun toShortString() =
+        "" +
+            name.ifNotEmpty { "Album Name:   \t${name.name}\n" } +
+            when (link.serviceType()) {
+                ServiceType.YOUTUBE, ServiceType.SOUNDCLOUD -> "Upload Date:  \t\t${releaseDate.date}\n"
+                ServiceType.SPOTIFY -> "Release:    \t\t\t${releaseDate.date}\n"
+                else -> "Date:      \t\t\t\t${releaseDate.date}\n"
+            } +
+            link.ifNotEmpty { "Album Link:   \t\t$link\n" } +
+            artists.ifNotEmpty { "Album Artists:\n$artists" }
 
     fun isEmpty() = name.isEmpty() && artists.isEmpty() && tracks.isEmpty() && link.isEmpty() && genres.isEmpty()
 
