@@ -13,6 +13,7 @@ import ts3musicbot.util.Link
 import ts3musicbot.util.LinkType
 import ts3musicbot.util.Name
 import ts3musicbot.util.Playability
+import ts3musicbot.util.Playable
 import ts3musicbot.util.SearchQuery
 import ts3musicbot.util.SearchResult
 import ts3musicbot.util.SearchResults
@@ -46,8 +47,24 @@ class SongLink(
 
         // in case the user provides a link as the search term, call fetchLink instead of doing a regular search
         if (searchQuery.query.contains("^https?://\\S+".toRegex())) {
-            val link = fetchLink(Link(searchQuery.query))
-            songLinkResults.add(SearchResult(fetchTrack(link), link))
+            val queryLink = Link(searchQuery.query)
+            val songLink = fetchLink(queryLink)
+            val service =
+                when (queryLink.serviceType()) {
+                    ServiceType.SPOTIFY -> spotify
+                    ServiceType.SOUNDCLOUD -> soundCloud
+                    ServiceType.BANDCAMP -> bandcamp
+                    ServiceType.YOUTUBE -> youTube
+                    else -> Service()
+                }
+            val playable =
+                when (queryLink.linkType(service)) {
+                    LinkType.TRACK -> fetchTrack(songLink)
+                    LinkType.ALBUM -> fetchAlbum(songLink)
+                    // LinkType.SHOW -> fetchShow(link)
+                    else -> Playable()
+                }
+            songLinkResults.add(SearchResult(playable, songLink))
         } else {
             // do a regular search
             // the song.link website uses apple music's search for its search feature, so let's use that here too
