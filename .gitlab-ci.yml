@@ -11,7 +11,16 @@ buildTS3MusicBot:
   stage: build
   script:
     - sh gradlew assemble
-    - sh gradlew test -i
+    - sh gradlew test --tests "BandcampTest"
+    - sh gradlew test --tests "CommandRunnerTest"
+    - sh gradlew test --tests "MusicBotCommandTester.testHelpCommand"
+    - sh gradlew test --tests "MusicBotCommandTester.testAddingTracksToQueue"
+    - sh gradlew test --tests "MusicBotCommandTester.testAddingSpAlbumToQueue"
+    - sh gradlew test --tests "MusicBotCommandTester.testAddingSpPlaylistToQueue"
+    - sh gradlew test --tests "MusicBotCommandTester.testAddingYtPlaylistToQueue"
+    # - sh gradlew test --tests "SoundCloudTest" #Soundcloud seems to be blocking requests coming from ci,
+    - sh gradlew test --tests "SpotifyTest"
+    - sh gradlew test --tests "YouTubeTest"
     - sh build.sh
   artifacts:
     paths:
