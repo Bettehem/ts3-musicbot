@@ -33,7 +33,7 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
     private val soundCloudPlaylistLink = Link("https://soundcloud.com/bettehem/sets/jeesjees")
 
     // TODO: figure out why trying to fetch the data for this track results in error 429 when running the tests in ci but not locally
-    // private val bandcampLink = Link("https://visceraandvapor.bandcamp.com/track/side-b-3")
+    private val bandcampLink = Link("https://visceraandvapor.bandcamp.com/track/side-b-3")
     private val ytKey = "gCBlkehNVeC9lRwpEVZZVT1FlMJ9FR4FWakhVVkdje0EVLTNWT2ZTW"
     private val botSettings =
         BotSettings(
@@ -115,45 +115,77 @@ class MusicBotCommandTester : ChatUpdateListener, CommandListener {
         }
     }
 
-    @Test
-    fun testAddingTrackToQueue() {
+    fun addTrackToQueue(link: Link) {
         runBlocking(IO) {
-            val links = listOf(spotifyLink, youTubeLink, soundCloudLink)
             lateinit var track: Track
-            for (link in links) {
-                commandCompleted = Pair("", false)
-                runCommand(
-                    chatReader,
-                    "%queue-clear; %queue-add $link",
-                    commandListener =
-                        object : CommandListener {
-                            override fun onCommandExecuted(
-                                command: String,
-                                output: String,
-                                extra: Any?,
-                            ) {
-                                if (command.startsWith("%queue-add")) {
-                                    if (extra is Track) {
-                                        track = extra
-                                        commandCompleted = Pair(command.substringBefore(" "), true)
-                                    }
-                                }
+            commandCompleted = Pair("", false)
+            runCommand(
+                chatReader,
+                "%queue-clear; %queue-add $link",
+                commandListener =
+                object : CommandListener {
+                    override fun onCommandExecuted(
+                        command: String,
+                        output: String,
+                        extra: Any?,
+                    ) {
+                        if (command.startsWith("%queue-add")) {
+                            if (extra is Track) {
+                                track = extra
+                                commandCompleted = Pair(command.substringBefore(" "), true)
                             }
+                        }
+                    }
 
-                            override fun onCommandProgress(
-                                command: String,
-                                output: String,
-                                extra: Any?,
-                            ) {}
-                        },
-                )
-                while (commandCompleted.first != "%queue-add" && !commandCompleted.second) {
-                    print("Waiting for command to complete.\r")
-                    delay(500)
-                }
-                println()
-                assertEquals(link.link, track.link.link)
+                    override fun onCommandProgress(
+                        command: String,
+                        output: String,
+                        extra: Any?,
+                    ) {}
+                },
+            )
+            while (commandCompleted.first != "%queue-add" && !commandCompleted.second) {
+                print("Waiting for command to complete.\r")
+                delay(500)
             }
+            println()
+            assertEquals(link.link, track.link.link)
+        }
+    }
+
+    /**
+     * Adds a Spotify and YouTube track to the queue
+     */
+    @Test
+    fun testAddingTracksToQueue() {
+        val links = listOf(spotifyLink, youTubeLink)
+        lateinit var track: Track
+        for (link in links) {
+            addTrackToQueue(link)
+        }
+    }
+
+    /**
+     * Adds a SoundCloud track to the queue
+     */
+    @Test
+    fun testAddingScTrackToQueue() {
+        val links = listOf(soundCloudLink)
+        lateinit var track: Track
+        for (link in links) {
+            addTrackToQueue(link)
+        }
+    }
+
+    /**
+     * Adds a Bandcamp track to the queue
+     */
+    @Test
+    fun testAddingBcTrackToQueue() {
+        val links = listOf(bandcampLink)
+        lateinit var track: Track
+        for (link in links) {
+            addTrackToQueue(link)
         }
     }
 
